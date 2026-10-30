@@ -4,6 +4,7 @@ import { Realtime } from "ably";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
+import { useI18n, type TodoMessages } from "@/i18n";
 class SessionExpired extends Error {}
 class LinkUnavailable extends Error {}
 class NoAccess extends Error {}
@@ -12,16 +13,17 @@ import {
   type Command,
   type WorkspaceData,
 } from "@evido/todo-core/workspace";
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
+type ErrorTexts = TodoMessages["workspace"]["errors"];
+async function request<T>(m: ErrorTexts, url: string, options?: RequestInit): Promise<T> {
   const response = await apiFetch(url, { ...options, cache: "no-store" });
   if (response.status === 401) {
-    throw new SessionExpired("Log opnieuw in.");
+    throw new SessionExpired(m.sessionExpired);
   }
-  if (response.status === 404 && url.startsWith("/api/gedeeld/")) throw new LinkUnavailable("Deze link is niet meer beschikbaar of geeft geen bewerkrechten.");
-  if (response.status === 404 && url.startsWith("/api/workspace?") && !options?.method) throw new NoAccess("Je hebt geen toegang meer tot deze workspace.");
+  if (response.status === 404 && url.startsWith("/api/shared/")) throw new LinkUnavailable(m.linkUnavailable);
+  if (response.status === 404 && url.startsWith("/api/workspace?") && !options?.method) throw new NoAccess(m.noAccess);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(body?.error ?? "Geen verbinding. Probeer het opnieuw.");
+    throw new Error(body?.error ?? m.noConnection);
   }
   return response.json();
 }
@@ -34,39 +36,58 @@ export function useWorkspace(
 ) {
   const client = useQueryClient();
   const navigate = useNavigate();
+  const { t: { workspace: { errors: m } } } = useI18n();
+  // Read inside the realtime effect without reconnecting on a language change.
+  const realtimeError = useRef(m.realtimeUnavailable);
+  useEffect(() => {
+    realtimeError.current = m.realtimeUnavailable;
+  }, [m.realtimeUnavailable]);
   const [connection, setConnection] = useState(
     realtimeEnabled ? "connecting" : "polling",
   );
   const [online, setOnline] = useState(true);
-  const lock = useRef(false);
   const key = shareToken ? ["shared-workspace", shareToken] : ["workspace", userId, workspaceId];
   const endpoint = shareToken
-    ? `/api/gedeeld/${shareToken}`
+    ? `/api/shared/${shareToken}`
     : `/api/workspace?workspaceId=${encodeURIComponent(workspaceId)}`;
   const query = useQuery({
     queryKey: key,
-    queryFn: ({ signal }) => request<WorkspaceData>(endpoint, { signal }),
+    queryFn: ({ signal }) => request<WorkspaceData>(m, endpoint, { signal }),
     initialData,
     refetchInterval: shareToken ? 5000 : 60000,
     retry: (count, error) =>
       !(error instanceof LinkUnavailable || error instanceof NoAccess) && count < 2,
     refetchOnWindowFocus: "always",
   });
+  // Every change is shown immediately and saved in the background. Changes to
+  // the same workspace share a scope, so they reach the server one by one and in
+  // order (e.g. a new list is created before tasks are added to it).
+  const mutationKey = ["workspace-command", ...key];
   const mutation = useMutation({
+    mutationKey,
+    scope: { id: JSON.stringify(key) },
     mutationFn: (command: Command) =>
-      request(endpoint, {
+      request(m, endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(command),
       }),
     onError: (error) => {
       toast.error(error.message);
-      if (error instanceof SessionExpired) navigate("/inloggen", { replace: true });
+      if (error instanceof SessionExpired) navigate("/login", { replace: true });
     },
     networkMode: "always",
-    onSettled: () => client.invalidateQueries({ queryKey: key }),
+    // Refetch once the queue is empty; earlier refetches would briefly drop
+    // changes that are still waiting to be saved.
+    onSettled: () => {
+      if (client.isMutating({ mutationKey }) <= 1) void client.invalidateQueries({ queryKey: key });
+    },
     retry: false,
   });
+  // Unsaved commands, applied on top of the server data. Tracked locally (not
+  // via the mutation cache) so a change shows up in the same render it is made.
+  const [queued, setQueued] = useState<{ seq: number; command: Command }[]>([]);
+  const seq = useRef(0);
   useEffect(() => {
     // Removed from this workspace: reload the list so the switcher falls back.
     if (query.error instanceof NoAccess) {
@@ -75,7 +96,7 @@ export function useWorkspace(
     }
   }, [query.error, client, userId]);
   useEffect(() => {
-    if (query.error instanceof SessionExpired) navigate("/inloggen", { replace: true });
+    if (query.error instanceof SessionExpired) navigate("/login", { replace: true });
   }, [query.error, navigate]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -93,7 +114,7 @@ export function useWorkspace(
       authCallback: (_params, callback) => {
         apiFetch("/api/realtime")
           .then(async (response) => {
-            if (!response.ok) throw new Error("Realtime niet beschikbaar.");
+            if (!response.ok) throw new Error(realtimeError.current);
             callback(null, await response.json());
           })
           .catch((error: Error) => callback(error.message, null));
@@ -125,29 +146,31 @@ export function useWorkspace(
     };
   }, [client, userId, realtimeEnabled]);
   async function run(command: Command) {
-    if (lock.current) return false;
     if (!navigator.onLine) {
-      toast.error("Je bent offline. Maak verbinding voordat je iets wijzigt.");
+      toast.error(m.offline);
       return false;
     }
-    lock.current = true;
+    const entry = { seq: ++seq.current, command };
+    const unqueue = () => setQueued((current) => current.filter((item) => item !== entry));
+    setQueued((current) => [...current, entry]);
     try {
       await mutation.mutateAsync(command);
+      // Saved: keep showing it by writing it into the cached server data before
+      // it leaves the queue, so it never flickers back while the refetch runs.
+      // Applying a command twice for a moment is harmless (they are idempotent).
+      client.setQueryData<WorkspaceData>(key, (current) => current && optimisticUpdate(current, command));
+      setTimeout(unqueue, 0);
       return true;
     } catch {
+      unqueue();
       return false;
-    } finally {
-      lock.current = false;
     }
   }
-  const data =
-    mutation.isPending && mutation.variables
-      ? optimisticUpdate(query.data, mutation.variables)
-      : query.data;
+  const data = queued.reduce((state, { command }) => optimisticUpdate(state, command), query.data);
   return {
     data,
     run,
-    pending: mutation.isPending,
+    pending: queued.length > 0,
     online,
     connection,
     error: query.isError,

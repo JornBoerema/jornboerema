@@ -4,6 +4,7 @@ import { mcp } from "@better-auth/mcp"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
 import { getDb, Prisma } from "@evido/db"
 import { authEmails, queueEmail } from "@evido/email"
+import { pickLanguage } from "@evido/i18n"
 
 export const MCP_SCOPES = [
   "openid",
@@ -82,8 +83,8 @@ function createAuth() {
     plugins: [
       jwt(),
       mcp({
-        loginPage: `${authUiUrl}/inloggen`,
-        consentPage: `${authUiUrl}/koppelen`,
+        loginPage: `${authUiUrl}/login`,
+        consentPage: `${authUiUrl}/connect`,
         resource: `${baseURL}/mcp`,
         scopes: MCP_SCOPES,
         allowDynamicClientRegistration: true,
@@ -101,15 +102,20 @@ function createAuth() {
       maxPasswordLength: 128,
       requireEmailVerification: true,
       revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user, url }) =>
-        queueEmail(authEmails.resetPassword(user.email, url)),
+      // The web apps send Accept-Language with the chosen UI language.
+      sendResetPassword: async ({ user, url }, request) =>
+        queueEmail(
+          authEmails.resetPassword(user.email, url, pickLanguage(request?.headers.get("accept-language")))
+        ),
     },
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: true,
       autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url }) =>
-        queueEmail(authEmails.verify(user.email, url)),
+      sendVerificationEmail: async ({ user, url }, request) =>
+        queueEmail(
+          authEmails.verify(user.email, url, pickLanguage(request?.headers.get("accept-language")))
+        ),
     },
     rateLimit: {
       enabled: true,

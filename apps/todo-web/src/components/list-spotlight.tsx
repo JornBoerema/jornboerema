@@ -3,11 +3,13 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@evido/ui
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@evido/ui/components/command";
 import { Note, Home, ListTodo } from "@/components/icons";
 import type { TodoList } from "@evido/todo-core/workspace";
+import { useI18n } from "@/i18n";
 
-const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("nl");
+const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
 export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
   lists: TodoList[]; selectedId?: string; onSelect: (id: string) => void; onOverview: () => void;
 }) {
+  const { t: { workspace: { spotlight: t } } } = useI18n();
   const [open, setOpen] = useState(false);
   const previousFocus = useRef<HTMLElement | null>(null);
   const navigating = useRef(false);
@@ -36,31 +38,31 @@ export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
       event.preventDefault();
       const previous = previousFocus.current;
       if (!navigating.current && previous?.isConnected && !previous.closest('[inert]')) previous.focus();
-      else document.getElementById("taken")?.focus({ preventScroll: true });
+      else document.getElementById("tasks")?.focus({ preventScroll: true });
       navigating.current = false;
     }}>
-      <DialogTitle className="sr-only">Ga naar een lijst</DialogTitle>
-      <DialogDescription className="sr-only">Zoek een lijst. Gebruik de pijltjestoetsen om te kiezen en Enter om te openen.</DialogDescription>
+      <DialogTitle className="sr-only">{t.title}</DialogTitle>
+      <DialogDescription className="sr-only">{t.description}</DialogDescription>
       <Command loop filter={(_value, search, keywords) => normalize(search).trim().split(/\s+/).every((word) => normalize((keywords ?? []).join(" ")).includes(word)) ? 1 : 0}>
-        <CommandInput aria-label="Zoek een lijst" placeholder="Zoek een lijst…" autoComplete="off" autoCorrect="off" spellCheck={false} />
-        <CommandList aria-label="Lijsten">
-          <CommandEmpty>Geen lijsten gevonden. Probeer een andere naam.</CommandEmpty>
+        <CommandInput aria-label={t.search} placeholder={t.placeholder} autoComplete="off" autoCorrect="off" spellCheck={false} />
+        <CommandList aria-label={t.results}>
+          <CommandEmpty>{t.empty}</CommandEmpty>
           <CommandGroup>
-            <CommandItem value="overview" keywords={["Overzicht", "Dashboard", "Home"]} data-checked={!selectedId} onSelect={() => choose()}><Home /><span>Overzicht</span></CommandItem>
+            <CommandItem value="overview" keywords={t.overviewKeywords.split(" ")} data-checked={!selectedId} onSelect={() => choose()}><Home /><span>{t.overview}</span></CommandItem>
           </CommandGroup>
           {(["todo", "note"] as const).map((kind) => {
             const matches = lists.filter((list) => (list.kind ?? "todo") === kind);
             const Icon = kind === "note" ? Note : ListTodo;
-            return matches.length > 0 && <CommandGroup key={kind} heading={kind === "note" ? "Notities" : "Takenlijsten"}>
-              {matches.map((list) => <CommandItem key={list.id} value={list.id} keywords={[list.name, kind === "note" ? "notities" : "taken"]} data-checked={list.id === selectedId} onSelect={() => choose(list.id)}>
+            return matches.length > 0 && <CommandGroup key={kind} heading={kind === "note" ? t.notes : t.taskLists}>
+              {matches.map((list) => <CommandItem key={list.id} value={list.id} keywords={[list.name, kind === "note" ? t.notesKeyword : t.tasksKeyword]} data-checked={list.id === selectedId} onSelect={() => choose(list.id)}>
                 <Icon /><span className="spotlight-name">{list.name}</span>
-                {list.id === selectedId && <span className="sr-only">Huidige lijst</span>}
+                {list.id === selectedId && <span className="sr-only">{t.current}</span>}
               </CommandItem>)}
             </CommandGroup>;
           })}
         </CommandList>
       </Command>
-      <p className="spotlight-help"><span>↑ ↓ kiezen</span><span>↵ openen</span><span>esc sluiten</span></p>
+      <p className="spotlight-help"><span>{t.choose}</span><span>{t.open}</span><span>{t.close}</span></p>
     </DialogContent>
   </Dialog>;
 }

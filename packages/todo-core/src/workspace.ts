@@ -17,12 +17,13 @@ export type Todo = {
   createdAt: string;
 };
 export type WorkspaceData = { lists: TodoList[]; todos: Todo[] };
+// Validation messages are stable codes; the API translates them (apps/api/src/i18n.ts).
 const id = z.string().uuid();
-const listName = z.string().trim().min(1, "Geef je lijst een naam.").max(80);
-const title = z.string().trim().min(1, "Vul een taak in.").max(500);
+const listName = z.string().trim().min(1, "list_name_required").max(80);
+const title = z.string().trim().min(1, "task_title_required").max(500);
 export const commandSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("update-note"), id, markdown: z.string().max(100000, "Een notitie mag maximaal 100.000 tekens bevatten."), version: z.number().int().min(0) }),
-  z.object({ type: z.literal("create-list"), id, workspaceId: id, name: listName, kind: z.enum(["todo", "note"]).optional(), markdown: z.string().max(100000).optional() }).refine((value) => value.markdown === undefined || value.kind === "note", "Inhoud is alleen beschikbaar voor notities."),
+  z.object({ type: z.literal("update-note"), id, markdown: z.string().max(100000, "note_too_long"), version: z.number().int().min(0) }),
+  z.object({ type: z.literal("create-list"), id, workspaceId: id, name: listName, kind: z.enum(["todo", "note"]).optional(), markdown: z.string().max(100000).optional() }).refine((value) => value.markdown === undefined || value.kind === "note", "content_notes_only"),
   z.object({ type: z.literal("rename-list"), id, name: listName }),
   z.object({ type: z.literal("delete-list"), id }),
   z.object({ type: z.literal("create-todo"), id, listId: id, title }),

@@ -18,6 +18,7 @@
     "@better-auth/prisma-adapter": "^1.7.14",
     "@evido/db": "workspace:*",
     "@evido/email": "workspace:*",
+    "@evido/i18n": "workspace:*",
     "better-auth": "^1.7.14"
   },
   "devDependencies": {

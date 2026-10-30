@@ -12,16 +12,15 @@ export type WorkspaceMembers = {
   invitations: { id: string; email: string; role: WorkspaceRole; expiresAt: string }[];
 };
 
-export const workspaceRoleLabels: Record<WorkspaceRole, string> = {
-  owner: "Eigenaar",
-  admin: "Beheerder",
-  member: "Lid",
+export const roleLabels: Record<"en" | "nl", Record<WorkspaceRole, string>> = {
+  en: { owner: "Owner", admin: "Admin", member: "Member" },
+  nl: { owner: "Eigenaar", admin: "Beheerder", member: "Lid" },
 };
 /** Owners and admins manage members and workspace settings. */
 export const canManageWorkspace = (role: WorkspaceRole) => role !== "member";
 
 const id = z.string().uuid();
-const name = z.string().trim().min(1, "Geef je workspace een naam.").max(60);
+const name = z.string().trim().min(1, "workspace_name_required").max(60);
 // Ownership is never handed out through invitations or role changes.
 const assignableRole = z.enum(["admin", "member"]);
 export const workspaceCommand = z.discriminatedUnion("type", [
@@ -32,7 +31,7 @@ export const workspaceCommand = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("invite"),
     workspaceId: id,
-    email: z.string().trim().toLowerCase().email("Vul een geldig e-mailadres in.").max(254),
+    email: z.string().trim().toLowerCase().email("invalid_email").max(254),
     role: assignableRole,
   }),
   z.object({ type: z.literal("update-member"), workspaceId: id, memberId: id, role: assignableRole }),

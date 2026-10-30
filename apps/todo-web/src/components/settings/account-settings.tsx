@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
 import { webUrl } from "@/lib/api"
+import { useI18n } from "@/i18n"
 import { Mail, Trash2 } from "@/components/icons"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
 import { Button } from "@evido/ui/components/button"
@@ -22,6 +23,8 @@ import {
 
 export function AccountSettings({ user }: { user: { name: string; email: string } }) {
   const navigate = useNavigate()
+  const { t } = useI18n()
+  const s = t.settings
   const client = useQueryClient()
   const [savedName, setSavedName] = useState(user.name)
   const [name, setName] = useState(user.name)
@@ -42,8 +45,8 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
       await work()
     } catch {
       if (action === "delete")
-        setDeleteError("Verwijderen is niet gelukt. Controleer je wachtwoord en probeer het opnieuw.")
-      else toast.error("Dit is niet gelukt. Probeer het opnieuw.")
+        setDeleteError(s.account.deleteFailed)
+      else toast.error(s.common.failed)
     } finally {
       inFlight.current = false
       setBusy(null)
@@ -57,8 +60,8 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
 
   return (
     <>
-      <SettingsSection title="Profiel" description="Zo zien anderen je in gedeelde lijsten.">
-        <SettingsRow title="Naam" htmlFor="profile-name">
+      <SettingsSection title={s.account.profile} description={s.account.profileHelp}>
+        <SettingsRow title={s.account.name} htmlFor="profile-name">
           <form
             className="flex w-full gap-2 sm:w-auto"
             onSubmit={(event) => {
@@ -69,7 +72,7 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
                 if (result.error) throw new Error()
                 setSavedName(nextName)
                 setName(nextName)
-                toast.success("Je profiel is bijgewerkt.")
+                toast.success(s.account.profileSaved)
               })
             }}
           >
@@ -84,24 +87,23 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
               disabled={!!busy}
             />
             <Button type="submit" disabled={!!busy || !nextName || nextName === savedName}>
-              {busy === "name" ? "Opslaan…" : "Opslaan"}
+              {busy === "name" ? s.common.saving : s.common.save}
             </Button>
           </form>
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Inloggen" description="Voor inloggen en e-mails over je account.">
+      <SettingsSection title={s.account.signIn} description={s.account.signInHelp}>
         <SettingsRow
-          title="E-mailadres"
+          title={s.account.email}
           htmlFor="profile-email"
-          description="Je nieuwe adres wordt actief zodra je het via e-mail bevestigt."
+          description={s.account.emailHelp}
           footer={
             emailSent && (
               <Alert role="status">
                 <Mail />
                 <AlertDescription>
-                  Bevestig de wijziging via de e-mail aan {emailSent}. Tot die tijd blijft je
-                  huidige adres actief.
+                  {s.account.emailSent(emailSent)}
                 </AlertDescription>
               </Alert>
             )
@@ -115,7 +117,7 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
               void perform("email", async () => {
                 const result = await authClient.changeEmail({
                   newEmail: nextEmail,
-                  callbackURL: webUrl("/?instellingen=account"),
+                  callbackURL: webUrl("/?settings=account"),
                 })
                 if (result.error) throw new Error()
                 setEmailSent(nextEmail)
@@ -134,15 +136,17 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
               disabled={!!busy}
             />
             <Button type="submit" variant="outline" disabled={!!busy || emailUnchanged}>
-              {busy === "email" ? "Versturen…" : "Wijzigen"}
+              {busy === "email" ? s.common.sending : s.account.change}
             </Button>
           </form>
         </SettingsRow>
         <SettingsRow
-          title="Wachtwoord"
+          title={s.account.password}
           description={
             <>
-              We sturen een herstellink naar <strong className="font-medium text-foreground">{user.email}</strong>.
+              {s.account.passwordHelpBefore}
+              <strong className="font-medium text-foreground">{user.email}</strong>
+              {s.account.passwordHelpAfter}
             </>
           }
           footer={
@@ -150,7 +154,7 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
               <Alert role="status">
                 <Mail />
                 <AlertDescription>
-                  De herstellink is verstuurd. Bekijk je inbox en eventueel je spammap.
+                  {s.account.resetSent}
                 </AlertDescription>
               </Alert>
             )
@@ -163,7 +167,7 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
               void perform("reset", async () => {
                 const result = await authClient.requestPasswordReset({
                   email: user.email,
-                  redirectTo: webUrl("/wachtwoord-herstellen"),
+                  redirectTo: webUrl("/reset-password"),
                 })
                 if (result.error) throw new Error()
                 setResetSent(true)
@@ -171,20 +175,20 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
             }
           >
             <Mail data-icon="inline-start" />
-            {busy === "reset" ? "Versturen…" : resetSent ? "Verstuurd" : "Stuur herstellink"}
+            {busy === "reset" ? s.common.sending : resetSent ? s.account.sent : s.account.sendResetLink}
           </Button>
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Gevarenzone" destructive>
+      <SettingsSection title={s.common.dangerZone} destructive>
         <SettingsRow
-          title="Account verwijderen"
+          title={s.account.deleteAccount}
           destructive
-          description="Je profiel wordt verwijderd, net als workspaces waarvan jij eigenaar bent, met al hun lijsten. Ook voor de andere leden."
+          description={s.account.deleteHelp}
         >
           <Button variant="destructive" disabled={!!busy} onClick={() => setDeleting(true)}>
             <Trash2 data-icon="inline-start" />
-            Verwijderen
+            {s.common.delete}
           </Button>
         </SettingsRow>
       </SettingsSection>
@@ -200,10 +204,9 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Je account definitief verwijderen?</AlertDialogTitle>
+            <AlertDialogTitle>{s.account.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Workspaces waarvan jij eigenaar bent verdwijnen met al hun lijsten, ook voor de andere
-              leden. Workspaces van anderen blijven bestaan. Vul je wachtwoord in om te bevestigen.
+              {s.account.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <form
@@ -216,14 +219,14 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
                 const result = await authClient.deleteUser({ password })
                 if (result.error) throw new Error()
                 client.clear()
-                toast.success("Je account is verwijderd.")
-                navigate("/inloggen", { replace: true })
+                toast.success(s.account.deleted)
+                navigate("/login", { replace: true })
               })
             }}
           >
             <FieldGroup>
               <Field data-invalid={!!deleteError}>
-                <FieldLabel htmlFor="delete-password">Huidig wachtwoord</FieldLabel>
+                <FieldLabel htmlFor="delete-password">{s.account.currentPassword}</FieldLabel>
                 <Input
                   id="delete-password"
                   type="password"
@@ -247,10 +250,10 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
             )}
             <AlertDialogFooter>
               <AlertDialogCancel type="button" disabled={!!busy}>
-                Annuleren
+                {s.common.cancel}
               </AlertDialogCancel>
               <Button type="submit" variant="destructive" disabled={!!busy || !password}>
-                {busy === "delete" ? "Verwijderen…" : "Definitief verwijderen"}
+                {busy === "delete" ? s.account.deleting : s.account.deletePermanently}
               </Button>
             </AlertDialogFooter>
           </form>

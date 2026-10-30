@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, Reorder, useDragControls, useReducedMotion } from "motion/react";
+import { useI18n } from "@/i18n";
 
 export type Move = { id: string; targetId: string; placement: "before" | "after" };
 type Item = { id: string };
@@ -23,6 +24,7 @@ type Props<T extends Item> = {
 
 /** Drag-to-reorder for a vertical list (mouse, long-press on touch, keyboard). */
 export function Sortable<T extends Item>({ items, disabled, onMove, label, children, className, itemClassName = "bg-background", keyboard = "row" }: Props<T>) {
+  const { t: { workspace: { sortable: t } } } = useI18n();
   const [draft, setDraft] = useState<string[] | null>(null);
   const order = useRef<string[] | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -31,7 +33,7 @@ export function Sortable<T extends Item>({ items, disabled, onMove, label, child
     : items;
   async function move(command: Move) {
     const ok = await onMove(command);
-    setAnnouncement(ok ? "Volgorde opgeslagen." : "Verplaatsen is niet gelukt.");
+    setAnnouncement(ok ? t.saved : t.failed);
     order.current = null;
     setDraft(null);
   }
@@ -73,6 +75,7 @@ function SortableItem({ id, label, className, keyboard, disabled, onFinish, onCa
   const interactive = keyboard === "row"
     ? "button, input, [contenteditable], [role=checkbox], a"
     : "input, [contenteditable]";
+  const { t: { workspace: { sortable: t } } } = useI18n();
   const controls = useDragControls();
   const reduced = useReducedMotion();
   const element = useRef<HTMLDivElement>(null);
@@ -106,8 +109,8 @@ function SortableItem({ id, label, className, keyboard, disabled, onFinish, onCa
       className={`relative select-none ${className}`} style={{ cursor: disabled ? undefined : "grab", touchAction: "pan-y" }}
       tabIndex={disabled || keyboard === "content" ? undefined : 0} aria-label={keyboard === "row" ? label : undefined}
       aria-description={disabled ? undefined : keyboard === "row"
-        ? "Sleep om te verplaatsen. Op je telefoon: houd even ingedrukt. Of gebruik de pijltjestoetsen."
-        : "Sleep om te verplaatsen, of gebruik Option of Alt met de pijltjestoetsen."}
+        ? t.rowHelp
+        : t.contentHelp}
       dragListener={false} dragControls={controls}
       onDragStart={() => { dragged.current = true; }}
       onDragEnd={() => { clearTouch(); onFinish(); }}

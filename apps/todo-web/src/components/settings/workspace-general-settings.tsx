@@ -1,10 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import {
-  canManageWorkspace,
-  workspaceRoleLabels,
-  type WorkspaceSummary,
-} from "@evido/todo-core/workspaces"
+import { canManageWorkspace, type WorkspaceSummary } from "@evido/todo-core/workspaces"
+import { useI18n } from "@/i18n"
 import { useWorkspaceCommand } from "@/lib/workspaces"
 import { Trash2 } from "@/components/icons"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
@@ -34,6 +31,8 @@ export function WorkspaceGeneralSettings({
   /** Called after the user deleted or left this workspace. */
   onGone: () => void
 }) {
+  const { t } = useI18n()
+  const s = t.settings
   const command = useWorkspaceCommand(userId)
   const [name, setName] = useState(workspace.name)
   const [busy, setBusy] = useState<string | null>(null)
@@ -46,7 +45,7 @@ export function WorkspaceGeneralSettings({
     try {
       await work()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Dit is niet gelukt.")
+      toast.error(error instanceof Error ? error.message : s.common.failed)
     } finally {
       setBusy(null)
     }
@@ -54,11 +53,11 @@ export function WorkspaceGeneralSettings({
 
   return (
     <>
-      <SettingsSection title="Algemeen" description="Iedereen in deze workspace ziet en bewerkt dezelfde lijsten.">
+      <SettingsSection title={s.workspace.general} description={s.workspace.generalHelp}>
         <SettingsRow
-          title="Naam"
+          title={s.workspace.name}
           htmlFor="workspace-settings-name"
-          description={canManage ? undefined : "Alleen de eigenaar en beheerders kunnen de naam wijzigen."}
+          description={canManage ? undefined : s.workspace.nameManagersOnly}
         >
           <form
             className="flex w-full gap-2 sm:w-auto"
@@ -68,7 +67,7 @@ export function WorkspaceGeneralSettings({
               if (!next || next === workspace.name) return
               void perform("rename", async () => {
                 await command({ type: "rename", workspaceId: workspace.id, name: next })
-                toast.success("Naam van de workspace bijgewerkt.")
+                toast.success(s.workspace.renamed)
               })
             }}
           >
@@ -83,40 +82,38 @@ export function WorkspaceGeneralSettings({
             />
             {canManage && (
               <Button type="submit" disabled={!!busy || !name.trim() || name.trim() === workspace.name}>
-                {busy === "rename" ? "Opslaan…" : "Opslaan"}
+                {busy === "rename" ? s.common.saving : s.common.save}
               </Button>
             )}
           </form>
         </SettingsRow>
-        <SettingsRow title="Jouw rol" description="Bepaalt of je leden en instellingen kunt beheren.">
-          <span className="text-sm">{workspaceRoleLabels[workspace.role]}</span>
+        <SettingsRow title={s.workspace.yourRole} description={s.workspace.yourRoleHelp}>
+          <span className="text-sm">{s.roles[workspace.role]}</span>
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection title="Gevarenzone" destructive>
+      <SettingsSection title={s.common.dangerZone} destructive>
         {isOwner ? (
           <SettingsRow
-            title="Workspace verwijderen"
+            title={s.workspace.deleteWorkspace}
             destructive
             description={
-              isLast
-                ? "Dit is je enige workspace. Maak eerst een andere aan."
-                : "Alle lijsten en notities in deze workspace verdwijnen, voor alle leden."
+              isLast ? s.workspace.deleteLastHelp : s.workspace.deleteHelp
             }
           >
             <Button variant="destructive" disabled={isLast || !!busy} onClick={() => setConfirming(true)}>
               <Trash2 data-icon="inline-start" />
-              Verwijderen
+              {s.common.delete}
             </Button>
           </SettingsRow>
         ) : (
           <SettingsRow
-            title="Workspace verlaten"
+            title={s.workspace.leaveWorkspace}
             destructive
-            description="Je verliest toegang tot alle lijsten in deze workspace. Een beheerder kan je opnieuw uitnodigen."
+            description={s.workspace.leaveHelp}
           >
             <Button variant="destructive" disabled={!!busy} onClick={() => setConfirming(true)}>
-              Verlaten
+              {s.workspace.leave}
             </Button>
           </SettingsRow>
         )}
@@ -126,16 +123,16 @@ export function WorkspaceGeneralSettings({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {isOwner ? `‘${workspace.name}’ verwijderen?` : `‘${workspace.name}’ verlaten?`}
+              {isOwner
+                ? s.workspace.confirmDeleteTitle(workspace.name)
+                : s.workspace.confirmLeaveTitle(workspace.name)}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {isOwner
-                ? "Alle lijsten, taken en notities in deze workspace worden definitief verwijderd, ook voor de andere leden."
-                : "Je ziet de lijsten van deze workspace daarna niet meer."}
+              {isOwner ? s.workspace.confirmDeleteDescription : s.workspace.confirmLeaveDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={!!busy}>Annuleren</AlertDialogCancel>
+            <AlertDialogCancel disabled={!!busy}>{s.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={!!busy}
@@ -144,12 +141,12 @@ export function WorkspaceGeneralSettings({
                 void perform("gone", async () => {
                   await command({ type: isOwner ? "delete" : "leave", workspaceId: workspace.id })
                   setConfirming(false)
-                  toast.success(isOwner ? "Workspace verwijderd." : "Je hebt de workspace verlaten.")
+                  toast.success(isOwner ? s.workspace.deleted : s.workspace.left)
                   onGone()
                 })
               }}
             >
-              {busy ? "Even geduld…" : isOwner ? "Definitief verwijderen" : "Verlaten"}
+              {busy ? s.common.pleaseWait : isOwner ? s.workspace.deletePermanently : s.workspace.leave}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

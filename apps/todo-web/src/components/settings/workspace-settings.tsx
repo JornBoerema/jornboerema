@@ -4,14 +4,15 @@ import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
 import { SettingsDialog, type SettingsPage } from "@evido/ui/components/settings-dialog"
 import { Palette, Settings, Share, UserCircle, Users } from "@/components/icons"
 import { AppearanceSettings } from "./appearance-settings"
+import { useI18n } from "@/i18n"
 import { AccountSettings } from "./account-settings"
 import { ConnectionsSettings } from "./connections-settings"
 import { WorkspaceGeneralSettings } from "./workspace-general-settings"
 import { WorkspaceMembersSettings } from "./workspace-members-settings"
 
-const PARAM = "instellingen"
+const PARAM = "settings"
 
-/** Settings modal, opened via `?instellingen=<page>` so it is linkable. */
+/** Settings modal, opened via `?settings=<page>` so it is linkable. */
 export function useSettings() {
   const [params, setParams] = useSearchParams()
   const page = params.get(PARAM)
@@ -51,38 +52,42 @@ export function WorkspaceSettings({
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   })
+  const { t } = useI18n()
+  const s = t.settings
+  const words = (list: string) => list.split(" | ")
+  // Page ids are part of the URL (?settings=…) and stay the same in every language.
   const pages: SettingsPage[] = [
     {
       id: "account",
-      label: "Account",
+      label: s.pages.account,
       icon: <UserCircle aria-hidden="true" />,
-      keywords: ["profiel", "naam", "e-mail", "wachtwoord", "verwijderen"],
+      keywords: words(s.keywords.account),
     },
     {
-      id: "weergave",
-      label: "Weergave",
+      id: "appearance",
+      label: s.pages.appearance,
       icon: <Palette aria-hidden="true" />,
-      keywords: ["thema", "donker", "dark mode", "licht", "kleur", "appearance"],
+      keywords: words(s.keywords.appearance),
     },
     {
-      id: "koppelingen",
-      label: "Koppelingen",
+      id: "connections",
+      label: s.pages.connections,
       icon: <Share aria-hidden="true" />,
-      keywords: ["mcp", "chatgpt", "ai"],
+      keywords: words(s.keywords.connections),
     },
     {
       id: "workspace",
-      label: "Algemeen",
+      label: s.pages.general,
       icon: <Settings aria-hidden="true" />,
-      group: "Workspace-instellingen",
-      keywords: ["workspace", "naam", "verwijderen", "verlaten"],
+      group: s.pages.workspaceGroup,
+      keywords: words(s.keywords.general),
     },
     {
-      id: "leden",
-      label: "Leden",
+      id: "members",
+      label: s.pages.members,
       icon: <Users aria-hidden="true" />,
-      group: "Workspace-instellingen",
-      keywords: ["workspace", "uitnodigen", "rollen", "beheerder"],
+      group: s.pages.workspaceGroup,
+      keywords: words(s.keywords.members),
     },
   ]
   const active = pages.some((p) => p.id === page) ? page! : "account"
@@ -93,12 +98,13 @@ export function WorkspaceSettings({
       pages={pages}
       activePage={active}
       onActivePageChange={(id) => setPage(id, true)}
+      labels={s.dialog}
     >
       {active === "account" ? (
         <AccountSettings user={user} />
-      ) : active === "weergave" ? (
+      ) : active === "appearance" ? (
         <AppearanceSettings />
-      ) : active === "koppelingen" ? (
+      ) : active === "connections" ? (
         <ConnectionsSettings />
       ) : active === "workspace" ? (
         <WorkspaceGeneralSettings

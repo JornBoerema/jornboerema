@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
 import type { WorkspaceRole } from "@evido/todo-core/workspaces"
 import { apiFetch } from "@/lib/api"
+import { useI18n } from "@/i18n"
 import { useTitle } from "@/lib/use-title"
 import { AcceptInvitation } from "@/components/accept-invitation"
 import { Button } from "@evido/ui/components/button"
@@ -16,7 +17,9 @@ type Invitation = {
 
 export function InvitationPage() {
   const { token = "" } = useParams()
-  useTitle("Uitnodiging voor een workspace")
+  const { t: all } = useI18n()
+  const t = all.auth.invitation
+  useTitle(t.pageTitle)
   const query = useQuery({
     queryKey: ["invitation", token],
     queryFn: async () => {
@@ -31,32 +34,32 @@ export function InvitationPage() {
   if (!invite)
     return (
       <section className="auth-form">
-        <h1>Uitnodiging niet beschikbaar</h1>
-        <p>Deze link is verlopen of ingetrokken. Vraag de eigenaar om een nieuwe uitnodiging.</p>
+        <h1>{t.unavailableTitle}</h1>
+        <p>{t.unavailableDescription}</p>
         <Button asChild variant="outline">
-          <Link to="/">Naar je lijsten</Link>
+          <Link to="/">{all.common.toYourLists}</Link>
         </Button>
       </section>
     )
-  const returnTo = encodeURIComponent(`/uitnodiging/${token}`)
+  const returnTo = encodeURIComponent(`/invite/${token}`)
   return (
     <section className="auth-form">
-      <h1>{invite.signedIn ? `Doe mee met ${invite.workspaceName}` : "Je bent uitgenodigd"}</h1>
+      <h1>{invite.signedIn ? t.joinTitle(invite.workspaceName) : t.invitedTitle}</h1>
       <p className="text-muted-foreground">
         {invite.signedIn
-          ? `Je wordt ${invite.role === "admin" ? "beheerder" : "lid"} van deze workspace en ziet al zijn lijsten.`
-          : `Je bent uitgenodigd voor de workspace ${invite.workspaceName}. Maak een account aan of log in om de uitnodiging te accepteren.`}
+          ? t.joinDescription(invite.role === "admin" ? "admin" : "member")
+          : t.invitedDescription(invite.workspaceName)}
       </p>
-      <p className="text-sm">Gebruik het e-mailadres waarop je de uitnodiging hebt ontvangen.</p>
+      <p className="text-sm">{t.useInvitedEmail}</p>
       {invite.signedIn ? (
         <AcceptInvitation token={token} wrongAccount={invite.wrongAccount} />
       ) : (
         <div className="flex flex-col gap-3">
           <Button asChild>
-            <Link to={`/registreren?returnTo=${returnTo}`}>Account aanmaken</Link>
+            <Link to={`/signup?returnTo=${returnTo}`}>{t.createAccount}</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link to={`/inloggen?returnTo=${returnTo}`}>Ik heb al een account</Link>
+            <Link to={`/login?returnTo=${returnTo}`}>{t.haveAccount}</Link>
           </Button>
         </div>
       )}

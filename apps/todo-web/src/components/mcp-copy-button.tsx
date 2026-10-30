@@ -1,18 +1,20 @@
-
 import { useState } from "react";
 import { Button } from "@evido/ui/components/button";
+import { useI18n } from "@/i18n";
 
 export function McpCopyButton({ url }: { url: string }) {
+  const { t } = useI18n();
+  const s = t.docs.connection;
   const [message, setMessage] = useState("");
   return <div className="mcp-copy">
     <Button variant="outline" onClick={async () => {
       try {
         await navigator.clipboard.writeText(url);
-        setMessage("MCP-URL gekopieerd.");
+        setMessage(s.copied);
       } catch {
-        setMessage("Kopiëren lukt niet. Selecteer de URL hierboven en kopieer deze handmatig.");
+        setMessage(s.copyFailed);
       }
-    }}>Kopieer MCP-URL</Button>
+    }}>{s.copy}</Button>
     <p role="status" className="mcp-copy-status">{message}</p>
   </div>;
 }

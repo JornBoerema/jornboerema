@@ -1,0 +1,111 @@
+// English texts for the "auth" namespace. Keys are shared with ../nl/auth.ts.
+export const auth = {
+  layout: {
+    homeLabel: "Even doen, go to sign in",
+    tagline: "Your own lists. One task at a time.",
+  },
+  pageTitles: {
+    login: "Sign in",
+    register: "Sign up",
+    forgot: "Forgot password",
+    reset: "Reset password",
+  },
+  login: {
+    title: "Welcome back",
+    description: "Sign in and pick up where you left off.",
+    action: "Sign in",
+  },
+  register: {
+    title: "Clear your head",
+    description: "Create an account for your own task lists.",
+    action: "Create account",
+  },
+  forgot: {
+    title: "Forgot your password?",
+    description: "We'll send you a link to choose a new password.",
+    action: "Send reset link",
+  },
+  reset: {
+    title: "A new password",
+    description: "Choose a new password for your account.",
+    action: "Save password",
+  },
+  errors: {
+    invalidCredentials: "Your email address or password is incorrect.",
+    emailNotVerified: "Please confirm your email address first. We've sent you a new confirmation link.",
+    tooManyRequests: "Too many attempts. Please wait a moment and try again.",
+    invalidToken: "This link is invalid or has expired. Request a new link.",
+    passwordTooShort: "Use at least 8 characters for your password.",
+    generic: "That didn't work. Check your details and try again.",
+    passwordMismatch: "The passwords don't match.",
+  },
+  sent: {
+    title: "Check your inbox",
+    register: "If this address isn't registered yet, you'll receive a link to confirm your account. Then you can get started right away.",
+    forgot: "If an account exists for this email address, you'll receive a reset link. The link is valid for one hour.",
+    spam: "Nothing received? Check your spam folder too.",
+  },
+  passwordChanged: {
+    title: "Password changed",
+    description: "You can sign in with your new password.",
+  },
+  verificationExpired: {
+    title: "Confirmation link expired",
+    description: "Sign in below to receive a new confirmation link.",
+  },
+  invalidReset: {
+    title: "This link is invalid or has expired",
+    action: "Request a new reset link.",
+  },
+  fields: {
+    name: "Name",
+    namePlaceholder: "Your name",
+    email: "Email address",
+    emailPlaceholder: "you@example.com",
+    password: "Password",
+    forgot: "Forgot?",
+    passwordHint: "At least 8 characters.",
+    remember: "Stay signed in",
+    confirm: "Repeat password",
+  },
+  switch: {
+    noAccount: "No account yet?",
+    createAccount: "Create an account",
+    haveAccount: "Already have an account?",
+    signIn: "Sign in",
+    backToSignIn: "Back to sign in",
+  },
+  invitation: {
+    pageTitle: "Workspace invitation",
+    unavailableTitle: "Invitation not available",
+    unavailableDescription: "This link has expired or was revoked. Ask the owner for a new invitation.",
+    joinTitle: (workspace: string) => `Join ${workspace}`,
+    invitedTitle: "You've been invited",
+    joinDescription: (role: "admin" | "member") =>
+      `You'll become ${role === "admin" ? "an admin" : "a member"} of this workspace and see all its lists.`,
+    invitedDescription: (workspace: string) =>
+      `You've been invited to the workspace ${workspace}. Create an account or sign in to accept the invitation.`,
+    useInvitedEmail: "Use the email address the invitation was sent to.",
+    createAccount: "Create account",
+    haveAccount: "I already have an account",
+    switchAccount: "Use a different account",
+    accept: "Accept invitation",
+  },
+  consent: {
+    pageTitle: "Connect account",
+    startFromClient: "Start the connection from ChatGPT and sign in with your Even doen account.",
+    fallbackClient: "The requesting app",
+    title: "Connect Even doen",
+    description: (client: string) => `You're giving ${client} access to your account.`,
+    failed: "Connecting failed. Start the connection again from ChatGPT.",
+    allow: "Allow",
+    scopes: {
+      "todos:read": "View your lists and tasks",
+      "todos:write": "Add, change and delete lists and tasks",
+      openid: "Recognise your account",
+      profile: "View your name",
+      email: "View your email address",
+      offline_access: "Stay connected until you revoke access",
+    } as Record<string, string>,
+  },
+}

@@ -1,8 +1,13 @@
+import { currentLanguage } from "@evido/i18n/react"
+
 export const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:4000").replace(/\/$/, "")
 
 /** Fetch against the Evido API with the shared session cookie. */
 export function apiFetch(path: string, init?: RequestInit) {
-  return fetch(`${API_URL}${path}`, { cache: "no-store", ...init, credentials: "include" })
+  // The API answers errors (and sends e-mails) in the user's language.
+  const headers = new Headers(init?.headers)
+  headers.set("Accept-Language", currentLanguage())
+  return fetch(`${API_URL}${path}`, { cache: "no-store", ...init, headers, credentials: "include" })
 }
 
 /** Absolute URL in this web app, for links the API puts in e-mails and redirects. */

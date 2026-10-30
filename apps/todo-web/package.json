@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@evido/auth": "workspace:*",
+    "@evido/i18n": "workspace:*",
     "@evido/todo-core": "workspace:*",
     "@evido/ui": "workspace:*",
     "@hugeicons/core-free-icons": "^4.4.0",

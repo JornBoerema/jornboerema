@@ -1,0 +1,23 @@
+{
+  "name": "@evido/i18n",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Tiny typed i18n for Evido apps: language detection, React provider, server language picking.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react.tsx"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "react": "^19.3.1",
+    "typescript": "~6.0.2"
+  }
+}

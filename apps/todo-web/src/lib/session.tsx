@@ -13,7 +13,7 @@ export function RequireSession({ children }: { children: (user: SessionUser) => 
   if (!data) {
     // Better Auth appends ?error=... when an e-mail verification link failed.
     const error = new URLSearchParams(location.search).get("error")
-    return <Navigate replace to={error ? `/inloggen?error=${encodeURIComponent(error)}` : "/inloggen"} />
+    return <Navigate replace to={error ? `/login?error=${encodeURIComponent(error)}` : "/login"} />
   }
   return children(data.user)
 }

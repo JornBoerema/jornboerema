@@ -12,7 +12,5 @@ export type SharingData = {
   link: { token: string; role: "viewer" | "editor" } | null;
 };
 export function invitationReturnTo(value: string | null) {
-  return value && /^\/uitnodiging\/[A-Za-z0-9_-]{43}$/.test(value)
-    ? value
-    : "/";
+  return value && /^\/invite\/[A-Za-z0-9_-]{43}$/.test(value) ? value : "/";
 }

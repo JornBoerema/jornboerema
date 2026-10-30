@@ -1,14 +1,11 @@
 import { AuthForm } from "@/components/auth-form"
+import { useI18n } from "@/i18n"
 import { useTitle } from "@/lib/use-title"
 
-const titles = {
-  login: "Inloggen",
-  register: "Registreren",
-  forgot: "Wachtwoord vergeten",
-  reset: "Wachtwoord herstellen",
-} as const
+type Mode = "login" | "register" | "forgot" | "reset"
 
-export function AuthPage({ mode }: { mode: keyof typeof titles }) {
-  useTitle(titles[mode])
+export function AuthPage({ mode }: { mode: Mode }) {
+  const { t } = useI18n()
+  useTitle(t.auth.pageTitles[mode])
   return <AuthForm key={mode} mode={mode} />
 }

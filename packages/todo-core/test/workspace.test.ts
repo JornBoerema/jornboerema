@@ -141,3 +141,13 @@ describe("list order", () => {
     expect(moveList(lists, { type: "move-list", id: u("t1"), targetId: u("n1"), placement: "before" })).toBe(lists);
   });
 });
+
+describe("validation codes", () => {
+  it("reports stable codes that the API translates", () => {
+    const id = "00000000-0000-4000-8000-000000000004";
+    const list = commandSchema.safeParse({ type: "create-list", id, workspaceId: id, name: " " });
+    expect(list.success || list.error.issues[0].message).toBe("list_name_required");
+    const ws = workspaceCommand.safeParse({ type: "create", id, name: "" });
+    expect(ws.success || ws.error.issues[0].message).toBe("workspace_name_required");
+  });
+});

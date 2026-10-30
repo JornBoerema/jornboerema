@@ -7,14 +7,14 @@
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
-      "source": "/gedeeld/(.*)",
+      "source": "/shared/(.*)",
       "headers": [
         { "key": "Referrer-Policy", "value": "no-referrer" },
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
       ]
     },
     {
-      "source": "/uitnodiging/(.*)",
+      "source": "/invite/(.*)",
       "headers": [{ "key": "Referrer-Policy", "value": "no-referrer" }]
     }
   ]

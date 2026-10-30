@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
 import { authClient } from "@/lib/auth-client"
 import { useWorkspaceCommand } from "@/lib/workspaces"
+import { useI18n } from "@/i18n"
 import { Check, ChevronsUpDown, LogOut, Plus, Settings } from "@/components/icons"
 import { useSettings } from "@/components/settings/workspace-settings"
 import { Button } from "@evido/ui/components/button"
@@ -44,6 +45,7 @@ export function WorkspaceSwitcher({
   const navigate = useNavigate()
   const client = useQueryClient()
   const settings = useSettings()
+  const { t: { workspace: { switcher: t } } } = useI18n()
   const command = useWorkspaceCommand(user.id)
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState("")
@@ -60,9 +62,9 @@ export function WorkspaceSwitcher({
       setCreating(false)
       setName("")
       onSelect(id)
-      toast.success(`Workspace ‘${name.trim()}’ gemaakt.`)
+      toast.success(t.created(name.trim()))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Dit is niet gelukt.")
+      toast.error(error instanceof Error ? error.message : t.failed)
     } finally {
       setPending(false)
     }
@@ -74,9 +76,9 @@ export function WorkspaceSwitcher({
       const result = await authClient.signOut()
       if (result.error) throw new Error()
       client.clear()
-      navigate("/inloggen", { replace: true })
+      navigate("/login", { replace: true })
     } catch {
-      toast.error("Uitloggen is niet gelukt. Probeer het opnieuw.")
+      toast.error(t.signOutFailed)
       setSigningOut(false)
     }
   }
@@ -85,7 +87,7 @@ export function WorkspaceSwitcher({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="workspace-switcher" aria-label={`Workspace: ${active.name}. Menu openen`}>
+          <button type="button" className="workspace-switcher" aria-label={t.triggerLabel(active.name)}>
             <span className="workspace-avatar" aria-hidden="true">
               {active.name.trim().charAt(0).toUpperCase()}
             </span>
@@ -104,7 +106,7 @@ export function WorkspaceSwitcher({
           className="min-w-(--radix-dropdown-menu-trigger-width)"
         >
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+            <DropdownMenuLabel>{t.workspaces}</DropdownMenuLabel>
             {workspaces.map((workspace) => (
               <DropdownMenuItem key={workspace.id} onSelect={() => onSelect(workspace.id)}>
                 <span className="workspace-avatar is-small" aria-hidden="true">
@@ -112,26 +114,26 @@ export function WorkspaceSwitcher({
                 </span>
                 <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
                 {workspace.memberCount > 1 && (
-                  <span className="text-xs text-muted-foreground">{workspace.memberCount} leden</span>
+                  <span className="text-xs text-muted-foreground">{t.members(workspace.memberCount)}</span>
                 )}
-                {workspace.id === active.id && <Check aria-label="Actief" />}
+                {workspace.id === active.id && <Check aria-label={t.active} />}
               </DropdownMenuItem>
             ))}
             <DropdownMenuItem onSelect={() => setCreating(true)}>
               <Plus aria-hidden="true" />
-              Nieuwe workspace
+              {t.newWorkspace}
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem onSelect={() => settings.open("account")}>
               <Settings aria-hidden="true" />
-              Instellingen
+              {t.settings}
               <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()}>
               <LogOut aria-hidden="true" />
-              {signingOut ? "Uitloggen…" : "Uitloggen"}
+              {signingOut ? t.signingOut : t.signOut}
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
@@ -140,19 +142,19 @@ export function WorkspaceSwitcher({
         <DialogContent>
           <form onSubmit={create} className="flex flex-col gap-6">
             <DialogHeader>
-              <DialogTitle>Nieuwe workspace</DialogTitle>
+              <DialogTitle>{t.newWorkspace}</DialogTitle>
               <DialogDescription>
-                Bijvoorbeeld voor werk of je huishouden. Daarna kun je leden uitnodigen.
+                {t.dialogDescription}
               </DialogDescription>
             </DialogHeader>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="workspace-name">Naam</FieldLabel>
+                <FieldLabel htmlFor="workspace-name">{t.name}</FieldLabel>
                 <Input
                   id="workspace-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Bijvoorbeeld: Werk"
+                  placeholder={t.namePlaceholder}
                   maxLength={60}
                   required
                   autoFocus
@@ -162,10 +164,10 @@ export function WorkspaceSwitcher({
             </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" disabled={pending} onClick={() => setCreating(false)}>
-                Annuleren
+                {t.cancel}
               </Button>
               <Button type="submit" disabled={pending || !name.trim()}>
-                {pending ? "Maken…" : "Workspace maken"}
+                {pending ? t.creating : t.create}
               </Button>
             </DialogFooter>
           </form>

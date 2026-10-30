@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { WorkspaceData } from "@evido/todo-core/workspace"
 import { apiFetch } from "@/lib/api"
 import { useTitle } from "@/lib/use-title"
+import { useI18n } from "@/i18n"
 import { Brand } from "@/components/brand"
 import { WorkspaceApp } from "@/components/workspace-app"
 import { PageLoading } from "@/components/page-loading"
@@ -12,11 +13,12 @@ class Unavailable extends Error {}
 
 export function SharedListPage() {
   const { token = "" } = useParams()
-  useTitle("Gedeelde lijst")
+  const t = useI18n().t.common.sharedList
+  useTitle(t.title)
   const query = useQuery({
     queryKey: ["shared-workspace", token],
     queryFn: async () => {
-      const response = await apiFetch(`/api/gedeeld/${token}`)
+      const response = await apiFetch(`/api/shared/${token}`)
       if (response.status === 404) throw new Unavailable()
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       return (await response.json()) as WorkspaceData
@@ -28,8 +30,8 @@ export function SharedListPage() {
       <main className="account-content">
         <Brand />
         <div className="account-heading">
-          <h1>Deze link is niet meer beschikbaar</h1>
-          <p>Vraag de eigenaar om een nieuwe link naar de lijst.</p>
+          <h1>{t.unavailableTitle}</h1>
+          <p>{t.unavailableDescription}</p>
         </div>
       </main>
     )

@@ -8,6 +8,7 @@ Monorepo (Turborepo + pnpm) voor de Evido-apps. Alle apps delen één account (B
 apps/
   api/          Hono API (Node): /api/auth/*, todo-endpoints, /mcp, OAuth-discovery
   todo-web/     Even doen — Vite + React SPA (react-router, TanStack Query)
+  home/         jornboerema.nl — minimale statische pagina met links naar de apps
 packages/
   ui/           shadcn/ui componenten + globals.css (design tokens) — gedeeld door alle React-apps
   db/           Prisma schema, migraties en client
@@ -89,6 +90,7 @@ Twee Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig 
 | --- | --- | --- |
 | `evido-api` | `apps/api` | `api.jornboerema.nl` |
 | `evido-todo` | `apps/todo-web` | `app.jornboerema.nl` |
+| `evido-home` | `apps/home` | `jornboerema.nl` (geen env vars nodig) |
 
 Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met tsup gebundeld en draait als één Vercel Function (`apps/api/api/index.js`); de web-app is een statische Vite-build met een SPA-fallback.
 

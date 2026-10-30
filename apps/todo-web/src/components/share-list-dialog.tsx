@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@evido/ui/components/alert";
 import { Skeleton } from "@evido/ui/components/skeleton";
 import type { SharingCommand, SharingData } from "@evido/todo-core/sharing";
 import type { TodoList } from "@evido/todo-core/workspace";
+import { useI18n } from "@/i18n";
 
 /** Public link to one list. Workspace members already see every list. */
 export function ShareListDialog({
@@ -32,6 +33,7 @@ export function ShareListDialog({
   onClose: () => void;
 }) {
   const client = useQueryClient();
+  const { t: { workspace: { share: t } } } = useI18n();
   const [linkRole, setLinkRole] = useState<"viewer" | "editor">("viewer");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -57,13 +59,13 @@ export function ShareListDialog({
       if (!r.ok) throw new Error(body.error);
       await client.invalidateQueries({ queryKey: ["sharing", list.id] });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Probeer opnieuw.");
+      setError(e instanceof Error ? e.message : t.tryAgain);
     } finally {
       setPending(false);
     }
   }
   const link = query.data?.link;
-  const linkUrl = link ? `${window.location.origin}/gedeeld/${link.token}` : "";
+  const linkUrl = link ? `${window.location.origin}/shared/${link.token}` : "";
   return (
     <Dialog
       open
@@ -73,10 +75,9 @@ export function ShareListDialog({
     >
       <DialogContent className="max-h-[90dvh] grid-cols-[minmax(0,1fr)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{list.kind === "note" ? "Notitie delen" : "Lijst delen"}</DialogTitle>
+          <DialogTitle>{list.kind === "note" ? t.shareNote : t.shareList}</DialogTitle>
           <DialogDescription>
-            Iedereen in {workspaceName} ziet ‘{list.name}’ al. Met een link deel je hem ook met
-            iemand zonder account.
+            {t.description(workspaceName, list.name)}
           </DialogDescription>
         </DialogHeader>
         {query.isLoading ? (
@@ -86,7 +87,7 @@ export function ShareListDialog({
             <div className="flex flex-col gap-4">
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="link-role">Toegang via link</FieldLabel>
+                  <FieldLabel htmlFor="link-role">{t.linkAccess}</FieldLabel>
                   <NativeSelect
                     id="link-role"
                     value={link?.role ?? linkRole}
@@ -97,13 +98,13 @@ export function ShareListDialog({
                       if (link) void run({ type: "enable-link", listId: list.id, role: value });
                     }}
                   >
-                    <NativeSelectOption value="viewer">Kan bekijken</NativeSelectOption>
-                    <NativeSelectOption value="editor">Kan bewerken</NativeSelectOption>
+                    <NativeSelectOption value="viewer">{t.canView}</NativeSelectOption>
+                    <NativeSelectOption value="editor">{t.canEdit}</NativeSelectOption>
                   </NativeSelect>
                 </Field>
                 {link && (
                   <Field>
-                    <FieldLabel htmlFor="share-link">Link naar de lijst</FieldLabel>
+                    <FieldLabel htmlFor="share-link">{t.linkLabel}</FieldLabel>
                     <Input
                       id="share-link"
                       readOnly
@@ -120,20 +121,20 @@ export function ShareListDialog({
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(linkUrl);
-                        toast.success("Link gekopieerd.");
+                        toast.success(t.copied);
                       } catch {
-                        setError("Kopiëren lukt niet. Selecteer en kopieer de link hierboven.");
+                        setError(t.copyFailed);
                       }
                     }}
                   >
-                    Link kopiëren
+                    {t.copy}
                   </Button>
                   <Button
                     variant="ghost"
                     disabled={pending}
                     onClick={() => void run({ type: "revoke-link", listId: list.id })}
                   >
-                    Link intrekken
+                    {t.revoke}
                   </Button>
                 </>
               ) : (
@@ -141,7 +142,7 @@ export function ShareListDialog({
                   disabled={pending}
                   onClick={() => void run({ type: "enable-link", listId: list.id, role: linkRole })}
                 >
-                  {pending ? "Even geduld…" : "Link maken"}
+                  {pending ? t.wait : t.create}
                 </Button>
               )}
             </div>

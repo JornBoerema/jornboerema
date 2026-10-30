@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { useNavigate, useSearchParams } from "react-router";
 import { useState } from "react";
+import { useI18n } from "@/i18n";
 import { ArrowLeft, ArrowRight, LoaderCircle, Mail } from "@/components/icons";
 import { invitationReturnTo } from "@evido/todo-core/sharing";
 import { authClient } from "@/lib/auth-client";
@@ -17,42 +18,19 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@evido/ui/components/alert";
 
 type Mode = "login" | "register" | "forgot" | "reset";
-const copy = {
-  login: {
-    title: "Welkom terug",
-    description: "Log in en ga verder met je lijsten.",
-    action: "Inloggen",
-  },
-  register: {
-    title: "Maak ruimte in je hoofd",
-    description: "Maak een account aan voor je eigen takenlijsten.",
-    action: "Account aanmaken",
-  },
-  forgot: {
-    title: "Wachtwoord vergeten?",
-    description: "We sturen je een link om een nieuw wachtwoord te kiezen.",
-    action: "Verstuur herstellink",
-  },
-  reset: {
-    title: "Een nieuw wachtwoord",
-    description: "Kies een nieuw wachtwoord voor je account.",
-    action: "Wachtwoord opslaan",
-  },
-};
-function errorMessage(code?: string) {
-  if (code === "INVALID_EMAIL_OR_PASSWORD")
-    return "Je e-mailadres of wachtwoord klopt niet.";
-  if (code === "EMAIL_NOT_VERIFIED")
-    return "Bevestig eerst je e-mailadres. We hebben je een nieuwe bevestigingslink gestuurd.";
-  if (code === "TOO_MANY_REQUESTS")
-    return "Te veel pogingen. Wacht even en probeer het opnieuw.";
-  if (code === "INVALID_TOKEN" || code === "TOKEN_EXPIRED")
-    return "Deze link is ongeldig of verlopen. Vraag een nieuwe link aan.";
-  if (code === "PASSWORD_TOO_SHORT")
-    return "Gebruik minstens 8 tekens voor je wachtwoord.";
-  return "Dit is niet gelukt. Controleer je gegevens en probeer het opnieuw.";
+type AuthTexts = ReturnType<typeof useI18n>["t"]["auth"];
+function errorMessage(t: AuthTexts, code?: string) {
+  if (code === "INVALID_EMAIL_OR_PASSWORD") return t.errors.invalidCredentials;
+  if (code === "EMAIL_NOT_VERIFIED") return t.errors.emailNotVerified;
+  if (code === "TOO_MANY_REQUESTS") return t.errors.tooManyRequests;
+  if (code === "INVALID_TOKEN" || code === "TOKEN_EXPIRED") return t.errors.invalidToken;
+  if (code === "PASSWORD_TOO_SHORT") return t.errors.passwordTooShort;
+  return t.errors.generic;
 }
 export function AuthForm({ mode }: { mode: Mode }) {
+  const { t: all } = useI18n();
+  const t = all.auth;
+  const copy = t;
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const returnTo = invitationReturnTo(params.get("returnTo"));
@@ -76,7 +54,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       (mode === "register" || mode === "reset") &&
       password !== data.get("confirm")
     ) {
-      setError("De wachtwoorden komen niet overeen.");
+      setError(t.errors.passwordMismatch);
       return;
     }
     setPending(true);
@@ -100,14 +78,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
             : mode === "forgot"
               ? await authClient.requestPasswordReset({
                   email,
-                  redirectTo: webUrl("/wachtwoord-herstellen"),
+                  redirectTo: webUrl("/reset-password"),
                 })
               : await authClient.resetPassword({
                   newPassword: password,
                   token: token!,
                 });
       if (result.error) {
-        setError(errorMessage(result.error.code));
+        setError(errorMessage(t, result.error.code));
         return;
       }
       // The OAuth client follows the provider's signed continuation redirect.
@@ -118,10 +96,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       if (mode === "register" || mode === "forgot") setSent(true);
       else {
-        navigate(mode === "reset" ? authHref("/inloggen?hersteld=1") : returnTo);
+        navigate(mode === "reset" ? authHref("/login?passwordReset=1") : returnTo);
       }
     } catch {
-      setError("Er is geen verbinding. Probeer het opnieuw.");
+      setError(all.common.noConnection);
     } finally {
       setPending(false);
     }
@@ -130,19 +108,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
     return (
       <section className="auth-form">
         <Mail className="size-7 text-primary" aria-hidden="true" />
-        <h1>Bekijk je inbox</h1>
+        <h1>{t.sent.title}</h1>
         <p className="text-muted-foreground">
-          {mode === "register"
-            ? "Als dit adres nog niet geregistreerd is, ontvang je een link om je account te bevestigen. Daarna kun je meteen beginnen."
-            : "Als er een account met dit e-mailadres bestaat, ontvang je een herstellink. De link is één uur geldig."}
+          {mode === "register" ? t.sent.register : t.sent.forgot}
         </p>
         <p className="text-sm text-muted-foreground">
-          Niets ontvangen? Kijk ook in je spamfolder.
+          {t.sent.spam}
         </p>
         <Button asChild variant="outline">
-          <Link to={authHref("/inloggen")}>
+          <Link to={authHref("/login")}>
             <ArrowLeft data-icon="inline-start" />
-            Terug naar inloggen
+            {t.switch.backToSignIn}
           </Link>
         </Button>
       </section>
@@ -153,28 +129,24 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <h1>{copy[mode].title}</h1>
         <p className="text-muted-foreground">{copy[mode].description}</p>
       </div>
-      {params.get("hersteld") && (
+      {params.get("passwordReset") && (
         <Alert>
-          <AlertTitle>Wachtwoord gewijzigd</AlertTitle>
-          <AlertDescription>
-            Je kunt inloggen met je nieuwe wachtwoord.
-          </AlertDescription>
+          <AlertTitle>{t.passwordChanged.title}</AlertTitle>
+          <AlertDescription>{t.passwordChanged.description}</AlertDescription>
         </Alert>
       )}
       {params.get("error") && mode === "login" && (
         <Alert variant="destructive">
-          <AlertTitle>Bevestigingslink verlopen</AlertTitle>
-          <AlertDescription>
-            Log hieronder in om een nieuwe bevestigingslink te ontvangen.
-          </AlertDescription>
+          <AlertTitle>{t.verificationExpired.title}</AlertTitle>
+          <AlertDescription>{t.verificationExpired.description}</AlertDescription>
         </Alert>
       )}
       {invalidReset ? (
         <Alert variant="destructive">
-          <AlertTitle>Deze link is ongeldig of verlopen</AlertTitle>
+          <AlertTitle>{t.invalidReset.title}</AlertTitle>
           <AlertDescription>
-            <Link to="/wachtwoord-vergeten" className="underline">
-              Vraag een nieuwe herstellink aan.
+            <Link to="/forgot-password" className="underline">
+              {t.invalidReset.action}
             </Link>
           </AlertDescription>
         </Alert>
@@ -183,12 +155,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <FieldGroup>
             {mode === "register" && (
               <Field>
-                <FieldLabel htmlFor="name">Naam</FieldLabel>
+                <FieldLabel htmlFor="name">{t.fields.name}</FieldLabel>
                 <Input
                   id="name"
                   name="name"
                   autoComplete="name"
-                  placeholder="Je naam"
+                  placeholder={t.fields.namePlaceholder}
                   maxLength={100}
                   required
                   disabled={pending}
@@ -197,13 +169,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
             )}
             {mode !== "reset" && (
               <Field>
-                <FieldLabel htmlFor="email">E-mailadres</FieldLabel>
+                <FieldLabel htmlFor="email">{t.fields.email}</FieldLabel>
                 <Input
                   id="email"
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="jij@voorbeeld.nl"
+                  placeholder={t.fields.emailPlaceholder}
                   required
                   maxLength={254}
                   disabled={pending}
@@ -213,10 +185,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
             {mode !== "forgot" && (
               <Field>
                 <div className="flex items-center justify-between gap-2">
-                  <FieldLabel htmlFor="password">Wachtwoord</FieldLabel>
+                  <FieldLabel htmlFor="password">{t.fields.password}</FieldLabel>
                   {mode === "login" && (
-                    <Link className="form-link" to="/wachtwoord-vergeten">
-                      Vergeten?
+                    <Link className="form-link" to="/forgot-password">
+                      {t.fields.forgot}
                     </Link>
                   )}
                 </div>
@@ -233,7 +205,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   disabled={pending}
                 />
                 {mode !== "login" && (
-                  <FieldDescription>Minstens 8 tekens.</FieldDescription>
+                  <FieldDescription>{t.fields.passwordHint}</FieldDescription>
                 )}
               </Field>
             )}
@@ -241,15 +213,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
               <Field orientation="horizontal">
                 <Checkbox id="remember" name="remember" defaultChecked disabled={pending} />
                 <FieldLabel htmlFor="remember" className="font-normal">
-                  Ingelogd blijven
+                  {t.fields.remember}
                 </FieldLabel>
               </Field>
             )}
             {(mode === "register" || mode === "reset") && (
               <Field
-                data-invalid={error === "De wachtwoorden komen niet overeen."}
+                data-invalid={error === t.errors.passwordMismatch}
               >
-                <FieldLabel htmlFor="confirm">Herhaal wachtwoord</FieldLabel>
+                <FieldLabel htmlFor="confirm">{t.fields.confirm}</FieldLabel>
                 <Input
                   id="confirm"
                   name="confirm"
@@ -259,7 +231,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   minLength={8}
                   maxLength={128}
                   disabled={pending}
-                  aria-invalid={error === "De wachtwoorden komen niet overeen."}
+                  aria-invalid={error === t.errors.passwordMismatch}
                 />
               </Field>
             )}
@@ -281,15 +253,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <p className="auth-switch">
         {mode === "login" ? (
           <>
-            Nog geen account?{" "}
-            <Link to={authHref("/registreren")}>Maak een account aan</Link>
+            {t.switch.noAccount}{" "}
+            <Link to={authHref("/signup")}>{t.switch.createAccount}</Link>
           </>
         ) : mode === "register" ? (
           <>
-            Al een account? <Link to={authHref("/inloggen")}>Inloggen</Link>
+            {t.switch.haveAccount} <Link to={authHref("/login")}>{t.switch.signIn}</Link>
           </>
         ) : (
-          <Link to={authHref("/inloggen")}>Terug naar inloggen</Link>
+          <Link to={authHref("/login")}>{t.switch.backToSignIn}</Link>
         )}
       </p>
     </section>

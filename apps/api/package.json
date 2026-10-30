@@ -16,6 +16,7 @@
     "@evido/auth": "workspace:*",
     "@evido/db": "workspace:*",
     "@evido/email": "workspace:*",
+    "@evido/i18n": "workspace:*",
     "@evido/todo-core": "workspace:*",
     "@hono/node-server": "^2.1.5",
     "@modelcontextprotocol/server": "^2.4.0",

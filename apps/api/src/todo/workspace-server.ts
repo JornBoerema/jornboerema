@@ -1,4 +1,5 @@
 import { getDb, Prisma, type Tx } from "@evido/db"
+import { KeyedError } from "../i18n"
 import {
   moveTodo,
   reorderIds,
@@ -10,8 +11,9 @@ import {
 } from "@evido/todo-core/workspace"
 
 export class NotFoundError extends Error {}
-export class InvalidCommandError extends Error {}
-export class NoteConflictError extends Error {}
+/** Message is a translation key (see ../i18n.ts). */
+export class InvalidCommandError extends KeyedError {}
+export class NoteConflictError extends KeyedError {}
 
 export const SHARE_TOKEN = /^[A-Za-z0-9_-]{43}$/
 
@@ -179,16 +181,14 @@ export async function executeCommand(
       command.type === "rename-list" || command.type === "delete-list" || command.type === "move-list"
     if (listCommand ? !isMember : !isMember && link?.role !== "editor") throw new NotFoundError()
     if (list.kind === "note" && !listCommand && command.type !== "update-note")
-      throw new InvalidCommandError("Gebruik de notitie-editor om deze notitie te wijzigen.")
+      throw new InvalidCommandError("useNoteEditor")
 
     let changed: number
     switch (command.type) {
       case "update-note":
-        if (list.kind !== "note") throw new InvalidCommandError("Dit is geen notitie.")
+        if (list.kind !== "note") throw new InvalidCommandError("notANote")
         if (list.noteVersion !== command.version)
-          throw new NoteConflictError(
-            "Deze notitie is ondertussen elders gewijzigd. Je tekst is niet overschreven."
-          )
+          throw new NoteConflictError("noteConflict")
         changed = (
           await tx.list.updateMany({
             where: { id: listId },

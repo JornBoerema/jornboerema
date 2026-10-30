@@ -12,6 +12,22 @@ import {
   DialogTitle,
 } from "@evido/ui/components/dialog"
 
+export type SettingsLabels = {
+  title: string
+  description: string
+  search: string
+  noResults: string
+  close: string
+}
+
+const defaultLabels: SettingsLabels = {
+  title: "Settings",
+  description: "Manage your account and preferences.",
+  search: "Search",
+  noResults: "No settings found.",
+  close: "Close",
+}
+
 export type SettingsPage = {
   id: string
   label: string
@@ -32,7 +48,7 @@ function SettingsDialog({
   pages,
   activePage,
   onActivePageChange,
-  title = "Instellingen",
+  labels: customLabels,
   children,
 }: {
   open: boolean
@@ -40,9 +56,12 @@ function SettingsDialog({
   pages: SettingsPage[]
   activePage: string
   onActivePageChange: (id: string) => void
-  title?: string
+  /** Texts in the app's language; English by default. */
+  labels?: Partial<SettingsLabels>
   children: React.ReactNode
 }) {
+  const labels = { ...defaultLabels, ...customLabels }
+  const title = labels.title
   const [query, setQuery] = React.useState("")
   const active = pages.find((page) => page.id === activePage) ?? pages[0]
   const needle = query.trim().toLowerCase()
@@ -72,14 +91,14 @@ function SettingsDialog({
         className="flex h-[min(760px,calc(100dvh-2rem))] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:flex-row"
       >
         <DialogDescription className="sr-only">
-          Beheer je account en voorkeuren.
+          {labels.description}
         </DialogDescription>
         <nav
           aria-label={title}
           className="flex shrink-0 flex-col gap-3 border-b bg-muted/40 p-3 md:w-64 md:border-r md:border-b-0"
         >
           <label className="relative hidden md:block">
-            <span className="sr-only">Zoek in instellingen</span>
+            <span className="sr-only">{labels.search}</span>
             <HugeiconsIcon
               icon={SearchIcon}
               strokeWidth={2}
@@ -89,7 +108,7 @@ function SettingsDialog({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Zoeken"
+              placeholder={labels.search}
               className="h-9 w-full rounded-lg bg-background pr-3 pl-9 text-sm ring-1 ring-border outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             />
           </label>
@@ -124,7 +143,7 @@ function SettingsDialog({
             ))}
             {!visible.length && (
               <p className="px-3 py-2 text-sm text-muted-foreground">
-                Geen instellingen gevonden.
+                {labels.noResults}
               </p>
             )}
           </div>
@@ -139,7 +158,7 @@ function SettingsDialog({
               <span className="font-medium">{active?.label}</span>
             </DialogTitle>
             <DialogPrimitive.Close asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Sluiten">
+              <Button variant="ghost" size="icon-sm" aria-label={labels.close}>
                 <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
               </Button>
             </DialogPrimitive.Close>

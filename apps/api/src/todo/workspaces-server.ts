@@ -8,16 +8,22 @@ import {
   type WorkspaceRole,
   type WorkspaceSummary,
 } from "@evido/todo-core/workspaces"
+import type { Language } from "@evido/i18n"
 import { env } from "../env"
+import { KeyedError, translate } from "../i18n"
 import { NotFoundError, SHARE_TOKEN } from "./workspace-server"
 
-export class WorkspaceError extends Error {}
+/** Message is a translation key (see ../i18n.ts). */
+export class WorkspaceError extends KeyedError {}
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex")
 const INVITE_TTL = 7 * 86400000
 
 /** Every user always has at least one workspace; the first is made on demand. */
-export async function listWorkspaces(userId: string): Promise<WorkspaceSummary[]> {
+export async function listWorkspaces(
+  userId: string,
+  language: Language = "en"
+): Promise<WorkspaceSummary[]> {
   const read = () =>
     getDb().workspaceMember.findMany({
       where: { userId },
@@ -26,7 +32,7 @@ export async function listWorkspaces(userId: string): Promise<WorkspaceSummary[]
     })
   let memberships = await read()
   if (!memberships.length) {
-    await createWorkspace(getDb(), userId, randomUUID(), "Persoonlijk")
+    await createWorkspace(getDb(), userId, randomUUID(), translate(language, "personalWorkspace"))
     memberships = await read()
   }
   return memberships.map((m) => ({
@@ -60,7 +66,7 @@ async function lockMembership(tx: Tx, workspaceId: string, userId: string) {
 
 function requireManager(role: WorkspaceRole) {
   if (!canManageWorkspace(role))
-    throw new WorkspaceError("Alleen de eigenaar en beheerders kunnen dit wijzigen.")
+    throw new WorkspaceError("onlyManagers")
 }
 
 export async function readMembers(userId: string, workspaceId: string): Promise<WorkspaceMembers> {
@@ -93,7 +99,9 @@ export async function readMembers(userId: string, workspaceId: string): Promise<
 
 export async function changeWorkspace(
   userId: string,
-  command: WorkspaceCommand
+  command: WorkspaceCommand,
+  /** The inviter's language, used for the invitation e-mail. */
+  language: Language = "en"
 ): Promise<{ recipients: string[]; mail?: Email }> {
   if (command.type === "create") {
     await createWorkspace(getDb(), userId, command.id, command.name)
@@ -109,12 +117,12 @@ export async function changeWorkspace(
         return { recipients: everyone }
       case "delete":
         if (me.role !== "owner")
-          throw new WorkspaceError("Alleen de eigenaar kan deze workspace verwijderen.")
+          throw new WorkspaceError("onlyOwnerDeletes")
         await tx.workspace.delete({ where: { id: workspace.id } })
         return { recipients: everyone }
       case "leave":
         if (me.role === "owner")
-          throw new WorkspaceError("Als eigenaar kun je de workspace niet verlaten. Verwijder hem of draag hem eerst over.")
+          throw new WorkspaceError("ownerCannotLeave")
         await tx.workspaceMember.delete({ where: { id: me.id } })
         return { recipients: everyone }
       case "update-member":
@@ -123,9 +131,9 @@ export async function changeWorkspace(
         const target = members.find((m) => m.id === command.memberId)
         if (!target) throw new NotFoundError()
         if (target.role === "owner")
-          throw new WorkspaceError("De eigenaar kan niet worden aangepast of verwijderd.")
+          throw new WorkspaceError("ownerUntouchable")
         if (target.id === me.id)
-          throw new WorkspaceError("Gebruik ‘Workspace verlaten’ om jezelf te verwijderen.")
+          throw new WorkspaceError("useLeave")
         if (command.type === "update-member")
           await tx.workspaceMember.update({ where: { id: target.id }, data: { role: command.role } })
         else await tx.workspaceMember.delete({ where: { id: target.id } })
@@ -145,12 +153,12 @@ export async function changeWorkspace(
             user: { email: { equals: command.email, mode: "insensitive" } },
           },
         })
-        if (existing) throw new WorkspaceError("Dit e-mailadres is al lid van deze workspace.")
+        if (existing) throw new WorkspaceError("alreadyMember")
         const previous = await tx.workspaceInvitation.findUnique({
           where: { workspaceId_email: { workspaceId: workspace.id, email: command.email } },
         })
         if (previous && !previous.acceptedAt && Date.now() - previous.updatedAt.getTime() < 60000)
-          throw new WorkspaceError("Wacht een minuut voordat je opnieuw uitnodigt.")
+          throw new WorkspaceError("inviteTooSoon")
         const now = Date.now()
         const windowStart = now - 3600000
         const [limit] = await tx.$queryRaw<{ count: number }[]>`
@@ -161,9 +169,7 @@ export async function changeWorkspace(
             last_request = case when rate_limit.last_request < ${windowStart} then ${now} else rate_limit.last_request end
           returning count`
         if (limit.count > 20)
-          throw new WorkspaceError(
-            "Je kunt maximaal 20 uitnodigingen per uur versturen. Probeer later opnieuw."
-          )
+          throw new WorkspaceError("inviteLimit")
         const token = randomBytes(32).toString("base64url")
         const values = {
           role: command.role,
@@ -186,7 +192,8 @@ export async function changeWorkspace(
             inviterName: inviter.name,
             workspaceName: workspace.name,
             role: command.role,
-            url: `${env.todoWebUrl}/uitnodiging/${token}`,
+            url: `${env.todoWebUrl}/invite/${token}`,
+            language,
           }),
         }
       }
@@ -209,7 +216,7 @@ export async function readInvitation(token: string) {
   }
 }
 
-export async function acceptInvitation(userId: string, token: string) {
+export async function acceptInvitation(userId: string, token: string, language: Language = "en") {
   if (!SHARE_TOKEN.test(token)) throw new NotFoundError()
   return getDb().$transaction(async (tx) => {
     const candidate = await tx.workspaceInvitation.findUnique({
@@ -227,9 +234,7 @@ export async function acceptInvitation(userId: string, token: string) {
     if (!invite || invite.expiresAt < new Date()) throw new NotFoundError()
     const recipient = await tx.user.findUnique({ where: { id: userId } })
     if (!recipient?.emailVerified || recipient.email.toLowerCase() !== invite.email)
-      throw new WorkspaceError(
-        "Log in met het bevestigde e-mailadres waarvoor deze uitnodiging bedoeld is."
-      )
+      throw new WorkspaceError("wrongInviteAccount")
     const member = await tx.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId: workspace.id, userId } },
     })
@@ -237,7 +242,7 @@ export async function acceptInvitation(userId: string, token: string) {
     if (!invite.acceptedAt) {
       // New users get their own personal workspace next to the shared one.
       if (!(await tx.workspaceMember.count({ where: { userId } })))
-        await createWorkspace(tx, userId, randomUUID(), "Persoonlijk")
+        await createWorkspace(tx, userId, randomUUID(), translate(language, "personalWorkspace"))
       if (!member)
         await tx.workspaceMember.create({
           data: { id: randomUUID(), workspaceId: workspace.id, userId, role: invite.role },

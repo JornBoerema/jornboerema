@@ -35,6 +35,9 @@ importers:
       '@evido/email':
         specifier: workspace:*
         version: link:../../packages/email
+      '@evido/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@evido/todo-core':
         specifier: workspace:*
         version: link:../../packages/todo-core
@@ -70,11 +73,20 @@ importers:
         specifier: ~6.0.2
         version: 6.0.3
 
+  apps/home:
+    devDependencies:
+      vite:
+        specifier: ^8
+        version: 8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
+
   apps/todo-web:
     dependencies:
       '@evido/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@evido/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@evido/todo-core':
         specifier: workspace:*
         version: link:../../packages/todo-core
@@ -193,6 +205,9 @@ importers:
       '@evido/email':
         specifier: workspace:*
         version: link:../email
+      '@evido/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       better-auth:
         specifier: ^1.7.14
         version: 1.7.14(@prisma/client@7.10.1(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(typescript@6.0.3))(mysql2@3.24.4(@types/node@24.19.2))(pg@8.23.1)(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
@@ -234,6 +249,9 @@ importers:
 
   packages/email:
     dependencies:
+      '@evido/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       resend:
         specifier: ^6.35.0
         version: 6.35.0
@@ -241,6 +259,18 @@ importers:
       '@types/node':
         specifier: ^24
         version: 24.19.2
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+
+  packages/i18n:
+    devDependencies:
+      '@types/react':
+        specifier: ^19
+        version: 19.3.0
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
       typescript:
         specifier: ~6.0.2
         version: 6.0.3

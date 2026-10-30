@@ -12,6 +12,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@evido/i18n": "workspace:*",
     "resend": "^6.35.0"
   },
   "devDependencies": {

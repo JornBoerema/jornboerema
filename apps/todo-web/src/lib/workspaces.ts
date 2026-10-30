@@ -7,31 +7,35 @@ import type {
   WorkspaceSummary,
 } from "@evido/todo-core/workspaces"
 import { apiFetch } from "@/lib/api"
+import { useI18n } from "@/i18n"
 
-async function getJson<T>(path: string): Promise<T> {
+async function getJson<T>(path: string, fallbackError: string): Promise<T> {
   const response = await apiFetch(path)
   const body = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(body?.error ?? "Geen verbinding. Probeer het opnieuw.")
+  if (!response.ok) throw new Error(body?.error ?? fallbackError)
   return body
 }
 
 export function useWorkspaces(userId: string) {
+  const { t } = useI18n()
   return useQuery({
     queryKey: ["workspaces", userId],
-    queryFn: () => getJson<WorkspaceSummary[]>("/api/workspaces"),
+    queryFn: () => getJson<WorkspaceSummary[]>("/api/workspaces", t.workspace.errors.noConnection),
   })
 }
 
 export function useWorkspaceMembers(workspaceId: string) {
+  const { t } = useI18n()
   return useQuery({
     queryKey: ["workspace-members", workspaceId],
-    queryFn: () => getJson<WorkspaceMembers>(`/api/workspaces/${workspaceId}/members`),
+    queryFn: () => getJson<WorkspaceMembers>(`/api/workspaces/${workspaceId}/members`, t.workspace.errors.noConnection),
   })
 }
 
 /** Runs a workspace command and refreshes everything that depends on it. */
 export function useWorkspaceCommand(userId: string) {
   const client = useQueryClient()
+  const { t: { workspace: { errors: t } } } = useI18n()
   return useCallback(
     async (command: WorkspaceCommand) => {
       const response = await apiFetch("/api/workspaces", {
@@ -44,9 +48,9 @@ export function useWorkspaceCommand(userId: string) {
         client.invalidateQueries({ queryKey: ["workspaces", userId] }),
         client.invalidateQueries({ queryKey: ["workspace-members"] }),
       ])
-      if (!response.ok) throw new Error(body?.error ?? "Dit is niet gelukt. Probeer het opnieuw.")
+      if (!response.ok) throw new Error(body?.error ?? t.failed)
     },
-    [client, userId]
+    [client, userId, t]
   )
 }
 

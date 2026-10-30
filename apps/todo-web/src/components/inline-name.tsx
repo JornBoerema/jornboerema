@@ -1,5 +1,6 @@
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/i18n";
 
 type Props = {
   value: string;
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function InlineName({ value, label, maxLength, disabled, heading, className, onSave }: Props) {
+  const { t: { workspace: { inlineName: t } } } = useI18n();
   const [editing, setEditing] = useState(false);
   const [initialText, setInitialText] = useState(value);
   const [error, setError] = useState("");
@@ -37,15 +39,15 @@ export function InlineName({ value, label, maxLength, disabled, heading, classNa
   async function save() {
     if (finishing.current || disabled) return;
     const text = (input.current?.textContent ?? "").replace(/\s*\n\s*/g, " ").trim();
-    if (text.length > maxLength) { setError(`Gebruik maximaal ${maxLength} tekens.`); input.current?.focus(); return; }
-    if (!text) { setError("Vul een naam in."); input.current?.focus(); return; }
+    if (text.length > maxLength) { setError(t.tooLong(maxLength)); input.current?.focus(); return; }
+    if (!text) { setError(t.empty); input.current?.focus(); return; }
     finishing.current = true;
     if (text === value || await onSave(text)) setEditing(false);
-    else { finishing.current = false; setError("Opslaan is niet gelukt. Probeer het opnieuw."); }
+    else { finishing.current = false; setError(t.saveFailed); }
   }
   const Tag = heading ? "h1" : "span";
   return (
-    <Tag className={className} onDoubleClick={editing ? undefined : start} title={disabled || editing ? undefined : "Dubbelklik om te bewerken"}>
+    <Tag className={className} onDoubleClick={editing ? undefined : start} title={disabled || editing ? undefined : t.doubleClick}>
       {editing ? (
         <>
           <span ref={(node) => { input.current = node; }}

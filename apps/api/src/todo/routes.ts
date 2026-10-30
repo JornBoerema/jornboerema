@@ -6,6 +6,7 @@ import { sharingCommand } from "@evido/todo-core/sharing"
 import { workspaceCommand } from "@evido/todo-core/workspaces"
 import { sendEmail } from "@evido/email"
 import { defer } from "../lib/defer"
+import { KeyedError, languageOf, msg, validationMessage, type MessageKey } from "../i18n"
 import { getRealtime, notifyWorkspaceUsers, userChannel } from "../lib/realtime"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
 import {
@@ -26,7 +27,7 @@ import {
   WorkspaceError,
 } from "./workspaces-server"
 
-const tooLarge = (c: Context) => c.json({ error: "Verzoek te groot." }, 413)
+const tooLarge = (c: Context) => c.json({ error: msg(c, "requestTooLarge") }, 413)
 const commandLimit = bodyLimit({ maxSize: 650_000, onError: tooLarge })
 
 async function jsonBody(c: Context): Promise<unknown> {
@@ -37,12 +38,14 @@ async function jsonBody(c: Context): Promise<unknown> {
   }
 }
 
-function commandFailure(c: Context, error: unknown, notFound: string) {
-  if (error instanceof NoteConflictError) return c.json({ error: error.message }, 409)
-  if (error instanceof InvalidCommandError) return c.json({ error: error.message }, 400)
-  if (error instanceof NotFoundError) return c.json({ error: notFound }, 404)
+const keyed = (c: Context, error: KeyedError) => ({ error: msg(c, error.key) })
+
+function commandFailure(c: Context, error: unknown, notFound: MessageKey) {
+  if (error instanceof NoteConflictError) return c.json(keyed(c, error), 409)
+  if (error instanceof InvalidCommandError) return c.json(keyed(c, error), 400)
+  if (error instanceof NotFoundError) return c.json({ error: msg(c, notFound) }, 404)
   console.error("Workspace mutation failed", error)
-  return c.json({ error: "Opslaan is niet gelukt. Probeer het opnieuw." }, 500)
+  return c.json({ error: msg(c, "saveFailed") }, 500)
 }
 
 export const todoRoutes = new Hono<AppEnv>()
@@ -54,7 +57,7 @@ todoRoutes.get("/workspace", requireSession, async (c) => {
     const data = await readWorkspace(c.get("session").user.id, c.req.query("workspaceId") ?? "")
     return c.json(data, 200, noStore)
   } catch (error) {
-    if (error instanceof NotFoundError) return c.json({ error: "Geen toegang tot deze workspace." }, 404)
+    if (error instanceof NotFoundError) return c.json({ error: msg(c, "noWorkspaceAccess") }, 404)
     throw error
   }
 })
@@ -62,21 +65,21 @@ todoRoutes.get("/workspace", requireSession, async (c) => {
 todoRoutes.post("/workspace", requireTrustedOrigin, commandLimit, requireSession, async (c) => {
   const result = commandSchema.safeParse(await jsonBody(c))
   if (!result.success)
-    return c.json({ error: result.error.issues[0]?.message ?? "Controleer je invoer." }, 400)
+    return c.json({ error: validationMessage(c, result.error.issues[0]?.message) }, 400)
   try {
     const recipients = await executeCommand(c.get("session").user.id, result.data)
     // An unavailable realtime provider must not undo or misreport a committed write.
     defer(() => notifyWorkspaceUsers(recipients))
     return c.json({ ok: true })
   } catch (error) {
-    return commandFailure(c, error, "Deze lijst of taak bestaat niet meer.")
+    return commandFailure(c, error, "listOrTaskGone")
   }
 })
 
 // ─── Realtime token (subscribe-only on the user's own channel) ──────────────
 
 todoRoutes.get("/realtime", requireSession, async (c) => {
-  if (!process.env.ABLY_API_KEY) return c.json({ error: "Realtime niet beschikbaar." }, 503)
+  if (!process.env.ABLY_API_KEY) return c.json({ error: msg(c, "realtimeUnavailable") }, 503)
   const userId = c.get("session").user.id
   const token = await getRealtime().auth.createTokenRequest({
     clientId: userId,
@@ -89,14 +92,14 @@ todoRoutes.get("/realtime", requireSession, async (c) => {
 // ─── Workspaces ─────────────────────────────────────────────────────────────
 
 function workspaceFailure(c: Context, error: unknown) {
-  if (error instanceof NotFoundError) return c.json({ error: "Geen toegang tot deze workspace." }, 404)
-  if (error instanceof WorkspaceError) return c.json({ error: error.message }, 400)
+  if (error instanceof NotFoundError) return c.json({ error: msg(c, "noWorkspaceAccess") }, 404)
+  if (error instanceof WorkspaceError) return c.json(keyed(c, error), 400)
   console.error("Workspace change failed", error)
-  return c.json({ error: "Dit is niet gelukt. Probeer het over een minuut opnieuw." }, 500)
+  return c.json({ error: msg(c, "genericFailure") }, 500)
 }
 
 todoRoutes.get("/workspaces", requireSession, async (c) =>
-  c.json(await listWorkspaces(c.get("session").user.id), 200, noStore)
+  c.json(await listWorkspaces(c.get("session").user.id, languageOf(c)), 200, noStore)
 )
 
 todoRoutes.get("/workspaces/:id/members", requireSession, async (c) => {
@@ -116,11 +119,11 @@ todoRoutes.post(
     const session = c.get("session")
     const command = workspaceCommand.safeParse(await jsonBody(c))
     if (!command.success)
-      return c.json({ error: command.error.issues[0]?.message ?? "Controleer je invoer." }, 400)
+      return c.json({ error: validationMessage(c, command.error.issues[0]?.message) }, 400)
     if (command.data.type === "invite" && !session.user.emailVerified)
-      return c.json({ error: "Bevestig eerst je e-mailadres." }, 401)
+      return c.json({ error: msg(c, "confirmEmailFirst") }, 401)
     try {
-      const result = await changeWorkspace(session.user.id, command.data)
+      const result = await changeWorkspace(session.user.id, command.data, languageOf(c))
       defer(() => notifyWorkspaceUsers(result.recipients))
       if (result.mail)
         try {
@@ -128,10 +131,7 @@ todoRoutes.post(
         } catch (error) {
           // The invitation is stored; only the e-mail failed. Resending is safe.
           console.error("Workspace invitation e-mail failed", error)
-          return c.json(
-            { error: "De uitnodiging is opgeslagen, maar de e-mail kon niet worden verstuurd. Probeer het over een minuut opnieuw." },
-            502
-          )
+          return c.json({ error: msg(c, "inviteMailFailed") }, 502)
         }
       return c.json({ ok: true })
     } catch (error) {
@@ -161,7 +161,7 @@ todoRoutes.post(
   requireSession,
   async (c) => {
     const command = sharingCommand.safeParse(await jsonBody(c))
-    if (!command.success) return c.json({ error: "Controleer je invoer." }, 400)
+    if (!command.success) return c.json({ error: msg(c, "checkInput") }, 400)
     try {
       const result = await changeSharing(c.get("session").user.id, command.data)
       defer(() => notifyWorkspaceUsers(result.recipients))
@@ -176,7 +176,7 @@ todoRoutes.post(
 
 todoRoutes.get("/invitations/:token", async (c) => {
   const invite = await readInvitation(c.req.param("token"))
-  if (!invite) return c.json({ error: "Uitnodiging niet beschikbaar." }, 404, noStore)
+  if (!invite) return c.json({ error: msg(c, "invitationUnavailable") }, 404, noStore)
   const session = await getAuth().api.getSession({ headers: c.req.raw.headers })
   return c.json(
     {
@@ -194,15 +194,15 @@ todoRoutes.get("/invitations/:token", async (c) => {
 
 todoRoutes.post("/invitations/:token", requireTrustedOrigin, requireSession, async (c) => {
   try {
-    const result = await acceptInvitation(c.get("session").user.id, c.req.param("token"))
+    const result = await acceptInvitation(c.get("session").user.id, c.req.param("token"), languageOf(c))
     defer(() => notifyWorkspaceUsers(result.recipients))
     return c.json({ workspaceId: result.workspaceId })
   } catch (error) {
-    if (error instanceof WorkspaceError) return c.json({ error: error.message }, 403)
+    if (error instanceof WorkspaceError) return c.json(keyed(c, error), 403)
     if (error instanceof NotFoundError)
-      return c.json({ error: "Deze uitnodiging is verlopen, ingetrokken of al gebruikt." }, 404)
+      return c.json({ error: msg(c, "invitationGone") }, 404)
     console.error("Accepting invitation failed", error)
-    return c.json({ error: "Accepteren is niet gelukt." }, 500)
+    return c.json({ error: msg(c, "acceptFailed") }, 500)
   }
 })
 
@@ -213,26 +213,28 @@ const sharedHeaders = {
   "Referrer-Policy": "no-referrer",
   "X-Robots-Tag": "noindex, nofollow",
 }
-const linkUnavailable = "Deze link is niet meer beschikbaar of geeft geen bewerkrechten."
 
-todoRoutes.get("/gedeeld/:token", async (c) => {
+const readShared = async (c: Context) => {
   try {
-    return c.json(await readLinkedWorkspace(c.req.param("token")), 200, sharedHeaders)
+    return c.json(await readLinkedWorkspace(c.req.param("token") ?? ""), 200, sharedHeaders)
   } catch (error) {
     c.header("Cache-Control", noStore["Cache-Control"])
-    return commandFailure(c, error, linkUnavailable)
+    return commandFailure(c, error, "linkUnavailable")
   }
-})
+}
 
-todoRoutes.post("/gedeeld/:token", requireTrustedOrigin, commandLimit, async (c) => {
+const writeShared = async (c: Context) => {
   c.header("Cache-Control", noStore["Cache-Control"])
   const command = commandSchema.safeParse(await jsonBody(c))
-  if (!command.success) return c.json({ error: "Controleer je invoer." }, 400)
+  if (!command.success) return c.json({ error: validationMessage(c, command.error.issues[0]?.message) }, 400)
   try {
-    const recipients = await executeCommand({ shareToken: c.req.param("token") }, command.data)
+    const recipients = await executeCommand({ shareToken: c.req.param("token") ?? "" }, command.data)
     defer(() => notifyWorkspaceUsers(recipients))
     return c.json({ ok: true })
   } catch (error) {
-    return commandFailure(c, error, linkUnavailable)
+    return commandFailure(c, error, "linkUnavailable")
   }
-})
+}
+
+todoRoutes.get("/shared/:token", readShared)
+todoRoutes.post("/shared/:token", requireTrustedOrigin, commandLimit, writeShared)

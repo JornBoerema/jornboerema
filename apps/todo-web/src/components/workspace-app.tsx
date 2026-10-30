@@ -33,6 +33,7 @@ import { Sortable } from "@/components/sortable";
 import { ShareListDialog } from "@/components/share-list-dialog";
 import type { TodoList } from "@evido/todo-core/workspace";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useI18n } from "@/i18n";
 import { cn } from "@evido/ui/lib/utils";
 import { Brand } from "@/components/brand";
 import { Button } from "@evido/ui/components/button";
@@ -105,14 +106,15 @@ export function WorkspaceApp({
   realtimeEnabled: boolean;
   shareToken?: string;
 }) {
+  const { t: { workspace: t } } = useI18n();
   const { data, run, pending, online, connection, error, refresh, unavailable } =
     useWorkspace(user?.id ?? "guest", activeWorkspace?.id ?? "", initialData, realtimeEnabled, shareToken);
   const listEndpoint = shareToken
-    ? `/api/gedeeld/${shareToken}`
+    ? `/api/shared/${shareToken}`
     : `/api/workspace?workspaceId=${encodeURIComponent(activeWorkspace?.id ?? "")}`;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const selectedId = searchParams.get("lijst");
+  const selectedId = searchParams.get("list");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [deletion, setDeletion] = useState<Deletion | null>(null);
   const [sharingList, setSharingList] = useState<TodoList | null>(null);
@@ -163,7 +165,7 @@ export function WorkspaceApp({
   async function showOverview() {
     if (noteSave.current && !(await noteSave.current())) return;
     const next = new URLSearchParams(window.location.search);
-    next.delete("lijst");
+    next.delete("list");
     navigate({ search: next.toString() });
     setTaskTitle("");
   }
@@ -171,8 +173,8 @@ export function WorkspaceApp({
   async function selectList(id: string) {
     if (noteSave.current && !(await noteSave.current())) return;
     const next = new URLSearchParams(window.location.search);
-    if (next.get("lijst") !== id) {
-      next.set("lijst", id);
+    if (next.get("list") !== id) {
+      next.set("list", id);
       navigate({ search: next.toString() });
     }
     setTaskTitle("");
@@ -181,32 +183,32 @@ export function WorkspaceApp({
     // Wait for mutations to settle before replacing a missing/deleted selection.
     if (pending || selectedId === (activeListId ?? null)) return;
     const url = new URL(window.location.href);
-    if (url.pathname !== "/" || url.searchParams.get("lijst") !== selectedId) return;
-    if (activeListId) url.searchParams.set("lijst", activeListId);
-    else url.searchParams.delete("lijst");
+    if (url.pathname !== "/" || url.searchParams.get("list") !== selectedId) return;
+    if (activeListId) url.searchParams.set("list", activeListId);
+    else url.searchParams.delete("list");
     navigate({ search: url.searchParams.toString() }, { replace: true });
   }, [activeListId, selectedId, pending, navigate]);
   useEffect(() => {
-    document.title = selected?.name ? `${selected.name} · Even doen` : "Overzicht · Even doen";
-  }, [selected?.name]);
+    document.title = selected?.name ? t.pageTitle(selected.name) : t.overviewTitle;
+  }, [selected?.name, t]);
   const items = sortTodos(data.todos.filter((t) => t.listId === selected?.id));
   const canEditTasks = selected?.role !== "viewer";
   const remaining = items.filter((t) => !t.completed).length;
-  const disabled = pending || !online || (!!shareToken && error);
-  async function addTask(event: React.FormEvent) {
+  // Saving happens in the background; only offline (or a broken link) blocks editing.
+  const disabled = !online || (!!shareToken && error);
+  function addTask(event: React.FormEvent) {
     event.preventDefault();
     if (!selected || !taskTitle.trim() || disabled || !canEditTasks) return;
-    const title = taskTitle.trim();
-    const success = await run({
+    void run({
       type: "create-todo",
       id: crypto.randomUUID(),
       listId: selected.id,
-      title,
+      title: taskTitle.trim(),
     });
-    if (success) setTaskTitle("");
-    requestAnimationFrame(() => taskInput.current?.focus());
+    setTaskTitle("");
+    taskInput.current?.focus();
   }
-  async function saveEditor(event: React.FormEvent) {
+  function saveEditor(event: React.FormEvent) {
     event.preventDefault();
     if (!editor || !editor.value.trim()) return;
     const id = editor.id ?? crypto.randomUUID();
@@ -217,42 +219,41 @@ export function WorkspaceApp({
         : editor.type === "create-list"
           ? { type: editor.type, id, workspaceId: activeWorkspace!.id, name: value, kind: editor.kind ?? "todo" }
           : { type: editor.type, id, name: value };
-    if (await run(command)) {
-      if (editor.type === "create-list") selectList(id);
-      setEditor(null);
-    }
+    void run(command);
+    setEditor(null);
+    if (editor.type === "create-list") void selectList(id);
   }
   const connectionText = !online
-    ? "Offline"
+    ? t.sync.offline
     : error
-      ? "Synchroniseren mislukt"
+      ? t.sync.failed
       : pending
-        ? "Opslaan…"
+        ? t.sync.saving
         : connection === "connected"
-          ? "Gesynchroniseerd"
+          ? t.sync.synced
           : connection === "connecting"
-            ? "Verbinden…"
-            : "Periodiek gesynchroniseerd";
-  if (shareToken && unavailable) return <main className="account-content"><Brand /><div className="account-heading"><h1>Deze link is niet meer beschikbaar</h1><p>Vraag de eigenaar om een nieuwe link naar de lijst.</p></div></main>;
+            ? t.sync.connecting
+            : t.sync.polling;
+  if (shareToken && unavailable) return <main className="account-content"><Brand /><div className="account-heading"><h1>{t.linkUnavailable.title}</h1><p>{t.linkUnavailable.body}</p></div></main>;
   return (
     <div className={cn("workspace-shell", sidebarCollapsed && "sidebar-collapsed", shareToken && "shared-workspace")}>
-      <a href="#taken" className="skip-link">
-        Ga naar de lijst
+      <a href="#tasks" className="skip-link">
+        {t.skipToList}
       </a>
-      {!shareToken && <aside id="list-sidebar" className="list-sidebar" aria-label="Lijsten" inert={sidebarCollapsed} aria-hidden={sidebarCollapsed}>
+      {!shareToken && <aside id="list-sidebar" className="list-sidebar" aria-label={t.sidebar.label} inert={sidebarCollapsed} aria-hidden={sidebarCollapsed}>
         <Brand />
         <div className="list-navigation sidebar-sections">
           <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
-          <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>Overzicht</span></button>
+          <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>{t.sidebar.overview}</span></button>
           {(["todo", "note"] as const).map((kind) => {
             const sectionLists = data.lists.filter((list) => (list.kind ?? "todo") === kind);
             const Icon = kind === "note" ? Note : ListTodo;
             return <section className="sidebar-list-section" key={kind} aria-labelledby={`sidebar-${kind}`}>
               <div className="sidebar-heading">
-                <h2 id={`sidebar-${kind}`}>{kind === "note" ? "Notities" : "Lijsten"}</h2>
-                <Button variant="ghost" size="icon" aria-label={kind === "note" ? "Nieuwe notitie" : "Nieuwe lijst"} onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}><Plus /></Button>
+                <h2 id={`sidebar-${kind}`}>{kind === "note" ? t.sidebar.notes : t.sidebar.lists}</h2>
+                <Button variant="ghost" size="icon" aria-label={kind === "note" ? t.sidebar.newNote : t.sidebar.newList} onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}><Plus /></Button>
               </div>
-              <nav aria-label={kind === "note" ? "Notities" : "Takenlijsten"}>
+              <nav aria-label={kind === "note" ? t.sidebar.notes : t.sidebar.taskLists}>
                 <Sortable className="sidebar-section-links" items={sectionLists} label={(list) => list.name} keyboard="content" itemClassName="sidebar-sortable-item" disabled={disabled} onMove={(move) => run({ type: "move-list", ...move })}>
                   {(list) => <button className={cn("list-link", selected?.id === list.id && "is-selected")} onClick={() => selectList(list.id)} aria-current={selected?.id === list.id ? "page" : undefined}>
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
@@ -260,7 +261,7 @@ export function WorkspaceApp({
                     {kind !== "note" && <span className="list-count">{data.todos.filter((item) => item.listId === list.id && !item.completed).length}</span>}
                   </button>}
                 </Sortable>
-                {!sectionLists.length && <p className="sidebar-note">{kind === "note" ? "Nog geen notities." : "Nog geen lijsten."}</p>}
+                {!sectionLists.length && <p className="sidebar-note">{kind === "note" ? t.sidebar.noNotes : t.sidebar.noLists}</p>}
               </nav>
             </section>;
           })}
@@ -273,9 +274,9 @@ export function WorkspaceApp({
           </div>
         )}
       </aside>}
-      <main id="taken" className="workspace-main" tabIndex={-1}>
+      <main id="tasks" className="workspace-main" tabIndex={-1}>
       {!shareToken && <Button ref={sidebarExpand} variant="ghost" size="icon" className="sidebar-corner-toggle"
-          aria-label="Sidebar uitklappen" title="Sidebar uitklappen (⌘/Ctrl+B)" aria-keyshortcuts="Meta+B Control+B"
+          aria-label={t.sidebar.expand} title={t.sidebar.expandTitle} aria-keyshortcuts="Meta+B Control+B"
           aria-hidden={!sidebarCollapsed} inert={!sidebarCollapsed} tabIndex={sidebarCollapsed ? 0 : -1}
           aria-expanded={false} aria-controls="list-sidebar" onClick={toggleSidebar}>
           <SidebarToggle className="size-5" aria-hidden="true" />
@@ -285,9 +286,9 @@ export function WorkspaceApp({
         </div>
           <button
             className="sync-status"
-            title="Nu synchroniseren"
+            title={t.sync.syncNow}
             onClick={() => void refresh()}
-            aria-label={`${connectionText}. Nu synchroniseren.`}
+            aria-label={t.sync.syncNowLabel(connectionText)}
           >
             {!online || error ? (
               <CloudOff className="size-4" />
@@ -302,12 +303,10 @@ export function WorkspaceApp({
           {(!online || error) && (
             <Alert>
               <AlertTitle>
-                {!online ? "Je bent offline" : "Synchroniseren is niet gelukt"}
+                {!online ? t.sync.offlineTitle : t.sync.failedTitle}
               </AlertTitle>
               <AlertDescription>
-                {!online
-                  ? "Je kunt je lijsten bekijken. Zodra je weer verbinding hebt, kun je verder."
-                  : "Je ziet de laatst geladen lijsten. Probeer opnieuw te synchroniseren."}
+                {!online ? t.sync.offlineBody : t.sync.failedBody}
               </AlertDescription>
             </Alert>
           )}
@@ -315,14 +314,14 @@ export function WorkspaceApp({
             <>
               <div className="task-heading">
                 <div className="min-w-0 flex-1">
-                  <InlineName key={selected.id} heading value={selected.name} label="Lijstnaam bewerken" maxLength={80}
+                  <InlineName key={selected.id} heading value={selected.name} label={t.list.renameLabel} maxLength={80}
                     disabled={disabled || selected.role !== "owner"}
                     onSave={(name) => run({ type: "rename-list", id: selected.id, name })} />
-                  {selected.role === "viewer" && <p>Alleen lezen</p>}
+                  {selected.role === "viewer" && <p>{t.list.readOnly}</p>}
                   {selected.kind !== "note" && <p className="list-summary">
                     <span>{remaining === 0 && items.length > 0
-                      ? "Alles afgevinkt. Lekker gedaan."
-                      : `${remaining} ${remaining === 1 ? "taak" : "taken"} te doen`}</span>
+                      ? t.list.allDone
+                      : t.list.tasksToDo(remaining)}</span>
                   </p>}
                 </div>
                 {!shareToken && <DropdownMenu>
@@ -330,7 +329,7 @@ export function WorkspaceApp({
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label="Lijstopties"
+                      aria-label={t.list.options}
                       disabled={disabled}
                     >
                       <MoreHorizontal />
@@ -338,14 +337,14 @@ export function WorkspaceApp({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
-                      {selected.kind === "note" && <DropdownMenuItem onSelect={() => noteDownload.current?.()}><Download aria-hidden="true" />Download .md</DropdownMenuItem>}
+                      {selected.kind === "note" && <DropdownMenuItem onSelect={() => noteDownload.current?.()}><Download aria-hidden="true" />{t.list.downloadMarkdown}</DropdownMenuItem>}
                       {selected.role === "owner" ? (
                         <>
                           <DropdownMenuItem
                             onSelect={() => setSharingList(selected)}
                           >
                             <Share aria-hidden="true" />
-                            {selected.kind === "note" ? "Notitie delen" : "Lijst delen"}
+                            {selected.kind === "note" ? t.list.shareNote : t.list.shareList}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onSelect={() =>
@@ -357,7 +356,7 @@ export function WorkspaceApp({
                             }
                           >
                             <Pencil />
-                            Naam wijzigen
+                            {t.list.rename}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
@@ -370,7 +369,7 @@ export function WorkspaceApp({
                             }
                           >
                             <Trash2 />
-                            {selected.kind === "note" ? "Notitie verwijderen" : "Lijst verwijderen"}
+                            {selected.kind === "note" ? t.list.deleteNote : t.list.deleteList}
                           </DropdownMenuItem>
                         </>
                       ) : null}
@@ -378,13 +377,13 @@ export function WorkspaceApp({
                   </DropdownMenuContent>
                 </DropdownMenu>}
               </div>
-              {selected.kind === "note" ? <Suspense fallback={<p className="text-sm text-muted-foreground">Notitie laden…</p>}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense> : <>
+              {selected.kind === "note" ? <Suspense fallback={<p className="text-sm text-muted-foreground">{t.list.loadingNote}</p>}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense> : <>
               {canEditTasks && (
                 <form className="task-composer" onSubmit={addTask}>
                   <FieldGroup>
                     <Field>
                       <FieldLabel htmlFor="new-task" className="sr-only">
-                        Nieuwe taak
+                        {t.composer.label}
                       </FieldLabel>
                       <InputGroup className="h-12" data-disabled={disabled}>
                         <InputGroupInput
@@ -393,7 +392,7 @@ export function WorkspaceApp({
                           value={taskTitle}
                           onChange={(e) => setTaskTitle(e.target.value)}
                           maxLength={500}
-                          placeholder="Wat wil je doen?"
+                          placeholder={t.composer.placeholder}
                           autoComplete="off"
                           disabled={disabled}
                         />
@@ -402,11 +401,11 @@ export function WorkspaceApp({
                             type="submit"
                             variant="default"
                             size="sm"
-                            aria-label="Taak toevoegen"
+                            aria-label={t.composer.addLabel}
                             disabled={disabled || !taskTitle.trim()}
                           >
                             <Plus data-icon="inline-start" />
-                            <span>Toevoegen</span>
+                            <span>{t.composer.add}</span>
                           </InputGroupButton>
                         </InputGroupAddon>
                       </InputGroup>
@@ -420,11 +419,9 @@ export function WorkspaceApp({
                     <EmptyMedia>
                       <ListTodo className="size-7 text-muted-foreground" />
                     </EmptyMedia>
-                    <EmptyTitle>Een lege lijst, een frisse start</EmptyTitle>
+                    <EmptyTitle>{t.emptyList.title}</EmptyTitle>
                     <EmptyDescription>
-                      {canEditTasks
-                        ? "Voeg hierboven je eerste taak toe."
-                        : "Deze lijst heeft nog geen taken."}
+                      {canEditTasks ? t.emptyList.canEdit : t.emptyList.readOnly}
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -434,13 +431,13 @@ export function WorkspaceApp({
                   layoutScroll
                   tabIndex={0}
                   role="list"
-                  aria-label={`Taken in ${selected.name}`}
+                  aria-label={t.list.tasksIn(selected.name)}
                 >
                   {(["busy", "open", "done"] as const).map((status) => (
                     <div key={`${selected.id}-${status}`}>
                       {(status !== "open" || items.some((t) => taskStatus(t) === "busy")) && items.some((t) => taskStatus(t) === status) && (
                         <div className="completed-heading">
-                          <h2>{status === "busy" ? "Mee bezig" : status === "open" ? "Te doen" : "Klaar"} <span>{items.filter((t) => taskStatus(t) === status).length}</span></h2>
+                          <h2>{t.status[status]} <span>{items.filter((t) => taskStatus(t) === status).length}</span></h2>
                         </div>
                       )}
                       <Sortable items={items.filter((t) => taskStatus(t) === status)} label={(todo) => todo.title} disabled={disabled || !canEditTasks} onMove={(move) => run({ type: "move-todo", ...move })}>
@@ -465,9 +462,9 @@ export function WorkspaceApp({
                 <EmptyMedia>
                   <ListTodo className="size-8 text-primary" />
                 </EmptyMedia>
-                <EmptyTitle>Begin met je eerste lijst</EmptyTitle>
+                <EmptyTitle>{t.noLists.title}</EmptyTitle>
                 <EmptyDescription>
-                  Voor werk, thuis of alles wat je nog wilt doen.
+                  {t.noLists.body}
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
@@ -476,7 +473,7 @@ export function WorkspaceApp({
                   onClick={() => setEditor({ type: "create-list", value: "" })}
                 >
                   <Plus data-icon="inline-start" />
-                  Nieuwe lijst maken
+                  {t.noLists.create}
                 </Button>
               </EmptyContent>
             </Empty>
@@ -493,22 +490,22 @@ export function WorkspaceApp({
       <Dialog
         open={!!editor}
         onOpenChange={(open) => {
-          if (!open && !pending) setEditor(null);
+          if (!open) setEditor(null);
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {editor?.type === "create-list"
-                ? editor.kind === "note" ? "Nieuwe notitie" : "Nieuwe lijst"
+                ? editor.kind === "note" ? t.editor.newNote : t.editor.newList
                 : editor?.type === "rename-list"
-                  ? "Naam wijzigen"
-                  : "Taak bewerken"}
+                  ? t.editor.rename
+                  : t.editor.editTask}
             </DialogTitle>
             <DialogDescription>
               {editor?.type === "update-todo"
-                ? "Pas de tekst van je taak aan."
-                : editor?.kind === "note" ? "Geef je notitie een herkenbare titel." : "Geef je lijst een herkenbare naam."}
+                ? t.editor.editTaskDescription
+                : editor?.kind === "note" ? t.editor.noteDescription : t.editor.listDescription}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={saveEditor} className="flex flex-col gap-5">
@@ -516,8 +513,8 @@ export function WorkspaceApp({
               <Field>
                 <FieldLabel htmlFor="editor-value">
                   {editor?.type === "update-todo"
-                    ? "Taak"
-                    : editor?.kind === "note" ? "Titel van de notitie" : "Naam van de lijst"}
+                    ? t.editor.task
+                    : editor?.kind === "note" ? t.editor.noteTitle : t.editor.listName}
                 </FieldLabel>
                 <Input
                   id="editor-value"
@@ -530,10 +527,9 @@ export function WorkspaceApp({
                   }
                   maxLength={editor?.type === "update-todo" ? 500 : 80}
                   required
-                  disabled={pending}
                   placeholder={
                     editor?.type === "create-list"
-                      ? editor.kind === "note" ? "Bijvoorbeeld: Ideeën" : "Bijvoorbeeld: Werk"
+                      ? editor.kind === "note" ? t.editor.notePlaceholder : t.editor.listPlaceholder
                       : undefined
                   }
                 />
@@ -543,20 +539,17 @@ export function WorkspaceApp({
               <Button
                 type="button"
                 variant="outline"
-                disabled={pending}
                 onClick={() => setEditor(null)}
               >
-                Annuleren
+                {t.editor.cancel}
               </Button>
               <Button
                 type="submit"
                 disabled={disabled || !editor?.value.trim()}
               >
-                {pending
-                  ? "Opslaan…"
-                  : editor?.type === "create-list"
-                    ? editor.kind === "note" ? "Notitie maken" : "Lijst maken"
-                    : "Opslaan"}
+                {editor?.type === "create-list"
+                    ? editor.kind === "note" ? t.editor.createNote : t.editor.createList
+                    : t.editor.save}
               </Button>
             </DialogFooter>
           </form>
@@ -565,39 +558,28 @@ export function WorkspaceApp({
       <AlertDialog
         open={!!deletion}
         onOpenChange={(open) => {
-          if (!open && !pending) setDeletion(null);
+          if (!open) setDeletion(null);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {deletion?.type === "delete-list"
-                ? "Lijst verwijderen?"
-                : "Taak verwijderen?"}
+              {deletion?.type === "delete-list" ? t.deletion.listTitle : t.deletion.taskTitle}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              “{deletion?.title}” wordt verwijderd
-              {deletion?.type === "delete-list"
-                ? ", samen met alle taken in deze lijst"
-                : ""}
-              . Dit kun je niet ongedaan maken.
+              {t.deletion.body(deletion?.title ?? "", deletion?.type === "delete-list")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Annuleren</AlertDialogCancel>
+            <AlertDialogCancel>{t.deletion.cancel}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={disabled}
-              onClick={async (e) => {
-                e.preventDefault();
-                if (
-                  deletion &&
-                  (await run({ type: deletion.type, id: deletion.id }))
-                )
-                  setDeletion(null);
+              onClick={() => {
+                if (deletion) void run({ type: deletion.type, id: deletion.id });
               }}
             >
-              {pending ? "Verwijderen…" : "Verwijderen"}
+              {t.deletion.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -620,6 +602,7 @@ function TodoRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t: { workspace: t } } = useI18n();
   return (
     <div className={cn("todo-row", todo.completed && "is-complete")}>
       <Checkbox
@@ -627,9 +610,9 @@ function TodoRow({
         checked={todo.completed ? true : todo.inProgress ? "indeterminate" : false}
         onCheckedChange={onToggle}
         disabled={disabled}
-        aria-label={`${todo.title}: ${todo.completed ? "terug naar te doen" : todo.inProgress ? "klaar maken" : "mee bezig starten"}`}
+        aria-label={t.task.checkboxLabel(todo.title, todo.completed ? "done" : todo.inProgress ? "busy" : "open")}
       />
-      <InlineName value={todo.title} label="Taaknaam bewerken" maxLength={500} disabled={disabled}
+      <InlineName value={todo.title} label={t.task.renameLabel} maxLength={500} disabled={disabled}
         className="todo-title" onSave={onRename} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -638,7 +621,7 @@ function TodoRow({
             size="icon"
             className="task-menu"
             disabled={disabled}
-            aria-label={`Opties voor ${todo.title}`}
+            aria-label={t.task.optionsFor(todo.title)}
           >
             <MoreHorizontal />
           </Button>
@@ -647,11 +630,11 @@ function TodoRow({
           <DropdownMenuGroup>
             <DropdownMenuItem onSelect={onEdit}>
               <Pencil />
-              Bewerken
+              {t.task.edit}
             </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onSelect={onDelete}>
               <Trash2 />
-              Verwijderen
+              {t.task.delete}
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>

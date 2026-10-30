@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@evido/ui/components/button";
 import { Alert, AlertDescription } from "@evido/ui/components/alert";
 import { authClient } from "@/lib/auth-client";
+import { useI18n } from "@/i18n";
 export function AcceptInvitation({
   token,
   wrongAccount = false,
@@ -12,6 +13,7 @@ export function AcceptInvitation({
   token: string;
   wrongAccount?: boolean;
 }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [pending, setPending] = useState(false);
@@ -34,7 +36,7 @@ export function AcceptInvitation({
       queryClient.clear();
       navigate(`/?workspace=${encodeURIComponent(body.workspaceId)}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Probeer opnieuw.");
+      setError(e instanceof Error ? e.message : t.common.tryAgain);
       setPending(false);
     }
   }
@@ -47,10 +49,10 @@ export function AcceptInvitation({
       )}
       <Button disabled={pending} onClick={act}>
         {wrongAccount
-          ? "Ander account gebruiken"
+          ? t.auth.invitation.switchAccount
           : pending
-            ? "Even geduld…"
-            : "Uitnodiging accepteren"}
+            ? t.common.pleaseWait
+            : t.auth.invitation.accept}
       </Button>
     </div>
   );

@@ -1,10 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import {
-  canManageWorkspace,
-  workspaceRoleLabels,
-  type WorkspaceSummary,
-} from "@evido/todo-core/workspaces"
+import { canManageWorkspace, type WorkspaceSummary } from "@evido/todo-core/workspaces"
+import { useI18n } from "@/i18n"
 import { useWorkspaceCommand, useWorkspaceMembers } from "@/lib/workspaces"
 import { Mail, UserAdd } from "@/components/icons"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
@@ -15,11 +12,6 @@ import { Skeleton } from "@evido/ui/components/skeleton"
 import { Alert, AlertDescription } from "@evido/ui/components/alert"
 import { Badge } from "@evido/ui/components/badge"
 
-const roleHelp = {
-  admin: "Beheerders kunnen leden uitnodigen en de workspace beheren.",
-  member: "Leden kunnen alle lijsten bekijken en bewerken.",
-}
-
 export function WorkspaceMembersSettings({
   userId,
   workspace,
@@ -27,6 +19,9 @@ export function WorkspaceMembersSettings({
   userId: string
   workspace: WorkspaceSummary
 }) {
+  const { t, locale } = useI18n()
+  const s = t.settings
+  const roleHelp = { admin: s.members.adminHelp, member: s.members.memberHelp }
   const query = useWorkspaceMembers(workspace.id)
   const command = useWorkspaceCommand(userId)
   const canManage = canManageWorkspace(workspace.role)
@@ -39,7 +34,7 @@ export function WorkspaceMembersSettings({
     try {
       await work()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Dit is niet gelukt.")
+      toast.error(error instanceof Error ? error.message : s.common.failed)
     } finally {
       setBusy(null)
     }
@@ -49,10 +44,10 @@ export function WorkspaceMembersSettings({
     <>
       {canManage && (
         <SettingsSection
-          title="Leden uitnodigen"
-          description="De ontvanger krijgt een e-mail en accepteert met een account op hetzelfde e-mailadres."
+          title={s.members.inviteTitle}
+          description={s.members.inviteHelp}
         >
-          <SettingsRow title="E-mailadres" htmlFor="invite-email" description={roleHelp[role]}>
+          <SettingsRow title={s.members.email} htmlFor="invite-email" description={roleHelp[role]}>
             <form
               className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap"
               onSubmit={(event) => {
@@ -62,7 +57,7 @@ export function WorkspaceMembersSettings({
                 void perform("invite", async () => {
                   await command({ type: "invite", workspaceId: workspace.id, email: to, role })
                   setEmail("")
-                  toast.success(`Uitnodiging verstuurd naar ${to}.`)
+                  toast.success(s.members.inviteSent(to))
                 })
               }}
             >
@@ -70,7 +65,7 @@ export function WorkspaceMembersSettings({
                 id="invite-email"
                 className="min-w-0 flex-1 sm:w-56"
                 type="email"
-                placeholder="naam@voorbeeld.nl"
+                placeholder={s.members.emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 maxLength={254}
@@ -78,17 +73,17 @@ export function WorkspaceMembersSettings({
                 disabled={!!busy}
               />
               <NativeSelect
-                aria-label="Rol"
+                aria-label={s.members.role}
                 value={role}
                 onChange={(e) => setRole(e.target.value as typeof role)}
                 disabled={!!busy}
               >
-                <NativeSelectOption value="member">Lid</NativeSelectOption>
-                <NativeSelectOption value="admin">Beheerder</NativeSelectOption>
+                <NativeSelectOption value="member">{s.roles.member}</NativeSelectOption>
+                <NativeSelectOption value="admin">{s.roles.admin}</NativeSelectOption>
               </NativeSelect>
               <Button type="submit" disabled={!!busy || !email.trim()}>
                 <UserAdd data-icon="inline-start" />
-                {busy === "invite" ? "Versturen…" : "Uitnodigen"}
+                {busy === "invite" ? s.common.sending : s.members.invite}
               </Button>
             </form>
           </SettingsRow>
@@ -96,12 +91,8 @@ export function WorkspaceMembersSettings({
       )}
 
       <SettingsSection
-        title="Leden"
-        description={
-          canManage
-            ? "Pas rollen aan of verwijder iemand uit de workspace."
-            : "Alleen de eigenaar en beheerders kunnen leden beheren."
-        }
+        title={s.members.title}
+        description={canManage ? s.members.manageHelp : s.members.readOnlyHelp}
       >
         {query.isPending ? (
           <div className="flex flex-col gap-3 p-5">
@@ -120,13 +111,13 @@ export function WorkspaceMembersSettings({
             return (
               <SettingsRow
                 key={member.id}
-                title={member.userId === userId ? `${member.name} (jij)` : member.name}
+                title={member.userId === userId ? s.members.you(member.name) : member.name}
                 description={member.email}
               >
                 {editable ? (
                   <>
                     <NativeSelect
-                      aria-label={`Rol van ${member.name}`}
+                      aria-label={s.members.roleOf(member.name)}
                       value={member.role}
                       disabled={!!busy}
                       onChange={(e) =>
@@ -140,8 +131,8 @@ export function WorkspaceMembersSettings({
                         )
                       }
                     >
-                      <NativeSelectOption value="member">Lid</NativeSelectOption>
-                      <NativeSelectOption value="admin">Beheerder</NativeSelectOption>
+                      <NativeSelectOption value="member">{s.roles.member}</NativeSelectOption>
+                      <NativeSelectOption value="admin">{s.roles.admin}</NativeSelectOption>
                     </NativeSelect>
                     <Button
                       variant="ghost"
@@ -153,15 +144,15 @@ export function WorkspaceMembersSettings({
                             workspaceId: workspace.id,
                             memberId: member.id,
                           })
-                          toast.success(`${member.name} is verwijderd uit de workspace.`)
+                          toast.success(s.members.removed(member.name))
                         })
                       }
                     >
-                      Verwijderen
+                      {s.members.remove}
                     </Button>
                   </>
                 ) : (
-                  <Badge variant="secondary">{workspaceRoleLabels[member.role]}</Badge>
+                  <Badge variant="secondary">{s.roles[member.role]}</Badge>
                 )}
               </SettingsRow>
             )
@@ -170,12 +161,15 @@ export function WorkspaceMembersSettings({
       </SettingsSection>
 
       {!!query.data?.invitations.length && (
-        <SettingsSection title="Openstaande uitnodigingen">
+        <SettingsSection title={s.members.pendingTitle}>
           {query.data.invitations.map((invite) => (
             <SettingsRow
               key={invite.id}
               title={invite.email}
-              description={`${workspaceRoleLabels[invite.role]} · geldig tot ${new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long" }).format(new Date(invite.expiresAt))}`}
+              description={s.members.validUntil(
+                s.roles[invite.role],
+                new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(new Date(invite.expiresAt))
+              )}
             >
               {canManage && (
                 <>
@@ -190,12 +184,12 @@ export function WorkspaceMembersSettings({
                           email: invite.email,
                           role: invite.role === "admin" ? "admin" : "member",
                         })
-                        toast.success(`Uitnodiging opnieuw verstuurd naar ${invite.email}.`)
+                        toast.success(s.members.resent(invite.email))
                       })
                     }
                   >
                     <Mail data-icon="inline-start" />
-                    Opnieuw sturen
+                    {s.members.resend}
                   </Button>
                   <Button
                     variant="ghost"
@@ -210,7 +204,7 @@ export function WorkspaceMembersSettings({
                       )
                     }
                   >
-                    Intrekken
+                    {s.members.revoke}
                   </Button>
                 </>
               )}
