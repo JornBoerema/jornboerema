@@ -1,16 +1,19 @@
 mod capture;
+mod settings;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 
 use capture::Capture;
 use serde::Serialize;
+use settings::{AfterCapture, Settings, SettingsState};
 use tauri::http::{header, Response, StatusCode};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_clipboard_manager::ClipboardExt;
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_autostart::ManagerExt as _;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 /// Captures waiting in an editor window, by id. Removed when that window closes.
 #[derive(Default)]
@@ -39,22 +42,38 @@ enum OverlayMode {
     Window,
 }
 
-/// ⌥⇧<n> on macOS (⌘⇧3/4/5 belong to the system), Ctrl+Shift+<n> on Windows.
-fn shortcut(key: Code) -> Shortcut {
-    #[cfg(target_os = "macos")]
-    let modifiers = Modifiers::ALT | Modifiers::SHIFT;
-    #[cfg(not(target_os = "macos"))]
-    let modifiers = Modifiers::CONTROL | Modifiers::SHIFT;
-    Shortcut::new(Some(modifiers), key)
+fn current_settings(app: &AppHandle) -> Settings {
+    app.state::<SettingsState>().0.lock().unwrap().clone()
 }
-fn fullscreen_shortcut() -> Shortcut {
-    shortcut(Code::Digit1)
+
+/// Registers the three capture shortcuts, replacing whatever was registered.
+/// Errors are "invalid:<shortcut>", "duplicate:<shortcut>" or "taken:<shortcut>"
+/// (in use by another app); the settings window turns them into a message.
+fn register_shortcuts(app: &AppHandle, shortcuts: &settings::Shortcuts) -> Result<(), String> {
+    let manager = app.global_shortcut();
+    let _ = manager.unregister_all();
+    let mut registered: Vec<Shortcut> = Vec::new();
+    for text in shortcuts.all() {
+        let shortcut: Shortcut = text.parse().map_err(|_| format!("invalid:{text}"))?;
+        if registered.contains(&shortcut) {
+            return Err(format!("duplicate:{text}"));
+        }
+        manager.register(shortcut).map_err(|_| format!("taken:{text}"))?;
+        registered.push(shortcut);
+    }
+    Ok(())
 }
-fn area_shortcut() -> Shortcut {
-    shortcut(Code::Digit2)
-}
-fn window_shortcut() -> Shortcut {
-    shortcut(Code::Digit3)
+
+fn on_shortcut(app: &AppHandle, pressed: &Shortcut) {
+    let shortcuts = current_settings(app).shortcuts;
+    let is = |text: &str| text.parse::<Shortcut>().is_ok_and(|s| &s == pressed);
+    if is(&shortcuts.fullscreen) {
+        capture_fullscreen(app);
+    } else if is(&shortcuts.area) {
+        start_overlay(app, OverlayMode::Area);
+    } else if is(&shortcuts.window) {
+        start_overlay(app, OverlayMode::Window);
+    }
 }
 
 /// Checks the macOS permission; returns false (and explains) when missing.
@@ -92,9 +111,46 @@ fn capture_fullscreen(app: &AppHandle) {
     let app = app.clone();
     // Capturing and PNG encoding take a moment; keep the shortcut handler free.
     std::thread::spawn(move || match capture::fullscreen(cursor) {
-        Ok(capture) => open_editor(&app, capture),
+        Ok(capture) => deliver(&app, capture),
         Err(error) => eprintln!("Capture failed: {error}"),
     });
+}
+
+/// "Screenshot 2026-10-30 19.45.12.png" in `folder`, numbered if it already exists.
+fn new_file_path(folder: &std::path::Path) -> std::path::PathBuf {
+    let stamp = chrono::Local::now().format("%Y-%m-%d %H.%M.%S");
+    let mut path = folder.join(format!("Screenshot {stamp}.png"));
+    let mut n = 2;
+    while path.exists() {
+        path = folder.join(format!("Screenshot {stamp} ({n}).png"));
+        n += 1;
+    }
+    path
+}
+
+fn write_clipboard(app: &AppHandle, image: &xcap::image::RgbaImage) -> Result<(), String> {
+    let image = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
+    app.clipboard().write_image(&image).map_err(|e| e.to_string())
+}
+
+/// Handles a fresh screenshot as the settings say: open the editor, copy it or
+/// save it. If copying or saving fails, the editor opens so nothing is lost.
+fn deliver(app: &AppHandle, capture: Capture) {
+    let settings = current_settings(app);
+    let result = match settings.after_capture {
+        AfterCapture::Editor => return open_editor(app, capture),
+        AfterCapture::Copy => write_clipboard(app, &capture.image),
+        AfterCapture::Save => {
+            let folder = settings.save_folder(app);
+            std::fs::create_dir_all(&folder)
+                .and_then(|_| std::fs::write(new_file_path(&folder), &capture.png))
+                .map_err(|e| e.to_string())
+        }
+    };
+    if let Err(error) = result {
+        eprintln!("After-capture action failed: {error}");
+        open_editor(app, capture);
+    }
 }
 
 fn open_editor(app: &AppHandle, capture: Capture) {
@@ -285,8 +341,7 @@ fn capture_info(id: String, captures: State<Captures>) -> Result<CaptureInfo, St
 fn copy_capture(id: String, app: AppHandle, captures: State<Captures>) -> Result<(), String> {
     let captures = captures.0.lock().unwrap();
     let capture = captures.get(&id).ok_or("Capture not found")?;
-    let image = tauri::image::Image::new(capture.image.as_raw(), capture.image.width(), capture.image.height());
-    app.clipboard().write_image(&image).map_err(|e| e.to_string())
+    write_clipboard(&app, &capture.image)
 }
 
 /// Raw request body of an invoke (a PNG exported by the editor canvas).
@@ -301,8 +356,7 @@ fn png_body(request: &tauri::ipc::Request<'_>) -> Result<Vec<u8>, String> {
 #[tauri::command]
 fn copy_png(request: tauri::ipc::Request<'_>, app: AppHandle) -> Result<(), String> {
     let image = xcap::image::load_from_memory(&png_body(&request)?).map_err(|e| e.to_string())?.to_rgba8();
-    let image = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
-    app.clipboard().write_image(&image).map_err(|e| e.to_string())
+    write_clipboard(&app, &image)
 }
 
 /// Saves an annotated screenshot; the path comes URL-encoded in `x-path`.
@@ -345,7 +399,7 @@ fn crop_capture(
 ) -> Result<(), String> {
     let cropped = crop_frozen(&captures, &id, x, y, width, height, viewport_width);
     close_overlay_windows(&app);
-    open_editor(&app, cropped?);
+    deliver(&app, cropped?);
     Ok(())
 }
 
@@ -384,7 +438,7 @@ async fn capture_window(
     };
     close_overlay_windows(&app);
     let capture = result.inspect_err(|error| eprintln!("Window capture failed: {error}"))?;
-    open_editor(&app, capture);
+    deliver(&app, capture);
     Ok(())
 }
 
@@ -403,27 +457,179 @@ fn open_screen_recording_settings() -> Result<(), String> {
     Ok(())
 }
 
+/// Settings plus the things that live outside the settings file.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SettingsView {
+    #[serde(flatten)]
+    settings: Settings,
+    launch_at_login: bool,
+    /// The folder screenshots actually go to (the Desktop when none is chosen).
+    save_folder_path: String,
+}
+
+fn settings_view(app: &AppHandle, settings: Settings) -> SettingsView {
+    SettingsView {
+        launch_at_login: app.autolaunch().is_enabled().unwrap_or(false),
+        save_folder_path: settings.save_folder(app).to_string_lossy().into_owned(),
+        settings,
+    }
+}
+
+#[tauri::command]
+fn get_settings(app: AppHandle) -> SettingsView {
+    settings_view(&app, current_settings(&app))
+}
+
+/// Saves new settings. Shortcuts are registered first; if one is taken, the
+/// old ones come back and nothing is saved.
+#[tauri::command]
+fn update_settings(settings: Settings, app: AppHandle) -> Result<SettingsView, String> {
+    let previous = current_settings(&app);
+    // The language is reported separately (set_language); keep it.
+    let settings = Settings { language: previous.language.clone(), ..settings };
+    if settings.shortcuts != previous.shortcuts {
+        if let Err(error) = register_shortcuts(&app, &settings.shortcuts) {
+            let _ = register_shortcuts(&app, &previous.shortcuts);
+            return Err(error);
+        }
+    }
+    settings::store(&app, &settings)?;
+    *app.state::<SettingsState>().0.lock().unwrap() = settings.clone();
+    refresh_tray(&app);
+    Ok(settings_view(&app, settings))
+}
+
+#[tauri::command]
+fn set_launch_at_login(enabled: bool, app: AppHandle) -> Result<bool, String> {
+    let autolaunch = app.autolaunch();
+    let result = if enabled { autolaunch.enable() } else { autolaunch.disable() };
+    result.map_err(|e| e.to_string())?;
+    autolaunch.is_enabled().map_err(|e| e.to_string())
+}
+
+/// The windows own the language choice; the tray menu follows it.
+#[tauri::command]
+fn set_language(language: String, app: AppHandle) -> Result<(), String> {
+    let state = app.state::<SettingsState>();
+    let settings = {
+        let mut settings = state.0.lock().unwrap();
+        if settings.language.as_deref() == Some(language.as_str()) {
+            return Ok(());
+        }
+        settings.language = Some(language);
+        settings.clone()
+    };
+    settings::store(&app, &settings)?;
+    refresh_tray(&app);
+    Ok(())
+}
+
+/// While a new shortcut is being recorded, the current ones must not fire.
+#[tauri::command]
+fn suspend_shortcuts(app: AppHandle) {
+    let _ = app.global_shortcut().unregister_all();
+}
+
+#[tauri::command]
+fn resume_shortcuts(app: AppHandle) -> Result<(), String> {
+    register_shortcuts(&app, &current_settings(&app).shortcuts)
+}
+
+#[tauri::command]
+fn open_settings(app: AppHandle) {
+    show_settings_window(&app);
+}
+
+fn show_settings_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("settings") {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+        return;
+    }
+    let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html?settings".into()))
+        .title("Even vastleggen")
+        .inner_size(640.0, 680.0)
+        .min_inner_size(520.0, 420.0)
+        .center()
+        .focused(true)
+        .title_bar_style_overlay()
+        .build();
+}
+
+/// Tray menu texts; the menu follows the language of the windows.
+struct TrayLabels {
+    fullscreen: &'static str,
+    area: &'static str,
+    window: &'static str,
+    settings: &'static str,
+    quit: &'static str,
+}
+
+fn tray_labels(language: &str) -> TrayLabels {
+    match language {
+        "nl" => TrayLabels {
+            fullscreen: "Scherm vastleggen",
+            area: "Gebied vastleggen",
+            window: "Venster vastleggen",
+            settings: "Instellingen…",
+            quit: "Even vastleggen afsluiten",
+        },
+        _ => TrayLabels {
+            fullscreen: "Capture screen",
+            area: "Capture area",
+            window: "Capture window",
+            settings: "Settings…",
+            quit: "Quit Even vastleggen",
+        },
+    }
+}
+
+fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let settings = current_settings(app);
+    let labels = tray_labels(settings.language());
+    let shortcuts = &settings.shortcuts;
+    // Accelerators are only shown next to the items; the global shortcuts do the work.
+    let item = |id: &str, label: &str, accelerator: Option<&str>| {
+        MenuItem::with_id(app, id, label, true, accelerator)
+            .or_else(|_| MenuItem::with_id(app, id, label, true, None::<&str>))
+    };
+    Menu::with_items(
+        app,
+        &[
+            &item("fullscreen", labels.fullscreen, Some(&shortcuts.fullscreen))?,
+            &item("area", labels.area, Some(&shortcuts.area))?,
+            &item("window", labels.window, Some(&shortcuts.window))?,
+            &PredefinedMenuItem::separator(app)?,
+            &item("settings", labels.settings, Some("CmdOrCtrl+,"))?,
+            &PredefinedMenuItem::separator(app)?,
+            &item("quit", labels.quit, None)?,
+        ],
+    )
+}
+
+fn refresh_tray(app: &AppHandle) {
+    if let (Some(tray), Ok(menu)) = (app.tray_by_id("main"), tray_menu(app)) {
+        let _ = tray.set_menu(Some(menu));
+    }
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
+        // Opening the app again (it has no Dock icon) shows its settings.
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| show_settings_window(app)))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
-                    if event.state() != ShortcutState::Pressed {
-                        return;
-                    }
-                    if shortcut == &fullscreen_shortcut() {
-                        capture_fullscreen(app);
-                    } else if shortcut == &area_shortcut() {
-                        start_overlay(app, OverlayMode::Area);
-                    } else if shortcut == &window_shortcut() {
-                        start_overlay(app, OverlayMode::Window);
+                    if event.state() == ShortcutState::Pressed {
+                        on_shortcut(app, shortcut);
                     }
                 })
                 .build(),
         )
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(Captures::default())
         .manage(OverlayTargets::default())
         // capture://localhost/<id> (macOS) or http://capture.localhost/<id> (Windows):
@@ -441,39 +647,60 @@ pub fn run() {
                 None => Response::builder().status(StatusCode::NOT_FOUND).body(Vec::new()).unwrap(),
             }
         })
-        .invoke_handler(tauri::generate_handler![capture_info, copy_capture, save_capture, copy_png, save_png, crop_capture, overlay_targets, capture_window, close_overlays, open_screen_recording_settings])
+        .invoke_handler(tauri::generate_handler![
+            capture_info,
+            copy_capture,
+            save_capture,
+            copy_png,
+            save_png,
+            crop_capture,
+            overlay_targets,
+            capture_window,
+            close_overlays,
+            open_screen_recording_settings,
+            get_settings,
+            update_settings,
+            set_launch_at_login,
+            set_language,
+            suspend_shortcuts,
+            resume_shortcuts,
+            open_settings
+        ])
         .setup(|app| {
             // A menu bar / tray app: no Dock icon on macOS.
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            app.global_shortcut().register(fullscreen_shortcut())?;
-            app.global_shortcut().register(area_shortcut())?;
-            app.global_shortcut().register(window_shortcut())?;
+            let handle = app.handle();
+            let (settings, existed) = settings::load(handle);
+            app.manage(SettingsState(std::sync::Mutex::new(settings.clone())));
+            // A shortcut taken by another app should not stop the app; the
+            // settings window shows which one and lets you pick another.
+            if let Err(error) = register_shortcuts(handle, &settings.shortcuts) {
+                eprintln!("Shortcut not registered: {error}");
+            }
 
-            // Menu accelerators in Tauri's notation; shown next to the items.
-            #[cfg(target_os = "macos")]
-            let (screen_key, area_key, window_key) = ("Alt+Shift+1", "Alt+Shift+2", "Alt+Shift+3");
-            #[cfg(not(target_os = "macos"))]
-            let (screen_key, area_key, window_key) = ("Ctrl+Shift+1", "Ctrl+Shift+2", "Ctrl+Shift+3");
-            let fullscreen = MenuItem::with_id(app, "fullscreen", "Capture screen", true, Some(screen_key))?;
-            let area = MenuItem::with_id(app, "area", "Capture area", true, Some(area_key))?;
-            let window = MenuItem::with_id(app, "window", "Capture window", true, Some(window_key))?;
-            let quit = MenuItem::with_id(app, "quit", "Quit Even vastleggen", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&fullscreen, &area, &window, &PredefinedMenuItem::separator(app)?, &quit])?;
             TrayIconBuilder::with_id("main")
                 .icon(tauri::include_image!("icons/tray.png"))
                 .icon_as_template(true)
                 .tooltip("Even vastleggen")
-                .menu(&menu)
+                .menu(&tray_menu(handle)?)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "fullscreen" => capture_fullscreen(app),
                     "area" => start_overlay(app, OverlayMode::Area),
                     "window" => start_overlay(app, OverlayMode::Window),
+                    "settings" => show_settings_window(app),
                     "quit" => app.exit(0),
                     _ => {}
                 })
                 .build(app)?;
+
+            // First launch: show the settings, so it is clear the app is running
+            // (it lives in the menu bar) and which shortcuts to use.
+            if !existed {
+                let _ = settings::store(handle, &settings);
+                show_settings_window(handle);
+            }
             Ok(())
         })
         .build(tauri::generate_context!())

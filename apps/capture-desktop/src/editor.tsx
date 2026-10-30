@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { join } from "@tauri-apps/api/path"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { save } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
@@ -11,10 +12,9 @@ import { AnnotationCanvas, type CanvasHandle } from "./annotate/canvas"
 import { AnnotationToolbar } from "./annotate/toolbar"
 import { useHistory } from "./annotate/history"
 import { COLORS, TOOL_KEYS, type Shape, type StrokeSize, type Tool } from "./annotate/types"
-import { captureUrl, commands, timestamp } from "./lib"
+import { captureUrl, commands, isMac, timestamp } from "./lib"
 import { useI18n } from "./i18n"
 
-const isMac = navigator.userAgent.includes("Mac")
 const mod = isMac ? "⌘" : "Ctrl"
 
 /**
@@ -45,7 +45,10 @@ function useCaptureImage(id: string) {
   return { image, failed }
 }
 
-/** Shows one capture with annotation tools. Copy (⌘C) copies and closes, Save (⌘S) asks where. */
+/**
+ * Shows one capture with annotation tools. Copy (⌘C) copies and closes; Save (⌘S)
+ * asks where, or goes straight into the save folder when the settings say so.
+ */
 export function Editor({ id }: { id: string }) {
   const { t } = useI18n()
   const { image, failed } = useCaptureImage(id)
@@ -85,10 +88,14 @@ export function Editor({ id }: { id: string }) {
     if (busy) return
     setBusy(true)
     try {
-      const path = await save({
-        defaultPath: t.editor.fileName(timestamp()),
-        filters: [{ name: "PNG", extensions: ["png"] }],
-      })
+      const settings = await commands.settings()
+      const fileName = t.editor.fileName(timestamp())
+      const path = settings.askWhereToSave
+        ? await save({
+            defaultPath: await join(settings.saveFolderPath, fileName),
+            filters: [{ name: "PNG", extensions: ["png"] }],
+          })
+        : await join(settings.saveFolderPath, fileName)
       if (path) {
         const png = await exported()
         if (png) await invoke("save_png", png, { headers: { "x-path": encodeURIComponent(path) } })
@@ -125,6 +132,9 @@ export function Editor({ id }: { id: string }) {
       } else if (modifier && key === "c" && !window.getSelection()?.toString()) {
         event.preventDefault()
         void copy()
+      } else if (modifier && key === ",") {
+        event.preventDefault()
+        void commands.openSettings()
       } else if (modifier && key === "s") {
         event.preventDefault()
         void saveAs()

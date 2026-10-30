@@ -7,6 +7,7 @@ import { I18nProvider } from "./i18n"
 import { Editor } from "./editor"
 import { Permission } from "./permission"
 import { Overlay } from "./overlay"
+import { SettingsWindow } from "./settings"
 
 // Each window loads this page; the query string says which screen it is.
 const params = new URLSearchParams(window.location.search)
@@ -17,7 +18,15 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <I18nProvider>
-        {overlayId ? <Overlay id={overlayId} mode={params.get("mode") === "window" ? "window" : "area"} /> : captureId ? <Editor id={captureId} /> : <Permission />}
+        {overlayId ? (
+          <Overlay id={overlayId} mode={params.get("mode") === "window" ? "window" : "area"} />
+        ) : captureId ? (
+          <Editor id={captureId} />
+        ) : params.has("settings") ? (
+          <SettingsWindow />
+        ) : (
+          <Permission />
+        )}
         <Toaster position="bottom-center" />
       </I18nProvider>
     </ThemeProvider>

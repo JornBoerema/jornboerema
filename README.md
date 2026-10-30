@@ -56,7 +56,9 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 - ⌥⇧1 (macOS) / Ctrl+Shift+1 (Windows): screenshot van het scherm waar de muis staat → editor.
 - ⌥⇧2 / Ctrl+Shift+2: gebied selecteren op een bevroren beeld (met kruisdraden en afmetingen) → editor. Esc of rechtermuisknop annuleert.
 - ⌥⇧3 / Ctrl+Shift+3: venster kiezen; het venster onder de muis licht op, klik om het vast te leggen → editor. Op macOS wordt het zichtbare deel uit het bevroren scherm gesneden (de oude per-venster-API werkt niet meer op recente macOS); op Windows wordt het hele venster vastgelegd, ook bedekte delen.
-- In de editor: ⌘C/Ctrl+C kopieert en sluit, ⌘S/Ctrl+S slaat op, Esc sluit.
+- Sneltoetsen hierboven zijn de standaard; aan te passen in Instellingen.
+- In de editor: tekengereedschap (pijl, rechthoek, ellips, lijn, pen, markeerstift, tekst, genummerde stappen, vervagen) met kleur/dikte, ⌘Z/⌘⇧Z. ⌘C/Ctrl+C kopieert en sluit, ⌘S/Ctrl+S slaat op, ⌘, opent Instellingen, Esc sluit.
+- Instellingen (tray-menu, ⌘, of de app nog eens openen; verschijnt ook bij de eerste start): sneltoetsen, wat er na het vastleggen gebeurt (editor, kopiëren of direct opslaan), opslagmap, vragen waar op te slaan, openen bij inloggen, taal en weergave. Opgeslagen als `settings.json` in de config-map van de app (`~/Library/Application Support/nl.jornboerema.vastleggen` op macOS).
 - macOS vraagt om toestemming voor Schermopname. Bij `pnpm dev:capture` hoort die toestemming bij de app waarin je het commando draait (Terminal, Zed, …); start die daarna opnieuw.
 - Testen zonder sneltoets: `cd apps/capture-desktop/src-tauri && cargo test -- --ignored`.
 
