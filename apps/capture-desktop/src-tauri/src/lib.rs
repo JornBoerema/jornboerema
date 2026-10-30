@@ -102,7 +102,8 @@ fn open_editor(app: &AppHandle, capture: Capture) {
     // The window is exactly the image (at most its real size, scaled down to
     // fit comfortably) plus the toolbar, so the image fills it edge to edge.
     const TOOLBAR: f64 = 48.0;
-    const MIN_WIDTH: f64 = 300.0;
+    // Wide enough for the annotation toolbar; smaller images are letterboxed.
+    const MIN_WIDTH: f64 = 760.0;
     let scale = capture.scale_factor.max(1.0) as f64;
     let (width, height) = (capture.image.width() as f64 / scale, capture.image.height() as f64 / scale);
     let fit = (1100.0 / width).min(760.0 / height).min(1.0);
@@ -288,6 +289,30 @@ fn copy_capture(id: String, app: AppHandle, captures: State<Captures>) -> Result
     app.clipboard().write_image(&image).map_err(|e| e.to_string())
 }
 
+/// Raw request body of an invoke (a PNG exported by the editor canvas).
+fn png_body(request: &tauri::ipc::Request<'_>) -> Result<Vec<u8>, String> {
+    match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => Ok(bytes.clone()),
+        _ => Err("Expected PNG bytes".into()),
+    }
+}
+
+/// Copies an annotated screenshot (PNG from the editor) to the clipboard.
+#[tauri::command]
+fn copy_png(request: tauri::ipc::Request<'_>, app: AppHandle) -> Result<(), String> {
+    let image = xcap::image::load_from_memory(&png_body(&request)?).map_err(|e| e.to_string())?.to_rgba8();
+    let image = tauri::image::Image::new(image.as_raw(), image.width(), image.height());
+    app.clipboard().write_image(&image).map_err(|e| e.to_string())
+}
+
+/// Saves an annotated screenshot; the path comes URL-encoded in `x-path`.
+#[tauri::command]
+fn save_png(request: tauri::ipc::Request<'_>) -> Result<(), String> {
+    let path = request.headers().get("x-path").and_then(|v| v.to_str().ok()).ok_or("Missing path")?;
+    let path = urlencoding::decode(path).map_err(|e| e.to_string())?;
+    std::fs::write(path.as_ref(), png_body(&request)?).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn save_capture(id: String, path: String, captures: State<Captures>) -> Result<(), String> {
     let captures = captures.0.lock().unwrap();
@@ -416,7 +441,7 @@ pub fn run() {
                 None => Response::builder().status(StatusCode::NOT_FOUND).body(Vec::new()).unwrap(),
             }
         })
-        .invoke_handler(tauri::generate_handler![capture_info, copy_capture, save_capture, crop_capture, overlay_targets, capture_window, close_overlays, open_screen_recording_settings])
+        .invoke_handler(tauri::generate_handler![capture_info, copy_capture, save_capture, copy_png, save_png, crop_capture, overlay_targets, capture_window, close_overlays, open_screen_recording_settings])
         .setup(|app| {
             // A menu bar / tray app: no Dock icon on macOS.
             #[cfg(target_os = "macos")]
