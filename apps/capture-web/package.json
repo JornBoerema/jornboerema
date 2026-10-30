@@ -1,0 +1,17 @@
+{
+  "name": "@evido/capture-web",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "capture.jornboerema.nl: download page for Even vastleggen.",
+  "scripts": {
+    "dev": "vite --port 3003",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 3003",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vite": "^8"
+  }
+}

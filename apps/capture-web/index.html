@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Even vastleggen: screenshots in a moment. Capture your screen, an area or a window, draw on it, and copy or save it. For macOS and Windows." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#111110" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>Even vastleggen</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow"><a href="https://jornboerema.nl">jornboerema.nl</a> / <span data-i18n="eyebrow">screenshots</span></p>
+        <h1>Even vastleggen</h1>
+        <p class="intro" data-i18n="intro">
+          Screenshots in a moment. Capture your screen, an area or a window, draw on it, and copy or save it.
+        </p>
+        <div class="download">
+          <a class="button" id="primary" href="#"><span id="primary-label">Download</span> <span aria-hidden="true">↓</span></a>
+          <p class="meta" id="meta"></p>
+        </div>
+        <p class="others"><span data-i18n="alsoFor">Also for</span> <span id="others"></span></p>
+      </header>
+
+      <section aria-labelledby="shortcuts">
+        <h2 id="shortcuts" class="eyebrow" data-i18n="shortcuts">Shortcuts</h2>
+        <ol class="rows">
+          <li><kbd data-key="1"></kbd><span data-i18n="screen">Capture the screen under the mouse</span></li>
+          <li><kbd data-key="2"></kbd><span data-i18n="area">Select an area on a frozen screen</span></li>
+          <li><kbd data-key="3"></kbd><span data-i18n="window">Click a window to capture it</span></li>
+        </ol>
+        <p class="note" data-i18n="shortcutsNote">You can change them in the settings.</p>
+      </section>
+
+      <section aria-labelledby="features">
+        <h2 id="features" class="eyebrow" data-i18n="then">Then</h2>
+        <ol class="rows">
+          <li><span class="what" data-i18n="draw">draw</span><span data-i18n="drawText">Arrows, boxes, circles, lines, pen, highlighter, text, numbered steps and blur.</span></li>
+          <li><span class="what" data-i18n="share">share</span><span data-i18n="shareText">Copy or save at full resolution, or skip the editor and copy or save right away.</span></li>
+          <li><span class="what" data-i18n="stay">stays</span><span data-i18n="stayText">In the menu bar or system tray, out of your way. It updates itself.</span></li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="first-launch">
+        <h2 id="first-launch" class="eyebrow" data-i18n="firstLaunch">First launch</h2>
+        <p class="note" data-i18n="unsigned">
+          The app isn't signed by Apple or Microsoft yet, so your computer asks once whether you trust it.
+        </p>
+        <div class="steps" id="steps-mac">
+          <h3>macOS</h3>
+          <ol>
+            <li data-i18n="mac1">Open the downloaded file and drag Even vastleggen to Applications.</li>
+            <li data-i18n="mac2">Open it. macOS says it can't check the developer: click Done.</li>
+            <li data-i18n="mac3">Go to System Settings → Privacy &amp; Security and click Open Anyway.</li>
+            <li data-i18n="mac4">Allow Screen Recording when asked, then open the app again.</li>
+          </ol>
+        </div>
+        <div class="steps" id="steps-windows">
+          <h3>Windows</h3>
+          <ol>
+            <li data-i18n="win1">Open the downloaded installer.</li>
+            <li data-i18n="win2">If Windows protected your PC: click More info, then Run anyway.</li>
+          </ol>
+        </div>
+      </section>
+
+      <footer>
+        <span>© 2026</span>
+        <span class="links">
+          <a href="https://github.com/JornBoerema/jornboerema/tree/main/apps/capture-desktop" data-i18n="source">Source</a>
+          <button type="button" id="language" aria-label="Language">NL</button>
+        </span>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

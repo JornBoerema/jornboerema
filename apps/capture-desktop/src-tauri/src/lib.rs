@@ -1,5 +1,6 @@
 mod capture;
 mod settings;
+mod updates;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -663,6 +664,7 @@ struct TrayLabels {
     area: &'static str,
     window: &'static str,
     settings: &'static str,
+    update: fn(&str) -> String,
     quit: &'static str,
 }
 
@@ -673,6 +675,7 @@ fn tray_labels(language: &str) -> TrayLabels {
             area: "Gebied vastleggen",
             window: "Venster vastleggen",
             settings: "Instellingen…",
+            update: |version| format!("Herstarten om bij te werken naar {version}"),
             quit: "Even vastleggen afsluiten",
         },
         _ => TrayLabels {
@@ -680,6 +683,7 @@ fn tray_labels(language: &str) -> TrayLabels {
             area: "Capture area",
             window: "Capture window",
             settings: "Settings…",
+            update: |version| format!("Restart to update to {version}"),
             quit: "Quit Even vastleggen",
         },
     }
@@ -694,7 +698,7 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         MenuItem::with_id(app, id, label, true, accelerator)
             .or_else(|_| MenuItem::with_id(app, id, label, true, None::<&str>))
     };
-    Menu::with_items(
+    let menu = Menu::with_items(
         app,
         &[
             &item("fullscreen", labels.fullscreen, Some(&shortcuts.fullscreen))?,
@@ -703,12 +707,16 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &PredefinedMenuItem::separator(app)?,
             &item("settings", labels.settings, Some("CmdOrCtrl+,"))?,
             &PredefinedMenuItem::separator(app)?,
-            &item("quit", labels.quit, None)?,
         ],
-    )
+    )?;
+    if let Some(version) = app.state::<updates::UpdateState>().ready_version() {
+        menu.append(&item("update", &(labels.update)(&version), None)?)?;
+    }
+    menu.append(&item("quit", labels.quit, None)?)?;
+    Ok(menu)
 }
 
-fn refresh_tray(app: &AppHandle) {
+pub(crate) fn refresh_tray(app: &AppHandle) {
     if let (Some(tray), Ok(menu)) = (app.tray_by_id("main"), tray_menu(app)) {
         let _ = tray.set_menu(Some(menu));
     }
@@ -730,7 +738,9 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Captures::default())
+        .manage(updates::UpdateState::default())
         .manage(OverlayTargets::default())
         // capture://localhost/<id> (macOS) or http://capture.localhost/<id> (Windows):
         // serves the PNG straight to the editor, without base64 over IPC.
@@ -766,7 +776,10 @@ pub fn run() {
             resume_shortcuts,
             open_settings,
             edit_preview,
-            reveal_file
+            reveal_file,
+            updates::update_status,
+            updates::check_for_update,
+            updates::install_update
         ])
         .setup(|app| {
             // A menu bar / tray app: no Dock icon on macOS.
@@ -792,10 +805,17 @@ pub fn run() {
                     "area" => start_overlay(app, OverlayMode::Area),
                     "window" => start_overlay(app, OverlayMode::Window),
                     "settings" => show_settings_window(app),
+                    "update" => {
+                        if let Err(error) = updates::install(app) {
+                            eprintln!("Update failed: {error}");
+                        }
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
                 .build(app)?;
+
+            updates::watch(handle);
 
             // First launch: show the settings, so it is clear the app is running
             // (it lives in the menu bar) and which shortcuts to use.

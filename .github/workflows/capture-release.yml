@@ -1,0 +1,85 @@
+# Builds Even vastleggen for macOS (Apple Silicon and Intel) and Windows and
+# publishes a GitHub Release. Start one by pushing a tag, e.g. `capture-v0.2.0`
+# (the version in apps/capture-desktop/src-tauri/tauri.conf.json must match).
+#
+# Each release gets stable download names (used by capture.jornboerema.nl) and
+# a latest.json that running apps check for updates.
+#
+# Secrets: TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD) sign the update files.
+# The apps themselves are not code signed yet (no Apple Developer account).
+name: Release Even vastleggen
+
+on:
+  push:
+    tags: ["capture-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            bundle: dmg/*.dmg
+            asset: Even-vastleggen-mac-apple-silicon.dmg
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+            bundle: dmg/*.dmg
+            asset: Even-vastleggen-mac-intel.dmg
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle: nsis/*-setup.exe
+            asset: Even-vastleggen-windows-setup.exe
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/capture-desktop/src-tauri -> target
+          key: ${{ matrix.target }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/capture-desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: Even vastleggen __VERSION__
+          releaseBody: |
+            Download Even vastleggen from https://capture.jornboerema.nl.
+            Installed apps update themselves.
+          releaseDraft: false
+          prerelease: false
+          updaterJsonPreferNsis: true
+          args: --target ${{ matrix.target }}
+
+      # The same installer under a name that stays the same across versions,
+      # so .../releases/latest/download/<name> always points at the newest.
+      - name: Upload with a stable name
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          file=$(ls apps/capture-desktop/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }} | head -n 1)
+          cp "$file" "$RUNNER_TEMP/${{ matrix.asset }}"
+          gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/${{ matrix.asset }}" --clobber

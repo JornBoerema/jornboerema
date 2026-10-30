@@ -35,6 +35,9 @@ export const commands = {
   openSettings: () => invoke<void>("open_settings"),
   editPreview: (id: string) => invoke<void>("edit_preview", { id }),
   revealFile: (path: string) => invoke<void>("reveal_file", { path }),
+  updateStatus: () => invoke<{ current: string; ready: string | null }>("update_status"),
+  checkForUpdate: () => invoke<string | null>("check_for_update"),
+  installUpdate: () => invoke<void>("install_update"),
 }
 
 export const isMac = navigator.userAgent.includes("Mac")

@@ -172,10 +172,53 @@ export function SettingsWindow() {
                 ))}
               </NativeSelect>
             </SettingsRow>
+            <UpdateRow />
           </SettingsSection>
         </div>
       </main>
     </div>
+  )
+}
+
+/** The installed version; looks for (and installs) a newer one. */
+function UpdateRow() {
+  const { t } = useI18n()
+  const s = t.settings
+  const [status, setStatus] = useState<{ current: string; ready: string | null } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    void commands.updateStatus().then(setStatus)
+  }, [])
+
+  if (!status) return null
+  return (
+    <SettingsRow title={s.version(status.current)}>
+      {status.ready ? (
+        <Button onClick={() => void commands.installUpdate().catch(() => toast.error(s.updateFailed))}>
+          {s.restartToUpdate(status.ready)}
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              const ready = await commands.checkForUpdate()
+              if (ready) setStatus({ ...status, ready })
+              else toast.success(s.upToDate)
+            } catch {
+              toast.error(s.updateFailed)
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          {busy ? s.checking : s.check}
+        </Button>
+      )}
+    </SettingsRow>
   )
 }
 

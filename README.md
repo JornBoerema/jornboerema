@@ -62,6 +62,15 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 - macOS vraagt om toestemming voor Schermopname. Bij `pnpm dev:capture` hoort die toestemming bij de app waarin je het commando draait (Terminal, Zed, …); start die daarna opnieuw.
 - Testen zonder sneltoets: `cd apps/capture-desktop/src-tauri && cargo test -- --ignored`.
 
+### Release en downloadpagina
+
+- Nieuwe versie: verhoog `version` in `apps/capture-desktop/src-tauri/tauri.conf.json` (en `package.json`), commit, en push een tag: `git tag capture-v0.2.0 && git push origin capture-v0.2.0`. GitHub Actions (`.github/workflows/capture-release.yml`) bouwt macOS (Apple Silicon en Intel) en Windows en publiceert een GitHub Release.
+- Elke release heeft vaste downloadnamen (`Even-vastleggen-mac-apple-silicon.dmg`, `…-mac-intel.dmg`, `…-windows-setup.exe`) onder `releases/latest/download/`, plus `latest.json` voor de updater.
+- Updates: de app zoekt 10 s na start en daarna elke 6 uur, downloadt op de achtergrond en installeert pas na "Herstarten om bij te werken" (tray of Instellingen).
+- Update-bestanden zijn ondertekend met de sleutel in `~/.tauri/even-vastleggen.key` (GitHub-secret `TAURI_SIGNING_PRIVATE_KEY`). **Bewaar een back-up**: zonder die sleutel kunnen geïnstalleerde apps geen updates meer krijgen. De publieke sleutel staat in `tauri.conf.json`.
+- De apps zelf zijn nog niet ondertekend (geen Apple Developer-account): macOS-gebruikers kiezen eenmalig "Open toch" in Privacy en beveiliging, Windows toont SmartScreen. De macOS-app is ad-hoc ondertekend (`signingIdentity: "-"`), anders noemt macOS hem "beschadigd".
+- Downloadpagina: `apps/capture-web` (statisch, EN/NL) op `capture.jornboerema.nl`. Vercel-project met Root Directory `apps/capture-web`.
+
 ## Auth-architectuur
 
 - De API is de enige Better Auth-server. Web-apps praten er rechtstreeks mee met `credentials: "include"`; CORS staat alleen `TRUSTED_ORIGINS` toe en schrijfverzoeken controleren de `Origin`.

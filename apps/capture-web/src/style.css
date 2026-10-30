@@ -1,0 +1,258 @@
+:root {
+  --bg: #111110;
+  --fg: #f2f1ee;
+  --muted: #9b9a95;
+  --faint: #5c5b57;
+  --line: #262624;
+  --accent: #f07a2b;
+  --sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  min-height: 100dvh;
+  max-width: 640px;
+  padding: clamp(48px, 12vh, 120px) clamp(24px, 8vw, 96px) 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 72px;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+h1 {
+  margin-top: 16px;
+  font-size: clamp(32px, 6vw, 44px);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+h1::after {
+  content: ".";
+  color: var(--accent);
+}
+
+.intro {
+  margin-top: 20px;
+  max-width: 440px;
+  color: var(--muted);
+}
+
+.intro em {
+  font-style: normal;
+  color: var(--fg);
+}
+
+ol {
+  list-style: none;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+li {
+  border-bottom: 1px solid var(--line);
+}
+
+h1 + .intro {
+  max-width: 480px;
+}
+
+a {
+  color: inherit;
+}
+
+.eyebrow a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.eyebrow a:hover {
+  color: var(--accent);
+}
+
+.download {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1a0d04;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.button:hover {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+}
+
+.button span[aria-hidden] {
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.button:hover span[aria-hidden] {
+  transform: translateY(2px);
+}
+
+.meta,
+.others,
+.note {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.others {
+  margin-top: 6px;
+}
+
+.others a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.others a:hover {
+  color: var(--accent);
+}
+
+.note {
+  margin-top: 16px;
+  max-width: 480px;
+  line-height: 1.7;
+}
+
+.rows li {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  color: var(--fg);
+}
+
+kbd,
+.what {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.what {
+  color: var(--faint);
+}
+
+.steps {
+  margin-top: 24px;
+}
+
+.steps h3 {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.steps ol {
+  margin-top: 8px;
+  border-top: none;
+  counter-reset: step;
+}
+
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  padding: 6px 0;
+  border-bottom: none;
+  color: var(--muted);
+}
+
+.steps li::before {
+  content: counter(step);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
+  line-height: 1.6rem;
+}
+
+footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
+}
+
+footer .links {
+  display: flex;
+  gap: 16px;
+}
+
+footer a,
+footer button {
+  color: var(--muted);
+  text-decoration: none;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+footer a:hover,
+footer button:hover {
+  color: var(--accent);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+@media (max-width: 480px) {
+  .rows li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
