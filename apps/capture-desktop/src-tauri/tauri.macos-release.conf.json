@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "macOS": {
+      "signingIdentity": "Even vastleggen (Jorn Boerema)"
+    }
+  }
+}

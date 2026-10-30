@@ -5,8 +5,12 @@
 # Each release gets stable download names (used by capture.jornboerema.nl) and
 # a latest.json that running apps check for updates.
 #
-# Secrets: TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD) sign the update files.
-# The apps themselves are not code signed yet (no Apple Developer account).
+# Secrets:
+# - TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD) sign the update files.
+# - MACOS_SIGNING_P12 (base64) and MACOS_SIGNING_PASSWORD: a self-signed
+#   code signing certificate. Not trusted by Gatekeeper (no Apple Developer
+#   account yet), but every version is signed by the same certificate, so
+#   macOS keeps the Screen Recording permission across updates.
 name: Release Even vastleggen
 
 on:
@@ -26,10 +30,12 @@ jobs:
             target: aarch64-apple-darwin
             bundle: dmg/*.dmg
             asset: Even-vastleggen-mac-apple-silicon.dmg
+            config: --config src-tauri/tauri.macos-release.conf.json
           - runner: macos-latest
             target: x86_64-apple-darwin
             bundle: dmg/*.dmg
             asset: Even-vastleggen-mac-intel.dmg
+            config: --config src-tauri/tauri.macos-release.conf.json
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
             bundle: nsis/*-setup.exe
@@ -56,6 +62,25 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # A temporary keychain with our certificate, in the search list so
+      # codesign finds the identity named in tauri.macos-release.conf.json.
+      - name: Import signing certificate
+        if: runner.os == 'macOS'
+        env:
+          P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(openssl rand -hex 16)
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/signing.p12"
+
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,7 +96,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           updaterJsonPreferNsis: true
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} ${{ matrix.config }}
 
       # The same installer under a name that stays the same across versions,
       # so .../releases/latest/download/<name> always points at the newest.

@@ -69,7 +69,8 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 - Elke release heeft vaste downloadnamen (`Even-vastleggen-mac-apple-silicon.dmg`, `…-mac-intel.dmg`, `…-windows-setup.exe`) onder `releases/latest/download/`, plus `latest.json` voor de updater.
 - Updates: de app zoekt 10 s na start en daarna elke 6 uur, downloadt op de achtergrond en installeert pas na "Herstarten om bij te werken" (tray of Instellingen).
 - Update-bestanden zijn ondertekend met de sleutel in `~/.tauri/even-vastleggen.key` (GitHub-secret `TAURI_SIGNING_PRIVATE_KEY`). **Bewaar een back-up**: zonder die sleutel kunnen geïnstalleerde apps geen updates meer krijgen. De publieke sleutel staat in `tauri.conf.json`.
-- De apps zelf zijn nog niet ondertekend (geen Apple Developer-account): macOS-gebruikers kiezen eenmalig "Open toch" in Privacy en beveiliging, Windows toont SmartScreen. De macOS-app is ad-hoc ondertekend (`signingIdentity: "-"`), anders noemt macOS hem "beschadigd".
+- Geen Apple Developer-account: macOS-gebruikers kiezen eenmalig "Open toch" in Privacy en beveiliging, Windows toont SmartScreen.
+- Releases voor macOS zijn ondertekend met een eigen (self-signed) certificaat, `Even vastleggen (Jorn Boerema)`: `~/.tauri/even-vastleggen-signing.p12` + `.password`, als secrets `MACOS_SIGNING_P12` (base64) en `MACOS_SIGNING_PASSWORD`, gekozen via `tauri.macos-release.conf.json`. Gatekeeper vertrouwt het niet, maar omdat elke versie hetzelfde certificaat heeft blijft de Schermopname-toestemming na updates staan. **Bewaar ook hiervan een back-up**: een nieuw certificaat betekent één keer opnieuw toestemming geven. Lokale builds zijn ad-hoc ondertekend (`signingIdentity: "-"`).
 - Downloadpagina: `apps/capture-web` (statisch, EN/NL) op `capture.jornboerema.nl`. Vercel-project met Root Directory `apps/capture-web`.
 
 ## Auth-architectuur
