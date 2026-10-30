@@ -321,7 +321,7 @@ export function WorkspaceApp({
               </AlertDescription>
             </Alert>
           )}
-          {showDashboard ? <WorkspaceDashboard data={data} name={user?.name ?? ""} onSelect={selectList} onCreate={(kind) => setEditor({ type: "create-list", value: "", kind })} disabled={disabled} /> : selected ? (
+          {showDashboard ? <WorkspaceDashboard data={data} name={user?.name ?? ""} workspace={activeWorkspace} onSelect={selectList} onCreate={(kind) => setEditor({ type: "create-list", value: "", kind })} run={run} disabled={disabled} /> : selected ? (
             <>
               <div className="task-heading">
                 <div className="min-w-0 flex-1">
