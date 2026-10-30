@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Editor, overlay, preview, settings and permission windows",
-  "windows": ["editor-*", "overlay-*", "preview-*", "permission", "settings"],
+  "description": "All app windows",
+  "windows": ["editor-*", "overlay-*", "preview-*", "permission", "settings", "history"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

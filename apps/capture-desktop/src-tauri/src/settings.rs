@@ -52,6 +52,8 @@ pub struct Settings {
     pub save_folder: Option<String>,
     /// Save from the editor asks for a location; otherwise straight into the folder.
     pub ask_where_to_save: bool,
+    /// Keep every screenshot in the history window.
+    pub keep_history: bool,
     /// "en" or "nl", reported by the windows (they own the language choice).
     /// Used for the tray menu; the system language until a window reports one.
     pub language: Option<String>,
@@ -64,6 +66,7 @@ impl Default for Settings {
             after_capture: AfterCapture::default(),
             save_folder: None,
             ask_where_to_save: true,
+            keep_history: true,
             language: None,
         }
     }

@@ -9,6 +9,7 @@ import { Permission } from "./permission"
 import { Overlay } from "./overlay"
 import { SettingsWindow } from "./settings"
 import { Preview } from "./preview"
+import { HistoryWindow } from "./history"
 
 // Each window loads this page; the query string says which screen it is.
 const params = new URLSearchParams(window.location.search)
@@ -23,11 +24,13 @@ createRoot(document.getElementById("root")!).render(
         {overlayId ? (
           <Overlay id={overlayId} mode={params.get("mode") === "window" ? "window" : "area"} />
         ) : previewId ? (
-          <Preview id={previewId} path={params.get("path")} />
+          <Preview id={previewId} path={params.get("path")} historyId={params.get("history")} />
         ) : captureId ? (
-          <Editor id={captureId} />
+          <Editor id={captureId} historyId={params.get("history")} />
         ) : params.has("settings") ? (
           <SettingsWindow />
+        ) : params.has("history") ? (
+          <HistoryWindow />
         ) : (
           <Permission />
         )}

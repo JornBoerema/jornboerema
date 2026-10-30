@@ -1,4 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core"
+import { join } from "@tauri-apps/api/path"
+import { save } from "@tauri-apps/plugin-dialog"
 
 export type CaptureInfo = { width: number; height: number; scaleFactor: number }
 
@@ -12,6 +14,7 @@ export type Settings = {
   afterCapture: AfterCapture
   saveFolder: string | null
   askWhereToSave: boolean
+  keepHistory: boolean
   launchAtLogin: boolean
   /** Where screenshots actually go (the Desktop when no folder is chosen). */
   saveFolderPath: string
@@ -19,6 +22,22 @@ export type Settings = {
 
 /** URL of a capture, served by the Rust `capture://` protocol. */
 export const captureUrl = (id: string) => convertFileSrc(id, "capture")
+
+/** Mirrors `history::Entry` in Rust. Times in milliseconds since the epoch. */
+export type HistoryEntry = {
+  id: string
+  createdAt: number
+  updatedAt: number
+  width: number
+  height: number
+  scaleFactor: number
+}
+
+/** Thumbnail of a history entry; `updatedAt` refreshes it after an edit. */
+export const thumbnailUrl = (entry: HistoryEntry) => `${convertFileSrc(`thumb/${entry.id}`, "capture")}?v=${entry.updatedAt}`
+
+/** Fired by Rust whenever the history changes. */
+export const HISTORY_CHANGED = "history-changed"
 
 export const commands = {
   info: (id: string) => invoke<CaptureInfo>("capture_info", { id }),
@@ -33,11 +52,29 @@ export const commands = {
   suspendShortcuts: () => invoke<void>("suspend_shortcuts"),
   resumeShortcuts: () => invoke<void>("resume_shortcuts"),
   openSettings: () => invoke<void>("open_settings"),
-  editPreview: (id: string) => invoke<void>("edit_preview", { id }),
+  editPreview: (id: string, historyId: string | null) => invoke<void>("edit_preview", { id, historyId }),
   revealFile: (path: string) => invoke<void>("reveal_file", { path }),
   updateStatus: () => invoke<{ current: string; ready: string | null }>("update_status"),
   checkForUpdate: () => invoke<string | null>("check_for_update"),
   installUpdate: () => invoke<void>("install_update"),
+  history: () => invoke<HistoryEntry[]>("history_list"),
+  openHistoryEntry: (id: string) => invoke<void>("history_open", { id }),
+  copyHistoryEntry: (id: string) => invoke<void>("history_copy", { id }),
+  saveHistoryEntry: (id: string, path: string) => invoke<void>("history_save", { id, path }),
+  deleteHistoryEntry: (id: string) => invoke<void>("history_delete", { id }),
+  clearHistory: () => invoke<void>("history_clear"),
+  openHistory: () => invoke<void>("open_history"),
+}
+
+/**
+ * Where to save a screenshot: asks (starting in the save folder) or, when the
+ * settings say so, straight into the save folder. Null when cancelled.
+ */
+export async function chooseSavePath(fileName: string): Promise<string | null> {
+  const settings = await commands.settings()
+  const inFolder = await join(settings.saveFolderPath, fileName)
+  if (!settings.askWhereToSave) return inFolder
+  return save({ defaultPath: inFolder, filters: [{ name: "PNG", extensions: ["png"] }] })
 }
 
 export const isMac = navigator.userAgent.includes("Mac")

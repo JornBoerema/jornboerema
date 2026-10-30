@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
-import { join } from "@tauri-apps/api/path"
 import { getCurrentWindow } from "@tauri-apps/api/window"
-import { save } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Copy01Icon, Download04Icon } from "@hugeicons/core-free-icons"
@@ -12,7 +10,7 @@ import { AnnotationCanvas, type CanvasHandle } from "./annotate/canvas"
 import { AnnotationToolbar } from "./annotate/toolbar"
 import { useHistory } from "./annotate/history"
 import { COLORS, TOOL_KEYS, type Shape, type StrokeSize, type Tool } from "./annotate/types"
-import { captureUrl, commands, isMac, timestamp } from "./lib"
+import { captureUrl, chooseSavePath, commands, isMac, timestamp } from "./lib"
 import { useI18n } from "./i18n"
 
 const mod = isMac ? "⌘" : "Ctrl"
@@ -49,7 +47,7 @@ function useCaptureImage(id: string) {
  * Shows one capture with annotation tools. Copy (⌘C) copies and closes; Save (⌘S)
  * asks where, or goes straight into the save folder when the settings say so.
  */
-export function Editor({ id }: { id: string }) {
+export function Editor({ id, historyId }: { id: string; historyId: string | null }) {
   const { t } = useI18n()
   const { image, failed } = useCaptureImage(id)
   const canvas = useRef<CanvasHandle>(null)
@@ -66,6 +64,8 @@ export function Editor({ id }: { id: string }) {
   }, [failed, t])
 
   const close = useCallback(() => void getCurrentWindow().close(), [])
+  // Copying or saving a drawing also updates the history entry it came from.
+  const historyHeader: Record<string, string> = historyId ? { "x-history": historyId } : {}
 
   /** Without drawings the original capture is used as-is (exact and fastest). */
   const exported = useCallback(async () => (shapes.length && canvas.current ? canvas.current.exportPng() : null), [shapes])
@@ -75,7 +75,7 @@ export function Editor({ id }: { id: string }) {
     setBusy(true)
     try {
       const png = await exported()
-      if (png) await invoke("copy_png", png)
+      if (png) await invoke("copy_png", png, { headers: historyHeader })
       else await commands.copy(id)
       close()
     } catch {
@@ -88,17 +88,10 @@ export function Editor({ id }: { id: string }) {
     if (busy) return
     setBusy(true)
     try {
-      const settings = await commands.settings()
-      const fileName = t.editor.fileName(timestamp())
-      const path = settings.askWhereToSave
-        ? await save({
-            defaultPath: await join(settings.saveFolderPath, fileName),
-            filters: [{ name: "PNG", extensions: ["png"] }],
-          })
-        : await join(settings.saveFolderPath, fileName)
+      const path = await chooseSavePath(t.editor.fileName(timestamp()))
       if (path) {
         const png = await exported()
-        if (png) await invoke("save_png", png, { headers: { "x-path": encodeURIComponent(path) } })
+        if (png) await invoke("save_png", png, { headers: { ...historyHeader, "x-path": encodeURIComponent(path) } })
         else await commands.save(id, path)
         toast.success(t.editor.saved(path))
       }

@@ -1,4 +1,5 @@
 mod capture;
+mod history;
 mod settings;
 mod updates;
 
@@ -139,8 +140,13 @@ fn write_clipboard(app: &AppHandle, image: &xcap::image::RgbaImage) -> Result<()
 /// editor opens so nothing is lost.
 fn deliver(app: &AppHandle, capture: Capture) {
     let settings = current_settings(app);
+    let history_id = settings.keep_history.then(|| {
+        let id = history::new_id();
+        history::add(app, &id, &capture);
+        id
+    });
     let result = match settings.after_capture {
-        AfterCapture::Editor => return open_editor(app, capture),
+        AfterCapture::Editor => return open_editor(app, capture, history_id),
         AfterCapture::Copy => write_clipboard(app, &capture.image).map(|_| None),
         AfterCapture::Save => {
             let folder = settings.save_folder(app);
@@ -152,10 +158,10 @@ fn deliver(app: &AppHandle, capture: Capture) {
         }
     };
     match result {
-        Ok(saved) => show_preview(app, capture, saved),
+        Ok(saved) => show_preview(app, capture, saved, history_id),
         Err(error) => {
             eprintln!("After-capture action failed: {error}");
-            open_editor(app, capture);
+            open_editor(app, capture, history_id);
         }
     }
 }
@@ -165,7 +171,7 @@ const PREVIEW_PREFIX: &str = "preview-";
 /// A small thumbnail in the bottom-right corner of the screen under the mouse,
 /// confirming a copy or save. It never takes focus (you may be about to paste),
 /// closes by itself, and opens the editor when clicked.
-fn show_preview(app: &AppHandle, capture: Capture, saved: Option<std::path::PathBuf>) {
+fn show_preview(app: &AppHandle, capture: Capture, saved: Option<std::path::PathBuf>, history_id: Option<String>) {
     const WIDTH: f64 = 240.0;
     const FOOTER: f64 = 40.0;
     const MARGIN: f64 = 16.0;
@@ -175,6 +181,9 @@ fn show_preview(app: &AppHandle, capture: Capture, saved: Option<std::path::Path
     app.state::<Captures>().0.lock().unwrap().insert(id.clone(), capture);
 
     let mut url = format!("index.html?preview={id}");
+    if let Some(history_id) = &history_id {
+        url.push_str(&format!("&history={history_id}"));
+    }
     if let Some(path) = &saved {
         url.push_str(&format!("&path={}", urlencoding::encode(&path.to_string_lossy())));
     }
@@ -229,8 +238,14 @@ fn show_preview(app: &AppHandle, capture: Capture, saved: Option<std::path::Path
     });
 }
 
-fn open_editor(app: &AppHandle, capture: Capture) {
+/// Opens a capture in a new editor window. `history_id` links it to its history
+/// entry, which then gets the annotated version when you copy or save.
+fn open_editor(app: &AppHandle, capture: Capture, history_id: Option<String>) {
     let id = uuid::Uuid::new_v4().simple().to_string();
+    let mut url = format!("index.html?capture={id}");
+    if let Some(history_id) = history_id {
+        url.push_str(&format!("&history={history_id}"));
+    }
     // The window is exactly the image (at most its real size, scaled down to
     // fit comfortably) plus the toolbar, so the image fills it edge to edge.
     const TOOLBAR: f64 = 48.0;
@@ -244,7 +259,7 @@ fn open_editor(app: &AppHandle, capture: Capture) {
     let label = format!("editor-{id}");
     let app_for_window = app.clone();
     let _ = app.run_on_main_thread(move || {
-        let built = WebviewWindowBuilder::new(&app_for_window, &label, WebviewUrl::App(format!("index.html?capture={id}").into()))
+        let built = WebviewWindowBuilder::new(&app_for_window, &label, WebviewUrl::App(url.into()))
             .title("Even vastleggen")
             .inner_size((width * fit).max(MIN_WIDTH), height * fit + TOOLBAR)
             .min_inner_size(MIN_WIDTH, TOOLBAR + 80.0)
@@ -431,16 +446,31 @@ fn png_body(request: &tauri::ipc::Request<'_>) -> Result<Vec<u8>, String> {
 /// Copies an annotated screenshot (PNG from the editor) to the clipboard.
 #[tauri::command]
 fn copy_png(request: tauri::ipc::Request<'_>, app: AppHandle) -> Result<(), String> {
-    let image = xcap::image::load_from_memory(&png_body(&request)?).map_err(|e| e.to_string())?.to_rgba8();
-    write_clipboard(&app, &image)
+    let png = png_body(&request)?;
+    let image = xcap::image::load_from_memory(&png).map_err(|e| e.to_string())?.to_rgba8();
+    write_clipboard(&app, &image)?;
+    update_history(&app, &request, &png);
+    Ok(())
+}
+
+/// The history entry (header `x-history`) takes over the annotated version.
+fn update_history(app: &AppHandle, request: &tauri::ipc::Request<'_>, png: &[u8]) {
+    if let Some(id) = request.headers().get("x-history").and_then(|v| v.to_str().ok()) {
+        if let Err(error) = history::replace(app, id, png) {
+            eprintln!("History not updated: {error}");
+        }
+    }
 }
 
 /// Saves an annotated screenshot; the path comes URL-encoded in `x-path`.
 #[tauri::command]
-fn save_png(request: tauri::ipc::Request<'_>) -> Result<(), String> {
+fn save_png(request: tauri::ipc::Request<'_>, app: AppHandle) -> Result<(), String> {
     let path = request.headers().get("x-path").and_then(|v| v.to_str().ok()).ok_or("Missing path")?;
     let path = urlencoding::decode(path).map_err(|e| e.to_string())?;
-    std::fs::write(path.as_ref(), png_body(&request)?).map_err(|e| e.to_string())
+    let png = png_body(&request)?;
+    std::fs::write(path.as_ref(), &png).map_err(|e| e.to_string())?;
+    update_history(&app, &request, &png);
+    Ok(())
 }
 
 #[tauri::command]
@@ -520,13 +550,66 @@ async fn capture_window(
 
 /// Moves the capture of a preview into a new editor window.
 #[tauri::command]
-fn edit_preview(id: String, app: AppHandle) -> Result<(), String> {
+fn edit_preview(id: String, history_id: Option<String>, app: AppHandle) -> Result<(), String> {
     let capture = app.state::<Captures>().0.lock().unwrap().remove(&id).ok_or("Capture not found")?;
     if let Some(window) = app.get_webview_window(&format!("{PREVIEW_PREFIX}{id}")) {
         let _ = window.close();
     }
-    open_editor(&app, capture);
+    open_editor(&app, capture, history_id);
     Ok(())
+}
+
+#[tauri::command]
+fn history_list(app: AppHandle) -> Vec<history::Entry> {
+    history::list(&app)
+}
+
+#[tauri::command]
+async fn history_open(id: String, app: AppHandle) -> Result<(), String> {
+    let capture = history::open(&app, &id)?;
+    open_editor(&app, capture, Some(id));
+    Ok(())
+}
+
+#[tauri::command]
+async fn history_copy(id: String, app: AppHandle) -> Result<(), String> {
+    write_clipboard(&app, &history::open(&app, &id)?.image)
+}
+
+#[tauri::command]
+fn history_save(id: String, path: String, app: AppHandle) -> Result<(), String> {
+    std::fs::copy(history::file(&app, &id)?, path).map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn history_delete(id: String, app: AppHandle) -> Result<(), String> {
+    history::delete(&app, &id)
+}
+
+#[tauri::command]
+fn history_clear(app: AppHandle) -> Result<(), String> {
+    history::clear(&app)
+}
+
+#[tauri::command]
+fn open_history(app: AppHandle) {
+    show_history_window(&app);
+}
+
+fn show_history_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("history") {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+        return;
+    }
+    let _ = WebviewWindowBuilder::new(app, "history", WebviewUrl::App("index.html?history".into()))
+        .title("Even vastleggen")
+        .inner_size(920.0, 640.0)
+        .min_inner_size(520.0, 400.0)
+        .center()
+        .focused(true)
+        .title_bar_style_overlay()
+        .build();
 }
 
 /// Shows a saved file in Finder or Explorer.
@@ -664,6 +747,7 @@ struct TrayLabels {
     area: &'static str,
     window: &'static str,
     settings: &'static str,
+    history: &'static str,
     update: fn(&str) -> String,
     quit: &'static str,
 }
@@ -675,6 +759,7 @@ fn tray_labels(language: &str) -> TrayLabels {
             area: "Gebied vastleggen",
             window: "Venster vastleggen",
             settings: "Instellingen…",
+            history: "Geschiedenis…",
             update: |version| format!("Herstarten om bij te werken naar {version}"),
             quit: "Even vastleggen afsluiten",
         },
@@ -683,6 +768,7 @@ fn tray_labels(language: &str) -> TrayLabels {
             area: "Capture area",
             window: "Capture window",
             settings: "Settings…",
+            history: "History…",
             update: |version| format!("Restart to update to {version}"),
             quit: "Quit Even vastleggen",
         },
@@ -705,6 +791,7 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &item("area", labels.area, Some(&shortcuts.area))?,
             &item("window", labels.window, Some(&shortcuts.window))?,
             &PredefinedMenuItem::separator(app)?,
+            &item("history", labels.history, None)?,
             &item("settings", labels.settings, Some("CmdOrCtrl+,"))?,
             &PredefinedMenuItem::separator(app)?,
         ],
@@ -744,8 +831,23 @@ pub fn run() {
         .manage(OverlayTargets::default())
         // capture://localhost/<id> (macOS) or http://capture.localhost/<id> (Windows):
         // serves the PNG straight to the editor, without base64 over IPC.
+        // capture://localhost/thumb/<history id> serves a history thumbnail.
         .register_uri_scheme_protocol("capture", |ctx, request| {
             let id = request.uri().path().trim_start_matches('/').to_string();
+            if let Some(history_id) = id.strip_prefix("thumb/") {
+                let thumb = history::valid_id(history_id)
+                    .then(|| history::thumb_path(ctx.app_handle(), history_id))
+                    .flatten()
+                    .and_then(|path| std::fs::read(path).ok());
+                return match thumb {
+                    Some(png) => Response::builder()
+                        .header(header::CONTENT_TYPE, "image/png")
+                        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                        .body(png)
+                        .unwrap(),
+                    None => Response::builder().status(StatusCode::NOT_FOUND).body(Vec::new()).unwrap(),
+                };
+            }
             let captures = ctx.app_handle().state::<Captures>();
             let captures = captures.0.lock().unwrap();
             match captures.get(&id) {
@@ -777,6 +879,13 @@ pub fn run() {
             open_settings,
             edit_preview,
             reveal_file,
+            history_list,
+            history_open,
+            history_copy,
+            history_save,
+            history_delete,
+            history_clear,
+            open_history,
             updates::update_status,
             updates::check_for_update,
             updates::install_update
@@ -788,6 +897,7 @@ pub fn run() {
 
             let handle = app.handle();
             let (settings, existed) = settings::load(handle);
+            app.manage(history::load(handle));
             app.manage(SettingsState(std::sync::Mutex::new(settings.clone())));
             // A shortcut taken by another app should not stop the app; the
             // settings window shows which one and lets you pick another.
@@ -805,6 +915,7 @@ pub fn run() {
                     "area" => start_overlay(app, OverlayMode::Area),
                     "window" => start_overlay(app, OverlayMode::Window),
                     "settings" => show_settings_window(app),
+                    "history" => show_history_window(app),
                     "update" => {
                         if let Err(error) = updates::install(app) {
                             eprintln!("Update failed: {error}");

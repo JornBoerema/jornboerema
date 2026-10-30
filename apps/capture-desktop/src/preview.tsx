@@ -13,7 +13,7 @@ const VISIBLE_MS = 5000
  * Confirms a copy or save with a thumbnail in the corner of the screen.
  * Click it to edit; it closes by itself unless the mouse rests on it.
  */
-export function Preview({ id, path }: { id: string; path: string | null }) {
+export function Preview({ id, path, historyId }: { id: string; path: string | null; historyId: string | null }) {
   const { t } = useI18n()
   const p = t.preview
   const [hovered, setHovered] = useState(false)
@@ -38,7 +38,7 @@ export function Preview({ id, path }: { id: string; path: string | null }) {
         type="button"
         className="group relative min-h-0 flex-1 cursor-pointer bg-muted"
         title={p.edit}
-        onClick={() => void commands.editPreview(id)}
+        onClick={() => void commands.editPreview(id, historyId)}
       >
         <img
           src={captureUrl(id)}

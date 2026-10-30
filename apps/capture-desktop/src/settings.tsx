@@ -6,6 +6,17 @@ import { Button } from "@evido/ui/components/button"
 import { NativeSelect, NativeSelectOption } from "@evido/ui/components/native-select"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
 import { Switch } from "@evido/ui/components/switch"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@evido/ui/components/alert-dialog"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import type { LanguagePreference } from "@evido/i18n/react"
 import { Brand } from "./brand"
@@ -135,6 +146,17 @@ export function SettingsWindow() {
             </SettingsRow>
           </SettingsSection>
 
+          <SettingsSection title={s.history}>
+            <SettingsRow title={s.keepHistory} htmlFor="keep-history" description={s.keepHistoryHelp}>
+              <Switch
+                id="keep-history"
+                checked={settings.keepHistory}
+                onCheckedChange={(checked) => void update({ keepHistory: checked })}
+              />
+            </SettingsRow>
+            <ClearHistoryRow />
+          </SettingsSection>
+
           <SettingsSection title={s.general}>
             <SettingsRow title={s.launchAtLogin} htmlFor="launch-at-login" description={s.launchAtLoginHelp}>
               <Switch
@@ -177,6 +199,54 @@ export function SettingsWindow() {
         </div>
       </main>
     </div>
+  )
+}
+
+/** Deletes all kept screenshots, after confirming. Hidden while the history is empty. */
+function ClearHistoryRow() {
+  const { t } = useI18n()
+  const s = t.settings
+  const [count, setCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    const load = () => void commands.history().then((entries) => setCount(entries.length))
+    load()
+    window.addEventListener("focus", load)
+    return () => window.removeEventListener("focus", load)
+  }, [])
+
+  if (!count) return null
+  return (
+    <SettingsRow title={s.clearHistory} description={s.clearHistoryHelp(t.history.count(count))}>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive">{s.clearHistory}</Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{s.clearConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>{s.clearConfirmHelp}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{s.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  await commands.clearHistory()
+                  setCount(0)
+                  toast.success(s.cleared)
+                } catch {
+                  toast.error(s.errors.failed)
+                }
+              }}
+            >
+              {s.clear}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </SettingsRow>
   )
 }
 
