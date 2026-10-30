@@ -10,17 +10,6 @@
   color-scheme: dark;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f7f6f3;
-    --fg: #1b1b19;
-    --muted: #6b6a65;
-    --faint: #a5a49f;
-    --line: #e3e1db;
-    --accent: #c4520c;
-    color-scheme: light;
-  }
-}
 
 * {
   margin: 0;
