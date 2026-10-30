@@ -92,10 +92,10 @@ fn ensure_permission(app: &AppHandle) -> bool {
 
 fn show_permission_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("permission") {
-        let _ = window.set_focus();
+        bring_to_front(&window);
         return;
     }
-    let _ = WebviewWindowBuilder::new(app, "permission", WebviewUrl::App("index.html".into()))
+    let built = WebviewWindowBuilder::new(app, "permission", WebviewUrl::App("index.html".into()))
         .title("Even vastleggen")
         .inner_size(460.0, 260.0)
         .resizable(false)
@@ -103,6 +103,9 @@ fn show_permission_window(app: &AppHandle) {
         .focused(true)
         .title_bar_style_overlay()
         .build();
+    if let Ok(window) = built {
+        bring_to_front(&window);
+    }
 }
 
 fn capture_fullscreen(app: &AppHandle) {
@@ -268,7 +271,7 @@ fn open_editor(app: &AppHandle, capture: Capture, history_id: Option<String>) {
             .title_bar_style_overlay()
             .build();
         if let Ok(window) = built {
-            let _ = window.set_focus();
+            bring_to_front(&window);
             let app = app_for_window.clone();
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::Destroyed = event {
@@ -371,6 +374,20 @@ fn window_targets(
         })
         .filter(|t| t.x < width && t.y < height && t.x + t.width > 0.0 && t.y + t.height > 0.0)
         .collect()
+}
+
+/// Shows a window in front of other apps. A menu bar app (no Dock icon) is not
+/// activated by macOS on its own, so a new window would open behind the app you
+/// were using; activate ours first.
+fn bring_to_front(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    unsafe {
+        use objc2::{class, msg_send, runtime::AnyObject};
+        let app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
+        let _: () = msg_send![app, activateIgnoringOtherApps: true];
+    }
+    let _ = window.show();
+    let _ = window.set_focus();
 }
 
 /// Overlays must cover the menu bar and the Dock on macOS.
@@ -599,10 +616,10 @@ fn open_history(app: AppHandle) {
 fn show_history_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("history") {
         let _ = window.unminimize();
-        let _ = window.set_focus();
+        bring_to_front(&window);
         return;
     }
-    let _ = WebviewWindowBuilder::new(app, "history", WebviewUrl::App("index.html?history".into()))
+    let built = WebviewWindowBuilder::new(app, "history", WebviewUrl::App("index.html?history".into()))
         .title("Even vastleggen")
         .inner_size(920.0, 640.0)
         .min_inner_size(520.0, 400.0)
@@ -610,6 +627,9 @@ fn show_history_window(app: &AppHandle) {
         .focused(true)
         .title_bar_style_overlay()
         .build();
+    if let Ok(window) = built {
+        bring_to_front(&window);
+    }
 }
 
 /// Shows a saved file in Finder or Explorer.
@@ -728,10 +748,10 @@ fn open_settings(app: AppHandle) {
 fn show_settings_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.unminimize();
-        let _ = window.set_focus();
+        bring_to_front(&window);
         return;
     }
-    let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html?settings".into()))
+    let built = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html?settings".into()))
         .title("Even vastleggen")
         .inner_size(640.0, 680.0)
         .min_inner_size(520.0, 420.0)
@@ -739,6 +759,9 @@ fn show_settings_window(app: &AppHandle) {
         .focused(true)
         .title_bar_style_overlay()
         .build();
+    if let Ok(window) = built {
+        bring_to_front(&window);
+    }
 }
 
 /// Tray menu texts; the menu follows the language of the windows.
