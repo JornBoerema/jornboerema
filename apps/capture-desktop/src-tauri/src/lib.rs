@@ -833,7 +833,10 @@ pub fn run() {
         // serves the PNG straight to the editor, without base64 over IPC.
         // capture://localhost/thumb/<history id> serves a history thumbnail.
         .register_uri_scheme_protocol("capture", |ctx, request| {
-            let id = request.uri().path().trim_start_matches('/').to_string();
+            // convertFileSrc encodes the path ("thumb%2F<id>"): decode it first.
+            let path = request.uri().path();
+            let id = urlencoding::decode(path).map(|p| p.into_owned()).unwrap_or_else(|_| path.to_string());
+            let id = id.trim_start_matches('/').to_string();
             if let Some(history_id) = id.strip_prefix("thumb/") {
                 let thumb = history::valid_id(history_id)
                     .then(|| history::thumb_path(ctx.app_handle(), history_id))
