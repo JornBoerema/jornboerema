@@ -14,8 +14,6 @@ export const workspace: typeof en = {
     taskLists: "Takenlijsten",
     newList: "Nieuwe lijst",
     newNote: "Nieuwe notitie",
-    noLists: "Nog geen lijsten.",
-    noNotes: "Nog geen notities.",
     expand: "Sidebar uitklappen",
     expandTitle: "Sidebar uitklappen (⌘/Ctrl+B)",
   },
@@ -150,6 +148,7 @@ export const workspace: typeof en = {
     noTaskLists: "Nog geen takenlijsten.",
   },
   spotlight: {
+    trigger: "Zoeken",
     title: "Ga naar een lijst",
     description: "Zoek een lijst. Gebruik de pijltjestoetsen om te kiezen en Enter om te openen.",
     search: "Zoek een lijst",

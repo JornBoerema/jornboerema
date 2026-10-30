@@ -243,25 +243,36 @@ export function WorkspaceApp({
       {!shareToken && <aside id="list-sidebar" className="list-sidebar" aria-label={t.sidebar.label} inert={sidebarCollapsed} aria-hidden={sidebarCollapsed}>
         <Brand />
         <div className="list-navigation sidebar-sections">
-          <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
-          <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>{t.sidebar.overview}</span></button>
+          <div className="sidebar-top">
+            <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
+            <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>{t.sidebar.overview}</span></button>
+          </div>
           {(["todo", "note"] as const).map((kind) => {
             const sectionLists = data.lists.filter((list) => (list.kind ?? "todo") === kind);
             const Icon = kind === "note" ? Note : ListTodo;
             return <section className="sidebar-list-section" key={kind} aria-labelledby={`sidebar-${kind}`}>
               <div className="sidebar-heading">
                 <h2 id={`sidebar-${kind}`}>{kind === "note" ? t.sidebar.notes : t.sidebar.lists}</h2>
-                <Button variant="ghost" size="icon" aria-label={kind === "note" ? t.sidebar.newNote : t.sidebar.newList} onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}><Plus /></Button>
+                <Button variant="ghost" size="icon-sm" className="sidebar-add" aria-label={kind === "note" ? t.sidebar.newNote : t.sidebar.newList} title={kind === "note" ? t.sidebar.newNote : t.sidebar.newList} onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}><Plus /></Button>
               </div>
               <nav aria-label={kind === "note" ? t.sidebar.notes : t.sidebar.taskLists}>
                 <Sortable className="sidebar-section-links" items={sectionLists} label={(list) => list.name} keyboard="content" itemClassName="sidebar-sortable-item" disabled={disabled} onMove={(move) => run({ type: "move-list", ...move })}>
                   {(list) => <button className={cn("list-link", selected?.id === list.id && "is-selected")} onClick={() => selectList(list.id)} aria-current={selected?.id === list.id ? "page" : undefined}>
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
                     <span className="truncate">{list.name}</span>
-                    {kind !== "note" && <span className="list-count">{data.todos.filter((item) => item.listId === list.id && !item.completed).length}</span>}
+                    {kind !== "note" && (() => {
+                      // Only show a count when there is something left to do.
+                      const open = data.todos.filter((item) => item.listId === list.id && !item.completed).length;
+                      return open > 0 && <span className="list-count">{open}</span>;
+                    })()}
                   </button>}
                 </Sortable>
-                {!sectionLists.length && <p className="sidebar-note">{kind === "note" ? t.sidebar.noNotes : t.sidebar.noLists}</p>}
+                {!sectionLists.length && (
+                  <button className="list-link is-ghost" onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}>
+                    <Plus className="size-4 shrink-0" aria-hidden="true" />
+                    <span>{kind === "note" ? t.sidebar.newNote : t.sidebar.newList}</span>
+                  </button>
+                )}
               </nav>
             </section>;
           })}

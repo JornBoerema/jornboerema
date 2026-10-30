@@ -117,10 +117,11 @@
   flex-shrink: 0;
 }
 .list-sidebar > .brand {
-  padding: 0 12px 34px;
+  padding: 0 10px 22px;
 }
 .sidebar-heading {
-  padding-left: 12px;
+  padding: 0 4px 2px 10px;
+  min-height: 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -140,8 +141,10 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  min-height: 34px;
+  padding: 6px 10px;
   font-size: 14px;
+  color: var(--sidebar-foreground);
   text-align: left;
   border-radius: var(--radius-lg);
   transition: background-color 0.15s;
@@ -150,6 +153,10 @@
 .list-link:hover {
   background: var(--muted);
 }
+/* Icons stay quiet; only the current page gets the accent colour. */
+.list-link > svg {
+  color: var(--muted-foreground);
+}
 .list-link.is-selected {
   background: var(--sidebar-accent);
   font-weight: 550;
@@ -157,16 +164,24 @@
 .list-link.is-selected > svg {
   color: var(--primary);
 }
+.list-link.is-ghost {
+  color: var(--muted-foreground);
+}
+.list-link.is-ghost:hover {
+  color: var(--foreground);
+}
+.nav-kbd {
+  margin-left: auto;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  opacity: 0.8;
+}
 .list-count {
   flex-shrink: 0;
   margin-left: auto;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: var(--muted-foreground);
-}
-.sidebar-note {
-  padding: 8px 12px;
-  font-size: 12px;
   color: var(--muted-foreground);
 }
 .sidebar-footer {
@@ -496,9 +511,14 @@
   .account-heading { margin-top: 24px; }
 }
 
-.sidebar-sections { gap: 20px; }
+.sidebar-sections { gap: 18px; }
+.sidebar-top { display: flex; flex-direction: column; gap: 2px; }
+/* The add button appears on hover/focus so section headings stay calm. */
+.sidebar-add { opacity: 0; transition: opacity 0.15s; }
+.sidebar-list-section:hover .sidebar-add, .sidebar-add:focus-visible { opacity: 1; }
+@media (hover: none) { .sidebar-add { opacity: 1; } }
 .sidebar-list-section { flex-shrink: 0; min-width: 0; }
-.sidebar-section-links { display: flex; flex-direction: column; gap: 3px; }
+.sidebar-section-links { display: flex; flex-direction: column; gap: 2px; }
 @media (max-width: 700px) {
   .list-sidebar { max-height: min(340px, 50dvh); }
   .list-navigation.sidebar-sections { flex-direction: column; max-height: none; gap: 8px; }

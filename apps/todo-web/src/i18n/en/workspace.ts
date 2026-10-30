@@ -13,8 +13,6 @@ export const workspace = {
     taskLists: "Task lists",
     newList: "New list",
     newNote: "New note",
-    noLists: "No lists yet.",
-    noNotes: "No notes yet.",
     expand: "Expand sidebar",
     expandTitle: "Expand sidebar (⌘/Ctrl+B)",
   },
@@ -149,6 +147,7 @@ export const workspace = {
     noTaskLists: "No task lists yet.",
   },
   spotlight: {
+    trigger: "Search",
     title: "Go to a list",
     description: "Search for a list. Use the arrow keys to choose and Enter to open.",
     search: "Search for a list",
