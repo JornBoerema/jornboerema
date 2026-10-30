@@ -33,6 +33,8 @@ export const commands = {
   suspendShortcuts: () => invoke<void>("suspend_shortcuts"),
   resumeShortcuts: () => invoke<void>("resume_shortcuts"),
   openSettings: () => invoke<void>("open_settings"),
+  editPreview: (id: string) => invoke<void>("edit_preview", { id }),
+  revealFile: (path: string) => invoke<void>("reveal_file", { path }),
 }
 
 export const isMac = navigator.userAgent.includes("Mac")

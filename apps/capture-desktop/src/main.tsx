@@ -8,11 +8,13 @@ import { Editor } from "./editor"
 import { Permission } from "./permission"
 import { Overlay } from "./overlay"
 import { SettingsWindow } from "./settings"
+import { Preview } from "./preview"
 
 // Each window loads this page; the query string says which screen it is.
 const params = new URLSearchParams(window.location.search)
 const captureId = params.get("capture")
 const overlayId = params.get("overlay")
+const previewId = params.get("preview")
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -20,6 +22,8 @@ createRoot(document.getElementById("root")!).render(
       <I18nProvider>
         {overlayId ? (
           <Overlay id={overlayId} mode={params.get("mode") === "window" ? "window" : "area"} />
+        ) : previewId ? (
+          <Preview id={previewId} path={params.get("path")} />
         ) : captureId ? (
           <Editor id={captureId} />
         ) : params.has("settings") ? (

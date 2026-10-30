@@ -30,6 +30,14 @@ export const nl: typeof en = {
     undo: "Ongedaan maken",
     redo: "Opnieuw",
   },
+  preview: {
+    copied: "Gekopieerd naar het klembord",
+    saved: (folder) => `Opgeslagen in ${folder}`,
+    edit: "Klik om te bewerken",
+    revealMac: "Toon in Finder",
+    revealWindows: "Toon in Verkenner",
+    close: "Sluiten",
+  },
   settings: {
     title: "Instellingen",
     shortcuts: "Sneltoetsen",

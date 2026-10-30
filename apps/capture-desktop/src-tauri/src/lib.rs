@@ -133,24 +133,99 @@ fn write_clipboard(app: &AppHandle, image: &xcap::image::RgbaImage) -> Result<()
     app.clipboard().write_image(&image).map_err(|e| e.to_string())
 }
 
-/// Handles a fresh screenshot as the settings say: open the editor, copy it or
-/// save it. If copying or saving fails, the editor opens so nothing is lost.
+/// Handles a fresh screenshot as the settings say: open the editor, or copy or
+/// save it and confirm with a small preview. If copying or saving fails, the
+/// editor opens so nothing is lost.
 fn deliver(app: &AppHandle, capture: Capture) {
     let settings = current_settings(app);
     let result = match settings.after_capture {
         AfterCapture::Editor => return open_editor(app, capture),
-        AfterCapture::Copy => write_clipboard(app, &capture.image),
+        AfterCapture::Copy => write_clipboard(app, &capture.image).map(|_| None),
         AfterCapture::Save => {
             let folder = settings.save_folder(app);
+            let path = new_file_path(&folder);
             std::fs::create_dir_all(&folder)
-                .and_then(|_| std::fs::write(new_file_path(&folder), &capture.png))
+                .and_then(|_| std::fs::write(&path, &capture.png))
+                .map(|_| Some(path))
                 .map_err(|e| e.to_string())
         }
     };
-    if let Err(error) = result {
-        eprintln!("After-capture action failed: {error}");
-        open_editor(app, capture);
+    match result {
+        Ok(saved) => show_preview(app, capture, saved),
+        Err(error) => {
+            eprintln!("After-capture action failed: {error}");
+            open_editor(app, capture);
+        }
     }
+}
+
+const PREVIEW_PREFIX: &str = "preview-";
+
+/// A small thumbnail in the bottom-right corner of the screen under the mouse,
+/// confirming a copy or save. It never takes focus (you may be about to paste),
+/// closes by itself, and opens the editor when clicked.
+fn show_preview(app: &AppHandle, capture: Capture, saved: Option<std::path::PathBuf>) {
+    const WIDTH: f64 = 240.0;
+    const FOOTER: f64 = 40.0;
+    const MARGIN: f64 = 16.0;
+    let ratio = capture.image.height() as f64 / capture.image.width().max(1) as f64;
+    let height = (WIDTH * ratio).clamp(72.0, 200.0) + FOOTER;
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    app.state::<Captures>().0.lock().unwrap().insert(id.clone(), capture);
+
+    let mut url = format!("index.html?preview={id}");
+    if let Some(path) = &saved {
+        url.push_str(&format!("&path={}", urlencoding::encode(&path.to_string_lossy())));
+    }
+    let cursor = app.cursor_position().ok();
+    let app = app.clone();
+    let _ = app.clone().run_on_main_thread(move || {
+        // One preview at a time: a new capture replaces the previous one.
+        for (label, window) in app.webview_windows() {
+            if label.starts_with(PREVIEW_PREFIX) {
+                let _ = window.close();
+            }
+        }
+        let monitor = cursor
+            .and_then(|c| app.monitor_from_point(c.x, c.y).ok().flatten())
+            .or_else(|| app.primary_monitor().ok().flatten());
+        let (x, y) = match monitor {
+            Some(monitor) => {
+                let (area, scale) = (monitor.work_area(), monitor.scale_factor());
+                (
+                    (area.position.x as f64 + area.size.width as f64) / scale - WIDTH - MARGIN,
+                    (area.position.y as f64 + area.size.height as f64) / scale - height - MARGIN,
+                )
+            }
+            None => (MARGIN, MARGIN),
+        };
+        let built = WebviewWindowBuilder::new(&app, format!("{PREVIEW_PREFIX}{id}"), WebviewUrl::App(url.into()))
+            .title("Even vastleggen")
+            .position(x, y)
+            .inner_size(WIDTH, height)
+            .decorations(false)
+            .resizable(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .visible_on_all_workspaces(true)
+            .focused(false)
+            .focusable(false)
+            .accept_first_mouse(true)
+            // Shown by the page once the thumbnail has loaded.
+            .visible(false)
+            .build();
+        match built {
+            Ok(window) => {
+                let app = app.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::Destroyed = event {
+                        app.state::<Captures>().0.lock().unwrap().remove(&id);
+                    }
+                });
+            }
+            Err(error) => eprintln!("Preview failed: {error}"),
+        }
+    });
 }
 
 fn open_editor(app: &AppHandle, capture: Capture) {
@@ -442,6 +517,31 @@ async fn capture_window(
     Ok(())
 }
 
+/// Moves the capture of a preview into a new editor window.
+#[tauri::command]
+fn edit_preview(id: String, app: AppHandle) -> Result<(), String> {
+    let capture = app.state::<Captures>().0.lock().unwrap().remove(&id).ok_or("Capture not found")?;
+    if let Some(window) = app.get_webview_window(&format!("{PREVIEW_PREFIX}{id}")) {
+        let _ = window.close();
+    }
+    open_editor(&app, capture);
+    Ok(())
+}
+
+/// Shows a saved file in Finder or Explorer.
+#[tauri::command]
+fn reveal_file(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let child = std::process::Command::new("open").arg("-R").arg(&path).spawn();
+    #[cfg(target_os = "windows")]
+    let child = std::process::Command::new("explorer").arg(format!("/select,{path}")).spawn();
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let child = std::process::Command::new("xdg-open")
+        .arg(std::path::Path::new(&path).parent().unwrap_or(std::path::Path::new("/")))
+        .spawn();
+    child.map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn close_overlays(app: AppHandle) {
     close_overlay_windows(&app);
@@ -664,7 +764,9 @@ pub fn run() {
             set_language,
             suspend_shortcuts,
             resume_shortcuts,
-            open_settings
+            open_settings,
+            edit_preview,
+            reveal_file
         ])
         .setup(|app| {
             // A menu bar / tray app: no Dock icon on macOS.

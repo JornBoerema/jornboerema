@@ -28,6 +28,14 @@ export const en = {
     undo: "Undo",
     redo: "Redo",
   },
+  preview: {
+    copied: "Copied to clipboard",
+    saved: (folder: string) => `Saved to ${folder}`,
+    edit: "Click to edit",
+    revealMac: "Show in Finder",
+    revealWindows: "Show in Explorer",
+    close: "Dismiss",
+  },
   settings: {
     title: "Settings",
     shortcuts: "Shortcuts",
