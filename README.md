@@ -9,6 +9,7 @@ apps/
   api/          Hono API (Node): /api/auth/*, todo-endpoints, /mcp, OAuth-discovery
   todo-web/     Even doen — Vite + React SPA (react-router, TanStack Query)
   home/         jornboerema.nl — minimale statische pagina met links naar de apps
+  capture-desktop/  Even vastleggen — screenshot-app (Tauri 2 + React) voor macOS en Windows
 packages/
   ui/           shadcn/ui componenten + globals.css (design tokens) — gedeeld door alle React-apps
   db/           Prisma schema, migraties en client
@@ -47,6 +48,17 @@ pnpm dev:todo                              # API op :4000, web op :3000
 | `ABLY_API_KEY` | Optioneel realtime; zonder Ably synchroniseren clients elke 60 s |
 
 `apps/todo-web/.env` bevat alleen `VITE_API_URL` (publiek).
+
+## Even vastleggen (screenshots)
+
+Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de menubalk (macOS) of het systeemvak (Windows).
+
+- ⌥⇧1 (macOS) / Ctrl+Shift+1 (Windows): screenshot van het scherm waar de muis staat → editor.
+- ⌥⇧2 / Ctrl+Shift+2: gebied selecteren op een bevroren beeld (met kruisdraden en afmetingen) → editor. Esc of rechtermuisknop annuleert.
+- ⌥⇧3 / Ctrl+Shift+3: venster kiezen; het venster onder de muis licht op, klik om het vast te leggen → editor. Op macOS wordt het zichtbare deel uit het bevroren scherm gesneden (de oude per-venster-API werkt niet meer op recente macOS); op Windows wordt het hele venster vastgelegd, ook bedekte delen.
+- In de editor: ⌘C/Ctrl+C kopieert en sluit, ⌘S/Ctrl+S slaat op, Esc sluit.
+- macOS vraagt om toestemming voor Schermopname. Bij `pnpm dev:capture` hoort die toestemming bij de app waarin je het commando draait (Terminal, Zed, …); start die daarna opnieuw.
+- Testen zonder sneltoets: `cd apps/capture-desktop/src-tauri && cargo test -- --ignored`.
 
 ## Auth-architectuur
 

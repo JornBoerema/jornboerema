@@ -39,3 +39,6 @@ dist-ssr
 packages/db/src/generated
 test-results
 playwright-report
+
+# Tauri / Rust build output
+apps/*/src-tauri/target
