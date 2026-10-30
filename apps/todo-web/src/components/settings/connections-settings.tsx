@@ -1,8 +1,6 @@
 import { useState } from "react"
-import { Link } from "react-router"
 import { API_URL } from "@/lib/api"
 import { useI18n } from "@/i18n"
-import { ExternalLink } from "@/components/icons"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
 import { Button } from "@evido/ui/components/button"
 
@@ -12,10 +10,7 @@ export function ConnectionsSettings() {
   const mcpUrl = `${API_URL}/mcp`
   const [copied, setCopied] = useState(false)
   return (
-    <SettingsSection
-      title={s.title}
-      description={s.description}
-    >
+    <SettingsSection title={s.title} description={s.description}>
       <SettingsRow
         title={s.mcpUrl}
         description={<code className="text-xs break-all text-foreground">{mcpUrl}</code>}
@@ -35,16 +30,18 @@ export function ConnectionsSettings() {
         </Button>
       </SettingsRow>
       <SettingsRow
-        title={s.guide}
-        description={s.guideHelp}
-      >
-        <Button asChild variant="outline">
-          <Link to="/docs">
-            {s.viewGuide}
-            <ExternalLink data-icon="inline-end" aria-hidden="true" />
-          </Link>
-        </Button>
-      </SettingsRow>
+        title={s.howTo}
+        description={
+          <div className="flex flex-col gap-3">
+            <ol className="flex list-decimal flex-col gap-1 pl-5">
+              <li>{s.steps.one}</li>
+              <li>{s.steps.two}</li>
+              <li>{s.steps.three}</li>
+            </ol>
+            <p>{s.example}</p>
+          </div>
+        }
+      />
     </SettingsSection>
   )
 }

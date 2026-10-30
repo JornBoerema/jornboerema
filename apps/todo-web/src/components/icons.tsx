@@ -22,7 +22,6 @@ import {
   Share08Icon,
   SidebarLeft01Icon,
   UserCircleIcon,
-  LinkSquare01Icon,
   Settings01Icon,
   UnfoldMoreIcon,
   Sun03Icon,
@@ -60,7 +59,6 @@ export const SidebarToggle = appIcon(SidebarLeft01Icon);
 
 export const UserCircle = appIcon(UserCircleIcon);
 
-export const ExternalLink = appIcon(LinkSquare01Icon);
 
 export const Home = appIcon(Home01Icon);
 

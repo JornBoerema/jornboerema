@@ -6,7 +6,6 @@ import { AuthPage } from "./pages/auth"
 import { ConsentPage } from "./pages/consent"
 import { InvitationPage } from "./pages/invitation"
 import { SharedListPage } from "./pages/shared-list"
-import { DocsPage } from "./pages/docs"
 
 export function App() {
   return (
@@ -14,7 +13,6 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route index element={<HomePage />} />
-          <Route path="docs" element={<DocsPage />} />
           <Route path="shared/:token" element={<SharedListPage />} />
           <Route element={<AuthLayout />}>
             <Route path="login" element={<AuthPage mode="login" />} />

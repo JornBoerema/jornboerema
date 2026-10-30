@@ -87,9 +87,13 @@ export const settings: typeof en = {
     mcpUrl: "MCP-URL",
     copy: "Kopiëren",
     copied: "Gekopieerd",
-    guide: "Uitleg en voorbeelden",
-    guideHelp: "Stap voor stap koppelen, plus alle beschikbare acties.",
-    viewGuide: "Bekijk uitleg",
+    howTo: "Zo koppel je",
+    steps: {
+      one: "Zet in ChatGPT Developer mode aan (Settings → Security and login).",
+      two: "Voeg een koppeling toe, plak de MCP-URL hierboven en kies OAuth.",
+      three: "Log in met je Even doen-account en geef toestemming.",
+    },
+    example: "Probeer daarna: “Zet ‘Factuur sturen’ op mijn lijst Werk.”",
   },
   workspace: {
     general: "Algemeen",

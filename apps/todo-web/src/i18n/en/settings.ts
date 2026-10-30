@@ -86,9 +86,13 @@ export const settings = {
     mcpUrl: "MCP URL",
     copy: "Copy",
     copied: "Copied",
-    guide: "Guide and examples",
-    guideHelp: "Step-by-step setup, plus every available action.",
-    viewGuide: "View guide",
+    howTo: "How to connect",
+    steps: {
+      one: "In ChatGPT, turn on Developer mode (Settings → Security and login).",
+      two: "Add a connection, paste the MCP URL above and choose OAuth.",
+      three: "Sign in with your Even doen account and allow access.",
+    },
+    example: "Then try: “Add ‘Send invoice’ to my Work list.”",
   },
   workspace: {
     general: "General",
