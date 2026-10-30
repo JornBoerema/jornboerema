@@ -31,3 +31,11 @@ dist-ssr
 
 # typescript
 *.tsbuildinfo
+
+# env files: only the examples are committed
+!.env.example
+
+# generated
+packages/db/src/generated
+test-results
+playwright-report

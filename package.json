@@ -5,9 +5,15 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "dev:todo": "turbo dev --filter=@evido/api --filter=@evido/todo-web",
     "lint": "turbo lint",
     "format": "turbo format",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "db:generate": "pnpm --filter @evido/db db:generate",
+    "db:migrate": "pnpm --filter @evido/db db:migrate",
+    "db:deploy": "pnpm --filter @evido/db db:deploy",
+    "db:studio": "pnpm --filter @evido/db db:studio"
   },
   "devDependencies": {
     "prettier": "^3.9.10",
@@ -15,8 +21,8 @@
     "turbo": "^2.11.10",
     "typescript": "~6.0.2"
   },
-  "packageManager": "pnpm@11.25.0",
+  "packageManager": "pnpm@11.1.2",
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.12.0"
   }
 }

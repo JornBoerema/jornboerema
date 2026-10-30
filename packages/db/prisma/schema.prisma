@@ -1,0 +1,380 @@
+// Shared database for all Evido apps (todo, mail, passwords, ...).
+// Table and column names are snake_case and match the original "Even doen" app,
+// so existing data can be copied over with a plain pg_dump/restore.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth (Better Auth core) ────────────────────────────────────────────────
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false) @map("email_verified")
+  image         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  sessions             Session[]
+  accounts             Account[]
+  oauthClients         OauthClient[]
+  oauthRefreshTokens   OauthRefreshToken[]
+  oauthAccessTokens    OauthAccessToken[]
+  oauthConsents        OauthConsent[]
+  lists                List[]
+  workspaceMemberships WorkspaceMember[]
+  workspaceInvitations WorkspaceInvitation[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  oauthRefreshTokens OauthRefreshToken[]
+  oauthAccessTokens  OauthAccessToken[]
+
+  @@index([userId], map: "session_user_idx")
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([userId], map: "account_user_idx")
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([identifier], map: "verification_identifier_idx")
+  @@map("verification")
+}
+
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest Float  @map("last_request")
+
+  @@map("rate_limit")
+}
+
+// ─── Auth (JWT + OAuth provider for MCP clients) ────────────────────────────
+// Optional string arrays are Json? because Better Auth gives null a meaning
+// ("unrestricted") that differs from [] and Prisma lists cannot hold null.
+
+model Jwks {
+  id         String    @id
+  publicKey  String    @map("public_key")
+  privateKey String    @map("private_key")
+  createdAt  DateTime  @map("created_at")
+  expiresAt  DateTime? @map("expires_at")
+  alg        String?
+  crv        String?
+
+  @@map("jwks")
+}
+
+model OauthClient {
+  id                               String    @id
+  clientId                         String    @unique @map("client_id")
+  clientSecret                     String?   @map("client_secret")
+  clientDiscoveryId                String?   @map("client_discovery_id")
+  disabled                         Boolean?  @default(false)
+  skipConsent                      Boolean?  @map("skip_consent")
+  enableEndSession                 Boolean?  @map("enable_end_session")
+  subjectType                      String?   @map("subject_type")
+  scopes                           Json?
+  clientCredentialsScopes          Json?     @map("client_credentials_scopes")
+  userId                           String?   @map("user_id")
+  user                             User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt                        DateTime? @map("created_at")
+  updatedAt                        DateTime? @map("updated_at")
+  name                             String?
+  uri                              String?
+  icon                             String?
+  contacts                         Json?
+  tos                              String?
+  policy                           String?
+  softwareId                       String?   @map("software_id")
+  softwareVersion                  String?   @map("software_version")
+  softwareStatement                String?   @map("software_statement")
+  redirectUris                     String[]  @map("redirect_uris")
+  postLogoutRedirectUris           Json?     @map("post_logout_redirect_uris")
+  backchannelLogoutUri             String?   @map("backchannel_logout_uri")
+  backchannelLogoutSessionRequired Boolean?  @map("backchannel_logout_session_required")
+  tokenEndpointAuthMethod          String?   @map("token_endpoint_auth_method")
+  applicationType                  String?   @map("application_type")
+  jwks                             String?
+  jwksUri                          String?   @map("jwks_uri")
+  grantTypes                       Json?     @map("grant_types")
+  responseTypes                    Json?     @map("response_types")
+  requirePKCE                      Boolean?  @map("require_p_k_c_e")
+  dpopBoundAccessTokens            Boolean?  @default(false) @map("dpop_bound_access_tokens")
+  referenceId                      String?   @map("reference_id")
+  metadata                         Json?
+
+  resources     OauthClientResource[]
+  refreshTokens OauthRefreshToken[]
+  accessTokens  OauthAccessToken[]
+  consents      OauthConsent[]
+
+  @@map("oauth_client")
+}
+
+model OauthResource {
+  id                            String    @id
+  identifier                    String    @unique
+  name                          String
+  accessTokenTtl                Int?      @map("access_token_ttl")
+  refreshTokenTtl               Int?      @map("refresh_token_ttl")
+  signingAlgorithm              String?   @map("signing_algorithm")
+  signingKeyId                  String?   @map("signing_key_id")
+  allowedScopes                 Json?     @map("allowed_scopes")
+  customClaims                  Json?     @map("custom_claims")
+  dpopBoundAccessTokensRequired Boolean?  @default(false) @map("dpop_bound_access_tokens_required")
+  disabled                      Boolean?  @default(false)
+  createdAt                     DateTime? @map("created_at")
+  updatedAt                     DateTime? @map("updated_at")
+  policyVersion                 Int?      @default(1) @map("policy_version")
+  metadata                      Json?
+
+  clients OauthClientResource[]
+
+  @@map("oauth_resource")
+}
+
+model OauthClientResource {
+  id         String        @id
+  clientId   String        @map("client_id")
+  client     OauthClient   @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  resourceId String        @map("resource_id")
+  resource   OauthResource @relation(fields: [resourceId], references: [identifier], onDelete: Cascade)
+  metadata   Json?
+  createdAt  DateTime?     @map("created_at")
+
+  @@unique([clientId, resourceId], map: "oauth_client_resource_unique")
+  @@map("oauth_client_resource")
+}
+
+model OauthRefreshToken {
+  id                      String      @id
+  token                   String      @unique
+  clientId                String      @map("client_id")
+  client                  OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  sessionId               String?     @map("session_id")
+  session                 Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  userId                  String      @map("user_id")
+  user                    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId             String?     @map("reference_id")
+  authorizationCodeId     String?     @map("authorization_code_id")
+  resources               Json?
+  requestedUserInfoClaims Json?       @map("requested_user_info_claims")
+  expiresAt               DateTime    @map("expires_at")
+  createdAt               DateTime    @map("created_at")
+  revoked                 DateTime?
+  rotatedAt               DateTime?   @map("rotated_at")
+  rotationReplayResponse  String?     @map("rotation_replay_response")
+  rotationReplayExpiresAt DateTime?   @map("rotation_replay_expires_at")
+  authTime                DateTime?   @map("auth_time")
+  confirmation            Json?
+  scopes                  String[]
+
+  accessTokens OauthAccessToken[]
+
+  @@map("oauth_refresh_token")
+}
+
+model OauthAccessToken {
+  id                      String             @id
+  token                   String             @unique
+  clientId                String             @map("client_id")
+  client                  OauthClient        @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  sessionId               String?            @map("session_id")
+  session                 Session?           @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  userId                  String?            @map("user_id")
+  user                    User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId             String?            @map("reference_id")
+  authorizationCodeId     String?            @map("authorization_code_id")
+  resources               Json?
+  requestedUserInfoClaims Json?              @map("requested_user_info_claims")
+  refreshId               String?            @map("refresh_id")
+  refresh                 OauthRefreshToken? @relation(fields: [refreshId], references: [id], onDelete: Cascade)
+  expiresAt               DateTime           @map("expires_at")
+  createdAt               DateTime           @map("created_at")
+  revoked                 DateTime?
+  confirmation            Json?
+  scopes                  String[]
+
+  @@map("oauth_access_token")
+}
+
+model OauthConsent {
+  id                      String      @id
+  clientId                String      @map("client_id")
+  client                  OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  userId                  String?     @map("user_id")
+  user                    User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId             String?     @map("reference_id")
+  resources               Json?
+  requestedUserInfoClaims Json?       @map("requested_user_info_claims")
+  scopes                  String[]
+  createdAt               DateTime    @map("created_at")
+  updatedAt               DateTime    @map("updated_at")
+
+  @@map("oauth_consent")
+}
+
+model OauthClientAssertion {
+  id        String   @id
+  expiresAt DateTime @map("expires_at")
+
+  @@map("oauth_client_assertion")
+}
+
+// ─── Todo app ───────────────────────────────────────────────────────────────
+
+enum ListKind {
+  todo
+  note
+}
+
+enum WorkspaceRole {
+  owner
+  admin
+  member
+}
+
+enum ShareRole {
+  viewer
+  editor
+}
+
+/// A shared space (e.g. "Persoonlijk", "Werk"). Every member sees all its lists.
+model Workspace {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members     WorkspaceMember[]
+  invitations WorkspaceInvitation[]
+  lists       List[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id
+  workspaceId String        @map("workspace_id")
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String        @map("user_id")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@unique([workspaceId, userId], map: "workspace_members_workspace_user_unique")
+  @@index([userId], map: "workspace_members_user_idx")
+  @@map("workspace_members")
+}
+
+model WorkspaceInvitation {
+  id          String        @id
+  workspaceId String        @map("workspace_id")
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email       String
+  role        WorkspaceRole
+  tokenHash   String        @unique @map("token_hash")
+  invitedById String?       @map("invited_by_id")
+  invitedBy   User?         @relation(fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt   DateTime      @map("expires_at")
+  acceptedAt  DateTime?     @map("accepted_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, email], map: "workspace_invitations_workspace_email_unique")
+  @@map("workspace_invitations")
+}
+
+model List {
+  id          String    @id
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Creator of the list. Access comes from workspace membership, not this field.
+  userId      String?   @map("user_id")
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name        String
+  kind        ListKind  @default(todo)
+  noteContent String    @default("") @map("note_content")
+  noteVersion Int       @default(0) @map("note_version")
+  /// Sidebar order within the workspace, per kind (lists and notes separately).
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  todos Todo[]
+  link  ListLink?
+
+  @@index([userId], map: "lists_user_idx")
+  @@index([workspaceId], map: "lists_workspace_idx")
+  @@map("lists")
+}
+
+model Todo {
+  id         String   @id
+  listId     String   @map("list_id")
+  list       List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  title      String
+  completed  Boolean  @default(false)
+  inProgress Boolean  @default(false) @map("in_progress")
+  position   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([listId], map: "todos_list_idx")
+  @@map("todos")
+}
+
+/// A random bearer link grants access to one list, independently of accounts.
+model ListLink {
+  listId    String    @id @map("list_id")
+  list      List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  role      ShareRole
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("list_links")
+}

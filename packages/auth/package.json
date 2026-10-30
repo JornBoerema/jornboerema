@@ -1,0 +1,27 @@
+{
+  "name": "@evido/auth",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Shared Better Auth setup: one account for every Evido app.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "exports": {
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts"
+  },
+  "dependencies": {
+    "@better-auth/mcp": "^1.7.14",
+    "@better-auth/oauth-provider": "^1.7.14",
+    "@better-auth/prisma-adapter": "^1.7.14",
+    "@evido/db": "workspace:*",
+    "@evido/email": "workspace:*",
+    "better-auth": "^1.7.14"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "~6.0.2"
+  }
+}

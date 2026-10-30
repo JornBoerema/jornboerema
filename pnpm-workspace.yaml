@@ -5,3 +5,5 @@ packages:
 allowBuilds:
   esbuild: true
   msw: false
+  prisma: true
+  "@prisma/engines": true

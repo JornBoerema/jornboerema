@@ -1,0 +1,21 @@
+{
+  "name": "@evido/email",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Transactional e-mail via Resend, shared by all Evido apps.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "resend": "^6.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "~6.0.2"
+  }
+}

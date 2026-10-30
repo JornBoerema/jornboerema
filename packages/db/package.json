@@ -1,0 +1,30 @@
+{
+  "name": "@evido/db",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Shared Prisma schema and client for all Evido apps.",
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/pg": "^8.23.1",
+    "dotenv": "^17.2.3",
+    "prisma": "7.10.1",
+    "typescript": "~6.0.2"
+  }
+}
