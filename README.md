@@ -89,7 +89,7 @@ Twee Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig 
 | Project | Root Directory | Domein |
 | --- | --- | --- |
 | `evido-api` | `apps/api` | `api.jornboerema.nl` |
-| `evido-todo` | `apps/todo-web` | `app.jornboerema.nl` |
+| `evido-todo` | `apps/todo-web` | `todo.jornboerema.nl` |
 | `evido-home` | `apps/home` | `jornboerema.nl` (geen env vars nodig) |
 
 Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met tsup gebundeld en draait als één Vercel Function (`apps/api/api/index.js`); de web-app is een statische Vite-build met een SPA-fallback.
@@ -101,9 +101,9 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `DATABASE_URL` | Neon pooled connection string (productie) |
 | `BETTER_AUTH_URL` | `https://api.jornboerema.nl` |
 | `BETTER_AUTH_SECRET` | `openssl rand -hex 32` (productie-geheim) |
-| `TRUSTED_ORIGINS` | `https://app.jornboerema.nl` |
-| `AUTH_UI_URL` | `https://app.jornboerema.nl` |
-| `TODO_WEB_URL` | `https://app.jornboerema.nl` |
+| `TRUSTED_ORIGINS` | `https://todo.jornboerema.nl` |
+| `AUTH_UI_URL` | `https://todo.jornboerema.nl` |
+| `TODO_WEB_URL` | `https://todo.jornboerema.nl` |
 | `AUTH_COOKIE_DOMAIN` | `.jornboerema.nl` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | zoals lokaal |
 | `ABLY_API_KEY` | optioneel |
