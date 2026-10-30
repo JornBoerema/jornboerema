@@ -1,4 +1,9 @@
-/** Run work after responding. Failures are logged, never surfaced to the client. */
+import { waitUntil } from "@vercel/functions"
+
+/**
+ * Run work after responding. Failures are logged, never surfaced to the client.
+ * On Vercel, waitUntil keeps the function alive until the work is done.
+ */
 export function defer(work: () => Promise<unknown>) {
-  void work().catch((error) => console.error("Achtergrondtaak mislukt", error))
+  waitUntil(work().catch((error) => console.error("Achtergrondtaak mislukt", error)))
 }

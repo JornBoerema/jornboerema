@@ -1,7 +1,8 @@
 import { defineConfig } from "tsup"
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  // index: self-hosted Node server; app: imported by the Vercel Function (api/index.js).
+  entry: ["src/index.ts", "src/app.ts"],
   format: ["esm"],
   target: "node22",
   platform: "node",

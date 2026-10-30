@@ -6,7 +6,7 @@
   "description": "Hono API for all Evido apps: auth, todo, MCP.",
   "scripts": {
     "dev": "tsx watch --include ../../.env --env-file-if-exists=../../.env src/index.ts",
-    "build": "tsup",
+    "build": "pnpm --filter @evido/db db:generate && tsup",
     "start": "node --env-file-if-exists=../../.env dist/index.js",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
@@ -19,6 +19,7 @@
     "@evido/todo-core": "workspace:*",
     "@hono/node-server": "^2.1.5",
     "@modelcontextprotocol/server": "^2.4.0",
+    "@vercel/functions": "^3.10.4",
     "ably": "^2.30.0",
     "hono": "^4.13.14",
     "zod": "^4.6.7"

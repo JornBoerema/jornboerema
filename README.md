@@ -81,6 +81,43 @@ cd apps/todo-web && pnpm dlx shadcn@latest add <component>
 
 Componenten komen in `packages/ui/src/components` en worden geïmporteerd als `@evido/ui/components/<naam>`.
 
+## Deployen op Vercel
+
+Twee Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig voor de gedeelde login-cookie), bijvoorbeeld:
+
+| Project | Root Directory | Domein |
+| --- | --- | --- |
+| `evido-api` | `apps/api` | `api.jornboerema.nl` |
+| `evido-todo` | `apps/todo-web` | `app.jornboerema.nl` |
+
+Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met tsup gebundeld en draait als één Vercel Function (`apps/api/api/index.js`); de web-app is een statische Vite-build met een SPA-fallback.
+
+**Environment variables — `evido-api`**
+
+| Variabele | Waarde |
+| --- | --- |
+| `DATABASE_URL` | Neon pooled connection string (productie) |
+| `BETTER_AUTH_URL` | `https://api.jornboerema.nl` |
+| `BETTER_AUTH_SECRET` | `openssl rand -hex 32` (productie-geheim) |
+| `TRUSTED_ORIGINS` | `https://app.jornboerema.nl` |
+| `AUTH_UI_URL` | `https://app.jornboerema.nl` |
+| `TODO_WEB_URL` | `https://app.jornboerema.nl` |
+| `AUTH_COOKIE_DOMAIN` | `.jornboerema.nl` |
+| `RESEND_API_KEY`, `EMAIL_FROM` | zoals lokaal |
+| `ABLY_API_KEY` | optioneel |
+| `ENABLE_EXPERIMENTAL_COREPACK` | `1` (gebruikt de pnpm-versie uit `packageManager`) |
+
+**Environment variables — `evido-todo`**
+
+| Variabele | Waarde |
+| --- | --- |
+| `VITE_API_URL` | `https://api.jornboerema.nl` |
+| `ENABLE_EXPERIMENTAL_COREPACK` | `1` |
+
+Database-migraties draaien niet tijdens de build. Voer ze lokaal uit tegen de productiedatabase vóór je deployt: `pnpm db:deploy` (met de directe URL in `DATABASE_URL_UNPOOLED`).
+
+Gebruik voor productie een eigen database of Neon-branch. Better Auth versleutelt zijn signeersleutels met `BETTER_AUTH_SECRET`; een database delen met een ander geheim geeft fouten. Preview-deployments op `*.vercel.app` kunnen niet inloggen, omdat de cookie aan het eigen domein gebonden is.
+
 ## Controles
 
 ```bash
