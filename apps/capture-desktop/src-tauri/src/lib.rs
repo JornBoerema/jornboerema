@@ -650,8 +650,15 @@ fn show_history_window(app: &AppHandle) {
 fn reveal_file(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let child = std::process::Command::new("open").arg("-R").arg(&path).spawn();
+    // Explorer wants `/select,"C:\path with spaces.png"`; the default quoting
+    // ("/select,C:\path with spaces.png") makes it open Documents instead.
     #[cfg(target_os = "windows")]
-    let child = std::process::Command::new("explorer").arg(format!("/select,{path}")).spawn();
+    let child = {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("explorer")
+            .raw_arg(format!("/select,\"{}\"", path.replace('/', "\\")))
+            .spawn()
+    };
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let child = std::process::Command::new("xdg-open")
         .arg(std::path::Path::new(&path).parent().unwrap_or(std::path::Path::new("/")))
