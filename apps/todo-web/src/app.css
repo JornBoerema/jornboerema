@@ -574,7 +574,8 @@
   .list-spotlight { top: 20px; }
 }
 
-.note-content { overflow-y: auto; padding-bottom: 48px; }
+.note-content { overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
+.note-content::-webkit-scrollbar { display: none; }
 .note-content .task-heading { margin-bottom: 20px; }
 .note-editor { position: relative; padding-bottom: 64px; }
 .note-prose { outline: none; min-height: 300px; line-height: 1.8; font-size: 15px; padding: 10px 0 100px; overflow-wrap: anywhere; }
