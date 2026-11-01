@@ -3,7 +3,7 @@ mod history;
 mod settings;
 mod updates;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
 use capture::Capture;
@@ -48,22 +48,35 @@ fn current_settings(app: &AppHandle) -> Settings {
     app.state::<SettingsState>().0.lock().unwrap().clone()
 }
 
+/// Problems with the registered shortcuts, by settings key ("fullscreen",
+/// "area", "window"), as "invalid:<shortcut>", "duplicate:<shortcut>" or
+/// "taken:<shortcut>" (in use by another app). The settings window shows them.
+#[derive(Default)]
+struct ShortcutErrors(Mutex<BTreeMap<&'static str, String>>);
+
 /// Registers the three capture shortcuts, replacing whatever was registered.
-/// Errors are "invalid:<shortcut>", "duplicate:<shortcut>" or "taken:<shortcut>"
-/// (in use by another app); the settings window turns them into a message.
-fn register_shortcuts(app: &AppHandle, shortcuts: &settings::Shortcuts) -> Result<(), String> {
+/// Each is tried on its own, so one taken by another app does not stop the others.
+fn register_shortcuts(app: &AppHandle, shortcuts: &settings::Shortcuts) -> BTreeMap<&'static str, String> {
     let manager = app.global_shortcut();
     let _ = manager.unregister_all();
     let mut registered: Vec<Shortcut> = Vec::new();
-    for text in shortcuts.all() {
-        let shortcut: Shortcut = text.parse().map_err(|_| format!("invalid:{text}"))?;
+    let mut errors = BTreeMap::new();
+    for (key, text) in ["fullscreen", "area", "window"].into_iter().zip(shortcuts.all()) {
+        let Ok(shortcut) = text.parse::<Shortcut>() else {
+            errors.insert(key, format!("invalid:{text}"));
+            continue;
+        };
         if registered.contains(&shortcut) {
-            return Err(format!("duplicate:{text}"));
+            errors.insert(key, format!("duplicate:{text}"));
+        } else if let Err(error) = manager.register(shortcut) {
+            eprintln!("Shortcut {text} not registered: {error}");
+            errors.insert(key, format!("taken:{text}"));
+        } else {
+            registered.push(shortcut);
         }
-        manager.register(shortcut).map_err(|_| format!("taken:{text}"))?;
-        registered.push(shortcut);
     }
-    Ok(())
+    *app.state::<ShortcutErrors>().0.lock().unwrap() = errors.clone();
+    errors
 }
 
 fn on_shortcut(app: &AppHandle, pressed: &Shortcut) {
@@ -670,12 +683,14 @@ struct SettingsView {
     launch_at_login: bool,
     /// The folder screenshots actually go to (the Desktop when none is chosen).
     save_folder_path: String,
+    shortcut_errors: BTreeMap<&'static str, String>,
 }
 
 fn settings_view(app: &AppHandle, settings: Settings) -> SettingsView {
     SettingsView {
         launch_at_login: app.autolaunch().is_enabled().unwrap_or(false),
         save_folder_path: settings.save_folder(app).to_string_lossy().into_owned(),
+        shortcut_errors: app.state::<ShortcutErrors>().0.lock().unwrap().clone(),
         settings,
     }
 }
@@ -685,16 +700,24 @@ fn get_settings(app: AppHandle) -> SettingsView {
     settings_view(&app, current_settings(&app))
 }
 
-/// Saves new settings. Shortcuts are registered first; if one is taken, the
-/// old ones come back and nothing is saved.
+/// Saves new settings. Shortcuts are registered first; if a changed one cannot
+/// be used, the old ones come back and nothing is saved.
 #[tauri::command]
 fn update_settings(settings: Settings, app: AppHandle) -> Result<SettingsView, String> {
     let previous = current_settings(&app);
     // The language is reported separately (set_language); keep it.
     let settings = Settings { language: previous.language.clone(), ..settings };
     if settings.shortcuts != previous.shortcuts {
-        if let Err(error) = register_shortcuts(&app, &settings.shortcuts) {
-            let _ = register_shortcuts(&app, &previous.shortcuts);
+        let errors = register_shortcuts(&app, &settings.shortcuts);
+        let old = previous.shortcuts.all();
+        let changed = ["fullscreen", "area", "window"]
+            .into_iter()
+            .zip(settings.shortcuts.all())
+            .zip(old)
+            .find_map(|((key, new), old)| (new != old).then(|| errors.get(key)).flatten());
+        if let Some(error) = changed {
+            let error = error.clone();
+            register_shortcuts(&app, &previous.shortcuts);
             return Err(error);
         }
     }
@@ -736,8 +759,8 @@ fn suspend_shortcuts(app: AppHandle) {
 }
 
 #[tauri::command]
-fn resume_shortcuts(app: AppHandle) -> Result<(), String> {
-    register_shortcuts(&app, &current_settings(&app).shortcuts)
+fn resume_shortcuts(app: AppHandle) {
+    register_shortcuts(&app, &current_settings(&app).shortcuts);
 }
 
 #[tauri::command]
@@ -927,9 +950,8 @@ pub fn run() {
             app.manage(SettingsState(std::sync::Mutex::new(settings.clone())));
             // A shortcut taken by another app should not stop the app; the
             // settings window shows which one and lets you pick another.
-            if let Err(error) = register_shortcuts(handle, &settings.shortcuts) {
-                eprintln!("Shortcut not registered: {error}");
-            }
+            app.manage(ShortcutErrors::default());
+            register_shortcuts(handle, &settings.shortcuts);
 
             TrayIconBuilder::with_id("main")
                 .icon(tauri::include_image!("icons/tray.png"))

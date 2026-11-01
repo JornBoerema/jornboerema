@@ -18,6 +18,8 @@ export type Settings = {
   launchAtLogin: boolean
   /** Where screenshots actually go (the Desktop when no folder is chosen). */
   saveFolderPath: string
+  /** Shortcuts that could not be registered, as "taken:<shortcut>" and the like. */
+  shortcutErrors: Partial<Record<keyof Shortcuts, string>>
 }
 
 /** URL of a capture, served by the Rust `capture://` protocol. */
@@ -45,7 +47,7 @@ export const commands = {
   save: (id: string, path: string) => invoke<void>("save_capture", { id, path }),
   openScreenRecordingSettings: () => invoke<void>("open_screen_recording_settings"),
   settings: () => invoke<Settings>("get_settings"),
-  updateSettings: ({ launchAtLogin: _, saveFolderPath: __, ...settings }: Settings) =>
+  updateSettings: ({ launchAtLogin: _, saveFolderPath: __, shortcutErrors: ___, ...settings }: Settings) =>
     invoke<Settings>("update_settings", { settings }),
   setLaunchAtLogin: (enabled: boolean) => invoke<boolean>("set_launch_at_login", { enabled }),
   setLanguage: (language: string) => invoke<void>("set_language", { language }),

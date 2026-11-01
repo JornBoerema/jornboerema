@@ -23,6 +23,15 @@ import { Brand } from "./brand"
 import { commands, formatShortcut, isMac, shortcutFromEvent, type AfterCapture, type Settings, type Shortcuts } from "./lib"
 import { useI18n } from "./i18n"
 
+type ErrorMessages = ReturnType<typeof useI18n>["t"]["settings"]["errors"]
+
+/** A shortcut problem from Rust ("taken:Ctrl+Shift+1" and the like) as a sentence. */
+function errorMessage(messages: ErrorMessages, error: string) {
+  const [kind, shortcut = ""] = error.split(/:(.*)/s)
+  const format = messages[kind as "taken" | "duplicate" | "invalid"]
+  return format ? format(formatShortcut(shortcut)) : messages.failed
+}
+
 /** Settings window: shortcuts, what happens after a capture, and general preferences. */
 export function SettingsWindow() {
   const { t, language, preference, setPreference } = useI18n()
@@ -56,9 +65,7 @@ export function SettingsWindow() {
         setSettings(await commands.updateSettings({ ...settings, ...patch }))
         if (shortcutKey) setError(null)
       } catch (cause) {
-        const [kind, shortcut = ""] = String(cause).split(/:(.*)/s)
-        const format = s.errors[kind as "taken" | "duplicate" | "invalid"]
-        const message = format ? format(formatShortcut(shortcut)) : s.errors.failed
+        const message = errorMessage(s.errors, String(cause))
         if (shortcutKey) setError({ key: shortcutKey, message })
         else toast.error(message)
       }
@@ -67,6 +74,13 @@ export function SettingsWindow() {
   )
 
   if (!settings) return <div className="h-full bg-background" />
+
+  // The last change that failed, else what failed at startup (taken by another app).
+  const shortcutError = (key: keyof Shortcuts) => {
+    if (error?.key === key) return error.message
+    const failed = settings.shortcutErrors[key]
+    return failed ? errorMessage(s.errors, failed) : undefined
+  }
 
   const shortcutRows: { key: keyof Shortcuts; label: string }[] = [
     { key: "fullscreen", label: s.fullscreen },
@@ -93,7 +107,7 @@ export function SettingsWindow() {
               <SettingsRow
                 key={key}
                 title={label}
-                description={error?.key === key ? <span className="text-destructive">{error.message}</span> : undefined}
+                description={shortcutError(key) && <span className="text-destructive">{shortcutError(key)}</span>}
               >
                 <ShortcutRecorder
                   label={s.change(label)}
