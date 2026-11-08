@@ -44,6 +44,11 @@ const en = {
   content_notes_only: "Content is only available for notes.",
   workspace_name_required: "Give your workspace a name.",
   invalid_email: "Enter a valid email address.",
+  // Mail
+  mailNotConfigured: "This mail provider isn't available yet.",
+  mailAccountGone: "This mailbox is no longer connected.",
+  mailReconnect: "Access to this mailbox has ended. Connect it again.",
+  mailProviderFailed: "The mail provider didn't respond. Please try again in a minute.",
 }
 
 export type MessageKey = keyof typeof en
@@ -85,6 +90,10 @@ const nl: Record<MessageKey, string> = {
   content_notes_only: "Inhoud is alleen beschikbaar voor notities.",
   workspace_name_required: "Geef je workspace een naam.",
   invalid_email: "Vul een geldig e-mailadres in.",
+  mailNotConfigured: "Deze mailprovider is nog niet beschikbaar.",
+  mailAccountGone: "Deze mailbox is niet meer gekoppeld.",
+  mailReconnect: "De toegang tot deze mailbox is verlopen. Koppel hem opnieuw.",
+  mailProviderFailed: "De mailprovider reageert niet. Probeer het over een minuut opnieuw.",
 }
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, nl }

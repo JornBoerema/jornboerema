@@ -9,6 +9,7 @@ apps/
   api/          Hono API (Node): /api/auth/*, todo-endpoints, /mcp, OAuth-discovery
   todo-web/     Even doen — Vite + React SPA (react-router, TanStack Query)
   home/         jornboerema.nl — minimale statische pagina met links naar de apps
+  mail-web/     Even mailen — Vite + React SPA: Gmail- en Outlook-mailboxen koppelen
   capture-desktop/  Even vastleggen — screenshot-app (Tauri 2 + React) voor macOS en Windows
 packages/
   ui/           shadcn/ui componenten + globals.css (design tokens) — gedeeld door alle React-apps
@@ -16,9 +17,10 @@ packages/
   auth/         Better Auth server-config (`@evido/auth/server`) en React-client (`@evido/auth/client`)
   email/        Resend + e-mailteksten
   todo-core/    Todo-domein: types, zod-validatie, sortering, optimistic updates (API + alle todo-clients)
+  mail-core/    Mail-domein: Gmail en Outlook achter één provider-interface, token-versleuteling
 ```
 
-Gepland: todo-desktop (Tauri 2 + React), todo-mobile (Expo), screenshot-desktop, mail, password manager. Desktop-apps hergebruiken de Vite-code en `@evido/ui`; Expo gebruikt `@evido/todo-core` en `@evido/auth`.
+Gepland: todo-desktop (Tauri 2 + React), todo-mobile (Expo), screenshot-desktop, password manager. Desktop-apps hergebruiken de Vite-code en `@evido/ui`; Expo gebruikt `@evido/todo-core` en `@evido/auth`.
 
 ## Starten
 
@@ -43,6 +45,10 @@ pnpm dev:todo                              # API op :4000, web op :3000
 | `TRUSTED_ORIGINS` | Web-apps die de API met cookies mogen aanroepen (komma-gescheiden) |
 | `AUTH_UI_URL` | Web-app met login- en toestemmingsscherm (OAuth/MCP) |
 | `TODO_WEB_URL` | Origin van de todo-webapp (links in uitnodigingsmails) |
+| `MAIL_WEB_URL` | Origin van de mail-webapp (OAuth-callback keert hier terug); ook toevoegen aan `TRUSTED_ORIGINS` |
+| `MAIL_TOKEN_KEY` | Versleutelt mailbox-tokens (`openssl rand -hex 32`). Kwijt = alle mailboxen opnieuw koppelen |
+| `GOOGLE_MAIL_CLIENT_ID`, `GOOGLE_MAIL_CLIENT_SECRET` | Google OAuth-client, redirect `<API>/api/mail/callback/gmail` |
+| `MICROSOFT_MAIL_CLIENT_ID`, `MICROSOFT_MAIL_CLIENT_SECRET` | Entra-app (elke organisatie + persoonlijk), redirect `<API>/api/mail/callback/outlook` |
 | `AUTH_COOKIE_DOMAIN` | Alleen productie: bv. `.evido.nl`, zodat sessies over subdomeinen gedeeld worden |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Resend; afzender moet bij een geverifieerd domein horen |
 | `ABLY_API_KEY` | Optioneel realtime; zonder Ably synchroniseren clients elke 60 s |

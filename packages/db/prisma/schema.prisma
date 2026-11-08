@@ -32,6 +32,8 @@ model User {
   lists                List[]
   workspaceMemberships WorkspaceMember[]
   workspaceInvitations WorkspaceInvitation[]
+  mailAccounts         MailAccount[]
+  mailOauthStates      MailOauthState[]
 
   @@map("user")
 }
@@ -377,4 +379,51 @@ model ListLink {
   createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("list_links")
+}
+
+// ─── Mail app ───────────────────────────────────────────────────────────────
+
+enum MailProvider {
+  gmail
+  outlook
+}
+
+enum MailAccountStatus {
+  active
+  reauth_required
+}
+
+/// A connected mailbox. Separate from `account`, which is for signing in to Evido.
+model MailAccount {
+  id                   String            @id
+  userId               String            @map("user_id")
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider             MailProvider
+  providerAccountId    String            @map("provider_account_id")
+  email                String
+  displayName          String?           @map("display_name")
+  /// Sealed with MAIL_TOKEN_KEY (see @evido/mail-core/secrets). Never plaintext.
+  accessToken          String            @map("access_token_sealed")
+  refreshToken         String            @map("refresh_token_sealed")
+  accessTokenExpiresAt DateTime          @map("access_token_expires_at")
+  scope                String
+  status               MailAccountStatus @default(active)
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
+  @@map("mail_accounts")
+}
+
+/// A pending OAuth connect flow. `id` is the SHA-256 of the state value.
+model MailOauthState {
+  id           String       @id
+  userId       String       @map("user_id")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     MailProvider
+  codeVerifier String       @map("code_verifier_sealed")
+  expiresAt    DateTime     @map("expires_at")
+
+  @@index([expiresAt], map: "mail_oauth_states_expires_idx")
+  @@map("mail_oauth_states")
 }

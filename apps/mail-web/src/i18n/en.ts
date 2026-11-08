@@ -1,0 +1,33 @@
+export const en = {
+  login: {
+    title: "Sign in",
+    hint: "Use your Evido account.",
+    email: "Email",
+    password: "Password",
+    submit: "Sign in",
+    failed: "Signing in failed.",
+  },
+  accounts: {
+    title: "Mailboxes",
+    signOut: "Sign out",
+    addGmail: "Connect Gmail",
+    addOutlook: "Connect Outlook",
+    empty: "No mailboxes connected yet.",
+    loadFailed: "Your mailboxes couldn't be loaded.",
+    connected: "Mailbox connected.",
+    disconnect: "Disconnect",
+    reconnect: "Connect again",
+    reconnectNeeded: "Access has ended",
+    confirmDisconnect: (email: string) => `Disconnect ${email}?`,
+    inbox: (total: number, unread: number) => `Inbox: ${total} messages, ${unread} unread`,
+    inboxLoading: "Checking inbox…",
+    inboxFailed: "Inbox unavailable",
+  },
+  connectErrors: {
+    denied: "Connecting was cancelled, or your organization doesn't allow this app.",
+    expired: "That took too long. Please try again.",
+    session: "Sign in first, then connect your mailbox.",
+    missing_scope: "Allow access to your mail on the Google screen to connect this mailbox.",
+    failed: "Connecting failed. Please try again.",
+  },
+}

@@ -38,6 +38,9 @@ importers:
       '@evido/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@evido/mail-core':
+        specifier: workspace:*
+        version: link:../../packages/mail-core
       '@evido/todo-core':
         specifier: workspace:*
         version: link:../../packages/todo-core
@@ -145,6 +148,58 @@ importers:
 
   apps/home:
     devDependencies:
+      vite:
+        specifier: ^8
+        version: 8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
+
+  apps/mail-web:
+    dependencies:
+      '@evido/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@evido/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      '@evido/mail-core':
+        specifier: workspace:*
+        version: link:../../packages/mail-core
+      '@evido/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@tanstack/react-query':
+        specifier: ^5.105.0
+        version: 5.105.0(@types/react@19.3.0)(react@19.3.1)
+      better-auth:
+        specifier: ^1.7.14
+        version: 1.7.14(@prisma/client@7.10.1(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(typescript@6.0.3))(mysql2@3.24.4(@types/node@24.19.2))(pg@8.23.1)(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)))
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.3.1
+        version: 19.3.1(react@19.3.1)
+      sonner:
+        specifier: ^2.0.8
+        version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4
+        version: 4.3.3(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      '@types/react':
+        specifier: ^19
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^6
+        version: 6.1.2(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
       vite:
         specifier: ^8
         version: 8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
@@ -344,6 +399,18 @@ importers:
       typescript:
         specifier: ~6.0.2
         version: 6.0.3
+
+  packages/mail-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   packages/todo-core:
     dependencies:

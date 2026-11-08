@@ -4,6 +4,7 @@ import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
 import { getAuth } from "@evido/auth/server"
 import { env } from "./env"
+import { mailRoutes } from "./mail/routes"
 import { todoRoutes } from "./todo/routes"
 import { handleMcp } from "./todo/mcp"
 
@@ -29,6 +30,7 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => getAuth().handler(c.req.raw))
 app.get("/.well-known/*", (c) => getAuth().handler(c.req.raw))
 
 app.get("/api/config", (c) => c.json({ realtime: env.realtimeEnabled }))
+app.route("/api/mail", mailRoutes)
 app.route("/api", todoRoutes)
 
 app.post("/mcp", (c) => handleMcp(c.req.raw))
