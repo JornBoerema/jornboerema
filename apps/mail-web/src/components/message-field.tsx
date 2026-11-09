@@ -13,7 +13,7 @@ export function MessageRow({
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-10 items-center gap-3 border-b px-4 text-sm transition-colors focus-within:bg-muted/40">
+    <div className="flex min-h-10 items-center gap-3 px-4 text-sm transition-colors focus-within:bg-muted/40">
       <label className="flex min-w-0 flex-1 items-center gap-3">
         <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
         {children}

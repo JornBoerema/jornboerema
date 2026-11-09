@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import {
   Attachment01Icon,
@@ -31,6 +31,7 @@ import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { useHotkeys } from "@/lib/hotkeys"
 import { MESSAGES_KEY, useThreadAction, type SyncStatus } from "@/lib/mail"
+import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
 
 function shortDate(iso: string, locale: string) {
@@ -147,14 +148,21 @@ export function InboxPage({
   navigation,
   syncStatus,
   loadingAccounts,
+  open,
+  onOpen,
+  composing,
+  onCloseCompose,
 }: {
   navigation: MailNavigation
   syncStatus: SyncStatus
   loadingAccounts: boolean
+  open: MailThreadView | null
+  onOpen: (thread: MailThreadView | null) => void
+  composing: boolean
+  onCloseCompose: () => void
 }) {
   const t = useI18n().t.inbox
   const { accounts, accountId, onCompose, onSettings } = navigation
-  const [open, setOpen] = useState<MailThreadView | null>(null)
   const { mutate: runAction } = useThreadAction()
   const messages = useInfiniteQuery({
     queryKey: [...MESSAGES_KEY, accountId],
@@ -172,16 +180,17 @@ export function InboxPage({
   const selectedAccount = accounts.find((account) => account.id === accountId)
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
 
-  useEffect(() => setOpen(null), [accountId])
+  useEffect(() => onOpen(null), [accountId, onOpen])
+  const showingDetail = Boolean(open) || composing
 
   function step(by: number) {
     const next = rows[Math.max(0, position + by)]
-    if (next) setOpen(next)
+    if (next) onOpen(next)
   }
 
   function leave(thread: MailThreadView, action: MailThreadAction) {
     // Marking unread means "not now", so the next mail shouldn't open by itself.
-    setOpen(action === "unread" ? null : (rows[position + 1] ?? rows[position - 1] ?? null))
+    onOpen(action === "unread" ? null : (rows[position + 1] ?? rows[position - 1] ?? null))
     runAction({ id: thread.id, action })
   }
 
@@ -189,7 +198,7 @@ export function InboxPage({
     j: () => step(1),
     k: () => step(-1),
     c: onCompose,
-    Escape: () => setOpen(null),
+    Escape: () => onOpen(null),
   })
 
   return (
@@ -197,7 +206,7 @@ export function InboxPage({
       <section
         className={cn(
           "min-h-0 w-full shrink-0 flex-col md:w-80 xl:w-96",
-          open ? "hidden md:flex" : "flex"
+          showingDetail ? "hidden md:flex" : "flex"
         )}
       >
         <header
@@ -262,7 +271,7 @@ export function InboxPage({
                     thread={thread}
                     mailbox={!accountId && accounts.length > 1 ? accountOf.get(thread.accountId) : undefined}
                     selected={thread.id === open?.id}
-                    onOpen={() => setOpen(thread)}
+                    onOpen={() => onOpen(thread)}
                   />
                 ))}
               </ul>
@@ -280,22 +289,32 @@ export function InboxPage({
       <section
         className={cn(
           "floating-panel min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:rounded-none! max-md:shadow-none! md:m-2 md:ml-0",
-          open ? "flex" : "hidden md:flex"
+          showingDetail ? "flex" : "hidden md:flex"
         )}
       >
+        {composing && (
+          <ComposePage
+            accounts={accounts}
+            defaultAccountId={accountId}
+            hidden={Boolean(open)}
+            onClose={onCloseCompose}
+          />
+        )}
         {open ? (
           <ConversationPage
             key={open.id}
             thread={open}
             account={accountOf.get(open.accountId)}
-            onBack={() => setOpen(null)}
+            onBack={() => onOpen(null)}
             onLeave={(action) => leave(open, action)}
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-            <HugeiconsIcon icon={InboxIcon} strokeWidth={1.5} aria-hidden="true" className="size-5" />
-            {t.nothingOpen}
-          </div>
+          !composing && (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+              <HugeiconsIcon icon={InboxIcon} strokeWidth={1.5} aria-hidden="true" className="size-5" />
+              {t.nothingOpen}
+            </div>
+          )
         )}
       </section>
     </>
