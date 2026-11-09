@@ -13,9 +13,13 @@ import { Button } from "@evido/ui/components/button";
 import { Input } from "@evido/ui/components/input";
 import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field";
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@evido/ui/components/native-select";
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@evido/ui/components/select";
 import { Alert, AlertDescription } from "@evido/ui/components/alert";
 import { Skeleton } from "@evido/ui/components/skeleton";
 import type { SharingCommand, SharingData } from "@evido/todo-core/sharing";
@@ -88,19 +92,25 @@ export function ShareListDialog({
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="link-role">{t.linkAccess}</FieldLabel>
-                  <NativeSelect
-                    id="link-role"
+                  <Select
                     value={link?.role ?? linkRole}
                     disabled={pending}
-                    onChange={(event) => {
-                      const value = event.target.value as typeof linkRole;
+                    onValueChange={(selected) => {
+                      const value = selected as typeof linkRole;
                       setLinkRole(value);
                       if (link) void run({ type: "enable-link", listId: list.id, role: value });
                     }}
                   >
-                    <NativeSelectOption value="viewer">{t.canView}</NativeSelectOption>
-                    <NativeSelectOption value="editor">{t.canEdit}</NativeSelectOption>
-                  </NativeSelect>
+                    <SelectTrigger id="link-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="viewer">{t.canView}</SelectItem>
+                        <SelectItem value="editor">{t.canEdit}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </Field>
                 {link && (
                   <Field>

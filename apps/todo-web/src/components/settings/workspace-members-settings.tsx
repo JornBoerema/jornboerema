@@ -7,10 +7,44 @@ import { Mail, UserAdd } from "@/components/icons"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
 import { Button } from "@evido/ui/components/button"
 import { Input } from "@evido/ui/components/input"
-import { NativeSelect, NativeSelectOption } from "@evido/ui/components/native-select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@evido/ui/components/select"
 import { Skeleton } from "@evido/ui/components/skeleton"
 import { Alert, AlertDescription } from "@evido/ui/components/alert"
 import { Badge } from "@evido/ui/components/badge"
+
+function RoleSelect({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string
+  value: string
+  disabled: boolean
+  onChange: (role: "admin" | "member") => void
+}) {
+  const roles = useI18n().t.settings.roles
+  return (
+    <Select value={value} disabled={disabled} onValueChange={(role) => onChange(role as "admin" | "member")}>
+      <SelectTrigger aria-label={label}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="member">{roles.member}</SelectItem>
+          <SelectItem value="admin">{roles.admin}</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+}
 
 export function WorkspaceMembersSettings({
   userId,
@@ -72,15 +106,7 @@ export function WorkspaceMembersSettings({
                 required
                 disabled={!!busy}
               />
-              <NativeSelect
-                aria-label={s.members.role}
-                value={role}
-                onChange={(e) => setRole(e.target.value as typeof role)}
-                disabled={!!busy}
-              >
-                <NativeSelectOption value="member">{s.roles.member}</NativeSelectOption>
-                <NativeSelectOption value="admin">{s.roles.admin}</NativeSelectOption>
-              </NativeSelect>
+              <RoleSelect label={s.members.role} value={role} disabled={!!busy} onChange={setRole} />
               <Button type="submit" disabled={!!busy || !email.trim()}>
                 <UserAdd data-icon="inline-start" />
                 {busy === "invite" ? s.common.sending : s.members.invite}
@@ -116,24 +142,21 @@ export function WorkspaceMembersSettings({
               >
                 {editable ? (
                   <>
-                    <NativeSelect
-                      aria-label={s.members.roleOf(member.name)}
+                    <RoleSelect
+                      label={s.members.roleOf(member.name)}
                       value={member.role}
                       disabled={!!busy}
-                      onChange={(e) =>
+                      onChange={(newRole) =>
                         void perform(`role-${member.id}`, () =>
                           command({
                             type: "update-member",
                             workspaceId: workspace.id,
                             memberId: member.id,
-                            role: e.target.value as "admin" | "member",
+                            role: newRole,
                           })
                         )
                       }
-                    >
-                      <NativeSelectOption value="member">{s.roles.member}</NativeSelectOption>
-                      <NativeSelectOption value="admin">{s.roles.admin}</NativeSelectOption>
-                    </NativeSelect>
+                    />
                     <Button
                       variant="ghost"
                       disabled={!!busy}

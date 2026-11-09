@@ -3,7 +3,14 @@ import { open } from "@tauri-apps/plugin-dialog"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { toast } from "sonner"
 import { Button } from "@evido/ui/components/button"
-import { NativeSelect, NativeSelectOption } from "@evido/ui/components/native-select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@evido/ui/components/select"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
 import { Switch } from "@evido/ui/components/switch"
 import {
@@ -30,6 +37,35 @@ function errorMessage(messages: ErrorMessages, error: string) {
   const [kind, shortcut = ""] = error.split(/:(.*)/s)
   const format = messages[kind as "taken" | "duplicate" | "invalid"]
   return format ? format(formatShortcut(shortcut)) : messages.failed
+}
+
+function Choice<T extends string>({
+  id,
+  value,
+  options,
+  onChange,
+}: {
+  id: string
+  value: T
+  options: readonly { value: T; label: string }[]
+  onChange: (value: T) => void
+}) {
+  return (
+    <Select value={value} onValueChange={(selected) => onChange(selected as T)}>
+      <SelectTrigger id={id}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
 }
 
 /** Settings window: shortcuts, what happens after a capture, and general preferences. */
@@ -120,17 +156,12 @@ export function SettingsWindow() {
 
           <SettingsSection title={s.afterCapture} description={s.afterCaptureHelp}>
             <SettingsRow title={s.action} htmlFor="after-capture" description={s.actionHelp[settings.afterCapture]}>
-              <NativeSelect
+              <Choice<AfterCapture>
                 id="after-capture"
                 value={settings.afterCapture}
-                onChange={(event) => void update({ afterCapture: event.target.value as AfterCapture })}
-              >
-                {(["editor", "copy", "save"] as const).map((action) => (
-                  <NativeSelectOption key={action} value={action}>
-                    {s.actions[action]}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                options={(["editor", "copy", "save"] as const).map((value) => ({ value, label: s.actions[value] }))}
+                onChange={(afterCapture) => void update({ afterCapture })}
+              />
             </SettingsRow>
             <SettingsRow
               title={s.folder}
@@ -187,26 +218,20 @@ export function SettingsWindow() {
               />
             </SettingsRow>
             <SettingsRow title={s.language} htmlFor="language">
-              <NativeSelect
+              <Choice<LanguagePreference>
                 id="language"
                 value={preference}
-                onChange={(event) => setPreference(event.target.value as LanguagePreference)}
-              >
-                {(["auto", "en", "nl"] as const).map((option) => (
-                  <NativeSelectOption key={option} value={option}>
-                    {s.languages[option]}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                options={(["auto", "en", "nl"] as const).map((value) => ({ value, label: s.languages[value] }))}
+                onChange={setPreference}
+              />
             </SettingsRow>
             <SettingsRow title={s.appearance} htmlFor="appearance">
-              <NativeSelect id="appearance" value={theme} onChange={(event) => setTheme(event.target.value as Theme)}>
-                {(["system", "light", "dark"] as const).map((option) => (
-                  <NativeSelectOption key={option} value={option}>
-                    {s.themes[option]}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+              <Choice<Theme>
+                id="appearance"
+                value={theme}
+                options={(["system", "light", "dark"] as const).map((value) => ({ value, label: s.themes[value] }))}
+                onChange={setTheme}
+              />
             </SettingsRow>
             <UpdateRow />
           </SettingsSection>
