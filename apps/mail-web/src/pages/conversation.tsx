@@ -250,7 +250,7 @@ function Message({
   })
 
   return (
-    <article className="flex flex-col gap-3 border-b py-4 text-sm">
+    <article className="flex flex-col gap-3 border-b py-4 text-sm last-of-type:border-b-0">
       <button
         type="button"
         aria-expanded={expanded}
@@ -360,9 +360,9 @@ export function ConversationPage({
   const blockedImages =
     !allowImages && messages.some((message) => message.cleanHtml && hasRemoteImages(message.cleanHtml))
   const replyActions = [
-    { mode: "reply", text: t.reply, icon: MailReply01Icon, shortcut: "R" },
     { mode: "all", text: t.replyAll, icon: MailReplyAll01Icon, shortcut: "A" },
     { mode: "forward", text: t.forward, icon: MailSend01Icon, shortcut: "F" },
+    { mode: "reply", text: t.reply, icon: MailReply01Icon, shortcut: "R" },
   ] as const
 
   return (
@@ -380,7 +380,7 @@ export function ConversationPage({
 
       {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
       <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-3xl flex-col px-4 py-6 md:px-8">
+        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 pt-6 md:px-8">
           <h2 className="text-lg font-semibold tracking-tight break-words">
             {messages[0]?.subject || summary.subject}
           </h2>
@@ -409,7 +409,7 @@ export function ConversationPage({
             />
           ))}
           {last && (
-            <div className="pt-4">
+            <div className="@container sticky bottom-4 z-10 mt-auto mb-4 pt-4">
               {replyMode === "forward" ? (
                 <ForwardForm threadId={id} message={last} onClose={() => setReplyMode(null)} />
               ) : replyMode ? (
@@ -422,19 +422,24 @@ export function ConversationPage({
                   onClose={() => setReplyMode(null)}
                 />
               ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {replyActions.map(({ mode, text, icon, shortcut }) => (
-                    <Button
-                      key={mode}
-                      size="sm"
-                      variant="outline"
-                      title={`${text} (${shortcut})`}
-                      onClick={() => setReplyMode(mode)}
-                    >
-                      <HugeiconsIcon icon={icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
-                      {text}
-                    </Button>
-                  ))}
+                <div className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-card/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
+                  <p className="hidden min-w-0 truncate @2xl:block">
+                    <span className="text-muted-foreground">{t.messageCount(messages.length)} · </span>
+                    <span className="font-medium">{accountEmail}</span>
+                  </p>
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
+                    {replyActions.map(({ mode, text, icon, shortcut }) => (
+                      <Button
+                        key={mode}
+                        variant={mode === "reply" ? "outline" : "ghost"}
+                        title={`${text} (${shortcut})`}
+                        onClick={() => setReplyMode(mode)}
+                      >
+                        <HugeiconsIcon icon={icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
+                        <span className={cn(mode !== "reply" && "sr-only @lg:not-sr-only")}>{text}</span>
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

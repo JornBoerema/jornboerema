@@ -82,6 +82,7 @@ export const en = {
   },
   conversation: {
     back: "Back to inbox",
+    messageCount: (count: number) => (count === 1 ? "1 message" : `${count} messages`),
     loading: "Opening…",
     loadFailed: "This conversation couldn't be opened.",
     to: "To",

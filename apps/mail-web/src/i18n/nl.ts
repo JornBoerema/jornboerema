@@ -84,6 +84,7 @@ export const nl: typeof en = {
   },
   conversation: {
     back: "Terug naar inbox",
+    messageCount: (count: number) => (count === 1 ? "1 bericht" : `${count} berichten`),
     loading: "Openen…",
     loadFailed: "Dit gesprek kon niet worden geopend.",
     to: "Aan",
