@@ -85,7 +85,7 @@ function ThreadRow({
         aria-current={selected ? "true" : undefined}
         onClick={onOpen}
         className={cn(
-          "flex w-full flex-col gap-0.5 border-b px-4 py-2.5 text-left text-sm transition-colors outline-none focus-visible:bg-accent",
+          "flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors outline-none focus-visible:bg-accent",
           selected ? "bg-accent" : "hover:bg-accent/60"
         )}
       >
@@ -121,9 +121,9 @@ function ThreadRow({
 
 function ListSkeleton() {
   return (
-    <div aria-hidden="true">
+    <div aria-hidden="true" className="p-2">
       {Array.from({ length: 10 }, (_, index) => (
-        <div key={index} className="flex flex-col gap-2 border-b px-4 py-3">
+        <div key={index} className="flex flex-col gap-2 px-2.5 py-3">
           <Skeleton className="h-3.5 w-2/5" />
           <Skeleton className="h-3.5 w-4/5" />
         </div>
@@ -266,7 +266,7 @@ export function InboxPage({
                   {syncStatus === "syncing" ? t.firstSync : t.empty}
                 </p>
               )}
-              <ul>
+              <ul className="flex flex-col gap-0.5 p-2">
                 {rows.map((thread) => (
                   <ThreadRow
                     key={thread.id}
