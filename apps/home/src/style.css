@@ -1,7 +1,15 @@
 @font-face {
-  font-family: "Inter Variable";
-  src: url("/fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
-  font-weight: 100 900;
+  font-family: "DM Mono";
+  src: url("/fonts/dm-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DM Mono";
+  src: url("/fonts/dm-mono-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
@@ -13,7 +21,7 @@
   --faint: #85847f;
   --line: #262624;
   --accent: #f07a2b;
-  --sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "DM Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
   scrollbar-color: var(--line) var(--bg);
@@ -34,29 +42,35 @@ body {
   min-height: 100dvh;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--sans);
-  font-size: 16px;
+  font-family: var(--mono);
+  font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
 main {
-  --column: 34rem;
-  --gutter: clamp(24px, 8vw, 96px);
+  --column: 30rem;
+  --gutter: 24px;
   min-height: 100dvh;
   max-width: calc(var(--column) + 2 * var(--gutter));
-  padding: clamp(64px, 16vh, 160px) var(--gutter) 40px;
+  margin-inline: auto;
+  padding: clamp(64px, 12vh, 120px) var(--gutter);
   display: flex;
   flex-direction: column;
-  gap: clamp(64px, 11vh, 104px);
+  justify-content: center;
+  gap: 64px;
+}
+
+main:has(.prose) {
+  --column: 38rem;
+  justify-content: flex-start;
 }
 
 h1 {
-  font-size: clamp(2.25rem, 5.5vw, 3.25rem);
-  line-height: 1.08;
+  font-size: 18px;
+  line-height: 1.4;
   font-weight: 500;
-  letter-spacing: -0.035em;
-  text-wrap: balance;
+  text-transform: lowercase;
 }
 
 h1::after {
@@ -64,10 +78,27 @@ h1::after {
   color: var(--accent);
 }
 
+.tagline,
+.note {
+  color: var(--faint);
+  text-transform: lowercase;
+}
+
+.tagline {
+  margin-top: 4px;
+}
+
+.note {
+  text-wrap: pretty;
+}
+
+.note em {
+  font-style: normal;
+  color: var(--muted);
+}
+
 .intro {
-  margin-top: 20px;
-  max-width: 28rem;
-  font-size: 1.0625rem;
+  margin-top: 12px;
   color: var(--muted);
   text-wrap: pretty;
 }
@@ -77,106 +108,69 @@ h1::after {
   color: var(--fg);
 }
 
-.section-title {
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--faint);
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .apps {
   list-style: none;
-  margin-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-.apps li {
-  border-bottom: 1px solid var(--line);
+  margin-block: -11px;
 }
 
 .app {
-  position: relative;
   display: grid;
-  grid-template-columns: 10rem 1fr auto;
+  grid-template-columns: 18ch 1fr auto;
   align-items: baseline;
-  column-gap: 16px;
-  padding: 16px 0;
-  color: var(--muted);
+  column-gap: 12px;
+  padding: 11px 0;
+  color: var(--faint);
   text-decoration: none;
+  text-transform: lowercase;
 }
 
 .name {
-  font-weight: 500;
+  transition:
+    color 0.2s,
+    transform 0.5s var(--ease-out);
 }
 
-.what,
-.status {
-  font-size: 14px;
-  color: var(--faint);
-}
-
-.status {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.status.is-live {
-  color: var(--muted);
-}
-
-.status.is-live::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  margin-right: 2px;
-  align-self: center;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-a.app {
+a.app .name {
   color: var(--fg);
 }
 
-/* The one moving part: the rule under a live app draws in on hover. */
-a.app::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 -1px;
-  height: 1px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.5s var(--ease-out);
+a.app .what {
+  color: var(--muted);
 }
 
-.arrow {
-  align-self: center;
-  transition: transform 0.5s var(--ease-out);
+.status.is-live {
+  color: var(--accent);
 }
 
 a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
 @media (hover: hover) {
-  a.app:hover::after {
-    transform: scaleX(1);
-  }
-
-  a.app:hover .arrow {
-    transform: translate(2px, -2px);
+  a.app:hover .name {
+    color: var(--accent);
+    transform: translateX(1ch);
   }
 }
 
 footer {
-  margin-top: auto;
   display: flex;
-  gap: 20px;
-  font-size: 14px;
+  gap: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
   color: var(--faint);
+  text-transform: lowercase;
 }
 
 footer span {
@@ -196,19 +190,20 @@ footer a:hover,
 }
 
 .crumb {
-  margin-bottom: 48px;
-  font-size: 14px;
+  margin-bottom: 40px;
   color: var(--faint);
+  text-transform: lowercase;
 }
 
 .prose {
-  max-width: var(--column);
+  font-size: 14px;
+  line-height: 1.75;
   color: var(--muted);
 }
 
 .prose h2 {
   margin: 40px 0 8px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--fg);
 }
@@ -247,6 +242,16 @@ footer a:hover,
 }
 
 @media (max-width: 30rem) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 23rem) {
   .app {
     grid-template-columns: 1fr auto;
   }
@@ -266,5 +271,9 @@ footer a:hover,
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+
+  a.app:hover .name {
+    transform: none;
   }
 }
