@@ -4,6 +4,14 @@ import { toast } from "sonner"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@evido/ui/components/select"
 import { cn } from "@evido/ui/lib/utils"
 import type {
   MailAccountView,
@@ -104,18 +112,23 @@ export function ComposePage({
             <div className="shrink-0">
               {usable.length > 1 && (
                 <MessageRow label={t.from}>
-                  <AccountDot color={usable.find((account) => account.id === accountId)?.color ?? 0} />
-                  <select
-                    className="-ml-2 h-10 min-w-0 flex-1 bg-transparent outline-none"
-                    value={accountId}
-                    onChange={(event) => setAccountId(event.target.value)}
-                  >
-                    {usable.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.email}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={accountId} onValueChange={setAccountId}>
+                    <SelectTrigger className="-ml-3 h-8! min-w-0 max-w-fit flex-1 bg-transparent">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectGroup>
+                        {usable.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            <span className="flex items-center gap-2">
+                              <AccountDot color={account.color} />
+                              {account.email}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </MessageRow>
               )}
               <MessageRow

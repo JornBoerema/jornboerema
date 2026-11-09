@@ -8,7 +8,7 @@ function isBlocked(event: KeyboardEvent) {
   if (event.repeat && !REPEATABLE.has(event.key)) return true
   if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,[contenteditable]"))
     return true
-  return document.querySelector("[role=dialog],[role=alertdialog],[role=menu]") !== null
+  return document.querySelector("[role=dialog],[role=alertdialog],[role=menu],[role=listbox]") !== null
 }
 
 /** Single-key shortcuts, inactive while typing or while a dialog or menu is open. */
