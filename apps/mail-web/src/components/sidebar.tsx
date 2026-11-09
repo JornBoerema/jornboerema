@@ -35,6 +35,8 @@ export type MailNavigation = {
   accountId: string
   user: { name: string; email: string }
   sidebar: ReturnType<typeof useCollapsibleSidebar>
+  /** A started message is out of view, ready to pick up again. */
+  draftWaiting: boolean
   onSelectAccount: (id: string) => void
   onCompose: () => void
   onSettings: () => void
@@ -48,6 +50,7 @@ export function Sidebar({
   accountId,
   user,
   sidebar,
+  draftWaiting,
   onSelectAccount,
   onCompose,
   onSettings,
@@ -67,7 +70,7 @@ export function Sidebar({
         <div className="sidebar-top">
           <button type="button" className="list-link" aria-keyshortcuts="C" onClick={onCompose}>
             <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-            <span>{t.inbox.compose}</span>
+            <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
             <kbd className="nav-kbd">C</kbd>
           </button>
           <button

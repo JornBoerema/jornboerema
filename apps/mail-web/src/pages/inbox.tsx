@@ -151,6 +151,8 @@ export function InboxPage({
   open,
   onOpen,
   composing,
+  composeHidden,
+  onHideCompose,
   onCloseCompose,
 }: {
   navigation: MailNavigation
@@ -159,6 +161,8 @@ export function InboxPage({
   open: MailThreadView | null
   onOpen: (thread: MailThreadView | null) => void
   composing: boolean
+  composeHidden: boolean
+  onHideCompose: () => void
   onCloseCompose: () => void
 }) {
   const t = useI18n().t.inbox
@@ -181,7 +185,8 @@ export function InboxPage({
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
 
   useEffect(() => onOpen(null), [accountId, onOpen])
-  const showingDetail = Boolean(open) || composing
+  const composerVisible = composing && !composeHidden
+  const showingDetail = Boolean(open) || composerVisible
 
   function step(by: number) {
     const next = rows[Math.max(0, position + by)]
@@ -296,7 +301,8 @@ export function InboxPage({
           <ComposePage
             accounts={accounts}
             defaultAccountId={accountId}
-            hidden={Boolean(open)}
+            hidden={Boolean(open) || composeHidden}
+            onHide={onHideCompose}
             onClose={onCloseCompose}
           />
         )}
@@ -309,7 +315,7 @@ export function InboxPage({
             onLeave={(action) => leave(open, action)}
           />
         ) : (
-          !composing && (
+          !composerVisible && (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
               <HugeiconsIcon icon={InboxIcon} strokeWidth={1.5} aria-hidden="true" className="size-5" />
               {t.nothingOpen}

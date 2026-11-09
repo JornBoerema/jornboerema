@@ -47,6 +47,7 @@ export const nl: typeof en = {
     title: "Inbox",
     allMailboxes: "Alle mailboxen",
     compose: "Nieuw bericht",
+    resumeDraft: "Concept hervatten",
     syncing: "Synchroniseren…",
     syncFailed: "Synchroniseren is mislukt. We proberen het zo opnieuw.",
     firstSync: "Je mail ophalen…",

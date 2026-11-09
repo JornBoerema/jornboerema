@@ -45,6 +45,7 @@ export const en = {
     title: "Inbox",
     allMailboxes: "All mailboxes",
     compose: "New message",
+    resumeDraft: "Resume draft",
     syncing: "Syncing…",
     syncFailed: "Syncing failed. Trying again soon.",
     firstSync: "Fetching your mail…",

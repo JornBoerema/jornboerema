@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
@@ -32,13 +32,15 @@ export function ComposePage({
   accounts,
   defaultAccountId,
   hidden,
+  onHide,
   onClose,
 }: {
   accounts: MailAccountView[]
   /** The mailbox being viewed, if one is. */
   defaultAccountId: string
-  /** A conversation is open on top; the draft stays until it closes. */
+  /** Out of view for now; a draft stays until the composer comes back. */
   hidden: boolean
+  onHide: () => void
   onClose: () => void
 }) {
   const t = useI18n().t.compose
@@ -55,10 +57,27 @@ export function ComposePage({
   const [files, setFiles] = useState<MailAttachmentUpload[]>([])
   const hasDraft = Boolean(to || cc || bcc || subject || text || files.length)
 
-  // Opening a conversation only needs to keep something worth coming back to.
+  // Only something worth coming back to stays around while out of view.
   useEffect(() => {
     if (hidden && !hasDraft) onClose()
   }, [hidden, hasDraft, onClose])
+
+  // On the document, so Escape works wherever focus is. Open dropdowns claim it first.
+  useEffect(() => {
+    if (hidden) return
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) onHide()
+    }
+    document.addEventListener("keydown", keydown)
+    return () => document.removeEventListener("keydown", keydown)
+  }, [hidden, onHide])
+
+  const body = useRef<HTMLTextAreaElement>(null)
+  const wasHidden = useRef(hidden)
+  useEffect(() => {
+    if (wasHidden.current && !hidden) body.current?.focus()
+    wasHidden.current = hidden
+  }, [hidden])
 
   const send = useMutation({
     mutationFn: (message: MailOutgoing) =>
@@ -97,14 +116,11 @@ export function ComposePage({
       </header>
       {/* Relative keeps the file input, which is absolute, inside this scroller. */}
       <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="flex min-h-full flex-col pt-2">
+        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-2">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight md:px-8">{t.title}</h2>
           <form
             className="flex flex-1 flex-col md:px-4"
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && !hasDraft) onClose()
-              sendOnModEnter(event)
-            }}
+            onKeyDown={sendOnModEnter}
             onSubmit={(event) => {
               event.preventDefault()
               submit()
@@ -161,6 +177,7 @@ export function ComposePage({
               </MessageRow>
             </div>
             <MessageText
+              ref={body}
               aria-label={t.body}
               placeholder={t.body}
               className="min-h-40"

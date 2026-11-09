@@ -25,7 +25,12 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const [filter, setFilter] = useState("")
   const [composing, setComposing] = useState(false)
   const [open, setOpen] = useState<MailThreadView | null>(null)
-  const closeCompose = useCallback(() => setComposing(false), [])
+  const [composeHidden, setComposeHidden] = useState(false)
+  const hideCompose = useCallback(() => setComposeHidden(true), [])
+  const closeCompose = useCallback(() => {
+    setComposing(false)
+    setComposeHidden(false)
+  }, [])
   const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
   const hasActive = list.some((account) => account.status === "active")
 
@@ -45,11 +50,14 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     accountId: list.some((account) => account.id === filter) ? filter : "",
     user,
     sidebar,
+    // An empty composer closes as soon as it is out of view, so this is always a real draft.
+    draftWaiting: composing && (composeHidden || open !== null),
     onSelectAccount: setFilter,
     onCompose: () => {
       if (!hasActive) return
       setOpen(null)
       setComposing(true)
+      setComposeHidden(false)
     },
     onSettings: () => setSettingsOpen(true),
   }
@@ -65,6 +73,8 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
           open={open}
           onOpen={setOpen}
           composing={composing}
+          composeHidden={composeHidden}
+          onHideCompose={hideCompose}
           onCloseCompose={closeCompose}
         />
       </main>
