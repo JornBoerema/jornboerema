@@ -1,20 +1,33 @@
+@font-face {
+  font-family: "Inter Variable";
+  src: url("/fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: #111110;
   --fg: #f2f1ee;
   --muted: #9b9a95;
-  --faint: #5c5b57;
+  --faint: #85847f;
   --line: #262624;
   --accent: #f07a2b;
   --sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
+  scrollbar-color: var(--line) var(--bg);
 }
-
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--fg);
 }
 
 body {
@@ -28,28 +41,22 @@ body {
 }
 
 main {
+  --column: 34rem;
+  --gutter: clamp(24px, 8vw, 96px);
   min-height: 100dvh;
-  max-width: 640px;
-  padding: clamp(48px, 12vh, 120px) clamp(24px, 8vw, 96px) 40px;
+  max-width: calc(var(--column) + 2 * var(--gutter));
+  padding: clamp(64px, 16vh, 160px) var(--gutter) 40px;
   display: flex;
   flex-direction: column;
-  gap: 72px;
-}
-
-.eyebrow {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--faint);
+  gap: clamp(64px, 11vh, 104px);
 }
 
 h1 {
-  margin-top: 16px;
-  font-size: clamp(32px, 6vw, 44px);
-  line-height: 1.1;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-size: clamp(2.25rem, 5.5vw, 3.25rem);
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
 }
 
 h1::after {
@@ -59,8 +66,10 @@ h1::after {
 
 .intro {
   margin-top: 20px;
-  max-width: 440px;
+  max-width: 28rem;
+  font-size: 1.0625rem;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
 .intro em {
@@ -68,23 +77,27 @@ h1::after {
   color: var(--fg);
 }
 
-ol {
+.section-title {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.apps {
   list-style: none;
-  margin-top: 16px;
+  margin-top: 12px;
   border-top: 1px solid var(--line);
 }
 
-li {
+.apps li {
   border-bottom: 1px solid var(--line);
 }
 
 .app {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "name status"
-    "what status";
-  align-items: center;
+  grid-template-columns: 10rem 1fr auto;
+  align-items: baseline;
   column-gap: 16px;
   padding: 16px 0;
   color: var(--muted);
@@ -92,60 +105,54 @@ li {
 }
 
 .name {
-  grid-area: name;
   font-weight: 500;
 }
 
-.what {
-  grid-area: what;
-  font-family: var(--mono);
-  font-size: 12px;
+.what,
+.status {
+  font-size: 14px;
   color: var(--faint);
 }
 
 .status {
-  grid-area: status;
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--faint);
-}
-
-.status::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: 1px solid var(--faint);
+  align-items: baseline;
+  gap: 6px;
 }
 
 .status.is-live {
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .status.is-live::before {
-  border-color: var(--accent);
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-right: 2px;
+  align-self: center;
+  border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 a.app {
   color: var(--fg);
 }
 
-a.app .status span {
-  display: inline-block;
-  transition: transform 0.2s;
+/* The one moving part: the rule under a live app draws in on hover. */
+a.app::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s var(--ease-out);
 }
 
-a.app:hover .name {
-  color: var(--accent);
-}
-
-a.app:hover .status span {
-  transform: translate(2px, -2px);
+.arrow {
+  align-self: center;
+  transition: transform 0.5s var(--ease-out);
 }
 
 a:focus-visible {
@@ -154,35 +161,48 @@ a:focus-visible {
   border-radius: 4px;
 }
 
+@media (hover: hover) {
+  a.app:hover::after {
+    transform: scaleX(1);
+  }
+
+  a.app:hover .arrow {
+    transform: translate(2px, -2px);
+  }
+}
+
 footer {
   margin-top: auto;
   display: flex;
-  justify-content: space-between;
-  font-family: var(--mono);
-  font-size: 12px;
+  gap: 20px;
+  font-size: 14px;
   color: var(--faint);
 }
 
-footer a {
+footer span {
+  margin-right: auto;
+}
+
+footer a,
+.crumb a {
   color: var(--muted);
   text-decoration: none;
+  transition: color 0.2s;
 }
 
-footer a:hover {
+footer a:hover,
+.crumb a:hover {
   color: var(--accent);
 }
 
-.eyebrow a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.eyebrow a:hover {
-  color: var(--accent);
+.crumb {
+  margin-bottom: 48px;
+  font-size: 14px;
+  color: var(--faint);
 }
 
 .prose {
-  max-width: 520px;
+  max-width: var(--column);
   color: var(--muted);
 }
 
@@ -207,17 +227,40 @@ footer a:hover {
 }
 
 .prose li {
-  border-bottom: 0;
   margin-top: 6px;
+}
+
+.prose li::marker {
+  color: var(--faint);
 }
 
 .prose a {
   color: var(--fg);
   text-underline-offset: 3px;
+  text-decoration-color: var(--faint);
+  transition: color 0.2s;
 }
 
 .prose a:hover {
   color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+@media (max-width: 30rem) {
+  .app {
+    grid-template-columns: 1fr auto;
+  }
+
+  .what {
+    grid-row: 2;
+    grid-column: 1;
+  }
+
+  .status {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    align-self: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
