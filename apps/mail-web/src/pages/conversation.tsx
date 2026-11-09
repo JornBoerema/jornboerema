@@ -378,7 +378,8 @@ export function ConversationPage({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
+      <div className="relative min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-3xl flex-col px-4 py-6 md:px-8">
           <h2 className="text-lg font-semibold tracking-tight break-words">
             {messages[0]?.subject || summary.subject}

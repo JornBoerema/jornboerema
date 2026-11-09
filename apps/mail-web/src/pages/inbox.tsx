@@ -246,7 +246,8 @@ export function InboxPage({
           </Button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
+        <div className="relative min-h-0 flex-1 overflow-y-auto">
           {(messages.isPending || loadingAccounts) && <ListSkeleton />}
           {!loadingAccounts && accounts.length === 0 ? (
             <Empty className="h-full">
