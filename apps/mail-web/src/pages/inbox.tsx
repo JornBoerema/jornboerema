@@ -25,7 +25,7 @@ import type {
   MailThreadsPage,
   MailThreadView,
 } from "@evido/mail-core/types"
-import { MailMenu, type MailNavigation } from "@/components/sidebar"
+import { MailMenu, SidebarExpand, type MailNavigation } from "@/components/sidebar"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { useHotkeys } from "@/lib/hotkeys"
@@ -212,8 +212,14 @@ export function InboxPage({
           open ? "hidden md:flex" : "flex"
         )}
       >
-        <header className="flex h-12 shrink-0 items-center gap-1.5 border-b pr-2 pl-2 lg:pl-4">
+        <header
+          className={cn(
+            "flex h-12 shrink-0 items-center gap-1.5 border-b pr-2 pl-2",
+            !navigation.sidebar.collapsed && "lg:pl-4"
+          )}
+        >
           <MailMenu {...navigation} />
+          <SidebarExpand sidebar={navigation.sidebar} />
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{selectedAccount?.email ?? t.title}</h1>
           <span role="status" className="flex items-center text-muted-foreground">
             {syncStatus === "syncing" && (

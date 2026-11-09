@@ -8,6 +8,10 @@ export const en = {
     failed: "Signing in failed.",
   },
   shell: {
+    sidebar: "Navigation",
+    account: (email: string) => `Account menu for ${email}`,
+    expand: "Expand sidebar",
+    expandTitle: "Expand sidebar (⌘/Ctrl+B)",
     settings: "Settings",
     settingsDescription: "Manage your mailboxes and appearance.",
     searchSettings: "Search",

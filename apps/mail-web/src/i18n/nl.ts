@@ -10,6 +10,10 @@ export const nl: typeof en = {
     failed: "Inloggen is niet gelukt.",
   },
   shell: {
+    sidebar: "Navigatie",
+    account: (email: string) => `Accountmenu van ${email}`,
+    expand: "Sidebar uitklappen",
+    expandTitle: "Sidebar uitklappen (⌘/Ctrl+B)",
     settings: "Instellingen",
     settingsDescription: "Beheer je mailboxen en weergave.",
     searchSettings: "Zoeken",

@@ -35,6 +35,7 @@ import type { TodoList } from "@evido/todo-core/workspace";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/i18n";
 import { cn } from "@evido/ui/lib/utils";
+import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar";
 import { Brand } from "@/components/brand";
 import { Button } from "@evido/ui/components/button";
 import { Checkbox } from "@evido/ui/components/checkbox";
@@ -119,44 +120,7 @@ export function WorkspaceApp({
   const [deletion, setDeletion] = useState<Deletion | null>(null);
   const [sharingList, setSharingList] = useState<TodoList | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const sidebarExpand = useRef<HTMLButtonElement>(null);
-  const sidebarFocusPending = useRef(false);
-  function toggleSidebar() {
-    sidebarFocusPending.current = true;
-    setSidebarCollapsed((value) => !value);
-  }
-  useEffect(() => {
-    if (!sidebarFocusPending.current) return;
-    let cancelled = false;
-    // Collapsing focuses the corner toggle; expanding returns to the sidebar.
-    const button = sidebarCollapsed
-      ? sidebarExpand.current
-      : document.querySelector<HTMLButtonElement>("#list-sidebar .workspace-switcher");
-    const frame = requestAnimationFrame(async () => {
-      if (!button) return;
-      await Promise.allSettled(button.getAnimations().map((animation) => animation.finished));
-      if (!cancelled) {
-        button.focus();
-        sidebarFocusPending.current = false;
-      }
-    });
-    return () => { cancelled = true; cancelAnimationFrame(frame); };
-  }, [sidebarCollapsed]);
-  useEffect(() => {
-    if (shareToken) return;
-    const keydown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b" || event.altKey || event.shiftKey || event.repeat || event.isComposing) return;
-      // Keep rich-text shortcuts and modal focus within their own editors/dialogs.
-      if (event.target instanceof HTMLElement && event.target.isContentEditable) return;
-      if (document.querySelector('[role="dialog"]:not([data-state="closed"]), [role="alertdialog"]:not([data-state="closed"]), [role="menu"]:not([data-state="closed"])')) return;
-      event.preventDefault();
-      sidebarFocusPending.current = !!document.activeElement?.closest("#list-sidebar") || document.activeElement === sidebarExpand.current;
-      setSidebarCollapsed((value) => !value);
-    };
-    document.addEventListener("keydown", keydown);
-    return () => document.removeEventListener("keydown", keydown);
-  }, [shareToken]);
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar, expandButton: sidebarExpand } = useCollapsibleSidebar({ enabled: !shareToken });
   const taskInput = useRef<HTMLInputElement>(null);
   const noteDownload = useRef<(() => void) | null>(null);
   const noteSave = useRef<(() => Promise<boolean>) | null>(null);

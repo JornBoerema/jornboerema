@@ -1,5 +1,5 @@
-import type { ReactNode } from "react"
 import {
+  Add01Icon,
   Alert02Icon,
   InboxIcon,
   Logout01Icon,
@@ -7,9 +7,10 @@ import {
   Menu01Icon,
   PencilEdit02Icon,
   Settings01Icon,
+  SidebarLeft01Icon,
   UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import {
   DropdownMenu,
@@ -18,8 +19,10 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@evido/ui/components/dropdown-menu"
+import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
 import type { MailAccountView } from "@evido/mail-core/types"
 import { Brand } from "@/components/brand"
@@ -30,102 +33,154 @@ export type MailNavigation = {
   accounts: MailAccountView[]
   /** Empty means every mailbox. */
   accountId: string
-  email: string
+  user: { name: string; email: string }
+  sidebar: ReturnType<typeof useCollapsibleSidebar>
   onSelectAccount: (id: string) => void
   onCompose: () => void
   onSettings: () => void
 }
 
-function NavItem({
-  icon,
-  active,
-  title,
-  onClick,
-  children,
-}: {
-  icon: IconSvgElement
-  active: boolean
-  title?: string
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-current={active ? "page" : undefined}
-      onClick={onClick}
-      className={cn(
-        "flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition-colors",
-        active
-          ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-      )}
-    >
-      <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" className="size-4 shrink-0" />
-      <span className="truncate">{children}</span>
-    </button>
-  )
-}
+const NAV_ICON = "size-4 shrink-0"
 
-/** Full navigation from large screens up; smaller screens use MailMenu. */
+/** The shared Evido sidebar. Smaller screens get MailMenu instead. */
 export function Sidebar({
   accounts,
   accountId,
-  email,
+  user,
+  sidebar,
   onSelectAccount,
   onCompose,
   onSettings,
 }: MailNavigation) {
   const { t } = useI18n()
+  const allSelected = accountId === ""
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground lg:flex">
-      <div className="flex h-12 shrink-0 items-center px-4">
-        <Brand />
-      </div>
-      <div className="px-3 pb-3">
-        <Button variant="outline" className="w-full justify-start" onClick={onCompose} title={`${t.inbox.compose} (C)`}>
-          <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
-          {t.inbox.compose}
-        </Button>
-      </div>
-      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3">
-        <NavItem icon={InboxIcon} active={accountId === ""} onClick={() => onSelectAccount("")}>
-          {t.inbox.allMailboxes}
-        </NavItem>
-        {accounts.map((account) => (
-          <NavItem
-            key={account.id}
-            icon={account.status === "active" ? Mail01Icon : Alert02Icon}
-            active={accountId === account.id}
-            title={account.status === "active" ? account.email : t.inbox.reconnectNeeded}
-            onClick={() => onSelectAccount(account.id)}
+    <aside
+      id="list-sidebar"
+      className="list-sidebar max-lg:hidden!"
+      aria-label={t.shell.sidebar}
+      inert={sidebar.collapsed}
+      aria-hidden={sidebar.collapsed}
+    >
+      <Brand />
+      <div className="list-navigation sidebar-sections">
+        <div className="sidebar-top">
+          <button type="button" className="list-link" aria-keyshortcuts="C" onClick={onCompose}>
+            <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+            <span>{t.inbox.compose}</span>
+            <kbd className="nav-kbd">C</kbd>
+          </button>
+          <button
+            type="button"
+            className={cn("list-link", allSelected && "is-selected")}
+            aria-current={allSelected ? "page" : undefined}
+            onClick={() => onSelectAccount("")}
           >
-            {account.email}
-          </NavItem>
-        ))}
-      </nav>
-      <div className="p-3">
+            <HugeiconsIcon icon={InboxIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+            <span>{t.inbox.allMailboxes}</span>
+          </button>
+        </div>
+        <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
+          <div className="sidebar-heading">
+            <h2 id="sidebar-mailboxes">{t.shell.mailboxes}</h2>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="sidebar-add"
+              aria-label={t.inbox.connect}
+              title={t.inbox.connect}
+              onClick={onSettings}
+            >
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
+            </Button>
+          </div>
+          <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
+            {accounts.map((account) => {
+              const selected = account.id === accountId
+              const active = account.status === "active"
+              return (
+                <button
+                  key={account.id}
+                  type="button"
+                  className={cn("list-link", selected && "is-selected")}
+                  aria-current={selected ? "page" : undefined}
+                  title={active ? account.email : t.inbox.reconnectNeeded}
+                  onClick={() => onSelectAccount(account.id)}
+                >
+                  <HugeiconsIcon
+                    icon={active ? Mail01Icon : Alert02Icon}
+                    strokeWidth={2}
+                    className={NAV_ICON}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{account.email}</span>
+                </button>
+              )
+            })}
+          </nav>
+        </section>
+      </div>
+      <div className="sidebar-footer">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between font-normal text-muted-foreground">
-              <span className="truncate">{email}</span>
-              <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={1.75} aria-hidden="true" />
-            </Button>
+            <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
+              <span className="workspace-avatar" aria-hidden="true">
+                {(user.name || user.email).trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col text-left">
+                <span className="truncate">{user.name || user.email}</span>
+                <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+              </span>
+              <HugeiconsIcon
+                icon={UnfoldMoreIcon}
+                strokeWidth={2}
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" className="w-54">
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            sideOffset={6}
+            collisionPadding={12}
+            className="min-w-(--radix-dropdown-menu-trigger-width)"
+          >
             <DropdownMenuItem onSelect={onSettings}>
-              <HugeiconsIcon icon={Settings01Icon} strokeWidth={1.75} aria-hidden="true" />
+              <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} aria-hidden="true" />
               {t.shell.settings}
+              <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void authClient.signOut()}>
-              <HugeiconsIcon icon={Logout01Icon} strokeWidth={1.75} aria-hidden="true" />
+              <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
               {t.shell.signOut}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </aside>
+  )
+}
+
+/** Brings the collapsed sidebar back. Only takes up room while it is collapsed. */
+export function SidebarExpand({ sidebar }: Pick<MailNavigation, "sidebar">) {
+  const t = useI18n().t.shell
+  if (!sidebar.collapsed) return null
+  return (
+    <Button
+      ref={sidebar.expandButton}
+      variant="ghost"
+      size="icon-sm"
+      className="max-lg:hidden"
+      aria-label={t.expand}
+      title={t.expandTitle}
+      aria-keyshortcuts="Meta+B Control+B"
+      aria-expanded={false}
+      aria-controls="list-sidebar"
+      onClick={sidebar.toggle}
+    >
+      <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" />
+    </Button>
   )
 }
 
