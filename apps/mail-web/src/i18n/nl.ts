@@ -45,6 +45,10 @@ export const nl: typeof en = {
     hint: "Scheid adressen met komma's.",
     invalid: (address: string) => `"${address}" is geen geldig e-mailadres.`,
     noRecipients: "Voeg minstens één ontvanger toe.",
+    attach: "Bestanden toevoegen",
+    removeFile: (name: string) => `${name} verwijderen`,
+    tooLarge: (limit: string) => `Bijlagen mogen samen ${limit} zijn.`,
+    readFailed: "Dat bestand kon niet worden gelezen.",
   },
   conversation: {
     back: "Terug naar inbox",
@@ -66,6 +70,12 @@ export const nl: typeof en = {
     cancel: "Annuleren",
     sent: "Bericht verstuurd.",
     replyPlaceholder: "Schrijf je antwoord",
+    forward: "Doorsturen",
+    forwardPlaceholder: "Voeg een notitie toe (optioneel)",
+    forwardAttachments: (count: number) =>
+      count === 1 ? "1 bijlage wordt meegestuurd." : `${count} bijlagen worden meegestuurd.`,
+    download: "Downloaden",
+    downloadFailed: "De bijlage kon niet worden gedownload.",
   },
   accounts: {
     addGmail: "Gmail koppelen",

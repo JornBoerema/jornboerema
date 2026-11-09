@@ -2,21 +2,18 @@ import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@evido/ui/components/button"
-import type { MailAccountView, MailAddress, MailOutgoing } from "@evido/mail-core/types"
+import type {
+  MailAccountView,
+  MailAddress,
+  MailAttachmentUpload,
+  MailOutgoing,
+} from "@evido/mail-core/types"
+import { AttachmentPicker } from "@/components/attachment-picker"
 import { useI18n } from "@/i18n"
+import { parseAddresses } from "@/lib/addresses"
 import { api } from "@/lib/api"
 
 const FIELD = "rounded-md border bg-background px-2 py-1"
-const EMAIL = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/
-
-function parseAddresses(value: string): { addresses: MailAddress[]; invalid: string | null } {
-  const parts = value
-    .split(/[,;]/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-  const invalid = parts.find((part) => !EMAIL.test(part)) ?? null
-  return { addresses: parts.map((email) => ({ name: null, email })), invalid }
-}
 
 export function ComposePage({
   accounts,
@@ -33,6 +30,7 @@ export function ComposePage({
   const [bcc, setBcc] = useState("")
   const [subject, setSubject] = useState("")
   const [text, setText] = useState("")
+  const [files, setFiles] = useState<MailAttachmentUpload[]>([])
 
   const send = useMutation({
     mutationFn: (message: MailOutgoing) =>
@@ -58,7 +56,7 @@ export function ComposePage({
       MailAddress[],
     ]
     if (toList.length + ccList.length + bccList.length === 0) return toast.error(t.noRecipients)
-    send.mutate({ to: toList, cc: ccList, bcc: bccList, subject, text })
+    send.mutate({ to: toList, cc: ccList, bcc: bccList, subject, text, attachments: files })
   }
 
   const field = (name: string, value: string, set: (value: string) => void) => (
@@ -100,6 +98,7 @@ export function ComposePage({
           onChange={(event) => setText(event.target.value)}
         />
       </label>
+      <AttachmentPicker files={files} onChange={setFiles} />
       <div className="flex gap-2">
         <Button type="submit" disabled={send.isPending || !accountId}>
           {t.send}

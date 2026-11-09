@@ -1,17 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { applyGmailThreadAction, replyGmail, sendGmail } from "../src/gmail-send"
-import { applyOutlookThreadAction, replyOutlook, sendOutlook } from "../src/outlook-send"
+import { readGmailAttachment } from "../src/gmail-read"
+import { applyGmailThreadAction, forwardGmail, replyGmail, sendGmail } from "../src/gmail-send"
+import { readOutlookAttachment } from "../src/outlook-read"
+import { applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "../src/outlook-send"
 import { ProviderError, ReauthRequiredError } from "../src/provider"
 import { replyRecipients, type MailThreadMessage } from "../src/types"
 
-type Sent = { url: string; method: string; body: Record<string, unknown> }
+type Sent = { url: string; method: string; body: Record<string, unknown>; raw: string; contentType: string }
 
 function stub(answer: (url: string) => [number, unknown] = () => [200, {}]) {
   const sent: Sent[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init: RequestInit) => {
-      if (init.method) sent.push({ url, method: init.method, body: JSON.parse(init.body as string) })
+      if (init.method) {
+        const raw = init.body as string
+        const contentType = (init.headers as Record<string, string>)["Content-Type"] ?? ""
+        sent.push({ url, method: init.method, raw, contentType, body: contentType.includes("json") ? JSON.parse(raw) : {} })
+      }
       const [status, body] = answer(url)
       return new Response(JSON.stringify(body), { status })
     })
@@ -24,7 +30,8 @@ afterEach(() => vi.unstubAllGlobals())
 const me = { name: "Jörn", email: "me@example.com" }
 const al = { name: "Doe, Al", email: "al@example.com" }
 const bo = { name: null, email: "bo@example.com" }
-const base = { from: me, to: [al], cc: [], bcc: [], subject: "Hello", text: "Body" }
+const base = { from: me, to: [al], cc: [], bcc: [], subject: "Hello", text: "Body", attachments: [] }
+const pdf = { name: "rapport é.pdf", contentType: "application/pdf", data: Buffer.from("PDF!").toString("base64") }
 
 function mime(sent: Sent[]) {
   const raw = Buffer.from(sent[0]?.body.raw as string, "base64url").toString("utf8")
@@ -91,7 +98,7 @@ describe("gmail send", () => {
       },
     }
     const sent = stub((url) => (url.includes("/messages/m1") ? [200, original] : [200, {}]))
-    await replyGmail("t", { from: me, messageId: "m1", threadId: "T", to: [al], cc: [], text: "Yes" })
+    await replyGmail("t", { from: me, messageId: "m1", threadId: "T", to: [al], cc: [], text: "Yes", attachments: [] })
 
     const { headers, body } = mime(sent)
     expect(sent[0]?.body.threadId).toBe("T")
@@ -107,8 +114,100 @@ describe("gmail send", () => {
   it("does not stack Re: on a subject that already has it", async () => {
     const original = { id: "m1", payload: { headers: [{ name: "Subject", value: "RE: Plan" }] } }
     const sent = stub((url) => (url.includes("/messages/m1") ? [200, original] : [200, {}]))
-    await replyGmail("t", { from: me, messageId: "m1", threadId: "T", to: [al], cc: [], text: "Yes" })
+    await replyGmail("t", { from: me, messageId: "m1", threadId: "T", to: [al], cc: [], text: "Yes", attachments: [] })
     expect(mime(sent).headers).toContain("Subject: RE: Plan")
+  })
+})
+
+describe("gmail attachments", () => {
+  const uploaded = (sent: Sent) => {
+    const start = sent.raw.indexOf("Content-Type: message/rfc822")
+    return sent.raw.slice(start)
+  }
+
+  it("sends files through the upload endpoint as multipart mime", async () => {
+    const sent = stub()
+    await sendGmail("t", { ...base, attachments: [pdf] })
+    expect(sent[0]?.url).toContain("/upload/gmail/v1/users/me/messages/send?uploadType=multipart")
+    expect(sent[0]?.contentType).toMatch(/^multipart\/related; boundary=/)
+    const mimeText = uploaded(sent[0] as Sent)
+    expect(mimeText).toMatch(/Content-Type: multipart\/mixed; boundary="evido_/)
+    expect(mimeText).toContain("filename*=UTF-8''rapport%20%C3%A9.pdf")
+    expect(mimeText).toContain(pdf.data)
+  })
+
+  it("keeps the proven JSON path when there are no files", async () => {
+    const sent = stub()
+    await sendGmail("t", base)
+    expect(sent[0]?.url).toMatch(/\/messages\/send$/)
+  })
+
+  it("cannot be tricked through a file name, type or data", async () => {
+    const sent = stub()
+    await sendGmail("t", {
+      ...base,
+      attachments: [
+        {
+          name: 'x"\r\nBcc: victim@example.com',
+          contentType: "text/html\r\nBcc: victim@example.com",
+          data: `${pdf.data}\r\nBcc: victim@example.com`,
+        },
+      ],
+    })
+    const mimeText = uploaded(sent[0] as Sent)
+    expect(mimeText.split("\r\n").some((line) => line.startsWith("Bcc:"))).toBe(false)
+    expect(mimeText).toContain("Content-Type: application/octet-stream")
+  })
+
+  it("keeps the thread when replying with a file", async () => {
+    const original = { id: "m1", payload: { headers: [{ name: "Subject", value: "Plan" }] } }
+    const sent = stub((url) => (url.includes("/messages/m1") ? [200, original] : [200, {}]))
+    await replyGmail("t", { from: me, messageId: "m1", threadId: "T", to: [al], cc: [], text: "Yes", attachments: [pdf] })
+    expect(sent[0]?.raw).toContain('{"threadId":"T"}')
+  })
+
+  it("forwards the original with its attachments and leaves inline images out", async () => {
+    const original = {
+      id: "m1",
+      internalDate: "1793000000000",
+      payload: {
+        mimeType: "multipart/mixed",
+        headers: [{ name: "Subject", value: "Plan" }, { name: "From", value: "Al <al@example.com>" }, { name: "To", value: "me@example.com" }],
+        parts: [
+          { mimeType: "text/plain", body: { data: Buffer.from("original text").toString("base64url") } },
+          { mimeType: "application/pdf", filename: "a.pdf", body: { attachmentId: "file", size: 4 } },
+          {
+            mimeType: "image/png",
+            filename: "logo.png",
+            headers: [{ name: "Content-ID", value: "<l>" }, { name: "Content-Disposition", value: "inline" }],
+            body: { attachmentId: "logo", size: 1 },
+          },
+        ],
+      },
+    }
+    const requested: string[] = []
+    const sent = stub((url) => {
+      requested.push(url)
+      if (url.includes("/attachments/file")) return [200, { data: Buffer.from("PDF!").toString("base64url") }]
+      if (url.includes("/messages/m1")) return [200, original]
+      return [200, {}]
+    })
+    await forwardGmail("t", { from: me, messageId: "m1", to: [bo], cc: [], text: "FYI" })
+
+    expect(requested.some((url) => url.includes("/attachments/logo"))).toBe(false)
+    const mimeText = uploaded(sent[0] as Sent)
+    expect(mimeText).toContain("Subject: Fwd: Plan")
+    expect(mimeText).toContain("filename*=UTF-8''a.pdf")
+    expect(mimeText).toContain(Buffer.from("PDF!").toString("base64"))
+    const text = Buffer.from(mimeText.split('charset="UTF-8"')[1]?.split("--evido")[0]?.split("\r\n\r\n")[1]?.replace(/\s/g, "") ?? "", "base64").toString("utf8")
+    expect(text).toMatch(/^FYI\r\n\r\n---------- Forwarded message/)
+    expect(text).toContain("original text")
+  })
+
+  it("reads an attachment as bytes", async () => {
+    stub(() => [200, { data: Buffer.from("hello").toString("base64url") }])
+    const bytes = await readGmailAttachment("t", { messageId: "m", attachmentId: "a" })
+    expect(Buffer.from(bytes).toString()).toBe("hello")
   })
 })
 
@@ -152,13 +251,45 @@ describe("outlook send", () => {
 
   it("escapes reply text and sends to exactly the shown recipients", async () => {
     const sent = stub(() => [202, {}])
-    await replyOutlook("t", { messageId: "a/b", to: [al], cc: [bo], text: '<img src=x> & "hi"\nline' })
+    await replyOutlook("t", { messageId: "a/b", to: [al], cc: [bo], text: '<img src=x> & "hi"\nline', attachments: [] })
     expect(sent[0]?.url).toContain("/me/messages/a%2Fb/reply")
     expect(sent[0]?.body.comment).toBe("&lt;img src=x&gt; &amp; &quot;hi&quot;<br>line")
     expect(sent[0]?.body.message).toEqual({
       toRecipients: [{ emailAddress: { address: "al@example.com", name: "Doe, Al" } }],
       ccRecipients: [{ emailAddress: { address: "bo@example.com" } }],
     })
+  })
+})
+
+describe("outlook attachments and forwarding", () => {
+  it("attaches files to a new message and a reply", async () => {
+    const sent = stub(() => [202, {}])
+    await sendOutlook("t", { ...base, attachments: [pdf] })
+    await replyOutlook("t", { messageId: "m", to: [al], cc: [], text: "Yes", attachments: [pdf] })
+    const file = {
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      name: pdf.name,
+      contentType: pdf.contentType,
+      contentBytes: pdf.data,
+    }
+    expect((sent[0]?.body.message as { attachments: unknown[] }).attachments).toEqual([file])
+    expect((sent[1]?.body.message as { attachments: unknown[] }).attachments).toEqual([file])
+  })
+
+  it("forwards with escaped text and recipients at the top level", async () => {
+    const sent = stub(() => [202, {}])
+    await forwardOutlook("t", { messageId: "a/b", to: [al], cc: [bo], text: "<b>x</b>" })
+    expect(sent[0]?.url).toContain("/me/messages/a%2Fb/forward")
+    expect(sent[0]?.body.comment).toBe("&lt;b&gt;x&lt;/b&gt;")
+    expect((sent[0]?.body.toRecipients as unknown[]).length).toBe(2)
+    expect(sent[0]?.body.message).toBeUndefined()
+  })
+
+  it("reads file attachments and refuses items without file content", async () => {
+    stub(() => [200, { contentBytes: Buffer.from("hello").toString("base64") }])
+    expect(Buffer.from(await readOutlookAttachment("t", { messageId: "m", attachmentId: "a" })).toString()).toBe("hello")
+    stub(() => [200, {}])
+    await expect(readOutlookAttachment("t", { messageId: "m", attachmentId: "a" })).rejects.toBeInstanceOf(ProviderError)
   })
 })
 
@@ -204,6 +335,7 @@ describe("reply recipients", () => {
     html: null,
     text: null,
     attachments: [],
+    inline: [],
     ...overrides,
   })
 

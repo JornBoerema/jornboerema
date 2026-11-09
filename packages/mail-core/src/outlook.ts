@@ -1,6 +1,6 @@
 import { getJson, requestTokens } from "./http"
-import { readOutlookThread } from "./outlook-read"
-import { applyOutlookThreadAction, replyOutlook, sendOutlook } from "./outlook-send"
+import { readOutlookAttachment, readOutlookThread } from "./outlook-read"
+import { applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "./outlook-send"
 import { GRAPH_BASE, syncOutlookPage } from "./outlook-sync"
 import { ProviderError, type MailProvider, type ProviderCredentials } from "./provider"
 
@@ -86,5 +86,9 @@ export function createOutlookProvider({
     send: sendOutlook,
 
     reply: replyOutlook,
+
+    forward: forwardOutlook,
+
+    getAttachment: readOutlookAttachment,
   }
 }

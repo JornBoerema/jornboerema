@@ -43,6 +43,10 @@ export const en = {
     hint: "Separate addresses with commas.",
     invalid: (address: string) => `"${address}" isn't a valid email address.`,
     noRecipients: "Add at least one recipient.",
+    attach: "Attach files",
+    removeFile: (name: string) => `Remove ${name}`,
+    tooLarge: (limit: string) => `Attachments can be ${limit} in total.`,
+    readFailed: "That file couldn't be read.",
   },
   conversation: {
     back: "Back to inbox",
@@ -64,6 +68,12 @@ export const en = {
     cancel: "Cancel",
     sent: "Message sent.",
     replyPlaceholder: "Write your reply",
+    forward: "Forward",
+    forwardPlaceholder: "Add a note (optional)",
+    forwardAttachments: (count: number) =>
+      count === 1 ? "1 attachment is included." : `${count} attachments are included.`,
+    download: "Download",
+    downloadFailed: "The attachment couldn't be downloaded.",
   },
   accounts: {
     addGmail: "Connect Gmail",

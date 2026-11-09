@@ -1,11 +1,12 @@
-import { getJson } from "./http"
+import { getJson, SLOW_READ_TIMEOUT_MS } from "./http"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
 import type { MailAddress, MailThreadMessage } from "./types"
 
 const SELECT =
   "id,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,body,isDraft,parentFolderId"
-const EXPAND = "attachments($select=name,size,contentType,isInline)"
+const EXPAND =
+  "attachments($select=id,name,size,contentType,isInline,microsoft.graph.fileAttachment/contentId)"
 const ID_HEADER = { Prefer: 'IdType="ImmutableId"' }
 /** A conversation longer than this is cut off rather than risking the function limit. */
 const MAX_PAGES = 4
@@ -23,7 +24,14 @@ type GraphMessage = {
   body?: { contentType?: string; content?: string } | null
   isDraft?: boolean
   parentFolderId?: string
-  attachments?: { name?: string; size?: number; contentType?: string; isInline?: boolean }[]
+  attachments?: {
+    id: string
+    name?: string
+    size?: number
+    contentType?: string
+    isInline?: boolean
+    contentId?: string | null
+  }[]
 }
 
 type MessagesResponse = { value?: GraphMessage[]; "@odata.nextLink"?: string }
@@ -52,10 +60,23 @@ function toMessage(message: GraphMessage): MailThreadMessage {
     attachments: (message.attachments ?? [])
       .filter((attachment) => !attachment.isInline)
       .map((attachment) => ({
+        id: attachment.id,
         name: attachment.name ?? "",
         size: attachment.size ?? 0,
         contentType: attachment.contentType ?? "application/octet-stream",
       })),
+    inline: (message.attachments ?? []).flatMap((attachment) =>
+      attachment.isInline && attachment.contentId
+        ? [
+            {
+              id: attachment.id,
+              contentId: attachment.contentId.replace(/^<|>$/g, ""),
+              size: attachment.size ?? 0,
+              contentType: attachment.contentType ?? "application/octet-stream",
+            },
+          ]
+        : []
+    ),
   }
 }
 
@@ -92,4 +113,19 @@ export async function readOutlookThread(
   )
   if (visible.length === 0) throw new ProviderError("Graph conversation is empty", { status: 404 })
   return visible.map(toMessage).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt))
+}
+
+export async function readOutlookAttachment(
+  accessToken: string,
+  { messageId, attachmentId }: { messageId: string; attachmentId: string }
+) {
+  const attachment = await getJson<{ contentBytes?: string }>(
+    `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    accessToken,
+    ID_HEADER,
+    SLOW_READ_TIMEOUT_MS
+  )
+  // Attached emails and calendar items have no file content to hand over.
+  if (!attachment.contentBytes) throw new ProviderError("Graph attachment has no file content")
+  return new Uint8Array(Buffer.from(attachment.contentBytes, "base64"))
 }

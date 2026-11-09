@@ -1,6 +1,7 @@
 import type {
   InboxSummary,
   MailAddress,
+  MailForward,
   MailOutgoing,
   MailProviderId,
   MailReply,
@@ -67,6 +68,12 @@ export interface MailProvider {
   ): Promise<void>
   send(accessToken: string, input: MailOutgoing & { from: MailAddress }): Promise<void>
   reply(accessToken: string, input: MailReply & { from: MailAddress; threadId: string }): Promise<void>
+  /** Sends the original with its attachments to new recipients. */
+  forward(accessToken: string, input: MailForward & { from: MailAddress }): Promise<void>
+  getAttachment(
+    accessToken: string,
+    input: { messageId: string; attachmentId: string }
+  ): Promise<Uint8Array>
   /** Best effort. Providers without a revoke endpoint leave this out. */
   revoke?(refreshToken: string): Promise<void>
 }

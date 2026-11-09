@@ -281,7 +281,8 @@ describe("gmail thread reading", () => {
       html: "<p>html é</p>",
       text: "plain é",
     })
-    expect(messages[0]?.attachments).toEqual([{ name: "a.pdf", size: 2048, contentType: "application/pdf" }])
+    expect(messages[0]?.attachments).toEqual([{ id: "x", name: "a.pdf", size: 2048, contentType: "application/pdf" }])
+    expect(messages[0]?.inline).toEqual([{ id: "y", contentId: "logo", size: 10, contentType: "image/png" }])
   })
 
   it("reports a thread with nothing visible as missing", async () => {
@@ -302,8 +303,8 @@ describe("outlook thread reading", () => {
     isDraft: false,
     parentFolderId: "inbox",
     attachments: [
-      { name: "a.pdf", size: 5, contentType: "application/pdf", isInline: false },
-      { name: "logo.png", size: 1, contentType: "image/png", isInline: true },
+      { id: "f", name: "a.pdf", size: 5, contentType: "application/pdf", isInline: false },
+      { id: "l", name: "logo.png", size: 1, contentType: "image/png", isInline: true, contentId: "<logo>" },
     ],
     ...extra,
   })
@@ -336,6 +337,7 @@ describe("outlook thread reading", () => {
     expect(messages.map((item) => item.id)).toEqual(["first", "later"])
     expect(messages[0]).toMatchObject({ html: "<p>hi</p>", text: null, to: [{ name: null, email: "al@example.com" }] })
     expect(messages[0]?.attachments.map((item) => item.name)).toEqual(["a.pdf"])
+    expect(messages[0]?.inline).toEqual([{ id: "l", contentId: "logo", size: 1, contentType: "image/png" }])
   })
 
   it("keeps plain text out of the html field", async () => {

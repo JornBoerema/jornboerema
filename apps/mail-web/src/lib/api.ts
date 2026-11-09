@@ -11,6 +11,17 @@ export class ApiError extends Error {
 }
 
 /** JSON request against the Evido API with the shared session cookie. */
+/** For binary answers, such as attachments. */
+export async function apiBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const response = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
+    ...init,
+    credentials: "include",
+  })
+  if (!response.ok) throw new ApiError(response.statusText, response.status)
+  return response.blob()
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
   headers.set("Accept-Language", currentLanguage())

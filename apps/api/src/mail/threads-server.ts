@@ -1,5 +1,6 @@
 import { getDb, Prisma } from "@evido/db"
 import type {
+  MailForward,
   MailOutgoing,
   MailReply,
   MailThreadAction,
@@ -116,6 +117,22 @@ export async function replyToThread(userId: string, messageId: string, reply: Ma
   await withAccessToken(account, (provider, token) =>
     provider.reply(token, { ...reply, threadId, from: sender(account) })
   )
+}
+
+export async function forwardThread(userId: string, messageId: string, forward: MailForward) {
+  const { account } = await ownedMessage(userId, messageId)
+  await withAccessToken(account, (provider, token) =>
+    provider.forward(token, { ...forward, from: sender(account) })
+  )
+}
+
+export async function readAttachment(
+  userId: string,
+  messageId: string,
+  input: { messageId: string; attachmentId: string }
+) {
+  const { account } = await ownedMessage(userId, messageId)
+  return withAccessToken(account, (provider, token) => provider.getAttachment(token, input))
 }
 
 export async function sendMessage(userId: string, accountId: string, outgoing: MailOutgoing) {

@@ -40,7 +40,16 @@ export type MailThreadsPage = { threads: MailThreadView[]; nextCursor: string | 
 
 export type MailAddress = { name: string | null; email: string }
 
-export type MailAttachmentInfo = { name: string; size: number; contentType: string }
+export type MailAttachmentInfo = { id: string; name: string; size: number; contentType: string }
+
+/** An image the body refers to as `cid:<contentId>`. */
+export type MailInlineImage = { id: string; contentId: string; size: number; contentType: string }
+
+/** A file sent along with a message, as standard base64. */
+export type MailAttachmentUpload = { name: string; contentType: string; data: string }
+
+/** Graph takes up to 3 MB directly; Vercel rejects larger request bodies once base64-encoded. */
+export const MAX_UPLOAD_BYTES = 3 * 1024 * 1024
 
 /** A full message as read from the provider. Never stored by the app. */
 export type MailThreadMessage = {
@@ -55,6 +64,7 @@ export type MailThreadMessage = {
   html: string | null
   text: string | null
   attachments: MailAttachmentInfo[]
+  inline: MailInlineImage[]
 }
 
 export type MailThreadDetail = { messages: MailThreadMessage[] }
@@ -78,9 +88,18 @@ export type MailOutgoing = {
   bcc: MailAddress[]
   subject: string
   text: string
+  attachments: MailAttachmentUpload[]
 }
 
-export type MailReply = { messageId: string; to: MailAddress[]; cc: MailAddress[]; text: string }
+export type MailReply = {
+  messageId: string
+  to: MailAddress[]
+  cc: MailAddress[]
+  text: string
+  attachments: MailAttachmentUpload[]
+}
+
+export type MailForward = { messageId: string; to: MailAddress[]; cc: MailAddress[]; text: string }
 
 /** Who a reply goes to. The result is shown to the user and sent exactly as shown. */
 export function replyRecipients(message: MailThreadMessage, selfEmail: string, all: boolean) {

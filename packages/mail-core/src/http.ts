@@ -53,35 +53,48 @@ async function ensureOk(response: Response, url: string) {
 export async function getJson<T>(
   url: string,
   accessToken: string,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
+  timeoutMs = TIMEOUT_MS
 ): Promise<T> {
   const response = await fetch(url, {
     headers: { ...headers, Authorization: `Bearer ${accessToken}` },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   })
   await ensureOk(response, url)
   return (await response.json()) as T
 }
 
+/** For reading attachments, which are far larger than ordinary API answers. */
+export const SLOW_READ_TIMEOUT_MS = 25_000
+
 /**
  * Sends a change to a provider. The timeout is long because giving up on a send
  * that actually went through would invite the user to send it twice.
  */
-export async function sendJson(
+export async function sendBody(
+  method: "POST" | "PATCH",
+  url: string,
+  accessToken: string,
+  contentType: string,
+  body: string,
+  headers?: Record<string, string>
+) {
+  const response = await fetch(url, {
+    method,
+    headers: { ...headers, Authorization: `Bearer ${accessToken}`, "Content-Type": contentType },
+    body,
+    signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
+  })
+  await ensureOk(response, url)
+}
+
+export const sendJson = (
   method: "POST" | "PATCH",
   url: string,
   accessToken: string,
   body: unknown,
   headers?: Record<string, string>
-) {
-  const response = await fetch(url, {
-    method,
-    headers: { ...headers, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
-  })
-  await ensureOk(response, url)
-}
+) => sendBody(method, url, accessToken, "application/json", JSON.stringify(body), headers)
 
 /** Runs `work` over `items` a few at a time, keeping providers within their rate limits. */
 export async function mapInChunks<T, R>(items: T[], size: number, work: (item: T) => Promise<R>) {

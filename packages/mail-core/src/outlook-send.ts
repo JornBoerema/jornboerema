@@ -1,7 +1,14 @@
 import { mapInChunks, sendJson } from "./http"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
-import type { MailAddress, MailOutgoing, MailReply, MailThreadAction } from "./types"
+import type {
+  MailAddress,
+  MailAttachmentUpload,
+  MailForward,
+  MailOutgoing,
+  MailReply,
+  MailThreadAction,
+} from "./types"
 
 const WRITE_CONCURRENCY = 4
 const ID_HEADER = { Prefer: 'IdType="ImmutableId"' }
@@ -20,6 +27,14 @@ const textToHtml = (text: string) =>
     .replaceAll('"', "&quot;")
     .replace(/\r?\n/g, "<br>")
 
+const toFiles = (attachments: MailAttachmentUpload[]) =>
+  attachments.map(({ name, contentType, data }) => ({
+    "@odata.type": "#microsoft.graph.fileAttachment",
+    name,
+    contentType,
+    contentBytes: data,
+  }))
+
 export async function sendOutlook(accessToken: string, input: MailOutgoing) {
   await sendJson("POST", `${GRAPH_BASE}/me/sendMail`, accessToken, {
     message: {
@@ -28,6 +43,7 @@ export async function sendOutlook(accessToken: string, input: MailOutgoing) {
       toRecipients: toRecipients(input.to),
       ccRecipients: toRecipients(input.cc),
       bccRecipients: toRecipients(input.bcc),
+      ...(input.attachments.length > 0 && { attachments: toFiles(input.attachments) }),
     },
     saveToSentItems: true,
   })
@@ -41,7 +57,25 @@ export async function replyOutlook(accessToken: string, input: MailReply) {
     accessToken,
     {
       comment: textToHtml(input.text),
-      message: { toRecipients: toRecipients(input.to), ccRecipients: toRecipients(input.cc) },
+      message: {
+        toRecipients: toRecipients(input.to),
+        ccRecipients: toRecipients(input.cc),
+        ...(input.attachments.length > 0 && { attachments: toFiles(input.attachments) }),
+      },
+    },
+    ID_HEADER
+  )
+}
+
+/** Graph includes the original and its attachments itself. */
+export async function forwardOutlook(accessToken: string, input: MailForward) {
+  await sendJson(
+    "POST",
+    `${GRAPH_BASE}/me/messages/${encodeURIComponent(input.messageId)}/forward`,
+    accessToken,
+    {
+      comment: textToHtml(input.text),
+      toRecipients: [...toRecipients(input.to), ...toRecipients(input.cc)],
     },
     ID_HEADER
   )

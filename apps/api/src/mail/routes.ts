@@ -2,7 +2,12 @@ import { Hono, type Context } from "hono"
 import { z } from "zod"
 import { getAuth } from "@evido/auth/server"
 import { MissingScopeError, ProviderError, ReauthRequiredError } from "@evido/mail-core/provider"
-import { isMailProvider, MAIL_THREAD_ACTIONS, type ConnectErrorCode } from "@evido/mail-core/types"
+import {
+  isMailProvider,
+  MAIL_THREAD_ACTIONS,
+  MAX_UPLOAD_BYTES,
+  type ConnectErrorCode,
+} from "@evido/mail-core/types"
 import { env } from "../env"
 import { msg } from "../i18n"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
@@ -19,9 +24,11 @@ import {
 import { syncAccount } from "./sync-server"
 import {
   actOnThread,
+  forwardThread,
   InvalidThreadCursorError,
   listThreads,
   MailMessageNotFoundError,
+  readAttachment,
   readThread,
   replyToThread,
   sendMessage,
@@ -30,6 +37,17 @@ import {
 const address = z.object({ name: z.string().max(200).nullable(), email: z.email().max(320) })
 const recipients = z.array(address).max(100)
 const text = z.string().max(100_000)
+const attachments = z
+  .array(
+    z.object({
+      name: z.string().min(1).max(255),
+      contentType: z.string().max(200),
+      data: z.base64(),
+    })
+  )
+  .max(20)
+  .refine((files) => files.reduce((sum, file) => sum + file.data.length, 0) * 0.75 <= MAX_UPLOAD_BYTES)
+  .default([])
 const actionBody = z.object({ action: z.enum(MAIL_THREAD_ACTIONS) })
 const sendBody = z.object({
   to: recipients,
@@ -37,12 +55,24 @@ const sendBody = z.object({
   bcc: recipients,
   subject: z.string().max(900),
   text,
+  attachments,
 })
 const replyBody = z.object({
   messageId: z.string().min(1).max(1000),
   to: recipients.min(1),
   cc: recipients,
   text: text.min(1),
+  attachments,
+})
+const forwardBody = z.object({
+  messageId: z.string().min(1).max(1000),
+  to: recipients.min(1),
+  cc: recipients,
+  text,
+})
+const attachmentBody = z.object({
+  messageId: z.string().min(1).max(1000),
+  attachmentId: z.string().min(1).max(4000),
 })
 
 async function readBody<T extends z.ZodType>(c: Context, schema: T): Promise<z.output<T> | null> {
@@ -163,6 +193,38 @@ mailRoutes.post("/threads/:id/reply", requireTrustedOrigin, requireSession, asyn
   try {
     await replyToThread(c.get("session").user.id, c.req.param("id"), body)
     return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/threads/:id/forward", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, forwardBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    await forwardThread(c.get("session").user.id, c.req.param("id"), body)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// POST because provider ids can outgrow a URL. Always a download, never rendered:
+// the file comes from a stranger and must not run on this origin.
+mailRoutes.post("/threads/:id/attachment", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, attachmentBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const bytes = await readAttachment(c.get("session").user.id, c.req.param("id"), body)
+    // Streamed, because Vercel caps buffered responses at 4.5 MB.
+    return new Response(new Blob([bytes as BlobPart]).stream(), {
+      headers: {
+        ...noStore,
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": "attachment",
+        "X-Content-Type-Options": "nosniff",
+      },
+    })
   } catch (error) {
     return failure(c, error)
   }

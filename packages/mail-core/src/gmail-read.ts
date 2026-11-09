@@ -1,7 +1,7 @@
 import { GMAIL_API, parseAddress } from "./gmail-sync"
-import { getJson } from "./http"
+import { getJson, SLOW_READ_TIMEOUT_MS } from "./http"
 import { ProviderError } from "./provider"
-import type { MailAddress, MailAttachmentInfo, MailThreadMessage } from "./types"
+import type { MailAddress, MailAttachmentInfo, MailInlineImage, MailThreadMessage } from "./types"
 
 const HIDDEN_LABELS = ["DRAFT", "SPAM", "TRASH"]
 
@@ -11,7 +11,7 @@ type Part = {
   mimeType?: string
   filename?: string
   headers?: Header[]
-  body?: { data?: string; size?: number }
+  body?: { data?: string; size?: number; attachmentId?: string }
   parts?: Part[]
 }
 
@@ -25,7 +25,14 @@ export type GmailFullMessage = {
 
 type GmailThread = { messages?: GmailFullMessage[] }
 
-export type Content = { html: string | null; text: string | null; attachments: MailAttachmentInfo[] }
+export type Content = {
+  html: string | null
+  text: string | null
+  attachments: MailAttachmentInfo[]
+  inline: MailInlineImage[]
+}
+
+export const emptyContent = (): Content => ({ html: null, text: null, attachments: [], inline: [] })
 
 export const headerOf = (headers: Header[] | undefined, name: string) =>
   headers?.find((item) => item.name?.toLowerCase() === name)?.value
@@ -71,12 +78,14 @@ function isInlineImage(part: Part) {
 
 export function collect(part: Part, content: Content) {
   if (part.filename) {
-    if (!isInlineImage(part))
-      content.attachments.push({
-        name: part.filename,
-        size: part.body?.size ?? 0,
-        contentType: part.mimeType ?? "application/octet-stream",
-      })
+    const id = part.body?.attachmentId ?? ""
+    const size = part.body?.size ?? 0
+    const contentType = part.mimeType ?? "application/octet-stream"
+    if (!isInlineImage(part)) content.attachments.push({ id, name: part.filename, size, contentType })
+    else if (id) {
+      const contentId = (headerOf(part.headers, "content-id") ?? "").replace(/^<|>$/g, "")
+      content.inline.push({ id, contentId, size, contentType })
+    }
   } else if (part.body?.data && part.mimeType === "text/html") {
     content.html ??= decode(part.body.data)
   } else if (part.body?.data && part.mimeType === "text/plain") {
@@ -100,7 +109,7 @@ export async function readGmailThread(
 
   return messages
     .map((message) => {
-      const content: Content = { html: null, text: null, attachments: [] }
+      const content = emptyContent()
       if (message.payload) collect(message.payload, content)
       const headers = message.payload?.headers
       return {
@@ -115,4 +124,18 @@ export async function readGmailThread(
       }
     })
     .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt))
+}
+
+export async function readGmailAttachment(
+  accessToken: string,
+  { messageId, attachmentId }: { messageId: string; attachmentId: string }
+) {
+  const attachment = await getJson<{ data?: string }>(
+    `${GMAIL_API}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    accessToken,
+    undefined,
+    SLOW_READ_TIMEOUT_MS
+  )
+  if (!attachment.data) throw new ProviderError("Gmail attachment is empty")
+  return new Uint8Array(Buffer.from(attachment.data, "base64url"))
 }
