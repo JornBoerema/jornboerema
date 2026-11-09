@@ -1,7 +1,7 @@
 import { readGmailAttachment, readGmailThread } from "./gmail-read"
 import { applyGmailThreadAction, forwardGmail, replyGmail, sendGmail } from "./gmail-send"
-import { syncGmailPage } from "./gmail-sync"
-import { getJson, requestTokens } from "./http"
+import { GMAIL_API, syncGmailPage } from "./gmail-sync"
+import { getJson, requestTokens, sendJson } from "./http"
 import {
   MissingScopeError,
   ProviderError,
@@ -93,6 +93,16 @@ export function createGmailProvider({ clientId, clientSecret }: ProviderCredenti
     forward: forwardGmail,
 
     getAttachment: readGmailAttachment,
+
+    async watch(accessToken, { gmailTopic }) {
+      if (!gmailTopic) throw new ProviderError("No Gmail Pub/Sub topic configured")
+      // Unfiltered on purpose: Google doesn't promise a label filter reports archiving.
+      const response = await sendJson("POST", `${GMAIL_API}/watch`, accessToken, {
+        topicName: gmailTopic,
+      })
+      const { expiration } = (await response.json()) as { expiration?: string }
+      return { id: null, expiresAt: new Date(Number(expiration)) }
+    },
 
     async revoke(refreshToken) {
       const response = await fetch(REVOKE_URL, {

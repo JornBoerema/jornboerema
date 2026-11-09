@@ -3,6 +3,8 @@ import { readGmailAttachment } from "../src/gmail-read"
 import { applyGmailThreadAction, forwardGmail, replyGmail, sendGmail } from "../src/gmail-send"
 import { readOutlookAttachment } from "../src/outlook-read"
 import { applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "../src/outlook-send"
+import { createGmailProvider } from "../src/gmail"
+import { createOutlookProvider } from "../src/outlook"
 import { ProviderError, ReauthRequiredError } from "../src/provider"
 import { replyRecipients, type MailThreadMessage } from "../src/types"
 
@@ -358,5 +360,51 @@ describe("reply recipients", () => {
   it("replying to your own message goes to its original recipients", () => {
     const own = message({ from: { name: null, email: "me@example.com" }, to: [al], cc: [] })
     expect(replyRecipients(own, "me@example.com", false).to).toEqual([al])
+  })
+})
+
+describe("change notifications", () => {
+  const gmail = createGmailProvider({ clientId: "c", clientSecret: "s" })
+  const outlook = createOutlookProvider({ clientId: "c", clientSecret: "s" })
+  const input = { webhookUrl: "https://api/hook", gmailTopic: "projects/p/topics/t", clientState: "st", existingId: null }
+
+  it("gmail watches the topic and reports Google's expiry", async () => {
+    const sent = stub(() => [200, { historyId: "1", expiration: "1793000000000" }])
+    const watch = await gmail.watch("t", input)
+    expect(sent[0]?.url).toMatch(/\/users\/me\/watch$/)
+    expect(sent[0]?.body).toEqual({ topicName: "projects/p/topics/t" })
+    expect(watch).toEqual({ id: null, expiresAt: new Date(1793000000000) })
+  })
+
+  it("gmail refuses to watch without a topic", async () => {
+    await expect(gmail.watch("t", { ...input, gmailTopic: null })).rejects.toBeInstanceOf(ProviderError)
+  })
+
+  it("outlook creates an inbox subscription with the client state", async () => {
+    const sent = stub(() => [201, { id: "sub" }])
+    const watch = await outlook.watch("t", input)
+    expect(sent[0]?.method).toBe("POST")
+    expect(sent[0]?.body).toMatchObject({
+      resource: "me/mailFolders('inbox')/messages",
+      notificationUrl: "https://api/hook",
+      clientState: "st",
+      changeType: "created,updated,deleted",
+    })
+    expect(watch.id).toBe("sub")
+    expect(watch.expiresAt.getTime()).toBeLessThan(Date.now() + 7 * 86400000)
+  })
+
+  it("outlook renews an existing subscription", async () => {
+    const sent = stub()
+    expect((await outlook.watch("t", { ...input, existingId: "sub" })).id).toBe("sub")
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.method).toBe("PATCH")
+    expect(sent[0]?.url).toMatch(/\/subscriptions\/sub$/)
+  })
+
+  it("outlook replaces a subscription Microsoft has dropped", async () => {
+    const sent = stub((url) => (url.endsWith("/subscriptions/old") ? [404, {}] : [201, { id: "new" }]))
+    expect((await outlook.watch("t", { ...input, existingId: "old" })).id).toBe("new")
+    expect(sent.map((item) => item.method)).toEqual(["PATCH", "POST"])
   })
 })

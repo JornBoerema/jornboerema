@@ -10,6 +10,8 @@ import {
 } from "@evido/mail-core/types"
 import { env } from "../env"
 import { msg } from "../i18n"
+import { defer } from "../lib/defer"
+import { getRealtime, mailChannel } from "../lib/realtime"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
 import {
   ConnectExpiredError,
@@ -22,6 +24,14 @@ import {
   startConnect,
 } from "./accounts-server"
 import { syncAccount } from "./sync-server"
+import {
+  authorizeCron,
+  authorizeGmailWebhook,
+  ensureWatch,
+  handleGmailNotification,
+  handleOutlookNotifications,
+  renewWatches,
+} from "./webhooks-server"
 import {
   actOnThread,
   forwardThread,
@@ -125,7 +135,8 @@ mailRoutes.get("/callback/:provider", async (c) => {
   const session = await getAuth().api.getSession({ headers: c.req.raw.headers })
   if (!session) return fail("session")
   try {
-    await finishConnect(session.user.id, provider, state, code)
+    const account = await finishConnect(session.user.id, provider, state, code)
+    defer(() => ensureWatch(account))
     return c.redirect(`${env.mailWebUrl}/?connected=1`)
   } catch (error) {
     if (error instanceof ConnectExpiredError) return fail("expired")
@@ -240,6 +251,38 @@ mailRoutes.post("/accounts/:id/send", requireTrustedOrigin, requireSession, asyn
   } catch (error) {
     return failure(c, error)
   }
+})
+
+mailRoutes.get("/realtime", requireSession, async (c) => {
+  if (!process.env.ABLY_API_KEY) return c.json({ error: msg(c, "realtimeUnavailable") }, 503)
+  const userId = c.get("session").user.id
+  const token = await getRealtime().auth.createTokenRequest({
+    clientId: userId,
+    capability: JSON.stringify({ [mailChannel(userId)]: ["subscribe"] }),
+    ttl: 15 * 60 * 1000,
+  })
+  return c.json(token, 200, noStore)
+})
+
+// Microsoft needs an answer within 3 seconds, so the work happens after responding.
+mailRoutes.post("/webhook/outlook", async (c) => {
+  const validationToken = c.req.query("validationToken")
+  if (validationToken) return c.text(validationToken)
+  const body: unknown = await c.req.json().catch(() => null)
+  defer(() => handleOutlookNotifications(body))
+  return c.body(null, 202)
+})
+
+mailRoutes.post("/webhook/gmail", async (c) => {
+  if (!authorizeGmailWebhook(c.req.query("token"))) return c.body(null, 401)
+  const body: unknown = await c.req.json().catch(() => null)
+  defer(() => handleGmailNotification(body))
+  return c.body(null, 204)
+})
+
+mailRoutes.get("/cron/watches", async (c) => {
+  if (!authorizeCron(c.req.header("authorization"))) return c.body(null, 401)
+  return c.json(await renewWatches(), 200, noStore)
 })
 
 mailRoutes.delete("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {

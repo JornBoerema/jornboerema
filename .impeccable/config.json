@@ -8,6 +8,15 @@
         "value": "inter",
         "createdAt": "2026-11-09T13:20:19.739Z",
         "reason": "Incumbent font: already named in apps/home CSS and used by Evido's shared UI; user chose to refine the existing look, not replace it"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "apps/home/index.html"
+        ],
+        "createdAt": "2026-11-09T13:39:40.040Z",
+        "reason": "User asked for a homepage in the style of their t3.gg screenshot: small name, hierarchy through weight and color instead of size"
       }
     ]
   }

@@ -6,6 +6,13 @@ export function getRealtime() {
   return (client ??= new Rest(process.env.ABLY_API_KEY))
 }
 export const userChannel = (userId: string) => `workspace:${userId}`
+export const mailChannel = (userId: string) => `mail:${userId}`
+
+/** Tells a user's open tabs to refetch. Carries no mail data. */
+export async function notifyMailChanged(userId: string) {
+  if (!process.env.ABLY_API_KEY) return
+  await getRealtime().channels.get(mailChannel(userId)).publish("changed", { at: Date.now() })
+}
 
 /** Tell every affected user's open clients to refetch. Messages carry no data. */
 export async function notifyWorkspaceUsers(userIds: string[]) {

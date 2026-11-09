@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Realtime } from "ably"
 import type { MailAccountView, MailSyncResult } from "@evido/mail-core/types"
 import { api, ApiError } from "@/lib/api"
 
 export const ACCOUNTS_KEY = ["mail-accounts"]
 export const MESSAGES_KEY = ["mail-messages"]
 
-/** Until webhooks exist (phase 5), this is how quickly new mail shows up. */
-const SYNC_INTERVAL_MS = 60 * 1000
+/** Only a safety net: new mail normally arrives through webhooks and a realtime signal. */
+const SYNC_INTERVAL_MS = 5 * 60 * 1000
 const BUSY_RETRY_MS = 3 * 1000
 
 export type SyncStatus = "idle" | "syncing" | "failed"
@@ -17,6 +18,27 @@ export function useAccounts() {
     queryKey: ACCOUNTS_KEY,
     queryFn: () => api<{ accounts: MailAccountView[] }>("/api/mail/accounts"),
   })
+}
+
+/** Refreshes the list the moment the server has synced something new. */
+export function useMailRealtime(userId: string) {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    const realtime = new Realtime({
+      authCallback: (_params, callback) => {
+        api<Parameters<typeof callback>[1]>("/api/mail/realtime").then(
+          (token) => callback(null, token),
+          (error: unknown) => callback(error instanceof Error ? error.message : String(error), null)
+        )
+      },
+      closeOnUnload: true,
+    })
+    const channel = realtime.channels.get(`mail:${userId}`)
+    void channel.subscribe("changed", () => {
+      void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+    })
+    return () => realtime.close()
+  }, [userId, queryClient])
 }
 
 /** Keeps every active mailbox in sync while the page is open and visible. */

@@ -1,4 +1,11 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto"
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto"
 
 const VERSION = "v1"
 
@@ -47,4 +54,14 @@ export function createOAuthState() {
     codeVerifier: verifier,
     codeChallenge: sha256(verifier),
   }
+}
+
+/** The value Graph echoes back. Derived, so no per-account secret has to be stored. */
+export const webhookClientState = (secret: string, accountId: string) =>
+  createHmac("sha256", secret).update(accountId).digest("base64url")
+
+export function secretsMatch(given: string, expected: string) {
+  const a = createHash("sha256").update(given).digest()
+  const b = createHash("sha256").update(expected).digest()
+  return timingSafeEqual(a, b)
 }

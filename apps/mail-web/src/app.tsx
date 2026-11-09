@@ -5,7 +5,7 @@ import { Toaster } from "@evido/ui/components/sonner"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { I18nProvider, useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
-import { useAccounts, useMailSync } from "@/lib/mail"
+import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
 import { AccountsPage } from "@/pages/accounts"
 import { InboxPage } from "@/pages/inbox"
 import { LoginPage } from "@/pages/login"
@@ -13,11 +13,12 @@ import { LoginPage } from "@/pages/login"
 /** A provider redirect lands here with its result, which the mailboxes view reports. */
 const initialView = () => (window.location.search ? "mailboxes" : "inbox")
 
-function MailApp({ email }: { email: string }) {
+function MailApp({ userId, email }: { userId: string; email: string }) {
   const t = useI18n().t.shell
   const [view, setView] = useState<"inbox" | "mailboxes">(initialView)
   const accounts = useAccounts()
   const syncStatus = useMailSync(accounts.data?.accounts)
+  useMailRealtime(userId)
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
@@ -52,7 +53,7 @@ function MailApp({ email }: { email: string }) {
 function Root() {
   const { data, isPending } = authClient.useSession()
   if (isPending) return null
-  return data ? <MailApp email={data.user.email} /> : <LoginPage />
+  return data ? <MailApp userId={data.user.id} email={data.user.email} /> : <LoginPage />
 }
 
 export function App() {

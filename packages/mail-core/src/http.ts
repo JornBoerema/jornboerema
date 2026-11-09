@@ -86,6 +86,7 @@ export async function sendBody(
     signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
   })
   await ensureOk(response, url)
+  return response
 }
 
 export const sendJson = (

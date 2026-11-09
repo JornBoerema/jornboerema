@@ -137,7 +137,7 @@ export async function finishConnect(
     scope: tokens.scope,
     status: "active" as const,
   }
-  await db.mailAccount.upsert({
+  return db.mailAccount.upsert({
     where: { userId_provider_providerAccountId: where },
     create: { id: randomUUID(), ...where, ...fields },
     update: fields,
@@ -207,8 +207,11 @@ export async function disconnectAccount(userId: string, id: string) {
   await getDb().mailAccount.delete({ where: { id: account.id } })
   defer(async () => {
     const provider = providerFor(account.provider)
-    await provider.revoke?.(
-      openToken(account.refreshToken, tokenKey(), tokenContext(account, "refresh"))
-    )
+    const refreshToken = openToken(account.refreshToken, tokenKey(), tokenContext(account, "refresh"))
+    if (provider.unwatch && account.watchId) {
+      const { accessToken } = await provider.refresh(refreshToken)
+      await provider.unwatch(accessToken, account.watchId)
+    }
+    await provider.revoke?.(refreshToken)
   })
 }

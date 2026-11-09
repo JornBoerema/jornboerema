@@ -50,6 +50,18 @@ export type SyncPage = {
   done: boolean
 }
 
+export type MailWatch = { id: string | null; expiresAt: Date }
+
+export type WatchInput = {
+  /** Where Graph posts changes. */
+  webhookUrl: string
+  /** Pub/Sub topic Gmail publishes to. */
+  gmailTopic: string | null
+  /** Echoed back in Graph notifications to prove they are genuine. */
+  clientState: string
+  existingId: string | null
+}
+
 export interface MailProvider {
   readonly id: MailProviderId
   authorizationUrl(input: { state: string; codeChallenge: string; redirectUri: string }): string
@@ -74,6 +86,10 @@ export interface MailProvider {
     accessToken: string,
     input: { messageId: string; attachmentId: string }
   ): Promise<Uint8Array>
+  /** Starts or renews change notifications for this mailbox. */
+  watch(accessToken: string, input: WatchInput): Promise<MailWatch>
+  /** Gmail needs none: revoking access ends its watch. */
+  unwatch?(accessToken: string, watchId: string): Promise<void>
   /** Best effort. Providers without a revoke endpoint leave this out. */
   revoke?(refreshToken: string): Promise<void>
 }

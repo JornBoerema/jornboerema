@@ -415,11 +415,15 @@ model MailAccount {
   syncSince            DateTime?         @map("sync_since")
   /// Lease so two tabs or functions cannot advance the same cursor at once.
   syncLockedUntil      DateTime?         @map("sync_locked_until")
+  /// Graph subscription id. Gmail watches have no id and are found by mailbox address.
+  watchId              String?           @map("watch_id")
+  watchExpiresAt       DateTime?         @map("watch_expires_at")
   createdAt            DateTime          @default(now()) @map("created_at")
   updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
   messages             MailMessage[]
 
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
+  @@index([watchId], map: "mail_accounts_watch_id_idx")
   @@map("mail_accounts")
 }
 

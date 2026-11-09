@@ -17,6 +17,7 @@
     "@evido/mail-core": "workspace:*",
     "@evido/ui": "workspace:*",
     "@tanstack/react-query": "^5.105.0",
+    "ably": "^2.30.0",
     "better-auth": "^1.7.14",
     "dompurify": "^3.4.17",
     "react": "^19.3.1",
