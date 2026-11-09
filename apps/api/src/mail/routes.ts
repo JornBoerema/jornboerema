@@ -15,6 +15,7 @@ import {
   readInboxSummary,
   startConnect,
 } from "./accounts-server"
+import { InvalidMessageCursorError, listMessages, syncAccount } from "./sync-server"
 
 function failure(c: Context, error: unknown) {
   if (error instanceof MailAccountNotFoundError)
@@ -71,6 +72,29 @@ mailRoutes.get("/accounts/:id/inbox", requireSession, async (c) => {
     const summary = await readInboxSummary(c.get("session").user.id, c.req.param("id"))
     return c.json(summary, 200, noStore)
   } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Called repeatedly by the client until `done`; each call does what fits in one function run.
+mailRoutes.post("/accounts/:id/sync", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    return c.json(await syncAccount(c.get("session").user.id, c.req.param("id")), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/messages", requireSession, async (c) => {
+  try {
+    const page = await listMessages(c.get("session").user.id, {
+      accountId: c.req.query("account"),
+      cursor: c.req.query("cursor"),
+    })
+    return c.json(page, 200, noStore)
+  } catch (error) {
+    if (error instanceof InvalidMessageCursorError)
+      return c.json({ error: msg(c, "invalidRequest") }, 400)
     return failure(c, error)
   }
 })

@@ -33,12 +33,39 @@ export async function requestTokens(url: string, params: Record<string, string>)
   }
 }
 
-export async function getJson<T>(url: string, accessToken: string): Promise<T> {
+export async function getJson<T>(
+  url: string,
+  accessToken: string,
+  headers?: Record<string, string>
+): Promise<T> {
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { ...headers, Authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   if (response.status === 401) throw new ReauthRequiredError("Access token rejected")
-  if (!response.ok) throw new ProviderError(`${new URL(url).host} answered ${response.status}`)
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: { code?: unknown; errors?: { reason?: unknown }[] }
+    }
+    // Graph puts a name in `code`; Google puts a number there and the name in `reason`.
+    const code = [body.error?.code, body.error?.errors?.[0]?.reason].find(
+      (value) => typeof value === "string"
+    ) as string | undefined
+    throw new ProviderError(`${new URL(url).host} answered ${response.status} ${code ?? ""}`.trim(), {
+      status: response.status,
+      code,
+    })
+  }
   return (await response.json()) as T
 }
+
+/** Runs `work` over `items` a few at a time, keeping providers within their rate limits. */
+export async function mapInChunks<T, R>(items: T[], size: number, work: (item: T) => Promise<R>) {
+  const results: R[] = []
+  for (let start = 0; start < items.length; start += size)
+    results.push(...(await Promise.all(items.slice(start, start + size).map(work))))
+  return results
+}
+
+/** Postgres text columns reject NUL, and mail headers can contain anything. */
+export const cleanText = (value: string) => value.replaceAll("\0", "")

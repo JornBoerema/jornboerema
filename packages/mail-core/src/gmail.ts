@@ -1,3 +1,4 @@
+import { syncGmailPage } from "./gmail-sync"
 import { getJson, requestTokens } from "./http"
 import {
   MissingScopeError,
@@ -76,6 +77,8 @@ export function createGmailProvider({ clientId, clientSecret }: ProviderCredenti
       )
       return { total: inbox.messagesTotal ?? 0, unread: inbox.messagesUnread ?? 0 }
     },
+
+    syncPage: syncGmailPage,
 
     async revoke(refreshToken) {
       const response = await fetch(REVOKE_URL, {

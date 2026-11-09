@@ -1,9 +1,9 @@
 import { getJson, requestTokens } from "./http"
+import { GRAPH_BASE, syncOutlookPage } from "./outlook-sync"
 import { ProviderError, type MailProvider, type ProviderCredentials } from "./provider"
 
 // "common" accepts both work/school and personal Microsoft accounts.
 const OAUTH_BASE = "https://login.microsoftonline.com/common/oauth2/v2.0"
-const GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 const SCOPES = ["offline_access", "openid", "profile", "email", "User.Read", "Mail.ReadWrite", "Mail.Send"]
 
@@ -74,5 +74,7 @@ export function createOutlookProvider({
       )
       return { total: inbox.totalItemCount ?? 0, unread: inbox.unreadItemCount ?? 0 }
     },
+
+    syncPage: syncOutlookPage,
   }
 }

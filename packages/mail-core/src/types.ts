@@ -20,5 +20,31 @@ export type MailAccountView = {
 
 export type InboxSummary = { total: number; unread: number }
 
+/** One inbox line. Bodies are fetched from the provider when a message is opened. */
+export type MailMessageView = {
+  id: string
+  accountId: string
+  subject: string
+  snippet: string
+  fromName: string | null
+  fromEmail: string | null
+  receivedAt: string
+  isRead: boolean
+  isStarred: boolean
+  hasAttachments: boolean
+}
+
+export type MailMessagesPage = { messages: MailMessageView[]; nextCursor: string | null }
+
+export type MailSyncResult = {
+  /** Caught up for now. When false, call again to continue. */
+  done: boolean
+  /** Another sync holds this account; nothing happened in this call. */
+  busy: boolean
+  /** The provider asked to slow down. Progress is saved; continue on the next round. */
+  rateLimited: boolean
+  changed: number
+}
+
 /** Reason codes the OAuth callback hands back to the web app in `?error=`. */
 export type ConnectErrorCode = "denied" | "expired" | "session" | "missing_scope" | "failed"

@@ -33,6 +33,7 @@ model User {
   workspaceMemberships WorkspaceMember[]
   workspaceInvitations WorkspaceInvitation[]
   mailAccounts         MailAccount[]
+  mailMessages         MailMessage[]
   mailOauthStates      MailOauthState[]
 
   @@map("user")
@@ -408,8 +409,15 @@ model MailAccount {
   accessTokenExpiresAt DateTime          @map("access_token_expires_at")
   scope                String
   status               MailAccountStatus @default(active)
+  /// Opaque provider position (Gmail history id, Graph delta link). Null until the first sync.
+  syncCursor           String?           @map("sync_cursor")
+  /// Oldest mail this account keeps. Fixed when a full sync starts.
+  syncSince            DateTime?         @map("sync_since")
+  /// Lease so two tabs or functions cannot advance the same cursor at once.
+  syncLockedUntil      DateTime?         @map("sync_locked_until")
   createdAt            DateTime          @default(now()) @map("created_at")
   updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
+  messages             MailMessage[]
 
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
   @@map("mail_accounts")
@@ -426,4 +434,29 @@ model MailOauthState {
 
   @@index([expiresAt], map: "mail_oauth_states_expires_idx")
   @@map("mail_oauth_states")
+}
+
+/// Inbox list metadata only. Bodies and attachments stay at the provider.
+model MailMessage {
+  /// Derived from account and provider id, so re-syncing keeps the same id.
+  id                String      @id
+  userId            String      @map("user_id")
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId         String      @map("account_id")
+  account           MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  providerMessageId String      @map("provider_message_id")
+  threadId          String?     @map("thread_id")
+  subject           String
+  snippet           String
+  fromName          String?     @map("from_name")
+  fromEmail         String?     @map("from_email")
+  receivedAt        DateTime    @map("received_at")
+  isRead            Boolean     @map("is_read")
+  isStarred         Boolean     @map("is_starred")
+  hasAttachments    Boolean     @map("has_attachments")
+
+  @@unique([accountId, providerMessageId], map: "mail_messages_account_provider_unique")
+  @@index([userId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_received_idx")
+  @@index([accountId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_account_received_idx")
+  @@map("mail_messages")
 }

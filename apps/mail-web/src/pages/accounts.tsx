@@ -10,9 +10,8 @@ import type {
 } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { api, ApiError } from "@/lib/api"
-import { authClient } from "@/lib/auth-client"
+import { ACCOUNTS_KEY, MESSAGES_KEY, useAccounts } from "@/lib/mail"
 
-const ACCOUNTS_KEY = ["mail-accounts"]
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 /** Shows the outcome of the OAuth redirect once, then cleans the URL. */
@@ -61,7 +60,10 @@ function AccountRow({ account }: { account: MailAccountView }) {
   const connect = useConnect()
   const disconnect = useMutation({
     mutationFn: () => api(`/api/mail/accounts/${account.id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY })
+      void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+    },
     onError: (error) => toast.error(errorMessage(error)),
   })
   const active = account.status === "active"
@@ -97,27 +99,14 @@ function AccountRow({ account }: { account: MailAccountView }) {
   )
 }
 
-export function AccountsPage({ email }: { email: string }) {
+export function AccountsPage() {
   const t = useI18n().t.accounts
   useConnectResult()
   const connect = useConnect()
-  const accounts = useQuery({
-    queryKey: ACCOUNTS_KEY,
-    queryFn: () => api<{ accounts: MailAccountView[] }>("/api/mail/accounts"),
-  })
+  const accounts = useAccounts()
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold">{t.title}</h1>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          {email}
-          <Button size="sm" variant="ghost" onClick={() => void authClient.signOut()}>
-            {t.signOut}
-          </Button>
-        </div>
-      </header>
-
+    <section className="flex flex-col gap-6">
       <div className="flex gap-2">
         <Button disabled={connect.isPending} onClick={() => connect.mutate("gmail")}>
           {t.addGmail}
@@ -136,6 +125,6 @@ export function AccountsPage({ email }: { email: string }) {
           <AccountRow key={account.id} account={account} />
         ))}
       </ul>
-    </main>
+    </section>
   )
 }

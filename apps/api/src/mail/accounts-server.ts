@@ -172,7 +172,7 @@ async function validAccessToken(account: MailAccount, provider: MailProvider, ke
  * Runs a provider call with a valid token. A lost grant flips the account to
  * reauth_required so every client can offer "connect again".
  */
-async function withAccessToken<T>(
+export async function withAccessToken<T>(
   account: MailAccount,
   call: (provider: MailProvider, accessToken: string) => Promise<T>
 ) {
@@ -190,7 +190,7 @@ async function withAccessToken<T>(
   }
 }
 
-async function ownedAccount(userId: string, id: string) {
+export async function ownedAccount(userId: string, id: string) {
   const account = await getDb().mailAccount.findFirst({ where: { id, userId } })
   if (!account) throw new MailAccountNotFoundError()
   return account
