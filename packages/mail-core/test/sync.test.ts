@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { readGmailThread } from "../src/gmail-read"
 import { syncGmailPage } from "../src/gmail-sync"
+import { readOutlookThread } from "../src/outlook-read"
 import { GRAPH_BASE, syncOutlookPage } from "../src/outlook-sync"
 import { isRateLimited, ProviderError, SyncCursorExpiredError } from "../src/provider"
 
@@ -218,5 +220,137 @@ describe("outlook sync", () => {
       syncOutlookPage("t", { cursor: "https://evil.example/steal", since })
     ).rejects.toBeInstanceOf(SyncCursorExpiredError)
     expect(requests).toEqual([])
+  })
+})
+
+const encoded = (value: string) => Buffer.from(value, "utf8").toString("base64url")
+
+describe("gmail thread reading", () => {
+  const message = (id: string, date: string, labelIds = ["INBOX"]) => ({
+    id,
+    labelIds,
+    internalDate: date,
+    payload: {
+      mimeType: "multipart/mixed",
+      headers: [
+        { name: "Subject", value: "Plan" },
+        { name: "From", value: "Jo <jo@example.com>" },
+        { name: "To", value: '"Doe, Al" <al@example.com>, bo@example.com' },
+      ],
+      parts: [
+        {
+          mimeType: "multipart/alternative",
+          parts: [
+            { mimeType: "text/plain", body: { data: encoded("plain é") } },
+            { mimeType: "text/html", body: { data: encoded("<p>html é</p>") } },
+          ],
+        },
+        { mimeType: "application/pdf", filename: "a.pdf", body: { attachmentId: "x", size: 2048 } },
+        {
+          mimeType: "image/png",
+          filename: "logo.png",
+          headers: [{ name: "Content-ID", value: "<logo>" }, { name: "Content-Disposition", value: "inline" }],
+          body: { attachmentId: "y", size: 10 },
+        },
+      ],
+    },
+  })
+
+  it("orders messages, decodes bodies, and hides drafts and trash", async () => {
+    stubRoutes([
+      [
+        /\/threads\/T\?format=full/,
+        200,
+        {
+          messages: [
+            message("later", "2000"),
+            message("first", "1000"),
+            message("draft", "3000", ["DRAFT"]),
+            message("trashed", "4000", ["TRASH"]),
+          ],
+        },
+      ],
+    ])
+    const messages = await readGmailThread("t", "T")
+    expect(messages.map((item) => item.id)).toEqual(["first", "later"])
+    expect(messages[0]).toMatchObject({
+      subject: "Plan",
+      from: { name: "Jo", email: "jo@example.com" },
+      to: [{ name: "Doe, Al", email: "al@example.com" }, { name: null, email: "bo@example.com" }],
+      html: "<p>html é</p>",
+      text: "plain é",
+    })
+    expect(messages[0]?.attachments).toEqual([{ name: "a.pdf", size: 2048, contentType: "application/pdf" }])
+  })
+
+  it("reports a thread with nothing visible as missing", async () => {
+    stubRoutes([[/\/threads\//, 200, { messages: [message("draft", "1", ["DRAFT"])] }]])
+    await expect(readGmailThread("t", "T")).rejects.toMatchObject({ status: 404 })
+  })
+})
+
+describe("outlook thread reading", () => {
+  const entry = (id: string, at: string, extra: object = {}) => ({
+    id,
+    subject: "Plan",
+    from: { emailAddress: { name: "Jo", address: "jo@example.com" } },
+    toRecipients: [{ emailAddress: { name: "", address: "al@example.com" } }],
+    ccRecipients: [],
+    receivedDateTime: at,
+    body: { contentType: "html", content: "<p>hi</p>" },
+    isDraft: false,
+    parentFolderId: "inbox",
+    attachments: [
+      { name: "a.pdf", size: 5, contentType: "application/pdf", isInline: false },
+      { name: "logo.png", size: 1, contentType: "image/png", isInline: true },
+    ],
+    ...extra,
+  })
+  const folders: Route[] = [
+    [/mailFolders\/deleteditems/, 200, { id: "trash" }],
+    [/mailFolders\/junkemail/, 200, { id: "junk" }],
+  ]
+
+  it("escapes the conversation id, sorts, and hides drafts, trash and junk", async () => {
+    const requests = stubRoutes([
+      ...folders,
+      [
+        /\/me\/messages\?/,
+        200,
+        {
+          value: [
+            entry("later", "2026-10-02T10:00:00Z"),
+            entry("first", "2026-10-01T10:00:00Z"),
+            entry("draft", "2026-10-03T10:00:00Z", { isDraft: true }),
+            entry("deleted", "2026-10-04T10:00:00Z", { parentFolderId: "trash" }),
+            entry("spam", "2026-10-05T10:00:00Z", { parentFolderId: "junk" }),
+          ],
+        },
+      ],
+    ])
+    const messages = await readOutlookThread("t", "AB'C=")
+    const list = requests.find((request) => request.url.includes("/me/messages?"))
+    expect(decodeURIComponent(list?.url ?? "")).toContain("conversationId eq 'AB''C='")
+    expect(list?.headers.Prefer).toContain("ImmutableId")
+    expect(messages.map((item) => item.id)).toEqual(["first", "later"])
+    expect(messages[0]).toMatchObject({ html: "<p>hi</p>", text: null, to: [{ name: null, email: "al@example.com" }] })
+    expect(messages[0]?.attachments.map((item) => item.name)).toEqual(["a.pdf"])
+  })
+
+  it("keeps plain text out of the html field", async () => {
+    stubRoutes([
+      ...folders,
+      [/\/me\/messages\?/, 200, { value: [entry("a", "2026-10-01T10:00:00Z", { body: { contentType: "text", content: "<b>raw</b>" } })] }],
+    ])
+    expect((await readOutlookThread("t", "T"))[0]).toMatchObject({ html: null, text: "<b>raw</b>" })
+  })
+
+  it("will not send the token to a next link outside Graph", async () => {
+    const requests = stubRoutes([
+      ...folders,
+      [/\/me\/messages\?/, 200, { value: [], "@odata.nextLink": "https://evil.example/x" }],
+    ])
+    await expect(readOutlookThread("t", "T")).rejects.toBeInstanceOf(ProviderError)
+    expect(requests.some((request) => request.url.includes("evil.example"))).toBe(false)
   })
 })

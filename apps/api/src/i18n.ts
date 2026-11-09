@@ -47,6 +47,7 @@ const en = {
   // Mail
   mailNotConfigured: "This mail provider isn't available yet.",
   mailAccountGone: "This mailbox is no longer connected.",
+  mailMessageGone: "This message no longer exists.",
   mailReconnect: "Access to this mailbox has ended. Connect it again.",
   mailProviderFailed: "The mail provider didn't respond. Please try again in a minute.",
 }
@@ -92,6 +93,7 @@ const nl: Record<MessageKey, string> = {
   invalid_email: "Vul een geldig e-mailadres in.",
   mailNotConfigured: "Deze mailprovider is nog niet beschikbaar.",
   mailAccountGone: "Deze mailbox is niet meer gekoppeld.",
+  mailMessageGone: "Dit bericht bestaat niet meer.",
   mailReconnect: "De toegang tot deze mailbox is verlopen. Koppel hem opnieuw.",
   mailProviderFailed: "De mailprovider reageert niet. Probeer het over een minuut opnieuw.",
 }

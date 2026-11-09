@@ -8,7 +8,8 @@
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "tsc --noEmit -p tsconfig.app.json",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@evido/auth": "workspace:*",
@@ -17,6 +18,7 @@
     "@evido/ui": "workspace:*",
     "@tanstack/react-query": "^5.105.0",
     "better-auth": "^1.7.14",
+    "dompurify": "^3.4.17",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sonner": "^2.0.8"
@@ -27,7 +29,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6",
+    "jsdom": "^31.0.0",
     "typescript": "~6.0.2",
-    "vite": "^8"
+    "vite": "^8",
+    "vitest": "^5.0.5"
   }
 }

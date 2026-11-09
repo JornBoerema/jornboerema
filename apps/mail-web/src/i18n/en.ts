@@ -28,6 +28,18 @@ export const en = {
     starred: "Starred",
     attachment: "Has attachment",
   },
+  conversation: {
+    back: "Back to inbox",
+    loading: "Opening…",
+    loadFailed: "This conversation couldn't be opened.",
+    to: "To",
+    cc: "Cc",
+    noBody: "This message has no text.",
+    attachments: "Attachments",
+    frameTitle: (sender: string) => `Message from ${sender}`,
+    imagesBlocked: "Images are hidden to stop senders tracking you.",
+    showImages: "Show images",
+  },
   accounts: {
     addGmail: "Connect Gmail",
     addOutlook: "Connect Outlook",

@@ -30,6 +30,18 @@ export const nl: typeof en = {
     starred: "Met ster",
     attachment: "Heeft bijlage",
   },
+  conversation: {
+    back: "Terug naar inbox",
+    loading: "Openen…",
+    loadFailed: "Dit gesprek kon niet worden geopend.",
+    to: "Aan",
+    cc: "Cc",
+    noBody: "Dit bericht heeft geen tekst.",
+    attachments: "Bijlagen",
+    frameTitle: (sender: string) => `Bericht van ${sender}`,
+    imagesBlocked: "Afbeeldingen zijn verborgen zodat afzenders je niet kunnen volgen.",
+    showImages: "Afbeeldingen tonen",
+  },
   accounts: {
     addGmail: "Gmail koppelen",
     addOutlook: "Outlook koppelen",

@@ -20,8 +20,9 @@ export type MailAccountView = {
 
 export type InboxSummary = { total: number; unread: number }
 
-/** One inbox line. Bodies are fetched from the provider when a message is opened. */
-export type MailMessageView = {
+/** One inbox line: a conversation, described by its newest message in the inbox. */
+export type MailThreadView = {
+  /** The newest message's id. Changes when a newer message arrives. */
   id: string
   accountId: string
   subject: string
@@ -32,9 +33,30 @@ export type MailMessageView = {
   isRead: boolean
   isStarred: boolean
   hasAttachments: boolean
+  messageCount: number
 }
 
-export type MailMessagesPage = { messages: MailMessageView[]; nextCursor: string | null }
+export type MailThreadsPage = { threads: MailThreadView[]; nextCursor: string | null }
+
+export type MailAddress = { name: string | null; email: string }
+
+export type MailAttachmentInfo = { name: string; size: number; contentType: string }
+
+/** A full message as read from the provider. Never stored by the app. */
+export type MailThreadMessage = {
+  id: string
+  subject: string
+  from: MailAddress | null
+  to: MailAddress[]
+  cc: MailAddress[]
+  receivedAt: string
+  /** Untrusted. Must be sanitized and sandboxed before it is displayed. */
+  html: string | null
+  text: string | null
+  attachments: MailAttachmentInfo[]
+}
+
+export type MailThreadDetail = { messages: MailThreadMessage[] }
 
 export type MailSyncResult = {
   /** Caught up for now. When false, call again to continue. */

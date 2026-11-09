@@ -1,22 +1,19 @@
 import { createHash } from "node:crypto"
-import { getDb, type MailAccount, type MailMessage } from "@evido/db"
+import { getDb, type MailAccount } from "@evido/db"
 import {
   isRateLimited,
   SyncCursorExpiredError,
   type MailMessageData,
   type SyncPage,
 } from "@evido/mail-core/provider"
-import type { MailMessagesPage, MailMessageView, MailSyncResult } from "@evido/mail-core/types"
+import type { MailSyncResult } from "@evido/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
-
-export class InvalidMessageCursorError extends Error {}
 
 const WINDOW_MS = 90 * 24 * 60 * 60 * 1000
 /** Stops starting new pages in time to answer within the 30s function limit. */
 const BUDGET_MS = 20 * 1000
 /** Outlives a function killed at its limit, so a crash cannot block sync for long. */
 const LOCK_MS = 45 * 1000
-const PAGE_SIZE = 50
 
 const messageId = (accountId: string, providerMessageId: string) =>
   createHash("sha256").update(`${accountId}:${providerMessageId}`).digest("base64url")
@@ -111,57 +108,5 @@ export async function syncAccount(userId: string, id: string): Promise<MailSyncR
       where: { id: account.id },
       data: { syncLockedUntil: null },
     })
-  }
-}
-
-function toView(message: MailMessage): MailMessageView {
-  return {
-    id: message.id,
-    accountId: message.accountId,
-    subject: message.subject,
-    snippet: message.snippet,
-    fromName: message.fromName,
-    fromEmail: message.fromEmail,
-    receivedAt: message.receivedAt.toISOString(),
-    isRead: message.isRead,
-    isStarred: message.isStarred,
-    hasAttachments: message.hasAttachments,
-  }
-}
-
-function parseCursor(cursor: string) {
-  const separator = cursor.indexOf("|")
-  const receivedAt = new Date(cursor.slice(0, separator))
-  const id = cursor.slice(separator + 1)
-  if (separator < 1 || !id || Number.isNaN(receivedAt.getTime()))
-    throw new InvalidMessageCursorError()
-  return { receivedAt, id }
-}
-
-/** Newest first across every mailbox, or one mailbox when `accountId` is given. */
-export async function listMessages(
-  userId: string,
-  { accountId, cursor }: { accountId?: string; cursor?: string }
-): Promise<MailMessagesPage> {
-  const position = cursor ? parseCursor(cursor) : null
-  const rows = await getDb().mailMessage.findMany({
-    where: {
-      userId,
-      ...(accountId && { accountId }),
-      ...(position && {
-        OR: [
-          { receivedAt: { lt: position.receivedAt } },
-          { receivedAt: position.receivedAt, id: { lt: position.id } },
-        ],
-      }),
-    },
-    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
-    take: PAGE_SIZE + 1,
-  })
-  const page = rows.slice(0, PAGE_SIZE)
-  const last = page.at(-1)
-  return {
-    messages: page.map(toView),
-    nextCursor: rows.length > PAGE_SIZE && last ? `${last.receivedAt.toISOString()}|${last.id}` : null,
   }
 }

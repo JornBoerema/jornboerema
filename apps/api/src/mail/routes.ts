@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono"
 import { getAuth } from "@evido/auth/server"
-import { MissingScopeError, ReauthRequiredError } from "@evido/mail-core/provider"
+import { MissingScopeError, ProviderError, ReauthRequiredError } from "@evido/mail-core/provider"
 import { isMailProvider, type ConnectErrorCode } from "@evido/mail-core/types"
 import { env } from "../env"
 import { msg } from "../i18n"
@@ -15,11 +15,22 @@ import {
   readInboxSummary,
   startConnect,
 } from "./accounts-server"
-import { InvalidMessageCursorError, listMessages, syncAccount } from "./sync-server"
+import { syncAccount } from "./sync-server"
+import {
+  InvalidThreadCursorError,
+  listThreads,
+  MailMessageNotFoundError,
+  readThread,
+} from "./threads-server"
 
 function failure(c: Context, error: unknown) {
   if (error instanceof MailAccountNotFoundError)
     return c.json({ error: msg(c, "mailAccountGone") }, 404)
+  if (
+    error instanceof MailMessageNotFoundError ||
+    (error instanceof ProviderError && error.status === 404)
+  )
+    return c.json({ error: msg(c, "mailMessageGone") }, 404)
   if (error instanceof ReauthRequiredError)
     return c.json({ error: msg(c, "mailReconnect"), reauth: true }, 409)
   if (error instanceof MailNotConfiguredError)
@@ -85,16 +96,25 @@ mailRoutes.post("/accounts/:id/sync", requireTrustedOrigin, requireSession, asyn
   }
 })
 
-mailRoutes.get("/messages", requireSession, async (c) => {
+mailRoutes.get("/threads", requireSession, async (c) => {
   try {
-    const page = await listMessages(c.get("session").user.id, {
+    const page = await listThreads(c.get("session").user.id, {
       accountId: c.req.query("account"),
       cursor: c.req.query("cursor"),
     })
     return c.json(page, 200, noStore)
   } catch (error) {
-    if (error instanceof InvalidMessageCursorError)
+    if (error instanceof InvalidThreadCursorError)
       return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return failure(c, error)
+  }
+})
+
+// Mail bodies pass through on request and are never written anywhere.
+mailRoutes.get("/threads/:id", requireSession, async (c) => {
+  try {
+    return c.json(await readThread(c.get("session").user.id, c.req.param("id")), 200, noStore)
+  } catch (error) {
     return failure(c, error)
   }
 })

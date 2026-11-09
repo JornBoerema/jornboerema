@@ -6,7 +6,7 @@ import {
   type SyncPage,
 } from "./provider"
 
-const API = "https://gmail.googleapis.com/gmail/v1/users/me"
+export const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 const PAGE_SIZE = 100
 // Each read costs 5 of the 250 quota units a user gets per second, and answers can
 // take well under 100ms, so more parallel reads than this can exceed the limit.
@@ -50,7 +50,7 @@ function decodeEntities(value: string) {
   })
 }
 
-function parseAddress(value: string | undefined) {
+export function parseAddress(value: string | undefined) {
   if (!value) return { name: null, email: null }
   const match = value.match(/^\s*"?(.*?)"?\s*<([^>]+)>\s*$/)
   return match
@@ -83,7 +83,7 @@ async function readMessage(accessToken: string, id: string) {
   const params = "format=metadata&metadataHeaders=From&metadataHeaders=Subject"
   try {
     return await getJson<GmailMessage>(
-      `${API}/messages/${encodeURIComponent(id)}?${params}`,
+      `${GMAIL_API}/messages/${encodeURIComponent(id)}?${params}`,
       accessToken
     )
   } catch (error) {
@@ -104,7 +104,7 @@ async function backfillPage(
   })
   if (state.pageToken) params.set("pageToken", state.pageToken)
   const list = await getJson<{ messages?: { id: string }[]; nextPageToken?: string }>(
-    `${API}/messages?${params}`,
+    `${GMAIL_API}/messages?${params}`,
     accessToken
   )
   const read = await mapInChunks(list.messages ?? [], READ_CONCURRENCY, ({ id }) =>
@@ -127,7 +127,7 @@ async function historyPage(accessToken: string, state: GmailCursor): Promise<Syn
 
   let history: { history?: HistoryRecord[]; nextPageToken?: string; historyId?: string }
   try {
-    history = await getJson(`${API}/history?${params}`, accessToken)
+    history = await getJson(`${GMAIL_API}/history?${params}`, accessToken)
   } catch (error) {
     if (error instanceof ProviderError && error.status === 404)
       throw new SyncCursorExpiredError("Gmail history is gone")
@@ -176,7 +176,7 @@ export async function syncGmailPage(
       : historyPage(accessToken, state)
   }
   // Taken before listing, so anything that changes during the backfill is replayed after it.
-  const profile = await getJson<{ historyId?: string }>(`${API}/profile`, accessToken)
+  const profile = await getJson<{ historyId?: string }>(`${GMAIL_API}/profile`, accessToken)
   if (!profile.historyId) throw new ProviderError("Gmail profile has no history id")
   return backfillPage(accessToken, { historyId: profile.historyId, backfill: true }, since)
 }

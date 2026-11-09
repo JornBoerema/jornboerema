@@ -3,44 +3,53 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import { Button } from "@evido/ui/components/button"
 import type {
   MailAccountView,
-  MailMessagesPage,
-  MailMessageView,
+  MailThreadsPage,
+  MailThreadView,
 } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { MESSAGES_KEY, type SyncStatus } from "@/lib/mail"
+import { ConversationPage } from "@/pages/conversation"
 
-function MessageRow({
-  message,
+function ThreadRow({
+  thread,
   accountEmail,
+  onOpen,
 }: {
-  message: MailMessageView
+  thread: MailThreadView
   accountEmail: string | undefined
+  onOpen: () => void
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
-  const received = new Date(message.receivedAt).toLocaleString(locale, {
+  const received = new Date(thread.receivedAt).toLocaleString(locale, {
     dateStyle: "short",
     timeStyle: "short",
   })
+  const weight = thread.isRead ? "" : "font-semibold"
   return (
-    <li className="border-b py-3 text-sm">
-      <div className="flex items-baseline justify-between gap-4">
-        <p className={`truncate ${message.isRead ? "" : "font-semibold"}`}>
-          {!message.isRead && <span className="sr-only">{t.unread}: </span>}
-          {message.fromName ?? message.fromEmail ?? t.unknownSender}
+    <li className="border-b text-sm">
+      <button type="button" className="block w-full py-3 text-left" onClick={onOpen}>
+        <div className="flex items-baseline justify-between gap-4">
+          <p className={`truncate ${weight}`}>
+            {!thread.isRead && <span className="sr-only">{t.unread}: </span>}
+            {thread.fromName ?? thread.fromEmail ?? t.unknownSender}
+            {thread.messageCount > 1 && (
+              <span className="font-normal text-muted-foreground"> ({thread.messageCount})</span>
+            )}
+          </p>
+          <time className="shrink-0 text-xs text-muted-foreground" dateTime={thread.receivedAt}>
+            {received}
+          </time>
+        </div>
+        <p className={`truncate ${weight}`}>
+          {thread.isStarred && <span aria-label={t.starred}>★ </span>}
+          {thread.hasAttachments && <span aria-label={t.attachment}>📎 </span>}
+          {thread.subject || t.noSubject}
         </p>
-        <time className="shrink-0 text-xs text-muted-foreground" dateTime={message.receivedAt}>
-          {received}
-        </time>
-      </div>
-      <p className={`truncate ${message.isRead ? "" : "font-semibold"}`}>
-        {message.isStarred && <span aria-label={t.starred}>★ </span>}
-        {message.hasAttachments && <span aria-label={t.attachment}>📎 </span>}
-        {message.subject || t.noSubject}
-      </p>
-      <p className="truncate text-muted-foreground">{message.snippet}</p>
-      <p className="truncate text-xs text-muted-foreground">{accountEmail}</p>
+        <p className="truncate text-muted-foreground">{thread.snippet}</p>
+        <p className="truncate text-xs text-muted-foreground">{accountEmail}</p>
+      </button>
     </li>
   )
 }
@@ -54,6 +63,7 @@ export function InboxPage({
 }) {
   const t = useI18n().t.inbox
   const [accountId, setAccountId] = useState("")
+  const [openId, setOpenId] = useState<string | null>(null)
   const messages = useInfiniteQuery({
     queryKey: [...MESSAGES_KEY, accountId],
     initialPageParam: "",
@@ -61,13 +71,14 @@ export function InboxPage({
       const params = new URLSearchParams()
       if (accountId) params.set("account", accountId)
       if (pageParam) params.set("cursor", pageParam)
-      return api<MailMessagesPage>(`/api/mail/messages?${params}`)
+      return api<MailThreadsPage>(`/api/mail/threads?${params}`)
     },
     getNextPageParam: (page) => page.nextCursor,
   })
-  const rows = messages.data?.pages.flatMap((page) => page.messages) ?? []
+  const rows = messages.data?.pages.flatMap((page) => page.threads) ?? []
   const emailOf = new Map(accounts.map((account) => [account.id, account.email]))
 
+  if (openId) return <ConversationPage id={openId} onBack={() => setOpenId(null)} />
   if (accounts.length === 0) return <p className="text-sm text-muted-foreground">{t.noMailboxes}</p>
 
   return (
@@ -99,8 +110,13 @@ export function InboxPage({
         </p>
       )}
       <ul>
-        {rows.map((message) => (
-          <MessageRow key={message.id} message={message} accountEmail={emailOf.get(message.accountId)} />
+        {rows.map((thread) => (
+          <ThreadRow
+            key={thread.id}
+            thread={thread}
+            accountEmail={emailOf.get(thread.accountId)}
+            onOpen={() => setOpenId(thread.id)}
+          />
         ))}
       </ul>
       {messages.hasNextPage && (
