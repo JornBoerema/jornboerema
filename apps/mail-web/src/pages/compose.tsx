@@ -88,10 +88,10 @@ export function ComposePage({
       </header>
       {/* Relative keeps the file input, which is absolute, inside this scroller. */}
       <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 pt-2 pb-4 md:px-8">
-          <h2 className="mb-3 text-lg font-semibold tracking-tight">{t.title}</h2>
+        <div className="flex min-h-full flex-col pt-2">
+          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight md:px-8">{t.title}</h2>
           <form
-            className="flex min-h-96 flex-1 flex-col overflow-hidden rounded-2xl border bg-background shadow-sm"
+            className="flex flex-1 flex-col md:px-4"
             onKeyDown={(event) => {
               if (event.key === "Escape" && !hasDraft) onClose()
               sendOnModEnter(event)
@@ -101,7 +101,7 @@ export function ComposePage({
               submit()
             }}
           >
-            <div className="pt-1">
+            <div className="shrink-0">
               {usable.length > 1 && (
                 <MessageRow label={t.from}>
                   <AccountDot color={usable.find((account) => account.id === accountId)?.color ?? 0} />
@@ -153,13 +153,19 @@ export function ComposePage({
                 <MessageInput value={subject} onChange={(event) => setSubject(event.target.value)} />
               </MessageRow>
             </div>
-            <MessageText aria-label={t.body} value={text} onChange={(event) => setText(event.target.value)} />
-            <footer className="flex shrink-0 items-center justify-between gap-3 p-2">
+            <MessageText
+              aria-label={t.body}
+              placeholder={t.body}
+              className="min-h-40"
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+            />
+            <div className="sticky bottom-4 z-10 mx-4 mb-4 flex min-h-14 shrink-0 items-center justify-between gap-3 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
               <AttachmentPicker files={files} onChange={setFiles} />
               <Button type="submit" disabled={send.isPending || !accountId} title={`${t.send} (⌘↵)`}>
                 {t.send}
               </Button>
-            </footer>
+            </div>
           </form>
         </div>
       </div>
