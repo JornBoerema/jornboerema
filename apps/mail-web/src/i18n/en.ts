@@ -19,6 +19,7 @@ export const en = {
     close: "Close",
     mailboxes: "Mailboxes",
     appearance: "Appearance",
+    privacy: "Privacy",
     menu: "Menu",
     signOut: "Sign out",
   },
@@ -33,6 +34,12 @@ export const en = {
     language: "Language",
     languageHelp: "Used throughout this app.",
     automatic: "Automatic",
+  },
+  privacy: {
+    images: "Images in email",
+    deviceOnly: "Saved on this device.",
+    alwaysShow: "Always show images",
+    alwaysShowHelp: "Senders can then see when you open a mail, and your IP address.",
   },
   inbox: {
     title: "Inbox",

@@ -29,6 +29,7 @@ import { api, apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
 import { useHotkeys } from "@/lib/hotkeys"
 import { useThreadAction } from "@/lib/mail"
+import { useAlwaysShowImages } from "@/lib/preferences"
 
 /** Long enough that walking past a mail with j/k leaves it unread. */
 const MARK_READ_DELAY_MS = 1200
@@ -317,7 +318,9 @@ export function ConversationPage({
 }) {
   const t = useI18n().t.conversation
   const id = summary.id
-  const [allowImages, setAllowImages] = useState(false)
+  const alwaysShowImages = useAlwaysShowImages()
+  const [showImagesOnce, setShowImagesOnce] = useState(false)
+  const allowImages = alwaysShowImages || showImagesOnce
   const [replyMode, setReplyMode] = useState<"reply" | "all" | "forward" | null>(null)
   const { mutate: runAction } = useThreadAction()
   const thread = useQuery({
@@ -390,7 +393,7 @@ export function ConversationPage({
           {blockedImages && (
             <div className="mt-3 flex items-center justify-between gap-4 rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
               <p>{t.imagesBlocked}</p>
-              <Button size="xs" variant="ghost" className="text-foreground" onClick={() => setAllowImages(true)}>
+              <Button size="xs" variant="ghost" className="text-foreground" onClick={() => setShowImagesOnce(true)}>
                 {t.showImages}
               </Button>
             </div>

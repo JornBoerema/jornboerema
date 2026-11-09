@@ -21,6 +21,7 @@ export const nl: typeof en = {
     close: "Sluiten",
     mailboxes: "Mailboxen",
     appearance: "Weergave",
+    privacy: "Privacy",
     menu: "Menu",
     signOut: "Uitloggen",
   },
@@ -35,6 +36,12 @@ export const nl: typeof en = {
     language: "Taal",
     languageHelp: "Geldt voor deze hele app.",
     automatic: "Automatisch",
+  },
+  privacy: {
+    images: "Afbeeldingen in e-mails",
+    deviceOnly: "Opgeslagen op dit apparaat.",
+    alwaysShow: "Afbeeldingen altijd tonen",
+    alwaysShowHelp: "Afzenders kunnen dan zien wanneer je een mail opent, en je IP-adres.",
   },
   inbox: {
     title: "Inbox",

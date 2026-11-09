@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Mail01Icon, PaintBoardIcon } from "@hugeicons/core-free-icons"
+import { Mail01Icon, PaintBoardIcon, SecurityCheckIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
 import type { LanguagePreference } from "@evido/i18n/react"
@@ -12,8 +12,10 @@ import {
   SelectValue,
 } from "@evido/ui/components/select"
 import { SettingsDialog, SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
+import { Switch } from "@evido/ui/components/switch"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import { useI18n } from "@/i18n"
+import { setAlwaysShowImages, useAlwaysShowImages } from "@/lib/preferences"
 import { AccountsPage } from "@/pages/accounts"
 
 function AppearanceSettings() {
@@ -57,6 +59,18 @@ function AppearanceSettings() {
   )
 }
 
+function PrivacySettings() {
+  const t = useI18n().t.privacy
+  const alwaysShow = useAlwaysShowImages()
+  return (
+    <SettingsSection title={t.images} description={t.deviceOnly}>
+      <SettingsRow title={t.alwaysShow} htmlFor="always-show-images" description={t.alwaysShowHelp}>
+        <Switch id="always-show-images" checked={alwaysShow} onCheckedChange={setAlwaysShowImages} />
+      </SettingsRow>
+    </SettingsSection>
+  )
+}
+
 export function MailSettings({
   open,
   onOpenChange,
@@ -77,6 +91,11 @@ export function MailSettings({
       label: t.appearance,
       icon: <HugeiconsIcon icon={PaintBoardIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
+    {
+      id: "privacy",
+      label: t.privacy,
+      icon: <HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.75} aria-hidden="true" />,
+    },
   ]
   return (
     <SettingsDialog
@@ -93,7 +112,9 @@ export function MailSettings({
         close: t.close,
       }}
     >
-      {page === "mailboxes" ? <AccountsPage /> : <AppearanceSettings />}
+      {page === "mailboxes" && <AccountsPage />}
+      {page === "appearance" && <AppearanceSettings />}
+      {page === "privacy" && <PrivacySettings />}
     </SettingsDialog>
   )
 }
