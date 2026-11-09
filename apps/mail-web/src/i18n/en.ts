@@ -1,13 +1,9 @@
+import { auth } from "./auth.en"
+
 export const en = {
-  login: {
-    title: "Sign in",
-    hint: "Use your Evido account.",
-    email: "Email",
-    password: "Password",
-    submit: "Sign in",
-    failed: "Signing in failed.",
-  },
+  auth,
   shell: {
+    noConnection: "There is no connection. Please try again.",
     sidebar: "Navigation",
     account: (email: string) => `Account menu for ${email}`,
     expand: "Expand sidebar",

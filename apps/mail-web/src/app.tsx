@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router"
 import { Toaster } from "@evido/ui/components/sonner"
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
@@ -11,7 +12,8 @@ import { I18nProvider } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
 import { InboxPage } from "@/pages/inbox"
-import { LoginPage } from "@/pages/login"
+import { AuthPage } from "@/pages/auth"
+import { AuthLayout } from "@/pages/auth-layout"
 
 /** A provider redirect lands here with its result, which the settings report. */
 const returnedFromProvider = () => Boolean(window.location.search)
@@ -85,8 +87,13 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
 
 function Root() {
   const { data, isPending } = authClient.useSession()
+  const location = useLocation()
   if (isPending) return null
-  return data ? <MailApp user={data.user} /> : <LoginPage />
+  if (data) return <MailApp user={data.user} />
+  // Better Auth reports a failed verification link here; "session" is a mailbox connect error.
+  const error = new URLSearchParams(location.search).get("error")
+  const verificationFailed = error && error !== "session"
+  return <Navigate replace to={verificationFailed ? `/login?error=${encodeURIComponent(error)}` : "/login"} />
 }
 
 export function App() {
@@ -97,7 +104,18 @@ export function App() {
     <ThemeProvider>
       <I18nProvider>
         <QueryClientProvider client={client}>
-          <Root />
+          <BrowserRouter>
+            <Routes>
+              <Route index element={<Root />} />
+              <Route element={<AuthLayout />}>
+                <Route path="login" element={<AuthPage mode="login" />} />
+                <Route path="signup" element={<AuthPage mode="register" />} />
+                <Route path="forgot-password" element={<AuthPage mode="forgot" />} />
+                <Route path="reset-password" element={<AuthPage mode="reset" />} />
+              </Route>
+              <Route path="*" element={<Navigate replace to="/" />} />
+            </Routes>
+          </BrowserRouter>
           <Toaster position="bottom-right" closeButton />
         </QueryClientProvider>
       </I18nProvider>

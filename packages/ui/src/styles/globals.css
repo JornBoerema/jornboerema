@@ -9,6 +9,7 @@
 @source "../**/*.{ts,tsx}";
 /* Tailwind only emits theme variables it sees used, and this file is plain CSS. */
 @source "./sidebar.css";
+@source "./auth.css";
 
 @theme inline {
     --font-heading: var(--font-sans);

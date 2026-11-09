@@ -1,24 +1,63 @@
-import { Link } from "react-router";
-import { useNavigate, useSearchParams } from "react-router";
-import { useState } from "react";
-import { useI18n } from "@/i18n";
-import { ArrowLeft, ArrowRight, LoaderCircle, Mail } from "@/components/icons";
-import { invitationReturnTo } from "@evido/todo-core/sharing";
-import { authClient } from "@/lib/auth-client";
-import { webUrl } from "@/lib/api";
-import { Button } from "@evido/ui/components/button";
-import { Input } from "@evido/ui/components/input";
-import { Checkbox } from "@evido/ui/components/checkbox";
+import { useState, type FormEvent } from "react"
+import { Link, useNavigate, useSearchParams } from "react-router"
 import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldDescription,
-} from "@evido/ui/components/field";
-import { Alert, AlertTitle, AlertDescription } from "@evido/ui/components/alert";
+  ArrowLeft02Icon,
+  ArrowRight02Icon,
+  Loading03Icon,
+  Mail01Icon,
+} from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import type { EvidoAuthClient } from "@evido/auth/client"
+import { Alert, AlertDescription, AlertTitle } from "@evido/ui/components/alert"
+import { Button } from "@evido/ui/components/button"
+import { Checkbox } from "@evido/ui/components/checkbox"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@evido/ui/components/field"
+import { Input } from "@evido/ui/components/input"
 
-type Mode = "login" | "register" | "forgot" | "reset";
-type AuthTexts = ReturnType<typeof useI18n>["t"]["auth"];
+export type AuthMode = "login" | "register" | "forgot" | "reset";
+
+type FormCopy = { title: string; description: string; action: string };
+
+/** Every app words its own pages; the form only needs these keys. */
+export type AuthTexts = Record<AuthMode, FormCopy> & {
+  noConnection: string;
+  errors: {
+    invalidCredentials: string;
+    emailNotVerified: string;
+    tooManyRequests: string;
+    invalidToken: string;
+    passwordTooShort: string;
+    generic: string;
+    passwordMismatch: string;
+  };
+  sent: { title: string; register: string; forgot: string; spam: string };
+  passwordChanged: { title: string; description: string };
+  verificationExpired: { title: string; description: string };
+  invalidReset: { title: string; action: string };
+  fields: {
+    name: string;
+    namePlaceholder: string;
+    email: string;
+    emailPlaceholder: string;
+    password: string;
+    forgot: string;
+    passwordHint: string;
+    remember: string;
+    confirm: string;
+  };
+  switch: {
+    noAccount: string;
+    createAccount: string;
+    haveAccount: string;
+    signIn: string;
+    backToSignIn: string;
+  };
+};
+
+const webUrl = (path: string) => new URL(path, window.location.origin).toString();
+
+const ICON = { strokeWidth: 2, "aria-hidden": true } as const;
+
 function errorMessage(t: AuthTexts, code?: string) {
   if (code === "INVALID_EMAIL_OR_PASSWORD") return t.errors.invalidCredentials;
   if (code === "EMAIL_NOT_VERIFIED") return t.errors.emailNotVerified;
@@ -27,13 +66,22 @@ function errorMessage(t: AuthTexts, code?: string) {
   if (code === "PASSWORD_TOO_SHORT") return t.errors.passwordTooShort;
   return t.errors.generic;
 }
-export function AuthForm({ mode }: { mode: Mode }) {
-  const { t: all } = useI18n();
-  const t = all.auth;
+/** Sign-in, sign-up and password recovery, shared by the Evido web apps. */
+export function AuthForm({
+  mode,
+  client: authClient,
+  texts: t,
+  returnTo = "/",
+}: {
+  mode: AuthMode;
+  client: EvidoAuthClient;
+  texts: AuthTexts;
+  /** An internal path to continue to after signing in. */
+  returnTo?: string;
+}) {
   const copy = t;
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const returnTo = invitationReturnTo(params.get("returnTo"));
   const authHref = (path: string) =>
     returnTo === "/"
       ? path
@@ -43,7 +91,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [sent, setSent] = useState(false);
   const token = params.get("token");
   const invalidReset = mode === "reset" && (!token || !!params.get("error"));
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
     setError("");
@@ -99,7 +147,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         navigate(mode === "reset" ? authHref("/login?passwordReset=1") : returnTo);
       }
     } catch {
-      setError(all.common.noConnection);
+      setError(t.noConnection);
     } finally {
       setPending(false);
     }
@@ -107,7 +155,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   if (sent)
     return (
       <section className="auth-form">
-        <Mail className="size-7 text-primary" aria-hidden="true" />
+        <HugeiconsIcon icon={Mail01Icon} {...ICON} className="size-7 text-primary" />
         <h1>{t.sent.title}</h1>
         <p className="text-muted-foreground">
           {mode === "register" ? t.sent.register : t.sent.forgot}
@@ -117,7 +165,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </p>
         <Button asChild variant="outline">
           <Link to={authHref("/login")}>
-            <ArrowLeft data-icon="inline-start" />
+            <HugeiconsIcon icon={ArrowLeft02Icon} {...ICON} data-icon="inline-start" />
             {t.switch.backToSignIn}
           </Link>
         </Button>
@@ -243,10 +291,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
           )}
           <Button type="submit" disabled={pending}>
             {pending ? (
-              <LoaderCircle className="animate-spin" data-icon="inline-start" />
+              <HugeiconsIcon icon={Loading03Icon} {...ICON} className="animate-spin" data-icon="inline-start" />
             ) : null}
             {copy[mode].action}
-            {!pending && <ArrowRight data-icon="inline-end" />}
+            {!pending && <HugeiconsIcon icon={ArrowRight02Icon} {...ICON} data-icon="inline-end" />}
           </Button>
         </form>
       )}

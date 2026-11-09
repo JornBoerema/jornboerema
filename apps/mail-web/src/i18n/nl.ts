@@ -1,15 +1,10 @@
+import { auth } from "./auth.nl"
 import type { en } from "./en"
 
 export const nl: typeof en = {
-  login: {
-    title: "Inloggen",
-    hint: "Gebruik je Evido-account.",
-    email: "E-mail",
-    password: "Wachtwoord",
-    submit: "Inloggen",
-    failed: "Inloggen is niet gelukt.",
-  },
+  auth,
   shell: {
+    noConnection: "Er is geen verbinding. Probeer het opnieuw.",
     sidebar: "Navigatie",
     account: (email: string) => `Accountmenu van ${email}`,
     expand: "Sidebar uitklappen",
