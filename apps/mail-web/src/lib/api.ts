@@ -10,7 +10,8 @@ export class ApiError extends Error {
   }
 }
 
-/** JSON request against the Evido API with the shared session cookie. */
+export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
 /** For binary answers, such as attachments. */
 export async function apiBlob(path: string, init?: RequestInit): Promise<Blob> {
   const response = await fetch(`${API_URL}${path}`, {
@@ -22,6 +23,7 @@ export async function apiBlob(path: string, init?: RequestInit): Promise<Blob> {
   return response.blob()
 }
 
+/** JSON request against the Evido API with the shared session cookie. */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
   headers.set("Accept-Language", currentLanguage())

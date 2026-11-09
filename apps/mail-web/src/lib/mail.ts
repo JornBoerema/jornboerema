@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query"
 import { Realtime } from "ably"
-import type { MailAccountView, MailSyncResult } from "@evido/mail-core/types"
-import { api, ApiError } from "@/lib/api"
+import { toast } from "sonner"
+import type {
+  MailAccountView,
+  MailSyncResult,
+  MailThreadAction,
+  MailThreadsPage,
+  MailThreadView,
+} from "@evido/mail-core/types"
+import { api, ApiError, errorText } from "@/lib/api"
 
 export const ACCOUNTS_KEY = ["mail-accounts"]
 export const MESSAGES_KEY = ["mail-messages"]
+const ACTION_KEY = ["mail-thread-action"]
 
 /** Only a safety net: new mail normally arrives through webhooks and a realtime signal. */
 const SYNC_INTERVAL_MS = 5 * 60 * 1000
@@ -17,6 +30,47 @@ export function useAccounts() {
   return useQuery({
     queryKey: ACCOUNTS_KEY,
     queryFn: () => api<{ accounts: MailAccountView[] }>("/api/mail/accounts"),
+  })
+}
+
+function applyAction(threads: MailThreadView[], id: string, action: MailThreadAction) {
+  if (action === "archive" || action === "trash") return threads.filter((thread) => thread.id !== id)
+  return threads.map((thread) =>
+    thread.id === id ? { ...thread, isRead: action === "read" } : thread
+  )
+}
+
+/** Updates the list at once; a refusal from the provider puts the real state back. */
+export function useThreadAction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ACTION_KEY,
+    mutationFn: ({ id, action }: { id: string; action: MailThreadAction }) =>
+      api(`/api/mail/threads/${encodeURIComponent(id)}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      }),
+    onMutate: async ({ id, action }) => {
+      await queryClient.cancelQueries({ queryKey: MESSAGES_KEY })
+      queryClient.setQueriesData<InfiniteData<MailThreadsPage>>(
+        { queryKey: MESSAGES_KEY },
+        (data) =>
+          data && {
+            ...data,
+            pages: data.pages.map((page) => ({
+              ...page,
+              threads: applyAction(page.threads, id, action),
+            })),
+          }
+      )
+    },
+    onError: (error) => toast.error(errorText(error)),
+    onSettled: () => {
+      // A refetch while another action runs would briefly bring its thread back.
+      if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 1)
+        void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+    },
   })
 }
 

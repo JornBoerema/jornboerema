@@ -1,4 +1,6 @@
 import { toast } from "sonner"
+import { Attachment01Icon, Cancel01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { MAX_UPLOAD_BYTES, type MailAttachmentUpload } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
@@ -45,37 +47,46 @@ export function AttachmentPicker({
   }
 
   return (
-    <div className="flex flex-col gap-1 text-xs">
-      <label className="w-fit cursor-pointer underline underline-offset-2">
-        {t.attach} (max {LIMIT_LABEL})
-        <input
-          type="file"
-          multiple
-          className="sr-only"
-          onChange={(event) => {
-            void add(Array.from(event.target.files ?? []))
-            event.target.value = ""
-          }}
-        />
-      </label>
-      {files.length > 0 && (
-        <ul className="text-muted-foreground">
-          {files.map((file, index) => (
-            <li key={`${file.name}-${index}`} className="flex items-center gap-2">
-              <span className="truncate">{file.name}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                aria-label={t.removeFile(file.name)}
-                onClick={() => onChange(files.filter((_, position) => position !== index))}
-              >
-                ×
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs">
+      <Button
+        asChild
+        variant="ghost"
+        size="icon-sm"
+        className="has-focus-visible:ring-3 has-focus-visible:ring-ring/30"
+      >
+        <label title={`${t.attach} (max ${LIMIT_LABEL})`}>
+          <HugeiconsIcon icon={Attachment01Icon} strokeWidth={1.75} aria-hidden="true" />
+          <span className="sr-only">
+            {t.attach} (max {LIMIT_LABEL})
+          </span>
+          <input
+            type="file"
+            multiple
+            className="sr-only"
+            onChange={(event) => {
+              void add(Array.from(event.target.files ?? []))
+              event.target.value = ""
+            }}
+          />
+        </label>
+      </Button>
+      {files.map((file, index) => (
+        <span
+          key={`${file.name}-${index}`}
+          className="flex max-w-48 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-muted-foreground"
+        >
+          <span className="truncate">{file.name}</span>
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            aria-label={t.removeFile(file.name)}
+            onClick={() => onChange(files.filter((_, position) => position !== index))}
+          >
+            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
+          </Button>
+        </span>
+      ))}
     </div>
   )
 }

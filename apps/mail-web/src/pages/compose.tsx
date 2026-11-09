@@ -1,7 +1,10 @@
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { Cancel01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
+import { Dialog, DialogContent, DialogTitle } from "@evido/ui/components/dialog"
 import type {
   MailAccountView,
   MailAddress,
@@ -9,13 +12,13 @@ import type {
   MailOutgoing,
 } from "@evido/mail-core/types"
 import { AttachmentPicker } from "@/components/attachment-picker"
+import { MessageInput, MessageRow, MessageText } from "@/components/message-field"
 import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
-import { api } from "@/lib/api"
+import { api, errorText } from "@/lib/api"
+import { sendOnModEnter } from "@/lib/hotkeys"
 
-const FIELD = "rounded-md border bg-background px-2 py-1"
-
-export function ComposePage({
+export function ComposeDialog({
   accounts,
   onClose,
 }: {
@@ -28,9 +31,11 @@ export function ComposePage({
   const [to, setTo] = useState("")
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
+  const [copies, setCopies] = useState(false)
   const [subject, setSubject] = useState("")
   const [text, setText] = useState("")
   const [files, setFiles] = useState<MailAttachmentUpload[]>([])
+  const hasDraft = Boolean(to || cc || bcc || subject || text || files.length)
 
   const send = useMutation({
     mutationFn: (message: MailOutgoing) =>
@@ -43,10 +48,11 @@ export function ComposePage({
       toast.success(t.sent)
       onClose()
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : String(error)),
+    onError: (error) => toast.error(errorText(error)),
   })
 
   function submit() {
+    if (send.isPending || !accountId) return
     const parsed = [to, cc, bcc].map(parseAddresses)
     const invalid = parsed.find((item) => item.invalid)?.invalid
     if (invalid) return toast.error(t.invalid(invalid))
@@ -59,54 +65,90 @@ export function ComposePage({
     send.mutate({ to: toList, cc: ccList, bcc: bccList, subject, text, attachments: files })
   }
 
-  const field = (name: string, value: string, set: (value: string) => void) => (
-    <label className="flex flex-col gap-1">
-      {name}
-      <input className={FIELD} value={value} onChange={(event) => set(event.target.value)} />
-    </label>
-  )
-
   return (
-    <form
-      className="flex flex-col gap-3 text-sm"
-      onSubmit={(event) => {
-        event.preventDefault()
-        submit()
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose()
       }}
     >
-      <h2 className="text-lg font-semibold">{t.title}</h2>
-      <label className="flex flex-col gap-1">
-        {t.from}
-        <select className={FIELD} value={accountId} onChange={(event) => setAccountId(event.target.value)}>
-          {usable.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.email}
-            </option>
-          ))}
-        </select>
-      </label>
-      {field(t.to, to, setTo)}
-      <p className="text-xs text-muted-foreground">{t.hint}</p>
-      {field(t.cc, cc, setCc)}
-      {field(t.bcc, bcc, setBcc)}
-      {field(t.subject, subject, setSubject)}
-      <label className="flex flex-col gap-1">
-        {t.body}
-        <textarea
-          className={`${FIELD} min-h-48`}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-        />
-      </label>
-      <AttachmentPicker files={files} onChange={setFiles} />
-      <div className="flex gap-2">
-        <Button type="submit" disabled={send.isPending || !accountId}>
-          {t.send}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClose}>
-          {t.cancel}
-        </Button>
-      </div>
-    </form>
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="flex h-[min(640px,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        // A stray click or Escape shouldn't throw away what was written.
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => {
+          if (hasDraft) event.preventDefault()
+        }}
+      >
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onKeyDown={sendOnModEnter}
+          onSubmit={(event) => {
+            event.preventDefault()
+            submit()
+          }}
+        >
+          <header className="flex h-12 shrink-0 items-center justify-between border-b pr-2 pl-4">
+            <DialogTitle className="text-sm font-medium">{t.title}</DialogTitle>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label={t.close} onClick={onClose}>
+              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
+            </Button>
+          </header>
+          {usable.length > 1 && (
+            <MessageRow label={t.from}>
+              <select
+                className="-ml-1 h-10 min-w-0 flex-1 bg-transparent outline-none"
+                value={accountId}
+                onChange={(event) => setAccountId(event.target.value)}
+              >
+                {usable.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.email}
+                  </option>
+                ))}
+              </select>
+            </MessageRow>
+          )}
+          <MessageRow
+            label={t.to}
+            action={
+              !copies && (
+                <button
+                  type="button"
+                  className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => setCopies(true)}
+                >
+                  {t.cc} / {t.bcc}
+                </button>
+              )
+            }
+          >
+            <MessageInput autoFocus placeholder={t.hint} value={to} onChange={(event) => setTo(event.target.value)} />
+          </MessageRow>
+          {copies && (
+            <>
+              <MessageRow label={t.cc}>
+                <MessageInput value={cc} onChange={(event) => setCc(event.target.value)} />
+              </MessageRow>
+              <MessageRow label={t.bcc}>
+                <MessageInput value={bcc} onChange={(event) => setBcc(event.target.value)} />
+              </MessageRow>
+            </>
+          )}
+          <MessageRow label={t.subject}>
+            <MessageInput value={subject} onChange={(event) => setSubject(event.target.value)} />
+          </MessageRow>
+          <MessageText aria-label={t.body} value={text} onChange={(event) => setText(event.target.value)} />
+          <footer className="flex shrink-0 items-center justify-between gap-3 border-t p-2">
+            <AttachmentPicker files={files} onChange={setFiles} />
+            <Button type="submit" disabled={send.isPending || !accountId} title={`${t.send} (⌘↵)`}>
+              {t.send}
+            </Button>
+          </footer>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

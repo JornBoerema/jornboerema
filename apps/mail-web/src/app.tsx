@@ -1,52 +1,48 @@
 import { useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Button } from "@evido/ui/components/button"
 import { Toaster } from "@evido/ui/components/sonner"
 import { ThemeProvider } from "@evido/ui/lib/theme"
-import { I18nProvider, useI18n } from "@/i18n"
+import { MailSettings } from "@/components/mail-settings"
+import { Sidebar, type MailNavigation } from "@/components/sidebar"
+import { I18nProvider } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
-import { AccountsPage } from "@/pages/accounts"
+import { ComposeDialog } from "@/pages/compose"
 import { InboxPage } from "@/pages/inbox"
 import { LoginPage } from "@/pages/login"
 
-/** A provider redirect lands here with its result, which the mailboxes view reports. */
-const initialView = () => (window.location.search ? "mailboxes" : "inbox")
+/** A provider redirect lands here with its result, which the settings report. */
+const returnedFromProvider = () => Boolean(window.location.search)
 
 function MailApp({ userId, email }: { userId: string; email: string }) {
-  const t = useI18n().t.shell
-  const [view, setView] = useState<"inbox" | "mailboxes">(initialView)
   const accounts = useAccounts()
+  const list = accounts.data?.accounts ?? []
   const syncStatus = useMailSync(accounts.data?.accounts)
   useMailRealtime(userId)
+  const [filter, setFilter] = useState("")
+  const [composing, setComposing] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
+  const hasActive = list.some((account) => account.status === "active")
+
+  const navigation: MailNavigation = {
+    accounts: list,
+    // A disconnected mailbox can't stay selected.
+    accountId: list.some((account) => account.id === filter) ? filter : "",
+    email,
+    onSelectAccount: setFilter,
+    onCompose: () => {
+      if (hasActive) setComposing(true)
+    },
+    onSettings: () => setSettingsOpen(true),
+  }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8">
-      <header className="flex items-center justify-between gap-4">
-        <nav className="flex gap-1">
-          <Button variant={view === "inbox" ? "secondary" : "ghost"} onClick={() => setView("inbox")}>
-            {t.inbox}
-          </Button>
-          <Button
-            variant={view === "mailboxes" ? "secondary" : "ghost"}
-            onClick={() => setView("mailboxes")}
-          >
-            {t.mailboxes}
-          </Button>
-        </nav>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          {email}
-          <Button size="sm" variant="ghost" onClick={() => void authClient.signOut()}>
-            {t.signOut}
-          </Button>
-        </div>
-      </header>
-      {view === "inbox" ? (
-        <InboxPage accounts={accounts.data?.accounts ?? []} syncStatus={syncStatus} />
-      ) : (
-        <AccountsPage />
-      )}
-    </main>
+    <div className="flex h-dvh overflow-hidden">
+      <Sidebar {...navigation} />
+      <InboxPage navigation={navigation} syncStatus={syncStatus} loadingAccounts={accounts.isPending} />
+      {composing && <ComposeDialog accounts={list} onClose={() => setComposing(false)} />}
+      <MailSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </div>
   )
 }
 
