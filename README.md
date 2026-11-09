@@ -38,8 +38,9 @@ pnpm dev:todo                              # API op :4000, web op :3000
 
 | Variabele | Waarvoor |
 | --- | --- |
-| `DATABASE_URL` | Neon **pooled** connection string (`-pooler` host, `sslmode=require`) |
-| `DATABASE_URL_UNPOOLED` | Neon **directe** connection string, voor migraties |
+| `DATABASE_URL` | Neon-branch `dev`, **pooled** (`-pooler` host, `sslmode=require`) |
+| `DATABASE_URL_UNPOOLED` | Neon-branch `dev`, **direct**, voor migraties |
+| `PROD_DATABASE_URL_UNPOOLED` | Neon-branch `production`, direct. Alleen voor `pnpm db:deploy:prod` |
 | `BETTER_AUTH_URL` | Publieke origin van de API, lokaal `http://localhost:4000` |
 | `BETTER_AUTH_SECRET` | `openssl rand -hex 32` |
 | `TRUSTED_ORIGINS` | Web-apps die de API met cookies mogen aanroepen (komma-gescheiden) |
@@ -98,10 +99,13 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 ## Database
 
 ```bash
-pnpm db:migrate     # schema gewijzigd → nieuwe migratie maken (dev)
-pnpm db:deploy      # migraties toepassen (Neon/productie)
+pnpm db:migrate       # schema gewijzigd → nieuwe migratie maken (dev-branch)
+pnpm db:deploy        # migraties toepassen op de dev-branch
+pnpm db:deploy:prod   # migraties toepassen op productie
 pnpm db:studio
 ```
+
+Lokaal werken alle apps op de Neon-branch `dev`, een kopie van `production`. De branch bevat echte accounts en mailtokens: acties op een gekoppelde mailbox vanuit de lokale app raken dus nog steeds die echte mailbox. Terugzetten naar de huidige productiestand kan in de Neon-console met *Reset from parent*.
 
 Tabel- en kolomnamen zijn gelijk aan de oude "Even doen"-app, dus bestaande data kan met `pg_dump --data-only` worden overgezet.
 
@@ -152,7 +156,7 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `VITE_API_URL` | `https://api.jornboerema.nl` |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` |
 
-Database-migraties draaien niet tijdens de build. Voer ze lokaal uit tegen de productiedatabase vóór je deployt: `pnpm db:deploy` (met de directe URL in `DATABASE_URL_UNPOOLED`).
+Database-migraties draaien niet tijdens de build. Voer ze uit vóór je deployt: `pnpm db:deploy:prod` (gebruikt `PROD_DATABASE_URL_UNPOOLED`).
 
 Gebruik voor productie een eigen database of Neon-branch. Better Auth versleutelt zijn signeersleutels met `BETTER_AUTH_SECRET`; een database delen met een ander geheim geeft fouten. Preview-deployments op `*.vercel.app` kunnen niet inloggen, omdat de cookie aan het eigen domein gebonden is.
 

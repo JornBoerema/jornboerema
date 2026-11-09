@@ -14,6 +14,7 @@
     "db:generate": "pnpm --filter @evido/db db:generate",
     "db:migrate": "pnpm --filter @evido/db db:migrate",
     "db:deploy": "pnpm --filter @evido/db db:deploy",
+    "db:deploy:prod": "pnpm --filter @evido/db db:deploy:prod",
     "db:studio": "pnpm --filter @evido/db db:studio",
     "dev:capture": "pnpm --filter @evido/capture-desktop app"
   },

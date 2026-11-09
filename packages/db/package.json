@@ -8,6 +8,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:deploy:prod": "DB_TARGET=production prisma migrate deploy",
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
