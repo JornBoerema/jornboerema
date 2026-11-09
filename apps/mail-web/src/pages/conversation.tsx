@@ -250,12 +250,12 @@ function Message({
   })
 
   return (
-    <article className="flex flex-col gap-3 border-b py-4 text-sm last-of-type:border-b-0">
+    <article className="flex flex-col gap-3 py-1.5 text-sm">
       <button
         type="button"
         aria-expanded={expanded}
         disabled={latest}
-        className="flex items-baseline justify-between gap-4 text-left"
+        className="-mx-2.5 flex items-baseline justify-between gap-4 rounded-lg px-2.5 py-1.5 text-left transition-colors enabled:hover:bg-accent/60"
         onClick={() => setExpanded(!expanded)}
       >
         <span className="min-w-0 truncate">
@@ -274,7 +274,7 @@ function Message({
       {expanded && (
         <>
           {message.to.length + message.cc.length > 0 && (
-            <p className="-mt-2 truncate text-xs text-muted-foreground">
+            <p className="-mt-3 truncate text-xs text-muted-foreground">
               {message.to.length > 0 && `${t.to}: ${message.to.map(label).join(", ")}`}
               {message.cc.length > 0 && ` · ${t.cc}: ${message.cc.map(label).join(", ")}`}
             </p>
@@ -367,7 +367,7 @@ export function ConversationPage({
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-0.5 border-b px-2">
+      <header className="flex h-10 shrink-0 items-center gap-0.5 px-2">
         <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label={t.back} onClick={onBack}>
           <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.75} aria-hidden="true" />
         </Button>
@@ -380,8 +380,8 @@ export function ConversationPage({
 
       {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
       <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 pt-6 md:px-8">
-          <h2 className="text-lg font-semibold tracking-tight break-words">
+        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 pt-2 md:px-8">
+          <h2 className="mb-2 text-lg font-semibold tracking-tight break-words">
             {messages[0]?.subject || summary.subject}
           </h2>
           {thread.isPending && (
@@ -422,7 +422,7 @@ export function ConversationPage({
                   onClose={() => setReplyMode(null)}
                 />
               ) : (
-                <div className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-card/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
+                <div className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
                   <p className="hidden min-w-0 truncate @2xl:block">
                     <span className="text-muted-foreground">{t.messageCount(messages.length)} · </span>
                     <span className="font-medium">{accountEmail}</span>

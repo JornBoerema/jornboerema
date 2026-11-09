@@ -17,18 +17,21 @@
   height: 100dvh;
   overflow: hidden;
 }
+.list-sidebar,
+.floating-panel {
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 1px var(--sidebar-border), 0 1px 3px color-mix(in oklch, var(--foreground) 10%, transparent);
+  background: var(--sidebar);
+}
 .list-sidebar {
   width: 248px;
   margin: 8px;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 0 0 1px var(--sidebar-border), 0 1px 3px color-mix(in oklch, var(--foreground) 10%, transparent);
   position: relative;
   transition: transform 220ms ease, opacity 180ms ease, visibility 0s;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 22px 16px 16px;
-  background: var(--sidebar);
   min-height: 0;
   overflow: hidden;
 }

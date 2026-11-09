@@ -121,7 +121,7 @@ function ThreadRow({
 
 function ListSkeleton() {
   return (
-    <div aria-hidden="true" className="p-2">
+    <div aria-hidden="true" className="px-2 pb-2">
       {Array.from({ length: 10 }, (_, index) => (
         <div key={index} className="flex flex-col gap-2 px-2.5 py-3">
           <Skeleton className="h-3.5 w-2/5" />
@@ -208,14 +208,14 @@ export function InboxPage({
     <>
       <section
         className={cn(
-          "min-h-0 w-full shrink-0 flex-col border-r md:w-80 xl:w-96",
+          "min-h-0 w-full shrink-0 flex-col md:w-80 xl:w-96",
           open ? "hidden md:flex" : "flex"
         )}
       >
         <header
           className={cn(
-            "flex h-12 shrink-0 items-center gap-1.5 border-b pr-2 pl-2",
-            !navigation.sidebar.collapsed && "lg:pl-4"
+            "flex h-14 shrink-0 items-center gap-1.5 pr-2 pl-2",
+            !navigation.sidebar.collapsed && "lg:pl-4.5"
           )}
         >
           <MailMenu {...navigation} />
@@ -267,7 +267,7 @@ export function InboxPage({
                   {syncStatus === "syncing" ? t.firstSync : t.empty}
                 </p>
               )}
-              <ul className="flex flex-col gap-0.5 p-2">
+              <ul className="flex flex-col gap-0.5 px-2 pb-2">
                 {rows.map((thread) => (
                   <ThreadRow
                     key={thread.id}
@@ -289,7 +289,12 @@ export function InboxPage({
         </div>
       </section>
 
-      <section className={cn("min-h-0 min-w-0 flex-1 flex-col", open ? "flex" : "hidden md:flex")}>
+      <section
+        className={cn(
+          "floating-panel min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:rounded-none! max-md:shadow-none! md:m-2 md:ml-0",
+          open ? "flex" : "hidden md:flex"
+        )}
+      >
         {open ? (
           <ConversationPage
             key={open.id}
