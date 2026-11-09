@@ -11,6 +11,7 @@ import type {
   MailAttachmentUpload,
   MailOutgoing,
 } from "@evido/mail-core/types"
+import { AccountDot } from "@/components/account-dot"
 import { AttachmentPicker } from "@/components/attachment-picker"
 import { MessageInput, MessageRow, MessageText } from "@/components/message-field"
 import { useI18n } from "@/i18n"
@@ -98,8 +99,9 @@ export function ComposeDialog({
           </header>
           {usable.length > 1 && (
             <MessageRow label={t.from}>
+              <AccountDot color={usable.find((account) => account.id === accountId)?.color ?? 0} />
               <select
-                className="-ml-1 h-10 min-w-0 flex-1 bg-transparent outline-none"
+                className="-ml-2 h-10 min-w-0 flex-1 bg-transparent outline-none"
                 value={accountId}
                 onChange={(event) => setAccountId(event.target.value)}
               >

@@ -25,6 +25,7 @@ import type {
   MailThreadsPage,
   MailThreadView,
 } from "@evido/mail-core/types"
+import { AccountDot } from "@/components/account-dot"
 import { MailMenu, SidebarExpand, type MailNavigation } from "@/components/sidebar"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
@@ -44,18 +45,6 @@ function shortDate(iso: string, locale: string) {
   })
 }
 
-/** The shortest name that tells mailboxes apart: their domain, or else their user part. */
-function mailboxLabels(accounts: MailAccountView[]) {
-  const domains = accounts.map((account) => account.email.split("@")[1]?.split(".")[0] ?? account.email)
-  const distinct = new Set(domains).size === domains.length
-  return new Map(
-    accounts.map((account, index) => [
-      account.id,
-      distinct ? domains[index] : account.email.split("@")[0],
-    ])
-  )
-}
-
 function ThreadRow({
   thread,
   mailbox,
@@ -64,7 +53,7 @@ function ThreadRow({
 }: {
   thread: MailThreadView
   /** Only set when several mailboxes share the list. */
-  mailbox: string | undefined
+  mailbox: MailAccountView | undefined
   selected: boolean
   onOpen: () => void
 }) {
@@ -112,7 +101,7 @@ function ThreadRow({
             <span className={cn(unread && "font-medium text-foreground")}>{thread.subject || t.noSubject}</span>
             {thread.snippet && ` · ${thread.snippet}`}
           </span>
-          {mailbox && <span className="max-w-20 shrink-0 truncate text-xs text-muted-foreground">{mailbox}</span>}
+          {mailbox && <AccountDot color={mailbox.color} label={mailbox.email} className="mr-0.5 self-center" />}
         </span>
       </button>
     </li>
@@ -181,8 +170,7 @@ export function InboxPage({
   const rows = messages.data?.pages.flatMap((page) => page.threads) ?? []
   const position = open ? rows.findIndex((thread) => thread.id === open.id) : -1
   const selectedAccount = accounts.find((account) => account.id === accountId)
-  const emailOf = new Map(accounts.map((account) => [account.id, account.email]))
-  const labels = mailboxLabels(accounts)
+  const accountOf = new Map(accounts.map((account) => [account.id, account]))
 
   useEffect(() => setOpen(null), [accountId])
 
@@ -272,7 +260,7 @@ export function InboxPage({
                   <ThreadRow
                     key={thread.id}
                     thread={thread}
-                    mailbox={!accountId && accounts.length > 1 ? labels.get(thread.accountId) : undefined}
+                    mailbox={!accountId && accounts.length > 1 ? accountOf.get(thread.accountId) : undefined}
                     selected={thread.id === open?.id}
                     onOpen={() => setOpen(thread)}
                   />
@@ -299,7 +287,7 @@ export function InboxPage({
           <ConversationPage
             key={open.id}
             thread={open}
-            accountEmail={emailOf.get(open.accountId) ?? ""}
+            account={accountOf.get(open.accountId)}
             onBack={() => setOpen(null)}
             onLeave={(action) => leave(open, action)}
           />

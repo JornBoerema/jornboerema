@@ -119,6 +119,10 @@ export const nl: typeof en = {
     loadFailed: "Je mailboxen konden niet worden geladen.",
     connected: "Mailbox gekoppeld.",
     disconnect: "Ontkoppelen",
+    color: (email: string) => `Kleur van ${email} wijzigen`,
+    colorTitle: "Kleur wijzigen",
+    colorName: (index: number) =>
+      ["Blauw", "Amber", "Roze", "Groen", "Paars", "Turquoise", "Rood", "Grijs"][index] ?? "",
     reconnect: "Opnieuw koppelen",
     reconnectNeeded: "Toegang verlopen",
     confirmTitle: (email: string) => `${email} ontkoppelen?`,

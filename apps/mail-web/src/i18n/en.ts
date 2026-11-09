@@ -117,6 +117,10 @@ export const en = {
     loadFailed: "Your mailboxes couldn't be loaded.",
     connected: "Mailbox connected.",
     disconnect: "Disconnect",
+    color: (email: string) => `Change the color of ${email}`,
+    colorTitle: "Change color",
+    colorName: (index: number) =>
+      ["Blue", "Amber", "Pink", "Green", "Purple", "Teal", "Red", "Gray"][index] ?? "",
     reconnect: "Connect again",
     reconnectNeeded: "Access has ended",
     confirmTitle: (email: string) => `Disconnect ${email}?`,

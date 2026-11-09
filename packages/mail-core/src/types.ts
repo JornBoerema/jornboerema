@@ -15,7 +15,20 @@ export type MailAccountView = {
   email: string
   displayName: string | null
   status: MailAccountStatus
+  /** Index into the client's palette, below MAIL_ACCOUNT_COLORS. */
+  color: number
   createdAt: string
+}
+
+export const MAIL_ACCOUNT_COLORS = 8
+
+/** The least used colour, so mailboxes only share one when all are taken. */
+export function firstFreeColor(used: number[]) {
+  const uses = Array.from(
+    { length: MAIL_ACCOUNT_COLORS },
+    (_, color) => used.filter((value) => value === color).length
+  )
+  return uses.indexOf(Math.min(...uses))
 }
 
 export type InboxSummary = { total: number; unread: number }

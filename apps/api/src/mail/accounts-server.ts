@@ -10,7 +10,12 @@ import {
   parseTokenKey,
   sealToken,
 } from "@evido/mail-core/secrets"
-import type { InboxSummary, MailAccountView, MailProviderId } from "@evido/mail-core/types"
+import {
+  firstFreeColor,
+  type InboxSummary,
+  type MailAccountView,
+  type MailProviderId,
+} from "@evido/mail-core/types"
 import { defer } from "../lib/defer"
 import { env } from "../env"
 
@@ -56,6 +61,7 @@ function toView(account: MailAccount): MailAccountView {
     email: account.email,
     displayName: account.displayName,
     status: account.status,
+    color: account.color,
     createdAt: account.createdAt.toISOString(),
   }
 }
@@ -137,9 +143,15 @@ export async function finishConnect(
     scope: tokens.scope,
     status: "active" as const,
   }
+  const others = existing ? [] : await db.mailAccount.findMany({ where: { userId } })
   return db.mailAccount.upsert({
     where: { userId_provider_providerAccountId: where },
-    create: { id: randomUUID(), ...where, ...fields },
+    create: {
+      id: randomUUID(),
+      ...where,
+      ...fields,
+      color: firstFreeColor(others.map((account) => account.color)),
+    },
     update: fields,
   })
 }
@@ -194,6 +206,11 @@ export async function ownedAccount(userId: string, id: string) {
   const account = await getDb().mailAccount.findFirst({ where: { id, userId } })
   if (!account) throw new MailAccountNotFoundError()
   return account
+}
+
+export async function setAccountColor(userId: string, id: string, color: number) {
+  const account = await ownedAccount(userId, id)
+  await getDb().mailAccount.update({ where: { id: account.id }, data: { color } })
 }
 
 export async function readInboxSummary(userId: string, id: string): Promise<InboxSummary> {

@@ -12,13 +12,21 @@ import {
   AlertDialogTitle,
 } from "@evido/ui/components/alert-dialog"
 import { Button } from "@evido/ui/components/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@evido/ui/components/dropdown-menu"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
+import { cn } from "@evido/ui/lib/utils"
 import type {
   ConnectErrorCode,
   InboxSummary,
   MailAccountView,
   MailProviderId,
 } from "@evido/mail-core/types"
+import { ACCOUNT_COLORS, AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
 import { api, ApiError, errorText } from "@/lib/api"
 import { ACCOUNTS_KEY, MESSAGES_KEY, useAccounts } from "@/lib/mail"
@@ -65,6 +73,60 @@ function InboxLine({ id }: { id: string }) {
   return <>{t.inbox(inbox.data.total, inbox.data.unread)}</>
 }
 
+function ColorPicker({ account }: { account: MailAccountView }) {
+  const t = useI18n().t.accounts
+  const queryClient = useQueryClient()
+  const change = useMutation({
+    mutationFn: (color: number) =>
+      api(`/api/mail/accounts/${account.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color }),
+      }),
+    onMutate: (color) => {
+      queryClient.setQueryData<{ accounts: MailAccountView[] }>(
+        ACCOUNTS_KEY,
+        (data) =>
+          data && {
+            accounts: data.accounts.map((item) => (item.id === account.id ? { ...item, color } : item)),
+          }
+      )
+    },
+    onError: (error) => toast.error(errorText(error)),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+  })
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon-sm" variant="outline" aria-label={t.color(account.email)} title={t.colorTitle}>
+          <AccountDot color={account.color} className="size-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="grid min-w-0 grid-cols-4 gap-1 p-1.5">
+        {ACCOUNT_COLORS.map((_, color) => (
+          <DropdownMenuItem
+            key={color}
+            className="size-8 justify-center p-0"
+            aria-label={t.colorName(color)}
+            aria-current={color === account.color ? "true" : undefined}
+            title={t.colorName(color)}
+            onSelect={() => change.mutate(color)}
+          >
+            <AccountDot
+              color={color}
+              className={cn(
+                "size-3.5",
+                color === account.color && "ring-2 ring-foreground ring-offset-2 ring-offset-popover"
+              )}
+            />
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 function AccountRow({ account }: { account: MailAccountView }) {
   const t = useI18n().t.accounts
   const queryClient = useQueryClient()
@@ -94,6 +156,7 @@ function AccountRow({ account }: { account: MailAccountView }) {
           {t.reconnect}
         </Button>
       )}
+      <ColorPicker account={account} />
       <Button size="sm" variant="outline" disabled={disconnect.isPending} onClick={() => setConfirming(true)}>
         {t.disconnect}
       </Button>

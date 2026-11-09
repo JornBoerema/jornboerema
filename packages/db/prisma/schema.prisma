@@ -409,6 +409,8 @@ model MailAccount {
   accessTokenExpiresAt DateTime          @map("access_token_expires_at")
   scope                String
   status               MailAccountStatus @default(active)
+  /// Index into the client's palette; tells mailboxes apart in a shared list.
+  color                Int               @default(0)
   /// Opaque provider position (Gmail history id, Graph delta link). Null until the first sync.
   syncCursor           String?           @map("sync_cursor")
   /// Oldest mail this account keeps. Fixed when a full sync starts.

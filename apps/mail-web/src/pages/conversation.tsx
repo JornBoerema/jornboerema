@@ -16,6 +16,7 @@ import { Button } from "@evido/ui/components/button"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import type {
+  MailAccountView,
   MailAddress,
   MailAttachmentInfo,
   MailThreadAction,
@@ -23,6 +24,7 @@ import type {
   MailThreadMessage,
   MailThreadView,
 } from "@evido/mail-core/types"
+import { AccountDot } from "@/components/account-dot"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { useI18n } from "@/i18n"
 import { api, apiBlob } from "@/lib/api"
@@ -306,12 +308,13 @@ function ToolbarAction({
 
 export function ConversationPage({
   thread: summary,
-  accountEmail,
+  account,
   onBack,
   onLeave,
 }: {
   thread: MailThreadView
-  accountEmail: string
+  /** Missing only for the moment a mailbox is being disconnected. */
+  account: MailAccountView | undefined
   onBack: () => void
   /** Runs an action that takes this conversation out of view. */
   onLeave: (action: MailThreadAction) => void
@@ -417,15 +420,16 @@ export function ConversationPage({
                   key={replyMode}
                   threadId={id}
                   message={last}
-                  selfEmail={accountEmail}
+                  selfEmail={account?.email ?? ""}
                   all={replyMode === "all"}
                   onClose={() => setReplyMode(null)}
                 />
               ) : (
                 <div className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
-                  <p className="hidden min-w-0 truncate @2xl:block">
-                    <span className="text-muted-foreground">{t.messageCount(messages.length)} · </span>
-                    <span className="font-medium">{accountEmail}</span>
+                  <p className="hidden min-w-0 items-center gap-1.5 @2xl:flex">
+                    <span className="shrink-0 text-muted-foreground">{t.messageCount(messages.length)} ·</span>
+                    {account && <AccountDot color={account.color} />}
+                    <span className="truncate font-medium">{account?.email}</span>
                   </p>
                   <div className="ml-auto flex shrink-0 items-center gap-1">
                     {replyActions.map(({ mode, text, icon, shortcut }) => (

@@ -7,6 +7,7 @@ import {
   MAIL_THREAD_ACTIONS,
   MAX_UPLOAD_BYTES,
   type ConnectErrorCode,
+  MAIL_ACCOUNT_COLORS,
 } from "@evido/mail-core/types"
 import { env } from "../env"
 import { msg } from "../i18n"
@@ -21,6 +22,7 @@ import {
   MailAccountNotFoundError,
   MailNotConfiguredError,
   readInboxSummary,
+  setAccountColor,
   startConnect,
 } from "./accounts-server"
 import { syncAccount } from "./sync-server"
@@ -58,6 +60,7 @@ const attachments = z
   .max(20)
   .refine((files) => files.reduce((sum, file) => sum + file.data.length, 0) * 0.75 <= MAX_UPLOAD_BYTES)
   .default([])
+const colorBody = z.object({ color: z.number().int().min(0).lt(MAIL_ACCOUNT_COLORS) })
 const actionBody = z.object({ action: z.enum(MAIL_THREAD_ACTIONS) })
 const sendBody = z.object({
   to: recipients,
@@ -283,6 +286,17 @@ mailRoutes.post("/webhook/gmail", async (c) => {
 mailRoutes.get("/cron/watches", async (c) => {
   if (!authorizeCron(c.req.header("authorization"))) return c.body(null, 401)
   return c.json(await renewWatches(), 200, noStore)
+})
+
+mailRoutes.patch("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, colorBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    await setAccountColor(c.get("session").user.id, c.req.param("id"), body.color)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
 })
 
 mailRoutes.delete("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {

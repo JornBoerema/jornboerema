@@ -3,7 +3,6 @@ import {
   Alert02Icon,
   InboxIcon,
   Logout01Icon,
-  Mail01Icon,
   Menu01Icon,
   PencilEdit02Icon,
   Settings01Icon,
@@ -25,6 +24,7 @@ import {
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
 import type { MailAccountView } from "@evido/mail-core/types"
+import { AccountDot } from "@/components/account-dot"
 import { Brand } from "@/components/brand"
 import { useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
@@ -107,12 +107,13 @@ export function Sidebar({
                   title={active ? account.email : t.inbox.reconnectNeeded}
                   onClick={() => onSelectAccount(account.id)}
                 >
-                  <HugeiconsIcon
-                    icon={active ? Mail01Icon : Alert02Icon}
-                    strokeWidth={2}
-                    className={NAV_ICON}
-                    aria-hidden="true"
-                  />
+                  {active ? (
+                    <span className="flex size-4 shrink-0 items-center justify-center">
+                      <AccountDot color={account.color} className="size-2.5" />
+                    </span>
+                  ) : (
+                    <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                  )}
                   <span className="truncate">{account.email}</span>
                 </button>
               )
@@ -204,6 +205,7 @@ export function MailMenu({
           <DropdownMenuRadioItem value="">{t.inbox.allMailboxes}</DropdownMenuRadioItem>
           {accounts.map((account) => (
             <DropdownMenuRadioItem key={account.id} value={account.id}>
+              <AccountDot color={account.color} />
               <span className="truncate">{account.email}</span>
             </DropdownMenuRadioItem>
           ))}
