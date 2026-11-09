@@ -107,3 +107,12 @@ export async function mapInChunks<T, R>(items: T[], size: number, work: (item: T
 
 /** Postgres text columns reject NUL, and mail headers can contain anything. */
 export const cleanText = (value: string) => value.replaceAll("\0", "")
+
+/** Plain text as HTML. Whatever it contains can't become markup. */
+export const textToHtml = (text: string) =>
+  text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replace(/\r?\n/g, "<br>")

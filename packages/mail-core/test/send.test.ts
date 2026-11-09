@@ -363,6 +363,64 @@ describe("reply recipients", () => {
   })
 })
 
+
+describe("formatted mail", () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const decoded = (raw: string) => Buffer.from(raw, "base64url").toString("utf8")
+  const parts = (mime: string) =>
+    [...mime.matchAll(/Content-Type: (text\/\w+);[^\r\n]*\r\nContent-Transfer-Encoding: base64\r\n\r\n([A-Za-z0-9+/=\r\n]+)/g)].map(
+      ([, type, body]) => [type, Buffer.from(body!, "base64").toString("utf8")]
+    )
+
+  it("sends Gmail both versions, plain first", async () => {
+    const sent = stub()
+    await sendGmail("t", { ...base, text: "Hi", html: "<p><b>Hi</b></p>" })
+    const mime = decoded(sent[0]!.body.raw as string)
+    expect(mime).toContain("multipart/alternative")
+    expect(parts(mime)).toEqual([["text/plain", "Hi"], ["text/html", "<p><b>Hi</b></p>"]])
+  })
+
+  it("keeps Gmail plain text as one part when there's no formatting", async () => {
+    const sent = stub()
+    await sendGmail("t", { ...base, text: "Hi" })
+    expect(decoded(sent[0]!.body.raw as string)).not.toContain("multipart")
+  })
+
+  it("nests the versions next to attachments", async () => {
+    const sent = stub()
+    await sendGmail("t", { ...base, text: "Hi", html: "<p>Hi</p>", attachments: [{ name: "a.pdf", contentType: "application/pdf", data: "QQ==" }] })
+    const raw = sent[0]!.raw
+    expect(raw).toContain("multipart/mixed")
+    expect(raw).toContain("multipart/alternative")
+    expect(raw).toContain("a.pdf")
+  })
+
+  it("escapes the quoted original in a formatted Gmail reply", async () => {
+    const sent = stub((url) =>
+      url.includes("format=full")
+        ? [200, { internalDate: "0", payload: { headers: [{ name: "From", value: "<x>" }], mimeType: "text/plain", body: { data: Buffer.from("<img src=x>").toString("base64url") } } }]
+        : [200, {}]
+    )
+    await replyGmail("t", { from: me, messageId: "m1", threadId: "T", to: [al], cc: [], text: "Yes", html: "<p>Yes</p>", attachments: [] })
+    const html = parts(decoded(sent.at(-1)!.body.raw as string)).find(([type]) => type === "text/html")![1]!
+    expect(html.startsWith("<p>Yes</p>")).toBe(true)
+    expect(html).toContain("&lt;img src=x&gt;")
+    expect(html).not.toContain("<img")
+  })
+
+  it("sends Outlook mail as HTML", async () => {
+    const sent = stub()
+    await sendOutlook("t", { ...base, text: "Hi", html: "<p>Hi</p>" })
+    expect(sent[0]!.body).toMatchObject({ message: { body: { contentType: "HTML", content: "<p>Hi</p>" } } })
+  })
+
+  it("uses the formatted body as the Outlook reply comment", async () => {
+    const sent = stub()
+    await replyOutlook("t", { messageId: "m", to: [al], cc: [], text: "Yes", html: "<b>Yes</b>", attachments: [] })
+    expect(sent[0]!.body.comment).toBe("<b>Yes</b>")
+  })
+})
+
 describe("change notifications", () => {
   const gmail = createGmailProvider({ clientId: "c", clientSecret: "s" })
   const outlook = createOutlookProvider({ clientId: "c", clientSecret: "s" })

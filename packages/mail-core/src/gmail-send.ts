@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { collect, emptyContent, headerOf, readGmailAttachment, type GmailFullMessage } from "./gmail-read"
 import { decodeEntities, GMAIL_API } from "./gmail-sync"
-import { getJson, mapInChunks, sendBody, sendJson } from "./http"
+import { getJson, mapInChunks, sendBody, sendJson, textToHtml } from "./http"
 import { ProviderError } from "./provider"
 import type {
   MailAddress,
@@ -82,6 +82,32 @@ function attachmentPart({ name, contentType, data }: MailAttachmentUpload) {
   ].join(CRLF)
 }
 
+function textPart(contentType: string, value: string) {
+  return [
+    `Content-Type: ${contentType}; charset="UTF-8"`,
+    "Content-Transfer-Encoding: base64",
+    "",
+    wrapBase64(Buffer.from(value, "utf8").toString("base64")),
+  ].join(CRLF)
+}
+
+/** The plain version comes first: clients show the last alternative they understand. */
+function bodyPart(text: string, html?: string) {
+  const plain = textPart("text/plain", text)
+  if (!html) return plain
+  const boundary = `evido_alt_${randomBytes(16).toString("hex")}`
+  return [
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    plain,
+    `--${boundary}`,
+    textPart("text/html", html),
+    `--${boundary}--`,
+    "",
+  ].join(CRLF)
+}
+
 function buildMime(input: {
   from: MailAddress
   to: MailAddress[]
@@ -89,6 +115,7 @@ function buildMime(input: {
   bcc: MailAddress[]
   subject: string
   text: string
+  html?: string
   attachments: MailAttachmentUpload[]
   inReplyTo?: string
   references?: string
@@ -103,13 +130,11 @@ function buildMime(input: {
     ...(input.references ? [`References: ${oneLine(input.references)}`] : []),
     "MIME-Version: 1.0",
   ]
-  const textHeaders = ['Content-Type: text/plain; charset="UTF-8"', "Content-Transfer-Encoding: base64"]
-  const textBody = wrapBase64(Buffer.from(input.text, "utf8").toString("base64"))
-  if (input.attachments.length === 0)
-    return `${[...headers, ...textHeaders].join(CRLF)}${CRLF}${CRLF}${textBody}`
+  const body = bodyPart(input.text, input.html)
+  if (input.attachments.length === 0) return `${headers.join(CRLF)}${CRLF}${body}`
 
   const boundary = `evido_${randomBytes(16).toString("hex")}`
-  const parts = [[...textHeaders, "", textBody].join(CRLF), ...input.attachments.map(attachmentPart)]
+  const parts = [body, ...input.attachments.map(attachmentPart)]
   return [
     [...headers, `Content-Type: multipart/mixed; boundary="${boundary}"`].join(CRLF),
     "",
@@ -186,6 +211,13 @@ function quoted(original: GmailFullMessage) {
   return [`On ${sentAt(original)}, ${who} wrote:`, ...lines].join(CRLF)
 }
 
+function quotedHtml(original: GmailFullMessage) {
+  const who = headerOf(original.payload?.headers, "from") ?? ""
+  const heading = textToHtml(`On ${sentAt(original)}, ${who} wrote:`)
+  const style = "margin:0;padding-left:12px;border-left:2px solid #d0d0d0"
+  return `<div>${heading}</div><blockquote style="${style}">${textToHtml(readableBody(original).body)}</blockquote>`
+}
+
 const readFull = (accessToken: string, messageId: string) =>
   getJson<GmailFullMessage>(
     `${GMAIL_API}/messages/${encodeURIComponent(messageId)}?format=full`,
@@ -208,6 +240,7 @@ export async function replyGmail(
     bcc: [],
     subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
     text: `${input.text}${CRLF}${CRLF}${quoted(original)}`,
+    html: input.html && `${input.html}<br>${quotedHtml(original)}`,
     attachments: input.attachments,
     inReplyTo: messageId,
     references,
@@ -247,6 +280,7 @@ export async function forwardGmail(
     bcc: [],
     subject: /^(fwd?):/i.test(subject) ? subject : `Fwd: ${subject}`,
     text: input.text ? `${input.text}${CRLF}${CRLF}${summary}` : summary,
+    html: input.html && `${input.html}<br>${textToHtml(summary)}`,
     attachments,
   })
   await send(accessToken, mime, attachments.length > 0)

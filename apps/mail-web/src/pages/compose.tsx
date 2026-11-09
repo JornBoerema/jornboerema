@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Cancel01Icon } from "@hugeicons/core-free-icons"
+import { ArrowLeft02Icon, Delete02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import {
@@ -22,11 +22,14 @@ import type {
 import { AccountDot } from "@/components/account-dot"
 import { AddressRow } from "@/components/address-row"
 import { AttachmentPicker } from "@/components/attachment-picker"
-import { MessageInput, MessageRow, MessageText } from "@/components/message-field"
+import { MessageInput, MessageRow } from "@/components/message-field"
+import type { RichTextHandle } from "@/components/rich-text-editor"
 import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
 import { sendOnModEnter } from "@/lib/hotkeys"
+
+const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
 export function ComposePage({
   accounts,
@@ -53,9 +56,9 @@ export function ComposePage({
   const [bcc, setBcc] = useState("")
   const [copies, setCopies] = useState(false)
   const [subject, setSubject] = useState("")
-  const [text, setText] = useState("")
+  const [body, setBody] = useState({ text: "", html: "" })
   const [files, setFiles] = useState<MailAttachmentUpload[]>([])
-  const hasDraft = Boolean(to || cc || bcc || subject || text || files.length)
+  const hasDraft = Boolean(to || cc || bcc || subject || body.text || files.length)
 
   // Only something worth coming back to stays around while out of view.
   useEffect(() => {
@@ -66,16 +69,19 @@ export function ComposePage({
   useEffect(() => {
     if (hidden) return
     const keydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) onHide()
+      if (event.key !== "Escape") return
+      // ProseMirror marks every Escape as handled without doing anything with it.
+      const inEditor = event.target instanceof HTMLElement && event.target.closest(".ProseMirror")
+      if (inEditor || !event.defaultPrevented) onHide()
     }
     document.addEventListener("keydown", keydown)
     return () => document.removeEventListener("keydown", keydown)
   }, [hidden, onHide])
 
-  const body = useRef<HTMLTextAreaElement>(null)
+  const editor = useRef<RichTextHandle>(null)
   const wasHidden = useRef(hidden)
   useEffect(() => {
-    if (wasHidden.current && !hidden) body.current?.focus()
+    if (wasHidden.current && !hidden) editor.current?.focus()
     wasHidden.current = hidden
   }, [hidden])
 
@@ -104,14 +110,23 @@ export function ComposePage({
       MailAddress[],
     ]
     if (toList.length + ccList.length + bccList.length === 0) return toast.error(t.noRecipients)
-    send.mutate({ to: toList, cc: ccList, bcc: bccList, subject, text, attachments: files })
+    send.mutate({
+      to: toList,
+      cc: ccList,
+      bcc: bccList,
+      subject,
+      text: body.text,
+      ...(body.html && { html: body.html }),
+      attachments: files,
+    })
   }
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", hidden && "hidden")}>
-      <header className="flex h-10 shrink-0 items-center justify-end px-2">
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={t.close} title={t.close} onClick={onClose}>
-          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
+      <header className="flex h-10 shrink-0 items-center px-2">
+        {/* Phones have no Escape key. */}
+        <Button type="button" variant="ghost" size="icon-sm" className="md:hidden" aria-label={t.close} onClick={onHide}>
+          <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.75} aria-hidden="true" />
         </Button>
       </header>
       {/* Relative keeps the file input, which is absolute, inside this scroller. */}
@@ -176,19 +191,34 @@ export function ComposePage({
                 <MessageInput value={subject} onChange={(event) => setSubject(event.target.value)} />
               </MessageRow>
             </div>
-            <MessageText
-              ref={body}
-              aria-label={t.body}
-              placeholder={t.body}
-              className="min-h-40"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-            />
+            <Suspense fallback={<div className="min-h-40 flex-1" />}>
+              <RichTextEditor
+                ref={editor}
+                label={t.body}
+                placeholder={t.body}
+                className="min-h-40 flex-1"
+                onChange={setBody}
+              />
+            </Suspense>
             <div className="sticky bottom-4 z-10 mx-4 mb-4 flex min-h-14 shrink-0 items-center justify-between gap-3 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
               <AttachmentPicker files={files} onChange={setFiles} />
-              <Button type="submit" disabled={send.isPending || !accountId} title={`${t.send} (⌘↵)`}>
-                {t.send}
-              </Button>
+              <div className="flex shrink-0 items-center gap-1">
+                {hasDraft && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t.discard}
+                    title={t.discard}
+                    onClick={onClose}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.75} aria-hidden="true" />
+                  </Button>
+                )}
+                <Button type="submit" disabled={send.isPending || !accountId} title={`${t.send} (⌘↵)`}>
+                  {t.send}
+                </Button>
+              </div>
             </div>
           </form>
         </div>

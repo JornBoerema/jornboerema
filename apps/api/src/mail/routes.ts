@@ -49,6 +49,7 @@ import {
 const address = z.object({ name: z.string().max(200).nullable(), email: z.email().max(320) })
 const recipients = z.array(address).max(100)
 const text = z.string().max(100_000)
+const html = z.string().max(500_000).optional()
 const attachments = z
   .array(
     z.object({
@@ -68,6 +69,7 @@ const sendBody = z.object({
   bcc: recipients,
   subject: z.string().max(900),
   text,
+  html,
   attachments,
 })
 const replyBody = z.object({
@@ -75,6 +77,7 @@ const replyBody = z.object({
   to: recipients.min(1),
   cc: recipients,
   text: text.min(1),
+  html,
   attachments,
 })
 const forwardBody = z.object({
@@ -82,6 +85,7 @@ const forwardBody = z.object({
   to: recipients.min(1),
   cc: recipients,
   text,
+  html,
 })
 const attachmentBody = z.object({
   messageId: z.string().min(1).max(1000),

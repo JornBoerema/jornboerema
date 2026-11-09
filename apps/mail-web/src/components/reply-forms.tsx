@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@evido/ui/components/button"
@@ -10,11 +10,12 @@ import {
 } from "@evido/mail-core/types"
 import { AttachmentPicker } from "@/components/attachment-picker"
 import { AddressRow } from "@/components/address-row"
-import { MessageText } from "@/components/message-field"
 import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
 import { sendOnModEnter } from "@/lib/hotkeys"
+
+const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
 const JSON_HEADERS = { "Content-Type": "application/json" }
 const FORM = "flex max-h-[60dvh] flex-col overflow-hidden rounded-2xl border bg-background shadow-sm"
@@ -49,7 +50,7 @@ export function ReplyForm({
 }) {
   const t = useI18n().t.conversation
   const queryClient = useQueryClient()
-  const [text, setText] = useState("")
+  const [body, setBody] = useState({ text: "", html: "" })
   const [files, setFiles] = useState<MailAttachmentUpload[]>([])
   const { to, cc } = replyRecipients(message, selfEmail, all)
   const send = useMutation({
@@ -57,7 +58,14 @@ export function ReplyForm({
       api(`/api/mail/threads/${encodeURIComponent(threadId)}/reply`, {
         method: "POST",
         headers: JSON_HEADERS,
-        body: JSON.stringify({ messageId: message.id, to, cc, text, attachments: files }),
+        body: JSON.stringify({
+          messageId: message.id,
+          to,
+          cc,
+          text: body.text,
+          ...(body.html && { html: body.html }),
+          attachments: files,
+        }),
       }),
     onSuccess: () => {
       toast.success(t.sent)
@@ -66,7 +74,7 @@ export function ReplyForm({
     },
     onError: (error) => toast.error(errorText(error)),
   })
-  const canSend = !send.isPending && Boolean(text.trim()) && to.length > 0
+  const canSend = !send.isPending && Boolean(body.text) && to.length > 0
 
   return (
     <form
@@ -81,14 +89,15 @@ export function ReplyForm({
         {t.to}: {to.map(addressLabel).join(", ")}
         {cc.length > 0 && ` · ${t.cc}: ${cc.map(addressLabel).join(", ")}`}
       </p>
-      <MessageText
-        autoFocus
-        aria-label={t.replyPlaceholder}
-        placeholder={t.replyPlaceholder}
-        className="min-h-32"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
+      <Suspense fallback={<div className="min-h-32" />}>
+        <RichTextEditor
+          autoFocus
+          label={t.replyPlaceholder}
+          placeholder={t.replyPlaceholder}
+          className="min-h-32 flex-1"
+          onChange={setBody}
+        />
+      </Suspense>
       <div className="flex items-center justify-between gap-3 p-2">
         <AttachmentPicker files={files} onChange={setFiles} />
         <Actions canSend={canSend} onClose={onClose} />
@@ -109,13 +118,19 @@ export function ForwardForm({
   const { t: strings } = useI18n()
   const t = strings.conversation
   const [to, setTo] = useState("")
-  const [text, setText] = useState("")
+  const [body, setBody] = useState({ text: "", html: "" })
   const send = useMutation({
     mutationFn: (recipients: MailAddress[]) =>
       api(`/api/mail/threads/${encodeURIComponent(threadId)}/forward`, {
         method: "POST",
         headers: JSON_HEADERS,
-        body: JSON.stringify({ messageId: message.id, to: recipients, cc: [], text }),
+        body: JSON.stringify({
+          messageId: message.id,
+          to: recipients,
+          cc: [],
+          text: body.text,
+          ...(body.html && { html: body.html }),
+        }),
       }),
     onSuccess: () => {
       toast.success(t.sent)
@@ -142,13 +157,14 @@ export function ForwardForm({
       }}
     >
       <AddressRow label={t.to} autoFocus value={to} onChange={setTo} />
-      <MessageText
-        aria-label={t.forwardPlaceholder}
-        placeholder={t.forwardPlaceholder}
-        className="min-h-24"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
+      <Suspense fallback={<div className="min-h-24" />}>
+        <RichTextEditor
+          label={t.forwardPlaceholder}
+          placeholder={t.forwardPlaceholder}
+          className="min-h-24 flex-1"
+          onChange={setBody}
+        />
+      </Suspense>
       <div className="flex items-center justify-between gap-3 p-2">
         <p className="px-2 text-xs text-muted-foreground">
           {message.attachments.length > 0 && t.forwardAttachments(message.attachments.length)}

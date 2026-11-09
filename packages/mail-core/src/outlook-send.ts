@@ -1,4 +1,4 @@
-import { mapInChunks, sendJson } from "./http"
+import { mapInChunks, sendJson, textToHtml } from "./http"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
 import type {
@@ -18,15 +18,6 @@ const toRecipients = (addresses: MailAddress[]) =>
     emailAddress: { address: email, ...(name && { name }) },
   }))
 
-/** Graph treats a reply comment as HTML, so user text must not be able to become markup. */
-const textToHtml = (text: string) =>
-  text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replace(/\r?\n/g, "<br>")
-
 const toFiles = (attachments: MailAttachmentUpload[]) =>
   attachments.map(({ name, contentType, data }) => ({
     "@odata.type": "#microsoft.graph.fileAttachment",
@@ -39,7 +30,9 @@ export async function sendOutlook(accessToken: string, input: MailOutgoing) {
   await sendJson("POST", `${GRAPH_BASE}/me/sendMail`, accessToken, {
     message: {
       subject: input.subject,
-      body: { contentType: "Text", content: input.text },
+      body: input.html
+        ? { contentType: "HTML", content: input.html }
+        : { contentType: "Text", content: input.text },
       toRecipients: toRecipients(input.to),
       ccRecipients: toRecipients(input.cc),
       bccRecipients: toRecipients(input.bcc),
@@ -56,7 +49,7 @@ export async function replyOutlook(accessToken: string, input: MailReply) {
     `${GRAPH_BASE}/me/messages/${encodeURIComponent(input.messageId)}/reply`,
     accessToken,
     {
-      comment: textToHtml(input.text),
+      comment: input.html ?? textToHtml(input.text),
       message: {
         toRecipients: toRecipients(input.to),
         ccRecipients: toRecipients(input.cc),
@@ -74,7 +67,7 @@ export async function forwardOutlook(accessToken: string, input: MailForward) {
     `${GRAPH_BASE}/me/messages/${encodeURIComponent(input.messageId)}/forward`,
     accessToken,
     {
-      comment: textToHtml(input.text),
+      comment: input.html ?? textToHtml(input.text),
       toRecipients: [...toRecipients(input.to), ...toRecipients(input.cc)],
     },
     ID_HEADER

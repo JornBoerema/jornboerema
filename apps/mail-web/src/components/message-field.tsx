@@ -37,15 +37,3 @@ export function MessageInput({ className, ...props }: ComponentProps<"input">) {
     />
   )
 }
-
-export function MessageText({ className, ...props }: ComponentProps<"textarea">) {
-  return (
-    <textarea
-      className={cn(
-        "w-full flex-1 resize-none bg-transparent px-4 py-3 text-sm leading-relaxed outline-none placeholder:text-muted-foreground",
-        className
-      )}
-      {...props}
-    />
-  )
-}

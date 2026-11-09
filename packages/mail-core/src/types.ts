@@ -101,6 +101,8 @@ export type MailOutgoing = {
   bcc: MailAddress[]
   subject: string
   text: string
+  /** The formatted body. `text` stays as the version for clients that can't show HTML. */
+  html?: string
   attachments: MailAttachmentUpload[]
 }
 
@@ -109,10 +111,17 @@ export type MailReply = {
   to: MailAddress[]
   cc: MailAddress[]
   text: string
+  html?: string
   attachments: MailAttachmentUpload[]
 }
 
-export type MailForward = { messageId: string; to: MailAddress[]; cc: MailAddress[]; text: string }
+export type MailForward = {
+  messageId: string
+  to: MailAddress[]
+  cc: MailAddress[]
+  text: string
+  html?: string
+}
 
 /** Who a reply goes to. The result is shown to the user and sent exactly as shown. */
 export function replyRecipients(message: MailThreadMessage, selfEmail: string, all: boolean) {
