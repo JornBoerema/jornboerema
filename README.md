@@ -121,6 +121,7 @@ Twee Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig 
 | --- | --- | --- |
 | `evido-api` | `apps/api` | `api.jornboerema.nl` |
 | `evido-todo` | `apps/todo-web` | `todo.jornboerema.nl` |
+| `even-mailen` | `apps/mail-web` | `mail.jornboerema.nl` |
 | `evido-home` | `apps/home` | `jornboerema.nl` (geen env vars nodig) |
 
 Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met tsup gebundeld en draait als één Vercel Function (`apps/api/api/index.js`); de web-app is een statische Vite-build met een SPA-fallback.
@@ -136,6 +137,10 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `AUTH_UI_URL` | `https://todo.jornboerema.nl` |
 | `TODO_WEB_URL` | `https://todo.jornboerema.nl` |
 | `AUTH_COOKIE_DOMAIN` | `.jornboerema.nl` |
+| `MAIL_WEB_URL` | `https://mail.jornboerema.nl` |
+| `MAIL_TOKEN_KEY` | Zelfde waarde als elke omgeving op deze database; anders zijn tokens onleesbaar |
+| `GOOGLE_MAIL_CLIENT_ID` / `_SECRET` | Google-client; redirect `https://api.jornboerema.nl/api/mail/callback/gmail` |
+| `MICROSOFT_MAIL_CLIENT_ID` / `_SECRET` | Entra-app; redirect `https://api.jornboerema.nl/api/mail/callback/outlook` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | zoals lokaal |
 | `ABLY_API_KEY` | optioneel |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` (gebruikt de pnpm-versie uit `packageManager`) |
