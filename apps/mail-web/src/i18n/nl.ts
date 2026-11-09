@@ -78,6 +78,7 @@ export const nl: typeof en = {
     invalid: (address: string) => `"${address}" is geen geldig e-mailadres.`,
     noRecipients: "Voeg minstens één ontvanger toe.",
     attach: "Bestanden toevoegen",
+    removeRecipient: (address: string) => `${address} verwijderen`,
     removeFile: (name: string) => `${name} verwijderen`,
     tooLarge: (limit: string) => `Bijlagen mogen samen ${limit} zijn.`,
     readFailed: "Dat bestand kon niet worden gelezen.",

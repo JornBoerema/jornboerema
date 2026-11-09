@@ -9,7 +9,8 @@ import {
   type MailThreadMessage,
 } from "@evido/mail-core/types"
 import { AttachmentPicker } from "@/components/attachment-picker"
-import { MessageInput, MessageRow, MessageText } from "@/components/message-field"
+import { AddressRow } from "@/components/address-row"
+import { MessageText } from "@/components/message-field"
 import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
@@ -140,9 +141,7 @@ export function ForwardForm({
         submit()
       }}
     >
-      <MessageRow label={t.to}>
-        <MessageInput autoFocus value={to} onChange={(event) => setTo(event.target.value)} />
-      </MessageRow>
+      <AddressRow label={t.to} autoFocus value={to} onChange={setTo} />
       <MessageText
         aria-label={t.forwardPlaceholder}
         placeholder={t.forwardPlaceholder}

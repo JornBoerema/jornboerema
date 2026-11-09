@@ -76,6 +76,7 @@ export const en = {
     invalid: (address: string) => `"${address}" isn't a valid email address.`,
     noRecipients: "Add at least one recipient.",
     attach: "Attach files",
+    removeRecipient: (address: string) => `Remove ${address}`,
     removeFile: (name: string) => `Remove ${name}`,
     tooLarge: (limit: string) => `Attachments can be ${limit} in total.`,
     readFailed: "That file couldn't be read.",

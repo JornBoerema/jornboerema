@@ -20,6 +20,7 @@ import type {
   MailOutgoing,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
+import { AddressRow } from "@/components/address-row"
 import { AttachmentPicker } from "@/components/attachment-picker"
 import { MessageInput, MessageRow, MessageText } from "@/components/message-field"
 import { useI18n } from "@/i18n"
@@ -131,8 +132,12 @@ export function ComposePage({
                   </Select>
                 </MessageRow>
               )}
-              <MessageRow
+              <AddressRow
                 label={t.to}
+                autoFocus
+                placeholder={t.hint}
+                value={to}
+                onChange={setTo}
                 action={
                   !copies && (
                     <button
@@ -144,22 +149,11 @@ export function ComposePage({
                     </button>
                   )
                 }
-              >
-                <MessageInput
-                  autoFocus
-                  placeholder={t.hint}
-                  value={to}
-                  onChange={(event) => setTo(event.target.value)}
-                />
-              </MessageRow>
+              />
               {copies && (
                 <>
-                  <MessageRow label={t.cc}>
-                    <MessageInput value={cc} onChange={(event) => setCc(event.target.value)} />
-                  </MessageRow>
-                  <MessageRow label={t.bcc}>
-                    <MessageInput value={bcc} onChange={(event) => setBcc(event.target.value)} />
-                  </MessageRow>
+                  <AddressRow label={t.cc} value={cc} onChange={setCc} />
+                  <AddressRow label={t.bcc} value={bcc} onChange={setBcc} />
                 </>
               )}
               <MessageRow label={t.subject}>
