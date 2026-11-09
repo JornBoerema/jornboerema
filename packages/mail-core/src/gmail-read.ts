@@ -15,13 +15,19 @@ type Part = {
   parts?: Part[]
 }
 
-type GmailThread = {
-  messages?: { id: string; labelIds?: string[]; internalDate?: string; payload?: Part }[]
+export type GmailFullMessage = {
+  id: string
+  threadId?: string
+  labelIds?: string[]
+  internalDate?: string
+  payload?: Part
 }
 
-type Content = { html: string | null; text: string | null; attachments: MailAttachmentInfo[] }
+type GmailThread = { messages?: GmailFullMessage[] }
 
-const headerOf = (headers: Header[] | undefined, name: string) =>
+export type Content = { html: string | null; text: string | null; attachments: MailAttachmentInfo[] }
+
+export const headerOf = (headers: Header[] | undefined, name: string) =>
   headers?.find((item) => item.name?.toLowerCase() === name)?.value
 
 const decode = (data: string) => Buffer.from(data, "base64url").toString("utf8")
@@ -63,7 +69,7 @@ function isInlineImage(part: Part) {
   )
 }
 
-function collect(part: Part, content: Content) {
+export function collect(part: Part, content: Content) {
   if (part.filename) {
     if (!isInlineImage(part))
       content.attachments.push({
@@ -101,6 +107,7 @@ export async function readGmailThread(
         id: message.id,
         subject: headerOf(headers, "subject") ?? "",
         from: toAddress(headerOf(headers, "from")),
+        replyTo: toAddresses(headerOf(headers, "reply-to")),
         to: toAddresses(headerOf(headers, "to")),
         cc: toAddresses(headerOf(headers, "cc")),
         receivedAt: new Date(Number(message.internalDate ?? 0)).toISOString(),

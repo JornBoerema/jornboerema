@@ -1,4 +1,5 @@
 import { readGmailThread } from "./gmail-read"
+import { applyGmailThreadAction, replyGmail, sendGmail } from "./gmail-send"
 import { syncGmailPage } from "./gmail-sync"
 import { getJson, requestTokens } from "./http"
 import {
@@ -82,6 +83,12 @@ export function createGmailProvider({ clientId, clientSecret }: ProviderCredenti
     syncPage: syncGmailPage,
 
     getThread: readGmailThread,
+
+    applyThreadAction: applyGmailThreadAction,
+
+    send: sendGmail,
+
+    reply: replyGmail,
 
     async revoke(refreshToken) {
       const response = await fetch(REVOKE_URL, {

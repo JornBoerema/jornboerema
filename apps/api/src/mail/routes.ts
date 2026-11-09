@@ -1,7 +1,8 @@
 import { Hono, type Context } from "hono"
+import { z } from "zod"
 import { getAuth } from "@evido/auth/server"
 import { MissingScopeError, ProviderError, ReauthRequiredError } from "@evido/mail-core/provider"
-import { isMailProvider, type ConnectErrorCode } from "@evido/mail-core/types"
+import { isMailProvider, MAIL_THREAD_ACTIONS, type ConnectErrorCode } from "@evido/mail-core/types"
 import { env } from "../env"
 import { msg } from "../i18n"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
@@ -17,11 +18,37 @@ import {
 } from "./accounts-server"
 import { syncAccount } from "./sync-server"
 import {
+  actOnThread,
   InvalidThreadCursorError,
   listThreads,
   MailMessageNotFoundError,
   readThread,
+  replyToThread,
+  sendMessage,
 } from "./threads-server"
+
+const address = z.object({ name: z.string().max(200).nullable(), email: z.email().max(320) })
+const recipients = z.array(address).max(100)
+const text = z.string().max(100_000)
+const actionBody = z.object({ action: z.enum(MAIL_THREAD_ACTIONS) })
+const sendBody = z.object({
+  to: recipients,
+  cc: recipients,
+  bcc: recipients,
+  subject: z.string().max(900),
+  text,
+})
+const replyBody = z.object({
+  messageId: z.string().min(1).max(1000),
+  to: recipients.min(1),
+  cc: recipients,
+  text: text.min(1),
+})
+
+async function readBody<T extends z.ZodType>(c: Context, schema: T): Promise<z.output<T> | null> {
+  const parsed = schema.safeParse(await c.req.json().catch(() => null))
+  return parsed.success ? parsed.data : null
+}
 
 function failure(c: Context, error: unknown) {
   if (error instanceof MailAccountNotFoundError)
@@ -114,6 +141,40 @@ mailRoutes.get("/threads", requireSession, async (c) => {
 mailRoutes.get("/threads/:id", requireSession, async (c) => {
   try {
     return c.json(await readThread(c.get("session").user.id, c.req.param("id")), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/threads/:id/actions", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, actionBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    await actOnThread(c.get("session").user.id, c.req.param("id"), body.action)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/threads/:id/reply", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, replyBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    await replyToThread(c.get("session").user.id, c.req.param("id"), body)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/send", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, sendBody)
+  if (!body || body.to.length + body.cc.length + body.bcc.length === 0)
+    return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    await sendMessage(c.get("session").user.id, c.req.param("id"), body)
+    return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

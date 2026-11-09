@@ -41,9 +41,9 @@ function parseCursor(cursor: string): GmailCursor {
 }
 
 /** Gmail escapes HTML in snippets even though they are plain text. */
-function decodeEntities(value: string) {
-  const named: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" }
-  return value.replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|gt|quot|apos));/gi, (match, dec, hex, name) => {
+export function decodeEntities(value: string) {
+  const named: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " }
+  return value.replace(/&(?:#(\d+)|#x([\da-f]+)|(amp|lt|gt|quot|apos|nbsp));/gi, (match, dec, hex, name) => {
     if (name) return named[name.toLowerCase()] ?? match
     const code = dec ? Number(dec) : Number.parseInt(hex, 16)
     return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match

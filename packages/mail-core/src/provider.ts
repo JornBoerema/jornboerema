@@ -1,4 +1,12 @@
-import type { InboxSummary, MailProviderId, MailThreadMessage } from "./types"
+import type {
+  InboxSummary,
+  MailAddress,
+  MailOutgoing,
+  MailProviderId,
+  MailReply,
+  MailThreadAction,
+  MailThreadMessage,
+} from "./types"
 
 export type ProviderCredentials = { clientId: string; clientSecret: string }
 
@@ -52,6 +60,13 @@ export interface MailProvider {
   syncPage(accessToken: string, input: { cursor: string | null; since: Date }): Promise<SyncPage>
   /** Every message of a conversation, oldest first, without drafts, spam or trash. */
   getThread(accessToken: string, threadId: string): Promise<MailThreadMessage[]>
+  /** `messageIds` are the conversation's messages currently in the inbox. */
+  applyThreadAction(
+    accessToken: string,
+    input: { threadId: string; messageIds: string[]; action: MailThreadAction }
+  ): Promise<void>
+  send(accessToken: string, input: MailOutgoing & { from: MailAddress }): Promise<void>
+  reply(accessToken: string, input: MailReply & { from: MailAddress; threadId: string }): Promise<void>
   /** Best effort. Providers without a revoke endpoint leave this out. */
   revoke?(refreshToken: string): Promise<void>
 }

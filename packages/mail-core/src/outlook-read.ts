@@ -4,7 +4,7 @@ import { ProviderError } from "./provider"
 import type { MailAddress, MailThreadMessage } from "./types"
 
 const SELECT =
-  "id,subject,from,toRecipients,ccRecipients,receivedDateTime,body,isDraft,parentFolderId"
+  "id,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,body,isDraft,parentFolderId"
 const EXPAND = "attachments($select=name,size,contentType,isInline)"
 const ID_HEADER = { Prefer: 'IdType="ImmutableId"' }
 /** A conversation longer than this is cut off rather than risking the function limit. */
@@ -16,6 +16,7 @@ type GraphMessage = {
   id: string
   subject?: string | null
   from?: Recipient | null
+  replyTo?: Recipient[]
   toRecipients?: Recipient[]
   ccRecipients?: Recipient[]
   receivedDateTime?: string
@@ -42,6 +43,7 @@ function toMessage(message: GraphMessage): MailThreadMessage {
     id: message.id,
     subject: message.subject ?? "",
     from: toAddress(message.from),
+    replyTo: toAddresses(message.replyTo),
     to: toAddresses(message.toRecipients),
     cc: toAddresses(message.ccRecipients),
     receivedAt: new Date(message.receivedDateTime as string).toISOString(),

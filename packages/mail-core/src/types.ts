@@ -47,6 +47,7 @@ export type MailThreadMessage = {
   id: string
   subject: string
   from: MailAddress | null
+  replyTo: MailAddress[]
   to: MailAddress[]
   cc: MailAddress[]
   receivedAt: string
@@ -66,6 +67,43 @@ export type MailSyncResult = {
   /** The provider asked to slow down. Progress is saved; continue on the next round. */
   rateLimited: boolean
   changed: number
+}
+
+export const MAIL_THREAD_ACTIONS = ["read", "unread", "archive", "trash"] as const
+export type MailThreadAction = (typeof MAIL_THREAD_ACTIONS)[number]
+
+export type MailOutgoing = {
+  to: MailAddress[]
+  cc: MailAddress[]
+  bcc: MailAddress[]
+  subject: string
+  text: string
+}
+
+export type MailReply = { messageId: string; to: MailAddress[]; cc: MailAddress[]; text: string }
+
+/** Who a reply goes to. The result is shown to the user and sent exactly as shown. */
+export function replyRecipients(message: MailThreadMessage, selfEmail: string, all: boolean) {
+  const key = (address: MailAddress) => address.email.toLowerCase()
+  const self = selfEmail.toLowerCase()
+  const fromSelf = message.from !== null && key(message.from) === self
+  const primary = fromSelf
+    ? message.to
+    : message.replyTo.length > 0
+      ? message.replyTo
+      : message.from
+        ? [message.from]
+        : []
+  if (!all) return { to: primary, cc: [] as MailAddress[] }
+
+  const seen = new Set([self])
+  const keepNew = (address: MailAddress) => {
+    if (seen.has(key(address))) return false
+    seen.add(key(address))
+    return true
+  }
+  const to = [...primary, ...message.to].filter(keepNew)
+  return { to, cc: message.cc.filter(keepNew) }
 }
 
 /** Reason codes the OAuth callback hands back to the web app in `?error=`. */

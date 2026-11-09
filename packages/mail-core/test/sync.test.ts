@@ -276,6 +276,7 @@ describe("gmail thread reading", () => {
     expect(messages[0]).toMatchObject({
       subject: "Plan",
       from: { name: "Jo", email: "jo@example.com" },
+      replyTo: [],
       to: [{ name: "Doe, Al", email: "al@example.com" }, { name: null, email: "bo@example.com" }],
       html: "<p>html é</p>",
       text: "plain é",

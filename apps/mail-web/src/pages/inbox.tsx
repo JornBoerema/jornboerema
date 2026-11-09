@@ -9,6 +9,7 @@ import type {
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { MESSAGES_KEY, type SyncStatus } from "@/lib/mail"
+import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
 
 function ThreadRow({
@@ -63,7 +64,8 @@ export function InboxPage({
 }) {
   const t = useI18n().t.inbox
   const [accountId, setAccountId] = useState("")
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [open, setOpen] = useState<MailThreadView | null>(null)
+  const [composing, setComposing] = useState(false)
   const messages = useInfiniteQuery({
     queryKey: [...MESSAGES_KEY, accountId],
     initialPageParam: "",
@@ -78,12 +80,20 @@ export function InboxPage({
   const rows = messages.data?.pages.flatMap((page) => page.threads) ?? []
   const emailOf = new Map(accounts.map((account) => [account.id, account.email]))
 
-  if (openId) return <ConversationPage id={openId} onBack={() => setOpenId(null)} />
+  if (open)
+    return (
+      <ConversationPage
+        thread={open}
+        accountEmail={emailOf.get(open.accountId) ?? ""}
+        onBack={() => setOpen(null)}
+      />
+    )
+  if (composing) return <ComposePage accounts={accounts} onClose={() => setComposing(false)} />
   if (accounts.length === 0) return <p className="text-sm text-muted-foreground">{t.noMailboxes}</p>
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4 text-sm">
+      <div className="flex items-center gap-4 text-sm">
         <select
           aria-label={t.filter}
           className="rounded-md border bg-background px-2 py-1"
@@ -97,7 +107,10 @@ export function InboxPage({
             </option>
           ))}
         </select>
-        <span className="text-muted-foreground" role="status">
+        <Button size="sm" onClick={() => setComposing(true)}>
+          {t.compose}
+        </Button>
+        <span className="ml-auto text-muted-foreground" role="status">
           {syncStatus === "syncing" && t.syncing}
           {syncStatus === "failed" && t.syncFailed}
         </span>
@@ -115,7 +128,7 @@ export function InboxPage({
             key={thread.id}
             thread={thread}
             accountEmail={emailOf.get(thread.accountId)}
-            onOpen={() => setOpenId(thread.id)}
+            onOpen={() => setOpen(thread)}
           />
         ))}
       </ul>

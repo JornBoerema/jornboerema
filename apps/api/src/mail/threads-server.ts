@@ -1,6 +1,13 @@
 import { getDb, Prisma } from "@evido/db"
-import type { MailThreadDetail, MailThreadsPage, MailThreadView } from "@evido/mail-core/types"
-import { withAccessToken } from "./accounts-server"
+import type {
+  MailOutgoing,
+  MailReply,
+  MailThreadAction,
+  MailThreadDetail,
+  MailThreadsPage,
+  MailThreadView,
+} from "@evido/mail-core/types"
+import { ownedAccount, withAccessToken } from "./accounts-server"
 
 export class InvalidThreadCursorError extends Error {}
 export class MailMessageNotFoundError extends Error {}
@@ -64,16 +71,56 @@ export async function listThreads(
   }
 }
 
-/** Reads a conversation live from the provider. Nothing from it is written to the database. */
-export async function readThread(userId: string, messageId: string): Promise<MailThreadDetail> {
+async function ownedMessage(userId: string, messageId: string) {
   const message = await getDb().mailMessage.findFirst({
     where: { id: messageId, userId },
     include: { account: true },
   })
   if (!message?.threadId) throw new MailMessageNotFoundError()
-  const threadId = message.threadId
-  const messages = await withAccessToken(message.account, (provider, token) =>
+  return { ...message, threadId: message.threadId }
+}
+
+/** Reads a conversation live from the provider. Nothing from it is written to the database. */
+export async function readThread(userId: string, messageId: string): Promise<MailThreadDetail> {
+  const { account, threadId } = await ownedMessage(userId, messageId)
+  const messages = await withAccessToken(account, (provider, token) =>
     provider.getThread(token, threadId)
   )
   return { messages }
+}
+
+/** Changes the mailbox first; the list only follows once the provider has accepted it. */
+export async function actOnThread(userId: string, messageId: string, action: MailThreadAction) {
+  const { account, accountId, threadId } = await ownedMessage(userId, messageId)
+  const db = getDb()
+  const where = { accountId, threadId }
+  const rows = await db.mailMessage.findMany({ where, select: { providerMessageId: true } })
+  await withAccessToken(account, (provider, token) =>
+    provider.applyThreadAction(token, {
+      threadId,
+      messageIds: rows.map((row) => row.providerMessageId),
+      action,
+    })
+  )
+  if (action === "archive" || action === "trash") await db.mailMessage.deleteMany({ where })
+  else await db.mailMessage.updateMany({ where, data: { isRead: action === "read" } })
+}
+
+const sender = (account: { email: string; displayName: string | null }) => ({
+  name: account.displayName,
+  email: account.email,
+})
+
+export async function replyToThread(userId: string, messageId: string, reply: MailReply) {
+  const { account, threadId } = await ownedMessage(userId, messageId)
+  await withAccessToken(account, (provider, token) =>
+    provider.reply(token, { ...reply, threadId, from: sender(account) })
+  )
+}
+
+export async function sendMessage(userId: string, accountId: string, outgoing: MailOutgoing) {
+  const account = await ownedAccount(userId, accountId)
+  await withAccessToken(account, (provider, token) =>
+    provider.send(token, { ...outgoing, from: sender(account) })
+  )
 }

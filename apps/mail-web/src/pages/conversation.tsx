@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { Button } from "@evido/ui/components/button"
-import type {
-  MailAddress,
-  MailThreadDetail,
-  MailThreadMessage,
+import {
+  replyRecipients,
+  type MailAddress,
+  type MailThreadAction,
+  type MailThreadDetail,
+  type MailThreadMessage,
+  type MailThreadView,
 } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
+import { MESSAGES_KEY } from "@/lib/mail"
 
 const label = (address: MailAddress) => address.name ?? address.email
 
@@ -113,9 +118,89 @@ function Message({ message, allowImages }: { message: SanitizedMessage; allowIma
   )
 }
 
-export function ConversationPage({ id, onBack }: { id: string; onBack: () => void }) {
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+function ReplyBox({
+  threadId,
+  message,
+  selfEmail,
+  all,
+  onClose,
+}: {
+  threadId: string
+  message: MailThreadMessage
+  selfEmail: string
+  all: boolean
+  onClose: () => void
+}) {
   const t = useI18n().t.conversation
+  const queryClient = useQueryClient()
+  const [text, setText] = useState("")
+  const { to, cc } = replyRecipients(message, selfEmail, all)
+  const send = useMutation({
+    mutationFn: () =>
+      api(`/api/mail/threads/${encodeURIComponent(threadId)}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: message.id, to, cc, text }),
+      }),
+    onSuccess: () => {
+      toast.success(t.sent)
+      onClose()
+      void queryClient.invalidateQueries({ queryKey: ["mail-thread", threadId] })
+    },
+    onError: (error) => toast.error(errorText(error)),
+  })
+
+  return (
+    <form
+      className="flex flex-col gap-2 text-sm"
+      onSubmit={(event) => {
+        event.preventDefault()
+        send.mutate()
+      }}
+    >
+      <p className="text-xs text-muted-foreground">
+        {t.to}: {to.map(label).join(", ")}
+      </p>
+      {cc.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {t.cc}: {cc.map(label).join(", ")}
+        </p>
+      )}
+      <textarea
+        aria-label={t.replyPlaceholder}
+        placeholder={t.replyPlaceholder}
+        className="min-h-32 rounded-md border bg-background p-2"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={send.isPending || !text.trim() || to.length === 0}>
+          {t.send}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onClose}>
+          {t.cancel}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+export function ConversationPage({
+  thread: summary,
+  accountEmail,
+  onBack,
+}: {
+  thread: MailThreadView
+  accountEmail: string
+  onBack: () => void
+}) {
+  const t = useI18n().t.conversation
+  const queryClient = useQueryClient()
+  const id = summary.id
   const [allowImages, setAllowImages] = useState(false)
+  const [replyMode, setReplyMode] = useState<"reply" | "all" | null>(null)
   const thread = useQuery({
     queryKey: ["mail-thread", id],
     queryFn: () => api<MailThreadDetail>(`/api/mail/threads/${encodeURIComponent(id)}`),
@@ -123,6 +208,29 @@ export function ConversationPage({ id, onBack }: { id: string; onBack: () => voi
     gcTime: 0,
     staleTime: 0,
   })
+  const act = useMutation({
+    mutationFn: (action: MailThreadAction) =>
+      api(`/api/mail/threads/${encodeURIComponent(id)}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: MESSAGES_KEY }),
+  })
+
+  const opened = thread.isSuccess
+  const markedRead = useRef(summary.isRead)
+  const { mutate: applyAction } = act
+  useEffect(() => {
+    if (!opened || markedRead.current) return
+    markedRead.current = true
+    applyAction("read")
+  }, [opened, applyAction])
+
+  function actAndLeave(action: MailThreadAction) {
+    act.mutate(action, { onSuccess: onBack, onError: (error) => toast.error(errorText(error)) })
+  }
+
   const messages = useMemo<SanitizedMessage[]>(
     () =>
       (thread.data?.messages ?? []).map((message) => ({
@@ -131,15 +239,27 @@ export function ConversationPage({ id, onBack }: { id: string; onBack: () => voi
       })),
     [thread.data]
   )
+  const last = messages.at(-1)
   const blockedImages =
     !allowImages && messages.some((message) => message.cleanHtml && hasRemoteImages(message.cleanHtml))
 
   return (
     <section className="flex flex-col gap-4">
-      <div>
+      <div className="flex flex-wrap items-center gap-1">
         <Button variant="ghost" size="sm" onClick={onBack}>
           ← {t.back}
         </Button>
+        <div className="ml-auto flex flex-wrap gap-1">
+          <Button variant="outline" size="sm" disabled={act.isPending} onClick={() => actAndLeave("archive")}>
+            {t.archive}
+          </Button>
+          <Button variant="outline" size="sm" disabled={act.isPending} onClick={() => actAndLeave("trash")}>
+            {t.trash}
+          </Button>
+          <Button variant="outline" size="sm" disabled={act.isPending} onClick={() => actAndLeave("unread")}>
+            {t.markUnread}
+          </Button>
+        </div>
       </div>
       {thread.isPending && <p className="text-sm text-muted-foreground">{t.loading}</p>}
       {thread.isError && <p className="text-sm text-destructive">{t.loadFailed}</p>}
@@ -155,6 +275,26 @@ export function ConversationPage({ id, onBack }: { id: string; onBack: () => voi
       {messages.map((message) => (
         <Message key={message.id} message={message} allowImages={allowImages} />
       ))}
+      {last &&
+        (replyMode ? (
+          <ReplyBox
+            key={replyMode}
+            threadId={id}
+            message={last}
+            selfEmail={accountEmail}
+            all={replyMode === "all"}
+            onClose={() => setReplyMode(null)}
+          />
+        ) : (
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => setReplyMode("reply")}>
+              {t.reply}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setReplyMode("all")}>
+              {t.replyAll}
+            </Button>
+          </div>
+        ))}
     </section>
   )
 }
