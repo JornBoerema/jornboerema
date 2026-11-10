@@ -425,6 +425,7 @@ function ComposeForm({
                     type="button"
                     variant="ghost"
                     size="icon"
+                    className="text-muted-foreground hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
                     aria-label={t.discard}
                     title={t.discard}
                     disabled={discard.isPending || send.isPending}

@@ -422,7 +422,13 @@ export function ConversationPage({
             <ToolbarAction icon={ArchiveIcon} label={t.archive} shortcut="E" onClick={() => onLeave("archive")} />
           )}
           {moves.includes("trash") && (
-            <ToolbarAction icon={Delete02Icon} label={t.trash} shortcut="#" onClick={() => onLeave("trash")} />
+            <ToolbarAction
+              icon={Delete02Icon}
+              label={t.trash}
+              shortcut="#"
+              className="hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
+              onClick={() => onLeave("trash")}
+            />
           )}
           <ToolbarAction icon={MailOpen01Icon} label={t.markUnread} shortcut="U" onClick={() => onLeave("unread")} />
         </div>

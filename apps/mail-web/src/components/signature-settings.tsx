@@ -131,7 +131,7 @@ function SignatureEditor({ signature, onBack }: { signature: MailSignature; onBa
             <Button
               variant="ghost"
               size="icon-sm"
-              className="ml-auto text-muted-foreground"
+              className="ml-auto text-muted-foreground hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
               aria-label={t.delete}
               title={t.delete}
               disabled={remove.isPending}
