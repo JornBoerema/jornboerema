@@ -3,6 +3,7 @@ import { z } from "zod"
 import { getAuth } from "@evido/auth/server"
 import { MissingScopeError, ProviderError, ReauthRequiredError } from "@evido/mail-core/provider"
 import {
+  isMailFolder,
   isMailProvider,
   MAIL_THREAD_ACTIONS,
   MAX_UPLOAD_BYTES,
@@ -54,6 +55,8 @@ import {
   ownedConversation,
   readConversation,
   replyInConversation,
+  InvalidFolderCursorError,
+  listFolder,
   quickSearch,
   searchMail,
   actOnThread,
@@ -409,6 +412,17 @@ mailRoutes.delete("/signatures/:id", requireTrustedOrigin, requireSession, async
   }
 })
 
+mailRoutes.get("/folders/:folder", requireSession, async (c) => {
+  const folder = c.req.param("folder")
+  if (!isMailFolder(folder)) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await listFolder(c.get("session").user.id, folder, c.req.query("cursor")), 200, noStore)
+  } catch (error) {
+    if (error instanceof InvalidFolderCursorError) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return failure(c, error)
+  }
+})
+
 mailRoutes.get("/search/quick", requireSession, async (c) => {
   const query = c.req.query("q")?.trim() ?? ""
   if (!query || query.length > MAX_SEARCH_LENGTH) return c.json({ error: msg(c, "invalidRequest") }, 400)
@@ -434,7 +448,9 @@ mailRoutes.get("/accounts/:id/conversation", requireSession, async (c) => {
   try {
     const conversation = await conversationOf(c)
     if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
-    return c.json(await readConversation(conversation), 200, noStore)
+    // Spam and trash only show when the conversation is opened from those folders.
+    const includeHidden = c.req.query("hidden") === "1"
+    return c.json(await readConversation(conversation, { includeHidden }), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

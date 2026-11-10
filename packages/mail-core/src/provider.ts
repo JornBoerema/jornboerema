@@ -11,6 +11,7 @@ import type {
   MailThreadMessage,
   MailDraftView,
   MailSearchHit,
+  MailFolder,
 } from "./types"
 
 export type ProviderCredentials = { clientId: string; clientSecret: string }
@@ -75,8 +76,16 @@ export interface MailProvider {
   inboxSummary(accessToken: string): Promise<InboxSummary>
   /** One step of the inbox sync. A null cursor starts a full sync from `since`. */
   syncPage(accessToken: string, input: { cursor: string | null; since: Date }): Promise<SyncPage>
-  /** Every message of a conversation, oldest first, without drafts, spam or trash. */
-  getThread(accessToken: string, threadId: string): Promise<MailThreadMessage[]>
+  /**
+   * Every message of a conversation, oldest first, without drafts. Spam and trash
+   * are left out too, unless the conversation is being read from those folders.
+   */
+  getThread(accessToken: string, threadId: string, options?: { includeHidden?: boolean }): Promise<MailThreadMessage[]>
+  /** One page of a folder, newest first, one line per conversation. */
+  listFolder(
+    accessToken: string,
+    input: { folder: MailFolder; pageToken: string | null }
+  ): Promise<{ hits: Omit<MailSearchHit, "accountId">[]; nextPageToken: string | null }>
   /** `messageIds` are the conversation's messages currently in the inbox. */
   applyThreadAction(
     accessToken: string,

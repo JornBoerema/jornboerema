@@ -1,4 +1,4 @@
-import { mapInChunks, sendJson, textToHtml } from "./http"
+import { getJson, mapInChunks, sendJson, textToHtml } from "./http"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
 import type {
@@ -92,14 +92,46 @@ export async function forwardOutlook(accessToken: string, input: MailForward) {
   )
 }
 
+/** Puts the conversation's messages that were moved away back in the inbox. Sent mail stays put. */
+async function moveBackToInbox(accessToken: string, threadId: string) {
+  const folders = await Promise.all(
+    ["deleteditems", "junkemail", "archive"].map((name) =>
+      getJson<{ id: string }>(`${GRAPH_BASE}/me/mailFolders/${name}?$select=id`, accessToken, ID_HEADER).catch(
+        () => null
+      )
+    )
+  )
+  const away = new Set(folders.flatMap((folder) => (folder ? [folder.id] : [])))
+  const filter = encodeURIComponent(`conversationId eq '${threadId.replaceAll("'", "''")}'`)
+  const found = await getJson<{ value?: { id: string; parentFolderId?: string }[] }>(
+    `${GRAPH_BASE}/me/messages?$filter=${filter}&$select=id,parentFolderId&$top=100`,
+    accessToken,
+    ID_HEADER
+  )
+  const ids = (found.value ?? []).filter((message) => away.has(message.parentFolderId ?? "")).map((message) => message.id)
+  await mapInChunks(ids, WRITE_CONCURRENCY, (id) =>
+    sendJson("POST", `${GRAPH_BASE}/me/messages/${encodeURIComponent(id)}/move`, accessToken, { destinationId: "inbox" }, ID_HEADER)
+  )
+}
+
 export async function applyOutlookThreadAction(
   accessToken: string,
-  input: { messageIds: string[]; action: MailThreadAction }
+  input: { threadId: string; messageIds: string[]; action: MailThreadAction }
 ) {
+  if (input.action === "inbox") return moveBackToInbox(accessToken, input.threadId)
   const apply = (id: string) => {
     const url = `${GRAPH_BASE}/me/messages/${encodeURIComponent(id)}`
     if (input.action === "read" || input.action === "unread")
       return sendJson("PATCH", url, accessToken, { isRead: input.action === "read" }, ID_HEADER)
+    // Outlook's flag is what Gmail calls a star.
+    if (input.action === "star" || input.action === "unstar")
+      return sendJson(
+        "PATCH",
+        url,
+        accessToken,
+        { flag: { flagStatus: input.action === "star" ? "flagged" : "notFlagged" } },
+        ID_HEADER
+      )
     const destinationId = input.action === "archive" ? "archive" : "deleteditems"
     return sendJson("POST", `${url}/move`, accessToken, { destinationId }, ID_HEADER)
   }

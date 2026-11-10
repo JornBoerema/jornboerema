@@ -21,12 +21,15 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import {
+  MAIL_FOLDERS,
   rankSearchHits,
+  type MailFolder,
   type MailAccountView,
   type MailSearchHit,
   type MailThreadView,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
+import { FOLDER_ICONS } from "@/components/sidebar"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { shortDate } from "@/lib/dates"
@@ -59,6 +62,7 @@ export function MailSpotlight({
   onOpenThread,
   onCompose,
   onDrafts,
+  onFolder,
   onMailbox,
   onSettings,
 }: {
@@ -68,6 +72,7 @@ export function MailSpotlight({
   onOpenThread: (thread: MailThreadView) => void
   onCompose: () => void
   onDrafts: () => void
+  onFolder: (folder: MailFolder) => void
   /** Empty for every mailbox. */
   onMailbox: (id: string) => void
   onSettings: () => void
@@ -117,6 +122,12 @@ export function MailSpotlight({
     { id: "compose", label: t.newMessage, icon: PencilEdit02Icon, run: onCompose },
     { id: "all", label: t.allMailboxes, icon: InboxIcon, run: () => onMailbox("") },
     { id: "drafts", label: t.drafts, icon: File01Icon, run: onDrafts },
+    ...MAIL_FOLDERS.map((folder) => ({
+      id: `folder-${folder}`,
+      label: strings.folders[folder],
+      icon: FOLDER_ICONS[folder],
+      run: () => onFolder(folder),
+    })),
     ...accounts.map((account) => ({
       id: `mailbox-${account.id}`,
       label: account.email,

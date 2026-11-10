@@ -91,14 +91,15 @@ async function hiddenFolderIds(accessToken: string) {
 
 export async function readOutlookThread(
   accessToken: string,
-  threadId: string
+  threadId: string,
+  options?: { includeHidden?: boolean }
 ): Promise<MailThreadMessage[]> {
   // Graph refuses $orderby combined with this filter, so sorting happens below.
   const filter = encodeURIComponent(`conversationId eq '${threadId.replaceAll("'", "''")}'`)
   let url: string | undefined =
     `${GRAPH_BASE}/me/messages?$filter=${filter}&$select=${SELECT}&$expand=${encodeURIComponent(EXPAND)}&$top=50`
 
-  const hidden = await hiddenFolderIds(accessToken)
+  const hidden = options?.includeHidden ? new Set<string>() : await hiddenFolderIds(accessToken)
   const found: GraphMessage[] = []
   for (let page = 0; url && page < MAX_PAGES; page++) {
     if (!url.startsWith(`${GRAPH_BASE}/`)) throw new ProviderError("Unexpected Graph next link")

@@ -96,14 +96,16 @@ export function collect(part: Part, content: Content) {
 
 export async function readGmailThread(
   accessToken: string,
-  threadId: string
+  threadId: string,
+  options?: { includeHidden?: boolean }
 ): Promise<MailThreadMessage[]> {
+  const hidden = options?.includeHidden ? ["DRAFT"] : HIDDEN_LABELS
   const thread = await getJson<GmailThread>(
     `${GMAIL_API}/threads/${encodeURIComponent(threadId)}?format=full`,
     accessToken
   )
   const messages = (thread.messages ?? []).filter(
-    (message) => !message.labelIds?.some((label) => HIDDEN_LABELS.includes(label))
+    (message) => !message.labelIds?.some((label) => hidden.includes(label))
   )
   if (messages.length === 0) throw new ProviderError("Gmail thread is empty", { status: 404 })
 

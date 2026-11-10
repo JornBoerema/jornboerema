@@ -334,19 +334,23 @@ const LABEL_CHANGES = {
   read: { removeLabelIds: ["UNREAD"] },
   unread: { addLabelIds: ["UNREAD"] },
   archive: { removeLabelIds: ["INBOX"] },
+  star: { addLabelIds: ["STARRED"] },
+  unstar: { removeLabelIds: ["STARRED"] },
 } as const
 
 export async function applyGmailThreadAction(
   accessToken: string,
   input: { threadId: string; messageIds: string[]; action: MailThreadAction }
 ) {
+  const thread = `${GMAIL_API}/threads/${encodeURIComponent(input.threadId)}`
   if (input.action === "trash") {
-    await sendJson(
-      "POST",
-      `${GMAIL_API}/threads/${encodeURIComponent(input.threadId)}/trash`,
-      accessToken,
-      {}
-    )
+    await sendJson("POST", `${thread}/trash`, accessToken, {})
+    return
+  }
+  if (input.action === "inbox") {
+    // Out of the trash first; a thread in spam only needs its labels changed.
+    await sendJson("POST", `${thread}/untrash`, accessToken, {})
+    await sendJson("POST", `${thread}/modify`, accessToken, { addLabelIds: ["INBOX"], removeLabelIds: ["SPAM"] })
     return
   }
   // batchModify accepts at most 1000 ids per call.

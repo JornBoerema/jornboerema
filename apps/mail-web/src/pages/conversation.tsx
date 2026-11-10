@@ -3,6 +3,8 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   ArchiveIcon,
+  InboxIcon,
+  StarIcon,
   ArrowLeft02Icon,
   Attachment01Icon,
   Delete02Icon,
@@ -19,6 +21,7 @@ import { readingColumn } from "@/lib/layout"
 import type {
   MailAccountView,
   MailAddress,
+  MailFolder,
   MailAttachmentInfo,
   MailThreadAction,
   MailThreadDetail,
@@ -32,7 +35,7 @@ import { useI18n } from "@/i18n"
 import { api, apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
 import { useHotkeys } from "@/lib/hotkeys"
-import { conversationUrl, useThreadAction } from "@/lib/mail"
+import { conversationUrl, moveActions, STARRED, useThreadAction } from "@/lib/mail"
 import { useAlwaysShowImages } from "@/lib/preferences"
 
 /** Long enough that walking past a mail with j/k leaves it unread. */
@@ -294,15 +297,27 @@ function ToolbarAction({
   icon,
   label: text,
   shortcut,
+  pressed,
+  className,
   onClick,
 }: {
   icon: IconSvgElement
   label: string
   shortcut: string
+  pressed?: boolean
+  className?: string
   onClick: () => void
 }) {
   return (
-    <Button variant="ghost" size="icon-sm" aria-label={text} title={`${text} (${shortcut})`} onClick={onClick}>
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={text}
+      aria-pressed={pressed}
+      title={`${text} (${shortcut})`}
+      className={className}
+      onClick={onClick}
+    >
       <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" />
     </Button>
   )
@@ -311,17 +326,26 @@ function ToolbarAction({
 export function ConversationPage({
   thread: summary,
   account,
+  folder,
   onBack,
   onLeave,
 }: {
   thread: MailThreadView
   /** Missing only for the moment a mailbox is being disconnected. */
   account: MailAccountView | undefined
+  /** The folder it was opened from; null for the inbox and search. */
+  folder: MailFolder | null
   onBack: () => void
-  /** Runs an action that takes this conversation out of view. */
+  /** Runs an action; the list decides whether that takes the conversation out of view. */
   onLeave: (action: MailThreadAction) => void
 }) {
   const t = useI18n().t.conversation
+  const moves = moveActions(folder)
+  const [starred, setStarred] = useState(summary.isStarred)
+  const toggleStar = () => {
+    setStarred(!starred)
+    onLeave(starred ? "unstar" : "star")
+  }
   const id = summary.id
   const replySignature = useSignatureFor(account, "reply")
   const alwaysShowImages = useAlwaysShowImages()
@@ -346,8 +370,10 @@ export function ConversationPage({
   }, [opened, needsRead, id, runAction])
 
   useHotkeys({
-    e: () => onLeave("archive"),
-    "#": () => onLeave("trash"),
+    ...(moves.includes("archive") && { e: () => onLeave("archive") }),
+    ...(moves.includes("trash") && { "#": () => onLeave("trash") }),
+    ...(moves.includes("inbox") && { i: () => onLeave("inbox") }),
+    s: toggleStar,
     u: () => onLeave("unread"),
     r: () => setReplyMode("reply"),
     a: () => setReplyMode("all"),
@@ -378,8 +404,23 @@ export function ConversationPage({
           <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.75} aria-hidden="true" />
         </Button>
         <div className="ml-auto flex items-center gap-0.5">
-          <ToolbarAction icon={ArchiveIcon} label={t.archive} shortcut="E" onClick={() => onLeave("archive")} />
-          <ToolbarAction icon={Delete02Icon} label={t.trash} shortcut="#" onClick={() => onLeave("trash")} />
+          <ToolbarAction
+            icon={StarIcon}
+            label={starred ? t.unstar : t.star}
+            shortcut="S"
+            pressed={starred}
+            className={cn(starred && STARRED)}
+            onClick={toggleStar}
+          />
+          {moves.includes("inbox") && (
+            <ToolbarAction icon={InboxIcon} label={t.moveToInbox} shortcut="I" onClick={() => onLeave("inbox")} />
+          )}
+          {moves.includes("archive") && (
+            <ToolbarAction icon={ArchiveIcon} label={t.archive} shortcut="E" onClick={() => onLeave("archive")} />
+          )}
+          {moves.includes("trash") && (
+            <ToolbarAction icon={Delete02Icon} label={t.trash} shortcut="#" onClick={() => onLeave("trash")} />
+          )}
           <ToolbarAction icon={MailOpen01Icon} label={t.markUnread} shortcut="U" onClick={() => onLeave("unread")} />
         </div>
       </header>

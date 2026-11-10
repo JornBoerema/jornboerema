@@ -1,4 +1,4 @@
-import { searchOutlook } from "./outlook-search"
+import { listOutlookFolder, searchOutlook } from "./outlook-search"
 import { deleteOutlookDraft, getOutlookDraft, listOutlookDrafts, saveOutlookDraft, sendOutlookDraft } from "./outlook-drafts"
 import { getJson, requestTokens, sendJson } from "./http"
 import { readOutlookAttachment, readOutlookThread } from "./outlook-read"
@@ -95,6 +95,8 @@ export function createOutlookProvider({
     forward: forwardOutlook,
 
     search: searchOutlook,
+
+    listFolder: listOutlookFolder,
 
     listDrafts: listOutlookDrafts,
 

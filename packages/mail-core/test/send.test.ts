@@ -298,7 +298,7 @@ describe("outlook attachments and forwarding", () => {
 describe("outlook actions", () => {
   it("patches read state per message", async () => {
     const sent = stub()
-    await applyOutlookThreadAction("t", { messageIds: ["a", "b"], action: "unread" })
+    await applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["a", "b"], action: "unread" })
     expect(sent.map((item) => [item.method, item.body])).toEqual([
       ["PATCH", { isRead: false }],
       ["PATCH", { isRead: false }],
@@ -310,18 +310,18 @@ describe("outlook actions", () => {
     ["trash", "deleteditems"],
   ] as const)("%s moves to %s", async (action, destinationId) => {
     const sent = stub()
-    await applyOutlookThreadAction("t", { messageIds: ["a"], action })
+    await applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["a"], action })
     expect(sent[0]?.url).toMatch(/\/me\/messages\/a\/move$/)
     expect(sent[0]?.body).toEqual({ destinationId })
   })
 
   it("treats an already removed message as done but surfaces other failures", async () => {
     stub(() => [404, {}])
-    await expect(applyOutlookThreadAction("t", { messageIds: ["a"], action: "trash" })).resolves.toBeUndefined()
+    await expect(applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["a"], action: "trash" })).resolves.toBeUndefined()
     stub(() => [503, {}])
-    await expect(applyOutlookThreadAction("t", { messageIds: ["a"], action: "trash" })).rejects.toBeInstanceOf(ProviderError)
+    await expect(applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["a"], action: "trash" })).rejects.toBeInstanceOf(ProviderError)
     stub(() => [401, {}])
-    await expect(applyOutlookThreadAction("t", { messageIds: ["a"], action: "trash" })).rejects.toBeInstanceOf(ReauthRequiredError)
+    await expect(applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["a"], action: "trash" })).rejects.toBeInstanceOf(ReauthRequiredError)
   })
 })
 
@@ -496,5 +496,33 @@ describe("inline images", () => {
     expect((sent[0]?.body.message as { attachments: unknown[] }).attachments).toEqual([
       { "@odata.type": "#microsoft.graph.fileAttachment", name: "logo.png", contentType: "image/png", contentBytes: logo.data, contentId: "a1b2.0@evido", isInline: true },
     ])
+  })
+})
+
+describe("star and back to the inbox", () => {
+  it("star with Gmail labels and Outlook flags", async () => {
+    const sent = stub()
+    await applyGmailThreadAction("t", { threadId: "t1", messageIds: ["m1"], action: "star" })
+    expect(sent[0]?.body).toEqual({ ids: ["m1"], addLabelIds: ["STARRED"] })
+    await applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["o1"], action: "unstar" })
+    expect(sent[1]?.body).toEqual({ flag: { flagStatus: "notFlagged" } })
+  })
+
+  it("Gmail untrashes and puts the inbox label back", async () => {
+    const sent = stub()
+    await applyGmailThreadAction("t", { threadId: "t1", messageIds: [], action: "inbox" })
+    expect(sent.map((item) => item.url.split("/threads/")[1])).toEqual(["t1/untrash", "t1/modify"])
+    expect(sent[1]?.body).toEqual({ addLabelIds: ["INBOX"], removeLabelIds: ["SPAM"] })
+  })
+
+  it("Outlook moves back only what was moved away, not sent mail", async () => {
+    const sent = stub((url) => {
+      if (url.includes("mailFolders/deleteditems")) return [200, { id: "trash" }]
+      if (url.includes("mailFolders/junkemail")) return [200, { id: "junk" }]
+      if (url.includes("mailFolders/archive")) return [404, {}]
+      return [200, { value: [{ id: "a", parentFolderId: "trash" }, { id: "b", parentFolderId: "sentitems-id" }] }]
+    })
+    await applyOutlookThreadAction("t", { threadId: "c1", messageIds: [], action: "inbox" })
+    expect(sent.map((item) => [item.url.split("/me/messages/")[1], item.body])).toEqual([["a/move", { destinationId: "inbox" }]])
   })
 })

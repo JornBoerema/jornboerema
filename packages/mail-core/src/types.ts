@@ -61,6 +61,8 @@ export type MailThreadView = {
   isStarred: boolean
   hasAttachments: boolean
   messageCount: number
+  /** Set for folders of sent mail, whose lines name the recipients. */
+  to?: MailAddress[]
 }
 
 export type MailThreadsPage = { threads: MailThreadView[]; nextCursor: string | null }
@@ -112,7 +114,8 @@ export type MailSyncResult = {
   changed: number
 }
 
-export const MAIL_THREAD_ACTIONS = ["read", "unread", "archive", "trash"] as const
+/** `inbox` puts a conversation back, out of the archive, spam or trash. */
+export const MAIL_THREAD_ACTIONS = ["read", "unread", "archive", "trash", "star", "unstar", "inbox"] as const
 export type MailThreadAction = (typeof MAIL_THREAD_ACTIONS)[number]
 
 export type MailOutgoing = {
@@ -212,9 +215,22 @@ export type MailSearchHit = {
   receivedAt: string
   isRead: boolean
   hasAttachments: boolean
+  isStarred?: boolean
+  /** Who the newest message went to; folders of sent mail show this instead. */
+  to?: MailAddress[]
   /** The newest synced message, when the conversation is in the inbox list. */
   messageId?: string
 }
+
+/** Folders read live from the provider. The inbox is synced; drafts have their own list. */
+export const MAIL_FOLDERS = ["starred", "sent", "archive", "spam", "trash"] as const
+export type MailFolder = (typeof MAIL_FOLDERS)[number]
+export const isMailFolder = (value: unknown): value is MailFolder => MAIL_FOLDERS.includes(value as MailFolder)
+/** Spam and trash are hidden from normal reading, so opening one has to ask for them. */
+export const HIDDEN_FOLDERS: readonly MailFolder[] = ["spam", "trash"]
+export const FOLDER_PAGE_SIZE = 20
+
+export type MailFolderPage = { hits: MailSearchHit[]; nextCursor: string | null; failedAccounts: string[] }
 
 /** Each mailbox returns at most this many conversations per search. */
 export const MAX_SEARCH_HITS = 15

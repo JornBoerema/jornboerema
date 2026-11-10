@@ -11,7 +11,7 @@ import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { MailSettings } from "@/components/mail-settings"
 import { MailSpotlight } from "@/components/mail-spotlight"
-import { Sidebar, type MailNavigation } from "@/components/sidebar"
+import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
 import { I18nProvider } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
@@ -31,7 +31,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const syncStatus = useMailSync(accounts.data?.accounts)
   useMailRealtime(user.id)
   const [filter, setFilter] = useState("")
-  const [view, setView] = useState<"inbox" | "drafts">("inbox")
+  const [view, setView] = useState<MailView>("inbox")
   // A new key starts a fresh composer, for a new message or another draft.
   const [compose, setCompose] = useState<{ key: number; draft: DraftRef | null } | null>(null)
   const [composeDraftId, setComposeDraftId] = useState<string | null>(null)
@@ -112,6 +112,11 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       setFilter("")
       setView("drafts")
     },
+    onSelectFolder: (folder) => {
+      setFilter("")
+      setOpen(null)
+      setView(folder)
+    },
     onCompose: () => {
       if (!hasActive) return
       // "Resume draft" brings back the one out of view; otherwise this starts a new one.
@@ -154,6 +159,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
         onOpenThread={setOpen}
         onCompose={navigation.onCompose}
         onDrafts={navigation.onSelectDrafts}
+        onFolder={navigation.onSelectFolder}
         onMailbox={navigation.onSelectAccount}
         onSettings={navigation.onSettings}
       />

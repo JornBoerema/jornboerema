@@ -7,13 +7,17 @@ import {
 } from "@tanstack/react-query"
 import { Realtime } from "ably"
 import { toast } from "sonner"
-import type {
-  MailAccountView,
-  MailSearchHit,
-  MailSyncResult,
-  MailThreadAction,
-  MailThreadsPage,
-  MailThreadView,
+import {
+  HIDDEN_FOLDERS,
+  MAIL_FOLDERS,
+  type MailFolder,
+  type MailFolderPage,
+  type MailAccountView,
+  type MailSearchHit,
+  type MailSyncResult,
+  type MailThreadAction,
+  type MailThreadsPage,
+  type MailThreadView,
 } from "@evido/mail-core/types"
 import { api, ApiError, errorText } from "@/lib/api"
 
@@ -27,25 +31,26 @@ const BUSY_RETRY_MS = 3 * 1000
 
 export type SyncStatus = "idle" | "syncing" | "failed"
 
-const SEARCHED = "search:"
+const REMOTE = "remote:"
 
 /**
- * The API path of a conversation. Ones search found outside the synced inbox
- * have no row id, so they are addressed by mailbox and provider thread id.
+ * The API path of a conversation. Ones outside the synced inbox, found by search
+ * or in a folder, have no row id, so they are addressed by mailbox and provider
+ * thread id. Those from spam or trash also ask for the messages kept there.
  */
 export function conversationUrl(id: string, suffix = "") {
-  if (!id.startsWith(SEARCHED)) return `/api/mail/threads/${encodeURIComponent(id)}${suffix}`
-  const rest = id.slice(SEARCHED.length)
-  const split = rest.indexOf(":")
-  const accountId = rest.slice(0, split)
-  const threadId = rest.slice(split + 1)
-  return `/api/mail/accounts/${encodeURIComponent(accountId)}/conversation${suffix}?thread=${encodeURIComponent(threadId)}`
+  if (!id.startsWith(REMOTE)) return `/api/mail/threads/${encodeURIComponent(id)}${suffix}`
+  const [accountId = "", scope, ...thread] = id.slice(REMOTE.length).split(":")
+  const hidden = scope === "h" ? "&hidden=1" : ""
+  return `/api/mail/accounts/${encodeURIComponent(accountId)}/conversation${suffix}?thread=${encodeURIComponent(thread.join(":"))}${hidden}`
 }
 
-/** A search hit as a list line, so the reading pane can open it like any other. */
-export function searchHitAsThread(hit: MailSearchHit): MailThreadView {
+/** A search or folder hit as a list line, so the reading pane can open it like any other. */
+export function searchHitAsThread(hit: MailSearchHit, folder?: MailFolder): MailThreadView {
+  const hidden = folder !== undefined && HIDDEN_FOLDERS.includes(folder)
   return {
-    id: hit.messageId ?? `${SEARCHED}${hit.accountId}:${hit.threadId}`,
+    // Hidden mail isn't in the synced inbox, so it never opens as an inbox row.
+    id: (!hidden && hit.messageId) || `${REMOTE}${hit.accountId}:${hidden ? "h" : "-"}:${hit.threadId}`,
     accountId: hit.accountId,
     subject: hit.subject,
     snippet: hit.snippet,
@@ -53,10 +58,44 @@ export function searchHitAsThread(hit: MailSearchHit): MailThreadView {
     fromEmail: hit.fromEmail,
     receivedAt: hit.receivedAt,
     isRead: hit.isRead,
-    isStarred: false,
+    isStarred: hit.isStarred ?? false,
     hasAttachments: hit.hasAttachments,
     messageCount: 1,
+    ...(folder === "sent" && hit.to && { to: hit.to }),
   }
+}
+
+const FOLDERS_KEY = ["mail-folder"]
+export const folderKey = (folder: MailFolder) => [...FOLDERS_KEY, folder]
+
+/** What leaves a folder's list when it happens; the rest only changes the line. */
+const LEAVES: Record<MailFolder, MailThreadAction[]> = {
+  starred: ["unstar"],
+  sent: ["trash"],
+  archive: ["trash", "inbox"],
+  spam: ["trash", "inbox"],
+  trash: ["inbox"],
+}
+
+/** A star that is set: filled, in the colour mail apps use for it. */
+export const STARRED = "text-amber-500! [&_path]:fill-current"
+
+/** Whether an action takes a conversation out of the list it is shown in. */
+export const leavesList = (folder: MailFolder | null, action: MailThreadAction) =>
+  folder ? LEAVES[folder].includes(action) : action === "archive" || action === "trash"
+
+/** The actions that move a conversation on, as offered in each list. */
+export function moveActions(folder: MailFolder | null): MailThreadAction[] {
+  if (folder === "trash") return ["inbox"]
+  if (folder === "archive" || folder === "spam") return ["inbox", "trash"]
+  if (folder === "sent") return ["trash"]
+  return ["archive", "trash"]
+}
+
+function changeLine(thread: MailThreadView, action: MailThreadAction): MailThreadView {
+  if (action === "read" || action === "unread") return { ...thread, isRead: action === "read" }
+  if (action === "star" || action === "unstar") return { ...thread, isStarred: action === "star" }
+  return thread
 }
 
 export function useAccounts() {
@@ -68,9 +107,25 @@ export function useAccounts() {
 
 function applyAction(threads: MailThreadView[], id: string, action: MailThreadAction) {
   if (action === "archive" || action === "trash") return threads.filter((thread) => thread.id !== id)
-  return threads.map((thread) =>
-    thread.id === id ? { ...thread, isRead: action === "read" } : thread
-  )
+  return threads.map((thread) => (thread.id === id ? changeLine(thread, action) : thread))
+}
+
+/** Folder pages hold hits; a hit matches by the id its line opens with. */
+function applyToFolder(page: MailFolderPage, folder: MailFolder, id: string, action: MailThreadAction) {
+  const matches = (hit: MailSearchHit) => searchHitAsThread(hit, folder).id === id
+  if (LEAVES[folder].includes(action)) return { ...page, hits: page.hits.filter((hit) => !matches(hit)) }
+  return {
+    ...page,
+    hits: page.hits.map((hit) =>
+      matches(hit)
+        ? {
+            ...hit,
+            ...(action === "read" || action === "unread" ? { isRead: action === "read" } : {}),
+            ...(action === "star" || action === "unstar" ? { isStarred: action === "star" } : {}),
+          }
+        : hit
+    ),
+  }
 }
 
 /** Updates the list at once; a refusal from the provider puts the real state back. */
@@ -86,6 +141,12 @@ export function useThreadAction() {
       }),
     onMutate: async ({ id, action }) => {
       await queryClient.cancelQueries({ queryKey: MESSAGES_KEY })
+      await queryClient.cancelQueries({ queryKey: FOLDERS_KEY })
+      for (const folder of MAIL_FOLDERS)
+        queryClient.setQueryData<InfiniteData<MailFolderPage>>(
+          folderKey(folder),
+          (data) => data && { ...data, pages: data.pages.map((page) => applyToFolder(page, folder, id, action)) }
+        )
       queryClient.setQueriesData<InfiniteData<MailThreadsPage>>(
         { queryKey: MESSAGES_KEY },
         (data) =>
@@ -101,8 +162,10 @@ export function useThreadAction() {
     onError: (error) => toast.error(errorText(error)),
     onSettled: () => {
       // A refetch while another action runs would briefly bring its thread back.
-      if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 1)
+      if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 1) {
         void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+        void queryClient.invalidateQueries({ queryKey: FOLDERS_KEY })
+      }
     },
   })
 }

@@ -22,12 +22,15 @@ import {
 import { Skeleton } from "@evido/ui/components/skeleton"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
-import type {
-  MailAccountView,
-  MailDraftView,
-  MailThreadAction,
-  MailThreadsPage,
-  MailThreadView,
+import {
+  isMailFolder,
+  type MailFolder,
+  type MailFolderPage,
+  type MailAccountView,
+  type MailDraftView,
+  type MailThreadAction,
+  type MailThreadsPage,
+  type MailThreadView,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import {
@@ -40,7 +43,16 @@ import { api } from "@/lib/api"
 import type { DraftRef, useDrafts } from "@/lib/drafts"
 import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
-import { MESSAGES_KEY, useThreadAction, type SyncStatus } from "@/lib/mail"
+import {
+  folderKey,
+  leavesList,
+  MESSAGES_KEY,
+  moveActions,
+  searchHitAsThread,
+  STARRED,
+  useThreadAction,
+  type SyncStatus,
+} from "@/lib/mail"
 import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
 
@@ -52,7 +64,7 @@ import { ConversationPage } from "@/pages/conversation"
 function RowActions({
   actions,
 }: {
-  actions: { icon: IconSvgElement; label: string; run: () => void; destructive?: boolean }[]
+  actions: { icon: IconSvgElement; label: string; run: () => void; destructive?: boolean; className?: string }[]
 }) {
   return (
     <span className="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
@@ -64,7 +76,8 @@ function RowActions({
           // Only the icon reacts; the row already shows what is hovered.
           className={cn(
             "text-muted-foreground hover:bg-transparent! dark:hover:bg-transparent!",
-            action.destructive ? "hover:text-destructive" : "hover:text-foreground"
+            action.destructive ? "hover:text-destructive" : "hover:text-foreground",
+            action.className
           )}
           aria-label={action.label}
           title={action.label}
@@ -77,6 +90,12 @@ function RowActions({
   )
 }
 
+export const MOVE_ICONS: Record<string, IconSvgElement> = {
+  archive: ArchiveIcon,
+  trash: Delete02Icon,
+  inbox: InboxIcon,
+}
+
 /** What the quick actions cover: the date and the small icons beside it. */
 const UNDER_ACTIONS = "group-focus-within:invisible group-hover:invisible"
 
@@ -84,6 +103,7 @@ function ThreadRow({
   thread,
   mailbox,
   selected,
+  folder,
   onOpen,
   onAction,
 }: {
@@ -91,8 +111,10 @@ function ThreadRow({
   /** Only set when several mailboxes share the list. */
   mailbox: MailAccountView | undefined
   selected: boolean
+  /** The folder this list shows; null for the inbox. */
+  folder: MailFolder | null
   onOpen: () => void
-  onAction: (action: "archive" | "trash") => void
+  onAction: (action: MailThreadAction) => void
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
@@ -125,7 +147,9 @@ function ThreadRow({
             )}
           >
             {unread && <span className="sr-only">{t.unread}: </span>}
-            {thread.fromName ?? thread.fromEmail ?? t.unknownSender}
+            {thread.to
+              ? strings.folders.to(thread.to.map((address) => address.name || address.email).join(", ") || "—")
+              : (thread.fromName ?? thread.fromEmail ?? t.unknownSender)}
             {thread.messageCount > 1 && (
               <span className="font-normal text-muted-foreground">
                 {" "}
@@ -138,7 +162,7 @@ function ThreadRow({
               icon={StarIcon}
               strokeWidth={1.75}
               aria-label={t.starred}
-              className={icon}
+              className={cn(icon, STARRED)}
             />
           )}
           {thread.hasAttachments && (
@@ -174,8 +198,15 @@ function ThreadRow({
       </button>
       <RowActions
         actions={[
-          { icon: ArchiveIcon, label: actions.archive, run: () => onAction("archive") },
-          { icon: Delete02Icon, label: actions.trash, run: () => onAction("trash"), destructive: true },
+          thread.isStarred
+            ? { icon: StarIcon, label: actions.unstar, run: () => onAction("unstar"), className: STARRED }
+            : { icon: StarIcon, label: actions.star, run: () => onAction("star") },
+          ...moveActions(folder).map((action) => ({
+            icon: MOVE_ICONS[action] ?? ArchiveIcon,
+            label: action === "inbox" ? actions.moveToInbox : actions[action as "archive" | "trash"],
+            run: () => onAction(action),
+            destructive: action === "trash",
+          })),
         ]}
       />
     </li>
@@ -254,6 +285,12 @@ function DraftRow({
       <RowActions actions={[{ icon: Delete02Icon, label: t.compose.discard, run: onDelete, destructive: true }]} />
     </li>
   )
+}
+
+/** Pages of different mailboxes can repeat a conversation. */
+function uniqueById(threads: MailThreadView[]) {
+  const seen = new Set<string>()
+  return threads.filter((thread) => !seen.has(thread.id) && seen.add(thread.id))
 }
 
 function ListSkeleton() {
@@ -348,7 +385,23 @@ export function InboxPage({
     },
     getNextPageParam: (page) => page.nextCursor,
   })
-  const rows = messages.data?.pages.flatMap((page) => page.threads) ?? []
+  const folder = isMailFolder(navigation.view) ? navigation.view : null
+  const folderPages = useInfiniteQuery({
+    queryKey: folderKey(folder ?? "starred"),
+    enabled: folder !== null,
+    initialPageParam: "",
+    queryFn: ({ pageParam }) =>
+      api<MailFolderPage>(
+        `/api/mail/folders/${folder}${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ""}`
+      ),
+    getNextPageParam: (page) => page.nextCursor,
+  })
+  const list = folder ? folderPages : messages
+  const rows = folder
+    ? uniqueById(
+        (folderPages.data?.pages ?? []).flatMap((page) => page.hits.map((hit) => searchHitAsThread(hit, folder)))
+      )
+    : (messages.data?.pages.flatMap((page) => page.threads) ?? [])
   const position = open ? rows.findIndex((thread) => thread.id === open.id) : -1
   const selectedAccount = accounts.find((account) => account.id === accountId)
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
@@ -365,6 +418,8 @@ export function InboxPage({
   }
 
   function leave(thread: MailThreadView, action: MailThreadAction) {
+    // A star or a read mark keeps the conversation where it is.
+    if (action !== "unread" && !leavesList(folder, action)) return runAction({ id: thread.id, action })
     // Opened from search and not in this list: there's no next one to move to.
     if (position < 0) {
       onOpen(null)
@@ -406,7 +461,9 @@ export function InboxPage({
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
             {showDrafts
               ? strings.drafts.title
-              : (selectedAccount?.email ?? t.title)}
+              : folder
+                ? strings.folders[folder]
+                : (selectedAccount?.email ?? t.title)}
           </h1>
           <span
             role="status"
@@ -497,7 +554,7 @@ export function InboxPage({
             </>
           ) : (
             <>
-              {(messages.isPending || loadingAccounts) && <ListSkeleton />}
+              {(list.isPending || loadingAccounts) && <ListSkeleton />}
               {!loadingAccounts && accounts.length === 0 ? (
                 <Empty className="h-full">
                   <EmptyHeader>
@@ -510,16 +567,23 @@ export function InboxPage({
                 </Empty>
               ) : (
                 <>
-                  {messages.isError && (
+                  {list.isError && (
                     <p className="p-4 text-sm text-destructive">
-                      {t.loadFailed}
+                      {folder ? strings.folders.loadFailed : t.loadFailed}
                     </p>
                   )}
-                  {messages.isSuccess &&
+                  {folder && !!folderPages.data?.pages.at(-1)?.failedAccounts.length && (
+                    <p className="px-4 pb-2 text-xs text-muted-foreground">{strings.folders.someFailed}</p>
+                  )}
+                  {list.isSuccess &&
                     !loadingAccounts &&
                     rows.length === 0 && (
                       <p className="p-4 text-sm text-muted-foreground">
-                        {syncStatus === "syncing" ? t.firstSync : t.empty}
+                        {folder
+                          ? strings.folders.empty
+                          : syncStatus === "syncing"
+                            ? t.firstSync
+                            : t.empty}
                       </p>
                     )}
                   <ul className="flex flex-col gap-0.5 px-2 pb-2">
@@ -528,11 +592,12 @@ export function InboxPage({
                         key={thread.id}
                         thread={thread}
                         mailbox={
-                          !accountId && accounts.length > 1
+                          (folder || !accountId) && accounts.length > 1
                             ? accountOf.get(thread.accountId)
                             : undefined
                         }
                         selected={thread.id === open?.id}
+                        folder={folder}
                         onOpen={() => onOpen(thread)}
                         onAction={(action) =>
                           thread.id === open?.id
@@ -542,10 +607,10 @@ export function InboxPage({
                       />
                     ))}
                   </ul>
-                  {messages.hasNextPage && (
+                  {list.hasNextPage && (
                     <LoadMore
-                      loading={messages.isFetchingNextPage}
-                      onVisible={() => void messages.fetchNextPage()}
+                      loading={list.isFetchingNextPage}
+                      onVisible={() => void list.fetchNextPage()}
                     />
                   )}
                 </>
@@ -580,6 +645,7 @@ export function InboxPage({
             thread={open}
             account={accountOf.get(open.accountId)}
             onBack={() => onOpen(null)}
+            folder={folder}
             onLeave={(action) => leave(open, action)}
           />
         ) : (

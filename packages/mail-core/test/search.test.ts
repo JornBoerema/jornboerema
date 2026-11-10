@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { searchGmail } from "../src/gmail-search"
-import { searchOutlook } from "../src/outlook-search"
+import { listGmailFolder, searchGmail } from "../src/gmail-search"
+import { listOutlookFolder, searchOutlook } from "../src/outlook-search"
 import { rankSearchHits, searchWords, type MailSearchHit } from "../src/types"
 
 function stub(answer: (url: string) => [number, unknown]) {
@@ -46,8 +46,10 @@ describe("gmail search", () => {
         snippet: "Prima & dank",
         fromName: "Bo, B",
         fromEmail: "bo@x.nl",
+        to: [],
         receivedAt: new Date(2000).toISOString(),
         isRead: false,
+        isStarred: false,
         hasAttachments: true,
       },
     ])
@@ -111,5 +113,38 @@ describe("ranking", () => {
 
   it("ignores operators when ranking", () => {
     expect(searchWords("from:al Offerte  has:attachment")).toEqual(["offerte"])
+  })
+})
+
+describe("folders", () => {
+  it("read Gmail labels, with spam and trash asked for explicitly", async () => {
+    const urls = stub((url) =>
+      url.includes("/threads?")
+        ? [200, { threads: [{ id: "t1" }], nextPageToken: "p2" }]
+        : [200, { id: "t1", messages: [{ id: "m1", labelIds: ["SENT", "STARRED"], internalDate: "5", payload: { headers: [header("To", "Al <al@x.nl>")] } }] }]
+    )
+    const page = await listGmailFolder("t", { folder: "trash", pageToken: "p1" })
+    const params = new URL(urls[0] as string).searchParams
+    expect([params.get("labelIds"), params.get("includeSpamTrash"), params.get("pageToken")]).toEqual(["TRASH", "true", "p1"])
+    expect(page.nextPageToken).toBe("p2")
+    expect(page.hits[0]).toMatchObject({ isStarred: true, to: [{ name: "Al", email: "al@x.nl" }] })
+    await listGmailFolder("t", { folder: "archive", pageToken: null })
+    expect(new URL(urls.at(-2) as string).searchParams.get("q")).toContain("-in:inbox")
+  })
+
+  it("read Graph folders newest first, and flagged mail as starred", async () => {
+    const urls = stub(() => [200, { value: [{ conversationId: "c1", flag: { flagStatus: "flagged" }, receivedDateTime: "2026-01-01T00:00:00Z" }], "@odata.nextLink": "https://graph.microsoft.com/v1.0/next" }])
+    const sent = await listOutlookFolder("t", { folder: "sent", pageToken: null })
+    expect(urls[0]).toContain("/mailFolders/sentitems/messages")
+    expect(decodeURIComponent(urls[0] as string)).toContain("$orderby=receivedDateTime desc")
+    expect(sent).toMatchObject({ hits: [{ threadId: "c1", isStarred: true }], nextPageToken: "https://graph.microsoft.com/v1.0/next" })
+    await listOutlookFolder("t", { folder: "starred", pageToken: null })
+    expect(decodeURIComponent(urls[1] as string)).toContain("flag/flagStatus eq 'flagged'")
+    await expect(listOutlookFolder("t", { folder: "sent", pageToken: "https://evil.example/x" })).rejects.toThrow()
+  })
+
+  it("treat a mailbox without an archive folder as empty", async () => {
+    stub(() => [404, {}])
+    expect(await listOutlookFolder("t", { folder: "archive", pageToken: null })).toEqual({ hits: [], nextPageToken: null })
   })
 })

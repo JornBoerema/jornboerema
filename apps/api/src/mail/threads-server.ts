@@ -3,6 +3,8 @@ import {
   MAX_SEARCH_HITS,
   rankSearchHits,
   searchWords,
+  type MailFolder,
+  type MailFolderPage,
   type MailForward,
   type MailOutgoing,
   type MailReply,
@@ -93,8 +95,11 @@ export async function ownedConversation(userId: string, accountId: string, threa
 }
 
 /** Reads a conversation live from the provider. Nothing from it is written to the database. */
-export async function readConversation({ account, threadId }: Conversation): Promise<MailThreadDetail> {
-  const messages = await withAccessToken(account, (provider, token) => provider.getThread(token, threadId))
+export async function readConversation(
+  { account, threadId }: Conversation,
+  options?: { includeHidden?: boolean }
+): Promise<MailThreadDetail> {
+  const messages = await withAccessToken(account, (provider, token) => provider.getThread(token, threadId, options))
   return { messages }
 }
 
@@ -108,11 +113,15 @@ export async function actOnConversation({ account, threadId }: Conversation, act
     const messageIds =
       rows.length > 0
         ? rows.map((row) => row.providerMessageId)
-        : (await provider.getThread(token, threadId)).map((message) => message.id)
+        : (await provider.getThread(token, threadId, { includeHidden: true })).map((message) => message.id)
     await provider.applyThreadAction(token, { threadId, messageIds, action })
   })
+  // Back in the inbox arrives through the next sync, with fresh metadata.
   if (action === "archive" || action === "trash") await db.mailMessage.deleteMany({ where })
-  else await db.mailMessage.updateMany({ where, data: { isRead: action === "read" } })
+  else if (action === "star" || action === "unstar")
+    await db.mailMessage.updateMany({ where, data: { isStarred: action === "star" } })
+  else if (action === "read" || action === "unread")
+    await db.mailMessage.updateMany({ where, data: { isRead: action === "read" } })
 }
 
 const sender = (account: { email: string; displayName: string | null }) => ({
@@ -164,6 +173,79 @@ export async function sendMessage(userId: string, accountId: string, outgoing: M
   )
 }
 
+/** Conversations in the inbox list open as that row, so the list can show it. */
+async function withSyncedIds(userId: string, hits: MailSearchHit[]) {
+  if (hits.length === 0) return hits
+  const synced = await getDb().mailMessage.findMany({
+    where: { userId, OR: hits.map((hit) => ({ accountId: hit.accountId, threadId: hit.threadId })) },
+    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+    select: { id: true, accountId: true, threadId: true },
+  })
+  const newest = new Map<string, string>()
+  for (const row of synced) {
+    const key = `${row.accountId}:${row.threadId}`
+    if (!newest.has(key)) newest.set(key, row.id)
+  }
+  return hits.map((hit) => {
+    const messageId = newest.get(`${hit.accountId}:${hit.threadId}`)
+    return messageId ? { ...hit, messageId } : hit
+  })
+}
+
+export class InvalidFolderCursorError extends Error {}
+
+/** Per mailbox where its next page starts; null once it has no more. */
+type FolderCursor = Record<string, string | null>
+
+function readFolderCursor(cursor: string | undefined): FolderCursor | null {
+  if (!cursor) return null
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as FolderCursor
+  } catch {
+    // Handled below.
+  }
+  throw new InvalidFolderCursorError()
+}
+
+/**
+ * One page of a folder across every mailbox, newest first. Each mailbox pages on
+ * its own, so the cursor remembers where each one is.
+ */
+export async function listFolder(userId: string, folder: MailFolder, cursor?: string): Promise<MailFolderPage> {
+  const positions = readFolderCursor(cursor)
+  const accounts = (await getDb().mailAccount.findMany({ where: { userId, status: "active" } })).filter(
+    (account) => !positions || typeof positions[account.id] === "string"
+  )
+  const results = await Promise.allSettled(
+    accounts.map((account) =>
+      withAccessToken(account, (provider, token) =>
+        provider.listFolder(token, { folder, pageToken: positions?.[account.id] ?? null })
+      )
+    )
+  )
+  const next: FolderCursor = {}
+  const hits: MailSearchHit[] = []
+  const failedAccounts: string[] = []
+  results.forEach((result, index) => {
+    const account = accounts[index]
+    if (!account) return
+    if (result.status === "rejected") {
+      failedAccounts.push(account.id)
+      console.error("Folder list failed", result.reason instanceof Error ? result.reason.message : "unknown")
+      return
+    }
+    hits.push(...result.value.hits.map((hit) => ({ ...hit, accountId: account.id })))
+    if (result.value.nextPageToken) next[account.id] = result.value.nextPageToken
+  })
+  hits.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+  return {
+    hits: await withSyncedIds(userId, hits),
+    nextCursor: Object.keys(next).length > 0 ? Buffer.from(JSON.stringify(next)).toString("base64url") : null,
+    failedAccounts,
+  }
+}
+
 /** Searches every active mailbox live. A mailbox that fails is reported, not fatal. */
 export async function searchMail(userId: string, query: string) {
   const accounts = await getDb().mailAccount.findMany({ where: { userId, status: "active" } })
@@ -181,22 +263,8 @@ export async function searchMail(userId: string, query: string) {
     query,
     results.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
   )
-  // Conversations in the inbox list open as that row, so the list can show it.
-  const synced = await getDb().mailMessage.findMany({
-    where: { userId, OR: hits.map((hit) => ({ accountId: hit.accountId, threadId: hit.threadId })) },
-    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
-    select: { id: true, accountId: true, threadId: true },
-  })
-  const newest = new Map<string, string>()
-  for (const row of synced) {
-    const key = `${row.accountId}:${row.threadId}`
-    if (!newest.has(key)) newest.set(key, row.id)
-  }
   return {
-    hits: hits.map((hit) => {
-      const messageId = newest.get(`${hit.accountId}:${hit.threadId}`)
-      return messageId ? { ...hit, messageId } : hit
-    }),
+    hits: await withSyncedIds(userId, hits),
     failedAccounts: accounts.flatMap((account, index) =>
       results[index]?.status === "rejected" ? [account.id] : []
     ),
