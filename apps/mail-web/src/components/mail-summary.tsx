@@ -73,6 +73,8 @@ export function MailSummaryCard({ threadId }: { threadId: string }) {
   })
 
   if (!summaries && !codes) return null
+  // A code shows once it is found; only a summary being written is worth a placeholder.
+  if (summary.isPending && !summaries) return null
   if (summary.isPending)
     return (
       <div className={CARD} aria-hidden="true">
