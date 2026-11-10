@@ -465,6 +465,7 @@ export function ConversationPage({
                   threadId={id}
                   message={last}
                   selfEmail={account?.email ?? ""}
+                  accountId={account?.id}
                   signature={replySignature}
                   all={replyMode === "all"}
                   onClose={() => setReplyMode(null)}

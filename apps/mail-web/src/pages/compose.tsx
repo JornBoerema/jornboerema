@@ -43,6 +43,7 @@ import {
 import { textToEditorHtml } from "@/lib/email-compose"
 import { fromInlineImages, uploadBytes } from "@/lib/inline-images"
 import { sendOnModEnter } from "@/lib/hotkeys"
+import { syncSoon } from "@/lib/mail"
 import { UndoneError, waitForUndo } from "@/lib/undo"
 import { useSignatureFor } from "@/lib/signatures"
 
@@ -252,8 +253,15 @@ function ComposeForm({
         throw error
       }
     },
-    onSuccess: () => {
+    onSuccess: (_result, message) => {
       toast.success(t.sent)
+      const recipients = new Set(
+        [...message.to, ...message.cc, ...message.bcc].map((address) => address.email.toLowerCase())
+      )
+      syncSoon(queryClient, [
+        accountId,
+        ...usable.filter((account) => recipients.has(account.email.toLowerCase())).map((account) => account.id),
+      ])
       finished()
     },
     onError: (error) => {

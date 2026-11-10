@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
   type InfiniteData,
+  type QueryClient,
 } from "@tanstack/react-query"
 import { Realtime } from "ably"
 import { toast } from "sonner"
@@ -268,4 +269,22 @@ export function useUnread(enabled: boolean) {
     // Webhooks and the realtime signal refresh it sooner; this only catches up.
     refetchInterval: 2 * 60 * 1000,
   })
+}
+
+/** Gmail and Graph take a moment to list a message they just sent or delivered. */
+const AFTER_SEND_MS = 2500
+
+/**
+ * Syncs these mailboxes now instead of waiting for the provider's notification:
+ * the sender, so the message is in Sent, and any own mailbox it went to.
+ */
+export function syncSoon(queryClient: QueryClient, accountIds: string[]) {
+  window.setTimeout(() => {
+    void Promise.allSettled(
+      [...new Set(accountIds)].map((id) => api<MailSyncResult>(`/api/mail/accounts/${id}/sync`, { method: "POST" }))
+    ).then(() => {
+      void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+      void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
+    })
+  }, AFTER_SEND_MS)
 }

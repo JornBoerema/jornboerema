@@ -13,7 +13,7 @@ import { AddressRow } from "@/components/address-row"
 import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
-import { conversationUrl } from "@/lib/mail"
+import { conversationUrl, syncSoon } from "@/lib/mail"
 import { sendOnModEnter } from "@/lib/hotkeys"
 import type { RichTextValue } from "@/components/rich-text-editor"
 
@@ -41,6 +41,7 @@ export function ReplyForm({
   threadId,
   message,
   selfEmail,
+  accountId,
   signature,
   all,
   onClose,
@@ -48,6 +49,8 @@ export function ReplyForm({
   threadId: string
   message: MailThreadMessage
   selfEmail: string
+  /** The mailbox replying, synced right after so the reply shows. */
+  accountId: string | undefined
   /** Empty for none. */
   signature: string
   all: boolean
@@ -77,6 +80,7 @@ export function ReplyForm({
       toast.success(t.sent)
       onClose()
       void queryClient.invalidateQueries({ queryKey: ["mail-thread", threadId] })
+      if (accountId) syncSoon(queryClient, [accountId])
     },
     onError: (error) => toast.error(errorText(error)),
   })
