@@ -34,3 +34,28 @@ export function setAlwaysShowImages(enabled: boolean) {
 export function useAlwaysShowImages() {
   return useSyncExternalStore(subscribe, readRemoteImages)
 }
+
+const NOTIFY_KEY = "evido.mail.notifications"
+
+function readNotify() {
+  try {
+    return localStorage.getItem(NOTIFY_KEY) === "on"
+  } catch {
+    return false
+  }
+}
+
+export function setNotifyNewMail(enabled: boolean) {
+  try {
+    if (enabled) localStorage.setItem(NOTIFY_KEY, "on")
+    else localStorage.removeItem(NOTIFY_KEY)
+  } catch {
+    // Without storage the setting can't be kept; notifications then stay off.
+  }
+  listeners.forEach((listener) => listener())
+}
+
+/** Per device, since each browser grants its own permission. */
+export function useNotifyNewMail() {
+  return useSyncExternalStore(subscribe, readNotify)
+}

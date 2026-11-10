@@ -1,5 +1,11 @@
 import { useState } from "react"
-import { Mail01Icon, PaintBoardIcon, SecurityCheckIcon, SignatureIcon } from "@hugeicons/core-free-icons"
+import {
+  Mail01Icon,
+  Notification03Icon,
+  PaintBoardIcon,
+  SecurityCheckIcon,
+  SignatureIcon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
 import type { LanguagePreference } from "@evido/i18n/react"
@@ -15,7 +21,8 @@ import { SettingsDialog, SettingsRow, SettingsSection } from "@evido/ui/componen
 import { Switch } from "@evido/ui/components/switch"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import { useI18n } from "@/i18n"
-import { setAlwaysShowImages, useAlwaysShowImages } from "@/lib/preferences"
+import { notificationsSupported } from "@/lib/notifications"
+import { setAlwaysShowImages, setNotifyNewMail, useAlwaysShowImages, useNotifyNewMail } from "@/lib/preferences"
 import { SignatureSettings } from "@/components/signature-settings"
 import { AccountsPage } from "@/pages/accounts"
 
@@ -60,6 +67,36 @@ function AppearanceSettings() {
   )
 }
 
+function NotificationSettings() {
+  const t = useI18n().t.notifications
+  const enabled = useNotifyNewMail()
+  const supported = notificationsSupported()
+  const [permission, setPermission] = useState(() => (supported ? Notification.permission : "denied"))
+  const blocked = permission === "denied"
+  return (
+    <SettingsSection title={t.title} description={t.deviceOnly}>
+      <SettingsRow
+        title={t.toggle}
+        htmlFor="notify-new-mail"
+        description={!supported ? t.unsupported : blocked ? t.blocked : t.toggleHelp}
+      >
+        <Switch
+          id="notify-new-mail"
+          checked={enabled && permission === "granted"}
+          disabled={!supported || blocked}
+          onCheckedChange={async (on) => {
+            if (!on) return setNotifyNewMail(false)
+            // The browser only asks after a click, which this is.
+            const answer = Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission
+            setPermission(answer)
+            setNotifyNewMail(answer === "granted")
+          }}
+        />
+      </SettingsRow>
+    </SettingsSection>
+  )
+}
+
 function PrivacySettings() {
   const t = useI18n().t.privacy
   const alwaysShow = useAlwaysShowImages()
@@ -93,6 +130,11 @@ export function MailSettings({
       icon: <HugeiconsIcon icon={SignatureIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
+      id: "notifications",
+      label: t.notifications,
+      icon: <HugeiconsIcon icon={Notification03Icon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
       id: "appearance",
       label: t.appearance,
       icon: <HugeiconsIcon icon={PaintBoardIcon} strokeWidth={1.75} aria-hidden="true" />,
@@ -120,6 +162,7 @@ export function MailSettings({
     >
       {page === "mailboxes" && <AccountsPage />}
       {page === "signatures" && <SignatureSettings />}
+      {page === "notifications" && <NotificationSettings />}
       {page === "appearance" && <AppearanceSettings />}
       {page === "privacy" && <PrivacySettings />}
     </SettingsDialog>

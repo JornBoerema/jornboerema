@@ -25,6 +25,7 @@ import { UndoneError, waitForUndo } from "@/lib/undo"
 
 export const ACCOUNTS_KEY = ["mail-accounts"]
 export const MESSAGES_KEY = ["mail-messages"]
+export const UNREAD_KEY = ["mail-unread"]
 const ACTION_KEY = ["mail-thread-action"]
 
 /** Only a safety net: new mail normally arrives through webhooks and a realtime signal. */
@@ -192,6 +193,7 @@ export function useThreadAction() {
       // A refetch while another action runs would briefly bring its thread back.
       if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 1) {
         void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+        void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
         void queryClient.invalidateQueries({ queryKey: FOLDERS_KEY })
       }
     },
@@ -216,6 +218,7 @@ export function useMailRealtime(userId: string) {
       // A refetch now would bring back a conversation whose move is still waiting.
       if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
         void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+      void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
     })
     return () => realtime.close()
   }, [userId, queryClient])
@@ -243,6 +246,7 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
     async function syncOne(id: string) {
       while (!stopped) {
         const result = await api<MailSyncResult>(`/api/mail/accounts/${id}/sync`, { method: "POST" })
+        if (result.changed > 0) void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
         if (result.changed > 0 && queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
           void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
         if (result.done || result.rateLimited) return
@@ -275,4 +279,17 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
   }, [key, queryClient])
 
   return status
+}
+
+export type UnreadSummary = { count: number; latest: MailThreadView[] }
+
+/** Unread inbox conversations: the count for the tab title, the newest for notifications. */
+export function useUnread(enabled: boolean) {
+  return useQuery({
+    queryKey: UNREAD_KEY,
+    queryFn: () => api<UnreadSummary>("/api/mail/unread"),
+    enabled,
+    // Webhooks and the realtime signal refresh it sooner; this only catches up.
+    refetchInterval: 2 * 60 * 1000,
+  })
 }

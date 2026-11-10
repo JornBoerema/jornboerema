@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { MailDraftView } from "@evido/mail-core/types"
@@ -12,10 +12,11 @@ import type { MailThreadView } from "@evido/mail-core/types"
 import { MailSettings } from "@/components/mail-settings"
 import { MailSpotlight } from "@/components/mail-spotlight"
 import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
-import { I18nProvider } from "@/i18n"
+import { I18nProvider, useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
-import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
+import { useAccounts, useMailRealtime, useMailSync, useUnread } from "@/lib/mail"
+import { useNewMailNotifications, useUnreadTitle } from "@/lib/notifications"
 import { useSignatures } from "@/lib/signatures"
 import { isWaiting } from "@/lib/undo"
 import { InboxPage } from "@/pages/inbox"
@@ -54,6 +55,18 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const drafts = useDrafts(hasActive)
   // Loaded up front, so a new message has its signature from the start.
   useSignatures()
+  const { t } = useI18n()
+  const unread = useUnread(hasActive)
+  useUnreadTitle(unread.data?.count, "Even mailen")
+  const notificationTexts = useMemo(
+    () => ({ newMail: t.notifications.newMail, unknownSender: t.inbox.unknownSender, noSubject: t.inbox.noSubject }),
+    [t]
+  )
+  useNewMailNotifications(unread.data?.latest, notificationTexts, (thread) => {
+    setView("inbox")
+    setFilter("")
+    setOpen(thread)
+  })
 
   const queryClient = useQueryClient()
   const [discardRequest, setDiscardRequest] = useState(0)

@@ -35,7 +35,7 @@ type ThreadRow = Omit<MailThreadView, "receivedAt"> & { receivedAt: Date }
 /** Conversations newest first, across every mailbox or the one in `accountId`. */
 export async function listThreads(
   userId: string,
-  { accountId, cursor }: { accountId?: string; cursor?: string }
+  { accountId, cursor, unreadOnly, limit = PAGE_SIZE }: { accountId?: string; cursor?: string; unreadOnly?: boolean; limit?: number }
 ): Promise<MailThreadsPage> {
   const position = cursor ? parseCursor(cursor) : null
   const accountFilter = accountId ? Prisma.sql`AND account_id = ${accountId}` : Prisma.empty
@@ -66,16 +66,30 @@ export async function listThreads(
       WHERE user_id = ${userId} ${accountFilter}
       WINDOW conversation AS (PARTITION BY account_id, coalesce(thread_id, id))
     ) grouped
-    WHERE position = 1 ${after}
+    WHERE position = 1 ${after} ${unreadOnly ? Prisma.sql`AND NOT all_read` : Prisma.empty}
     ORDER BY received_at DESC, id DESC
-    LIMIT ${PAGE_SIZE + 1}
+    LIMIT ${limit + 1}
   `
-  const page = rows.slice(0, PAGE_SIZE)
+  const page = rows.slice(0, limit)
   const last = page.at(-1)
   return {
     threads: page.map((row) => ({ ...row, receivedAt: row.receivedAt.toISOString() })),
-    nextCursor: rows.length > PAGE_SIZE && last ? `${last.receivedAt.toISOString()}|${last.id}` : null,
+    nextCursor: rows.length > limit && last ? `${last.receivedAt.toISOString()}|${last.id}` : null,
   }
+}
+
+/** How many inbox conversations have unread mail, and the newest few of them. */
+export async function unreadSummary(userId: string) {
+  const [count] = await getDb().$queryRaw<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM (
+      SELECT 1 FROM mail_messages
+      WHERE user_id = ${userId}
+      GROUP BY account_id, coalesce(thread_id, id)
+      HAVING NOT bool_and(is_read)
+    ) unread
+  `
+  const { threads } = await listThreads(userId, { unreadOnly: true, limit: 5 })
+  return { count: count?.count ?? 0, latest: threads }
 }
 
 type Conversation = { account: MailAccount; threadId: string }

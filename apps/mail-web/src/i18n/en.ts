@@ -16,6 +16,7 @@ export const en = {
     mailboxes: "Mailboxes",
     appearance: "Appearance",
     privacy: "Privacy",
+    notifications: "Notifications",
     signatures: "Signatures",
     menu: "Menu",
     signOut: "Sign out",
@@ -45,6 +46,15 @@ export const en = {
     none: "No signature",
     saveFailed: "The signature couldn't be saved.",
     noMailboxes: "Connect a mailbox to choose its signature.",
+  },
+  notifications: {
+    title: "New mail",
+    deviceOnly: "Applies to this browser only, since each one asks for its own permission.",
+    toggle: "Notify me of new mail",
+    toggleHelp: "A system notification when mail arrives while this tab is in the background.",
+    blocked: "This browser blocks notifications for this site. Allow them in the site settings first.",
+    unsupported: "This browser doesn't support notifications.",
+    newMail: (count: number) => `${count} new messages`,
   },
   appearance: {
     theme: "Theme and language",

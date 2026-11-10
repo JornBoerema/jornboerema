@@ -59,6 +59,7 @@ import {
   listFolder,
   quickSearch,
   suggestContacts,
+  unreadSummary,
   searchMail,
   actOnThread,
   forwardThread,
@@ -423,6 +424,10 @@ mailRoutes.get("/folders/:folder", requireSession, async (c) => {
     return failure(c, error)
   }
 })
+
+mailRoutes.get("/unread", requireSession, async (c) =>
+  c.json(await unreadSummary(c.get("session").user.id), 200, noStore)
+)
 
 mailRoutes.get("/contacts", requireSession, async (c) => {
   const query = c.req.query("q") ?? ""

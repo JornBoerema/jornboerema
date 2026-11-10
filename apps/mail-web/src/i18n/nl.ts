@@ -17,6 +17,7 @@ export const nl: typeof en = {
     mailboxes: "Mailboxen",
     appearance: "Weergave",
     privacy: "Privacy",
+    notifications: "Meldingen",
     signatures: "Handtekeningen",
     menu: "Menu",
     signOut: "Uitloggen",
@@ -46,6 +47,15 @@ export const nl: typeof en = {
     none: "Geen handtekening",
     saveFailed: "De handtekening kon niet worden opgeslagen.",
     noMailboxes: "Koppel een mailbox om zijn handtekening te kiezen.",
+  },
+  notifications: {
+    title: "Nieuwe mail",
+    deviceOnly: "Geldt alleen voor deze browser, omdat elke browser zelf om toestemming vraagt.",
+    toggle: "Melding bij nieuwe mail",
+    toggleHelp: "Een systeemmelding als er mail binnenkomt terwijl dit tabblad op de achtergrond staat.",
+    blocked: "Deze browser blokkeert meldingen voor deze site. Sta ze eerst toe in de site-instellingen.",
+    unsupported: "Deze browser ondersteunt geen meldingen.",
+    newMail: (count: number) => `${count} nieuwe berichten`,
   },
   appearance: {
     theme: "Thema en taal",
