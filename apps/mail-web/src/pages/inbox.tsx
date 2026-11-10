@@ -674,8 +674,9 @@ export function InboxPage({
           </Button>
         </header>
 
-        {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
-        <div className="relative min-h-0 flex-1 overflow-y-auto">
+        {/* Relative keeps absolute children, like screen-reader text, inside this scroller.
+            It scrolls by wheel, touch and keys, without showing a bar. */}
+        <div className="relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {showDrafts ? (
             <>
               {drafts.isPending && <ListSkeleton />}
