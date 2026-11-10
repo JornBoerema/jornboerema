@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@evido/ui/components/select"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
+import { cn } from "@evido/ui/lib/utils"
 import type { MailAccountView, MailSignature } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
@@ -251,7 +252,15 @@ function SignatureChoice({
         {label}
       </label>
       <Select value={value ?? NONE} onValueChange={(next) => onChange(next === NONE ? null : next)}>
-        <SelectTrigger id={id} size="sm" className="w-full">
+        {/* Quiet like the sender choice in a new message: text and chevron, a surface on hover. */}
+        <SelectTrigger
+          id={id}
+          size="sm"
+          className={cn(
+            "-ml-3 max-w-full bg-transparent hover:bg-accent sm:max-w-[calc(100%+0.75rem)]",
+            value === null && "text-muted-foreground"
+          )}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
