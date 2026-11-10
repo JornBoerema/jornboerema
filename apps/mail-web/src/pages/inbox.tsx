@@ -649,8 +649,9 @@ export function InboxPage({
           <Button
             variant="ghost"
             size="icon-sm"
-            className="lg:hidden"
             aria-label={strings.spotlight.search}
+            title={`${strings.spotlight.search} (⌘K)`}
+            aria-keyshortcuts="Meta+K Control+K /"
             onClick={navigation.onSearch}
           >
             <HugeiconsIcon icon={Search01Icon} strokeWidth={1.75} aria-hidden="true" />

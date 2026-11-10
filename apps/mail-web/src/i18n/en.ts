@@ -20,6 +20,7 @@ export const en = {
     ai: "AI",
     signatures: "Signatures",
     menu: "Menu",
+    more: "More",
     signOut: "Sign out",
   },
   signatures: {

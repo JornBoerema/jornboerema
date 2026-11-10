@@ -1,6 +1,8 @@
+import { useState } from "react"
 import {
   Add01Icon,
   Alert02Icon,
+  ArrowRight01Icon,
   ArchiveIcon,
   Delete02Icon,
   SentIcon,
@@ -11,7 +13,6 @@ import {
   Logout01Icon,
   Menu01Icon,
   PencilEdit02Icon,
-  Search01Icon,
   Settings01Icon,
   SidebarLeft01Icon,
   UnfoldMoreIcon,
@@ -35,6 +36,7 @@ import { AccountDot } from "@/components/account-dot"
 import { Brand } from "@/components/brand"
 import { useI18n } from "@/i18n"
 import { signOut } from "@/lib/auth-client"
+import { useUnread } from "@/lib/mail"
 
 export type MailView = "inbox" | "drafts" | MailFolder
 
@@ -65,7 +67,49 @@ export type MailNavigation = {
 }
 
 const NAV_ICON = "size-4 shrink-0"
-const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+
+/** Folders opened now and then, out of the way until asked for. */
+const MORE: MailFolder[] = ["archive", "spam", "trash"]
+const MORE_KEY = "evido.mail.sidebar.more"
+
+function readMoreOpen() {
+  try {
+    return localStorage.getItem(MORE_KEY) === "open"
+  } catch {
+    return false
+  }
+}
+
+function MoreFolders({ view, onSelect }: { view: MailView; onSelect: (folder: MailFolder) => void }) {
+  const t = useI18n().t.shell
+  const [chosen, setChosen] = useState(readMoreOpen)
+  // Being in one of them keeps the group open, so the current folder stays in sight.
+  const open = chosen || MORE.includes(view as MailFolder)
+  const toggle = () => {
+    const next = !open
+    setChosen(next)
+    try {
+      if (next) localStorage.setItem(MORE_KEY, "open")
+      else localStorage.removeItem(MORE_KEY)
+    } catch {
+      // Not kept then; the group just starts closed next time.
+    }
+  }
+  return (
+    <>
+      <button type="button" className="list-link is-ghost" aria-expanded={open} onClick={toggle}>
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          strokeWidth={2}
+          className={cn(NAV_ICON, "transition-transform", open && "rotate-90")}
+          aria-hidden="true"
+        />
+        <span>{t.more}</span>
+      </button>
+      {open && MORE.map((folder) => <FolderLink key={folder} folder={folder} view={view} onSelect={onSelect} />)}
+    </>
+  )
+}
 
 function FolderLink({
   folder,
@@ -105,9 +149,9 @@ export function Sidebar({
   onSelectFolder,
   onCompose,
   onSettings,
-  onSearch,
 }: MailNavigation) {
   const { t } = useI18n()
+  const unread = useUnread(true).data?.count
   const allSelected = view === "inbox" && accountId === ""
   const draftsSelected = view === "drafts"
   return (
@@ -121,12 +165,8 @@ export function Sidebar({
       <Brand />
       <div className="list-navigation sidebar-sections">
         <div className="sidebar-top">
-          <button type="button" className="list-link" aria-keyshortcuts="Meta+K Control+K /" onClick={onSearch}>
-            <HugeiconsIcon icon={Search01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-            <span>{t.spotlight.trigger}</span>
-            <kbd className="nav-kbd">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
-          </button>
-          <button type="button" className="list-link" aria-keyshortcuts="C" onClick={onCompose}>
+          {/* Apart from the folders: writing is an action, not a place. */}
+          <button type="button" className="list-link mb-3" aria-keyshortcuts="C" onClick={onCompose}>
             <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
             <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
             <kbd className="nav-kbd">C</kbd>
@@ -139,6 +179,11 @@ export function Sidebar({
           >
             <HugeiconsIcon icon={InboxIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
             <span>{t.inbox.allMailboxes}</span>
+            {!!unread && (
+              <span className="list-count" aria-label={t.emptyPane.unread(String(unread))}>
+                {unread > 999 ? "999+" : unread}
+              </span>
+            )}
           </button>
           <FolderLink folder="starred" view={view} onSelect={onSelectFolder} />
           <button
@@ -150,15 +195,13 @@ export function Sidebar({
             <HugeiconsIcon icon={File01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
             <span>{t.drafts.title}</span>
             {draftCount > 0 && (
-              <span className="ml-auto text-xs text-muted-foreground tabular-nums" aria-label={t.drafts.count(draftCount)}>
+              <span className="list-count" aria-label={t.drafts.count(draftCount)}>
                 {draftCount}
               </span>
             )}
           </button>
           <FolderLink folder="sent" view={view} onSelect={onSelectFolder} />
-          <FolderLink folder="archive" view={view} onSelect={onSelectFolder} />
-          <FolderLink folder="spam" view={view} onSelect={onSelectFolder} />
-          <FolderLink folder="trash" view={view} onSelect={onSelectFolder} />
+          <MoreFolders view={view} onSelect={onSelectFolder} />
         </div>
         <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
           <div className="sidebar-heading">

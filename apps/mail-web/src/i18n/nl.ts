@@ -21,6 +21,7 @@ export const nl: typeof en = {
     ai: "AI",
     signatures: "Handtekeningen",
     menu: "Menu",
+    more: "Meer",
     signOut: "Uitloggen",
   },
   signatures: {
