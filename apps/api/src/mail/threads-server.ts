@@ -14,7 +14,7 @@ import {
   type MailThreadsPage,
   type MailThreadView,
 } from "@evido/mail-core/types"
-import type { MailMessageFolder } from "@evido/mail-core/provider"
+import { UnsupportedActionError, type MailMessageFolder } from "@evido/mail-core/provider"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 
 export class InvalidThreadCursorError extends Error {}
@@ -169,6 +169,9 @@ export async function readConversation(
 const AFFECTS: Partial<Record<MailThreadAction, MailMessageFolder[]>> = {
   archive: ["inbox"],
   inbox: ["archive", "spam", "trash"],
+  spam: ["inbox", "archive"],
+  // Only what is already in the trash or spam; sent copies elsewhere stay.
+  delete: ["trash", "spam"],
 }
 
 /**
@@ -183,6 +186,8 @@ export async function actOnConversation({ account, threadId }: Conversation, act
     ...(AFFECTS[action] && { folder: { in: AFFECTS[action] } }),
   }
   const rows = await db.mailMessage.findMany({ where, select: { providerMessageId: true } })
+  // Deleting for good only ever touches synced copies known to be in the trash or spam.
+  if (action === "delete" && rows.length === 0) return
   await withAccessToken(account, async (provider, token) => {
     // Not synced, like mail older than the window: ask the provider.
     const messageIds =
@@ -191,8 +196,14 @@ export async function actOnConversation({ account, threadId }: Conversation, act
         : (await provider.getThread(token, threadId, { includeHidden: true })).map((message) => message.id)
     await provider.applyThreadAction(token, { threadId, messageIds, action })
   })
+  if (action === "delete") {
+    await db.mailMessage.deleteMany({ where })
+    return
+  }
   const data =
-    action === "archive"
+    action === "spam"
+      ? { folder: "spam" as const }
+      : action === "archive"
       ? { folder: "archive" as const }
       : action === "trash"
         ? { folder: "trash" as const }
@@ -383,4 +394,15 @@ export async function suggestContacts(userId: string, query: string): Promise<Ma
     ORDER BY (email ILIKE ${start} OR name ILIKE ${start} OR name ILIKE ${word}) DESC, uses DESC, last_seen DESC
     LIMIT 8
   `
+}
+
+/** Empties a mailbox's trash for good, one page per call; Outlook only. */
+export async function emptyTrash(userId: string, accountId: string) {
+  const account = await ownedAccount(userId, accountId)
+  const result = await withAccessToken(account, async (provider, token) => {
+    if (!provider.emptyTrash) throw new UnsupportedActionError("This mailbox can't delete for good")
+    return provider.emptyTrash(token)
+  })
+  if (result.done) await getDb().mailMessage.deleteMany({ where: { accountId: account.id, folder: "trash" } })
+  return result
 }

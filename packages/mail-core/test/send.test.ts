@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { readGmailAttachment } from "../src/gmail-read"
 import { applyGmailThreadAction, forwardGmail, replyGmail, sendGmail } from "../src/gmail-send"
 import { readOutlookAttachment } from "../src/outlook-read"
-import { applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "../src/outlook-send"
+import { applyOutlookThreadAction, emptyOutlookTrash, forwardOutlook, replyOutlook, sendOutlook } from "../src/outlook-send"
 import { createGmailProvider } from "../src/gmail"
 import { createOutlookProvider } from "../src/outlook"
-import { ProviderError, ReauthRequiredError } from "../src/provider"
+import { ProviderError, ReauthRequiredError, UnsupportedActionError } from "../src/provider"
 import { replyRecipients, type MailThreadMessage } from "../src/types"
 
 type Sent = { url: string; method: string; body: Record<string, unknown>; raw: string; contentType: string }
@@ -561,5 +561,32 @@ describe("busy providers", () => {
     await expect(sendGmail("t", base)).rejects.toBeInstanceOf(ProviderError)
     await expect(sendGmail("t", base)).rejects.toBeInstanceOf(ProviderError)
     expect(calls).toBe(2)
+  })
+})
+
+describe("spam and deleting for good", () => {
+  it("reports spam with Gmail labels and an Outlook move", async () => {
+    const sent = stub()
+    await applyGmailThreadAction("t", { threadId: "t1", messageIds: ["m1"], action: "spam" })
+    expect(sent[0]?.url).toMatch(/\/threads\/t1\/modify$/)
+    expect(sent[0]?.body).toEqual({ addLabelIds: ["SPAM"], removeLabelIds: ["INBOX"] })
+    await applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["o1"], action: "spam" })
+    expect(sent[1]?.body).toEqual({ destinationId: "junkemail" })
+  })
+
+  it("deletes for good in Outlook, and refuses in Gmail without full access", async () => {
+    const sent = stub()
+    await applyOutlookThreadAction("t", { threadId: "c1", messageIds: ["o1"], action: "delete" })
+    expect(sent[0]?.url).toMatch(/\/me\/messages\/o1\/permanentDelete$/)
+    await expect(applyGmailThreadAction("t", { threadId: "t1", messageIds: ["m1"], action: "delete" })).rejects.toBeInstanceOf(
+      UnsupportedActionError
+    )
+    expect(sent).toHaveLength(1)
+  })
+
+  it("empties the Outlook trash a page at a time", async () => {
+    const sent = stub((url) => (url.includes("deleteditems") ? [200, { value: [{ id: "a" }, { id: "b" }] }] : [200, {}]))
+    expect(await emptyOutlookTrash("t")).toEqual({ deleted: 2, done: true })
+    expect(sent.map((item) => item.url.split("/me/messages/")[1])).toEqual(["a/permanentDelete", "b/permanentDelete"])
   })
 })

@@ -3,11 +3,10 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   ArchiveIcon,
-  InboxIcon,
+  SpamIcon,
   StarIcon,
   ArrowLeft02Icon,
   Attachment01Icon,
-  Delete02Icon,
   MailOpen01Icon,
   MailReply01Icon,
   MailReplyAll01Icon,
@@ -18,14 +17,15 @@ import { Button } from "@evido/ui/components/button"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import { readingColumn } from "@/lib/layout"
-import type {
-  MailAccountView,
-  MailAddress,
-  MailFolder,
-  MailAttachmentInfo,
-  MailThreadAction,
-  MailThreadMessage,
-  MailThreadView,
+import {
+  canDeleteForever,
+  type MailAccountView,
+  type MailAddress,
+  type MailFolder,
+  type MailAttachmentInfo,
+  type MailThreadAction,
+  type MailThreadMessage,
+  type MailThreadView,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
@@ -35,7 +35,8 @@ import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
 import { useHotkeys } from "@/lib/hotkeys"
-import { conversationUrl, moveActions, STARRED, threadQuery, useThreadAction } from "@/lib/mail"
+import { canReportSpam, conversationUrl, moveActions, STARRED, threadQuery, useThreadAction } from "@/lib/mail"
+import { DANGER, isDestructive, MOVE_ICONS, MOVE_KEYS, moveLabel } from "@/lib/thread-actions"
 import { useAlwaysShowImages } from "@/lib/preferences"
 
 /** Long enough that walking past a mail with j/k leaves it unread. */
@@ -310,7 +311,7 @@ function ToolbarAction({
 }: {
   icon: IconSvgElement
   label: string
-  shortcut: string
+  shortcut?: string
   pressed?: boolean
   className?: string
   onClick: () => void
@@ -321,7 +322,7 @@ function ToolbarAction({
       size="icon-sm"
       aria-label={text}
       aria-pressed={pressed}
-      title={`${text} (${shortcut})`}
+      title={shortcut ? `${text} (${shortcut})` : text}
       className={className}
       onClick={onClick}
     >
@@ -347,7 +348,8 @@ export function ConversationPage({
   onLeave: (action: MailThreadAction) => void
 }) {
   const t = useI18n().t.conversation
-  const moves = moveActions(folder)
+  const moves = moveActions(folder, account ? canDeleteForever(account.provider) : false)
+  const spam = canReportSpam(folder)
   const [starred, setStarred] = useState(summary.isStarred)
   const toggleStar = () => {
     setStarred(!starred)
@@ -376,6 +378,7 @@ export function ConversationPage({
     ...(moves.includes("archive") && { e: () => onLeave("archive") }),
     ...(moves.includes("trash") && { "#": () => onLeave("trash") }),
     ...(moves.includes("inbox") && { i: () => onLeave("inbox") }),
+    ...(spam && { "!": () => onLeave("spam") }),
     s: toggleStar,
     u: () => onLeave("unread"),
     r: () => setReplyMode("reply"),
@@ -415,21 +418,19 @@ export function ConversationPage({
             className={cn(starred && STARRED)}
             onClick={toggleStar}
           />
-          {moves.includes("inbox") && (
-            <ToolbarAction icon={InboxIcon} label={t.moveToInbox} shortcut="I" onClick={() => onLeave("inbox")} />
+          {spam && (
+            <ToolbarAction icon={SpamIcon} label={t.reportSpam} shortcut="!" onClick={() => onLeave("spam")} />
           )}
-          {moves.includes("archive") && (
-            <ToolbarAction icon={ArchiveIcon} label={t.archive} shortcut="E" onClick={() => onLeave("archive")} />
-          )}
-          {moves.includes("trash") && (
+          {moves.map((action) => (
             <ToolbarAction
-              icon={Delete02Icon}
-              label={t.trash}
-              shortcut="#"
-              className="hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
-              onClick={() => onLeave("trash")}
+              key={action}
+              icon={MOVE_ICONS[action] ?? ArchiveIcon}
+              label={moveLabel(action, folder, t)}
+              shortcut={MOVE_KEYS[action]}
+              className={isDestructive(action) ? DANGER : undefined}
+              onClick={() => onLeave(action)}
             />
-          )}
+          ))}
           <ToolbarAction icon={MailOpen01Icon} label={t.markUnread} shortcut="U" onClick={() => onLeave("unread")} />
         </div>
       </header>
@@ -497,7 +498,7 @@ export function ConversationPage({
                       <Button
                         key={mode}
                         variant={mode === "reply" ? "outline" : "ghost"}
-                        title={`${text} (${shortcut})`}
+                        title={shortcut ? `${text} (${shortcut})` : text}
                         onClick={() => setReplyMode(mode)}
                       >
                         <HugeiconsIcon icon={icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />

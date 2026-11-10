@@ -74,11 +74,11 @@ export const listKey = (accountId: string, folder: MailFolder | null) => [...MES
 
 /** What leaves a folder's list when it happens; the rest only changes the line. */
 const LEAVES: Record<MailFolder, MailThreadAction[]> = {
-  starred: ["unstar", "trash"],
+  starred: ["unstar", "trash", "spam"],
   sent: ["trash"],
-  archive: ["trash", "inbox"],
-  spam: ["trash", "inbox"],
-  trash: ["inbox"],
+  archive: ["trash", "inbox", "spam"],
+  spam: ["trash", "inbox", "delete"],
+  trash: ["inbox", "delete"],
 }
 
 /** A star that is set: filled, in the colour mail apps use for it. */
@@ -86,15 +86,23 @@ export const STARRED = "text-amber-500! [&_path]:fill-current"
 
 /** Whether an action takes a conversation out of the list it is shown in. */
 export const leavesList = (folder: MailFolder | null, action: MailThreadAction) =>
-  folder ? LEAVES[folder].includes(action) : action === "archive" || action === "trash"
+  folder ? LEAVES[folder].includes(action) : action === "archive" || action === "trash" || action === "spam"
 
-/** The actions that move a conversation on, as offered in each list. */
-export function moveActions(folder: MailFolder | null): MailThreadAction[] {
-  if (folder === "trash") return ["inbox"]
-  if (folder === "archive" || folder === "spam") return ["inbox", "trash"]
+/**
+ * The actions that move a conversation on, as offered in each list. Deleting
+ * for good only where the mailbox allows it (Outlook); reporting spam lives in
+ * the toolbar and on !, not on every row.
+ */
+export function moveActions(folder: MailFolder | null, canDelete = false): MailThreadAction[] {
+  if (folder === "trash") return canDelete ? ["inbox", "delete"] : ["inbox"]
+  if (folder === "spam") return canDelete ? ["inbox", "trash", "delete"] : ["inbox", "trash"]
+  if (folder === "archive") return ["inbox", "trash"]
   if (folder === "sent") return ["trash"]
   return ["archive", "trash"]
 }
+
+/** Where reporting spam makes sense: not for mail already in spam or trash, or sent by the user. */
+export const canReportSpam = (folder: MailFolder | null) => folder !== "spam" && folder !== "trash" && folder !== "sent"
 
 function changeLine(thread: MailThreadView, action: MailThreadAction): MailThreadView {
   if (action === "read" || action === "unread") return { ...thread, isRead: action === "read" }
@@ -127,6 +135,8 @@ export function useThreadAction() {
     archive: t.archived,
     trash: t.trashed,
     inbox: t.movedToInbox,
+    spam: t.reportedSpam,
+    delete: t.deletedForever,
   }
   return useMutation({
     mutationKey: ACTION_KEY,

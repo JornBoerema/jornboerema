@@ -132,7 +132,9 @@ export async function applyOutlookThreadAction(
         { flag: { flagStatus: input.action === "star" ? "flagged" : "notFlagged" } },
         ID_HEADER
       )
-    const destinationId = input.action === "archive" ? "archive" : "deleteditems"
+    // Gone for good, not even in Deleted Items.
+    if (input.action === "delete") return sendJson("POST", `${url}/permanentDelete`, accessToken, {}, ID_HEADER)
+    const destinationId = input.action === "archive" ? "archive" : input.action === "spam" ? "junkemail" : "deleteditems"
     return sendJson("POST", `${url}/move`, accessToken, { destinationId }, ID_HEADER)
   }
   // Graph has no conversation-wide change, so each message is handled on its own.
@@ -144,4 +146,24 @@ export async function applyOutlookThreadAction(
       if (!(error instanceof ProviderError && error.status === 404)) throw error
     }
   })
+}
+
+/** One page of the trash: every message in it deleted for good. */
+const EMPTY_PAGE = 50
+
+export async function emptyOutlookTrash(accessToken: string) {
+  const page = await getJson<{ value?: { id: string }[] }>(
+    `${GRAPH_BASE}/me/mailFolders/deleteditems/messages?$select=id&$top=${EMPTY_PAGE}`,
+    accessToken,
+    ID_HEADER
+  )
+  const ids = (page.value ?? []).map((message) => message.id)
+  await mapInChunks(ids, WRITE_CONCURRENCY, async (id) => {
+    try {
+      await sendJson("POST", `${GRAPH_BASE}/me/messages/${encodeURIComponent(id)}/permanentDelete`, accessToken, {}, ID_HEADER)
+    } catch (error) {
+      if (!(error instanceof ProviderError && error.status === 404)) throw error
+    }
+  })
+  return { deleted: ids.length, done: ids.length < EMPTY_PAGE }
 }

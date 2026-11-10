@@ -120,6 +120,8 @@ export interface MailProvider {
     accessToken: string,
     input: { messageId: string; attachmentId: string }
   ): Promise<Uint8Array>
+  /** Deletes everything in the trash for good, a page at a time. Outlook only. */
+  emptyTrash?(accessToken: string): Promise<{ deleted: number; done: boolean }>
   /** Starts or renews change notifications for this mailbox. */
   watch(accessToken: string, input: WatchInput): Promise<MailWatch>
   /** Gmail needs none: revoking access ends its watch. */
@@ -127,6 +129,9 @@ export interface MailProvider {
   /** Best effort. Providers without a revoke endpoint leave this out. */
   revoke?(refreshToken: string): Promise<void>
 }
+
+/** The provider can't do this with the access the app has. */
+export class UnsupportedActionError extends Error {}
 
 /** The grant is gone (revoked, expired, password changed): the user must connect again. */
 export class ReauthRequiredError extends Error {}

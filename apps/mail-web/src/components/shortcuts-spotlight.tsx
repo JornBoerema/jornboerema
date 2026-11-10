@@ -68,6 +68,7 @@ export function ShortcutsSpotlight({
         { keys: ["E"], label: t.archive },
         { keys: ["#"], label: t.trash },
         { keys: ["I"], label: t.moveToInbox },
+        { keys: ["!"], label: t.reportSpam },
         { keys: ["S"], label: t.star },
         { keys: ["U"], label: t.markUnread },
       ],

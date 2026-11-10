@@ -114,8 +114,15 @@ export type MailSyncResult = {
   changed: number
 }
 
-/** `inbox` puts a conversation back, out of the archive, spam or trash. */
-export const MAIL_THREAD_ACTIONS = ["read", "unread", "archive", "trash", "star", "unstar", "inbox"] as const
+/**
+ * `inbox` puts a conversation back, out of the archive, spam or trash. `delete`
+ * removes it for good; Gmail only allows that with full mailbox access, which
+ * this app doesn't ask for, so it is Outlook only.
+ */
+export const MAIL_THREAD_ACTIONS = ["read", "unread", "archive", "trash", "star", "unstar", "inbox", "spam", "delete"] as const
+
+/** Whether a mailbox can delete mail for good, rather than leaving it in the trash. */
+export const canDeleteForever = (provider: MailProviderId) => provider === "outlook"
 export type MailThreadAction = (typeof MAIL_THREAD_ACTIONS)[number]
 
 export type MailOutgoing = {

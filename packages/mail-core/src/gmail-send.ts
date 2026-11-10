@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto"
 import { collect, emptyContent, headerOf, readGmailAttachment, type GmailFullMessage } from "./gmail-read"
 import { decodeEntities, GMAIL_API } from "./gmail-sync"
 import { getJson, mapInChunks, sendBody, sendJson, textToHtml } from "./http"
-import { ProviderError } from "./provider"
+import { ProviderError, UnsupportedActionError } from "./provider"
 import {
   INLINE_CONTENT_ID,
   type MailAddress,
@@ -347,6 +347,12 @@ export async function applyGmailThreadAction(
     await sendJson("POST", `${thread}/trash`, accessToken, {})
     return
   }
+  if (input.action === "spam") {
+    await sendJson("POST", `${thread}/modify`, accessToken, { addLabelIds: ["SPAM"], removeLabelIds: ["INBOX"] })
+    return
+  }
+  // Deleting for good needs the https://mail.google.com/ scope; Gmail empties its trash after 30 days.
+  if (input.action === "delete") throw new UnsupportedActionError("Gmail can't delete for good with gmail.modify")
   if (input.action === "inbox") {
     // Out of the trash first; a thread in spam only needs its labels changed.
     await sendJson("POST", `${thread}/untrash`, accessToken, {})

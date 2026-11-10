@@ -3,12 +3,12 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import {
   ArchiveIcon,
   Cancel01Icon,
+  SpamIcon,
   Mail01Icon,
   MailOpen01Icon,
   Attachment01Icon,
   Delete02Icon,
   CloudAlertIcon,
-  InboxIcon,
   PencilEdit02Icon,
   Search01Icon,
   StarIcon,
@@ -27,6 +27,7 @@ import { Skeleton } from "@evido/ui/components/skeleton"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import {
+  canDeleteForever,
   isMailFolder,
   type MailFolder,
   type MailAccountView,
@@ -49,6 +50,7 @@ import { useHotkeys } from "@/lib/hotkeys"
 import {
   leavesList,
   listKey,
+  canReportSpam,
   moveActions,
   STARRED,
   usePrefetchThreads,
@@ -56,6 +58,8 @@ import {
   type SyncStatus,
 } from "@/lib/mail"
 import { EmptyPane } from "@/components/empty-pane"
+import { TrashNotice } from "@/components/empty-trash"
+import { isDestructive, MOVE_ICONS, moveLabel } from "@/lib/thread-actions"
 import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
 
@@ -93,11 +97,6 @@ function RowActions({
   )
 }
 
-export const MOVE_ICONS: Record<string, IconSvgElement> = {
-  archive: ArchiveIcon,
-  trash: Delete02Icon,
-  inbox: InboxIcon,
-}
 
 /** What the quick actions cover: the date and the small icons beside it. */
 const UNDER_ACTIONS = "group-focus-within:invisible group-hover:invisible"
@@ -107,6 +106,7 @@ function ThreadRow({
   mailbox,
   selected,
   folder,
+  canDelete,
   checked,
   selecting,
   onOpen,
@@ -120,6 +120,8 @@ function ThreadRow({
   selected: boolean
   /** The folder this list shows; null for the inbox. */
   folder: MailFolder | null
+  /** Its mailbox can delete for good. */
+  canDelete: boolean
   /** Part of the selection. */
   checked: boolean
   /** Something in the list is selected, so every checkbox shows. */
@@ -237,11 +239,11 @@ function ThreadRow({
           thread.isStarred
             ? { icon: StarIcon, label: actions.unstar, run: () => onAction("unstar"), className: STARRED }
             : { icon: StarIcon, label: actions.star, run: () => onAction("star") },
-          ...moveActions(folder).map((action) => ({
+          ...moveActions(folder, canDelete).map((action) => ({
             icon: MOVE_ICONS[action] ?? ArchiveIcon,
-            label: action === "inbox" ? actions.moveToInbox : actions[action as "archive" | "trash"],
+            label: moveLabel(action, folder, actions),
             run: () => onAction(action),
-            destructive: action === "trash",
+            destructive: isDestructive(action),
           })),
         ]}
       />
@@ -329,6 +331,7 @@ function SelectionBar({
   total,
   allStarred,
   folder,
+  canDelete,
   onSelectAll,
   onAction,
   onClear,
@@ -337,6 +340,8 @@ function SelectionBar({
   total: number
   allStarred: boolean
   folder: MailFolder | null
+  /** Every selected conversation is in a mailbox that can delete for good. */
+  canDelete: boolean
   onSelectAll: () => void
   onAction: (action: MailThreadAction) => void
   onClear: () => void
@@ -364,12 +369,13 @@ function SelectionBar({
         {t.selected(count)}
       </span>
       {button(StarIcon, allStarred ? c.unstar : c.star, () => onAction(allStarred ? "unstar" : "star"), cn(allStarred && STARRED))}
-      {moveActions(folder).map((action) =>
+      {canReportSpam(folder) && button(SpamIcon, c.reportSpam, () => onAction("spam"))}
+      {moveActions(folder, canDelete).map((action) =>
         button(
           MOVE_ICONS[action] ?? ArchiveIcon,
-          action === "inbox" ? c.moveToInbox : c[action as "archive" | "trash"],
+          moveLabel(action, folder, c),
           () => onAction(action),
-          action === "trash" ? "hover:text-destructive" : undefined
+          isDestructive(action) ? "hover:text-destructive" : undefined
         )
       )}
       {button(MailOpen01Icon, t.markRead, () => onAction("read"))}
@@ -609,6 +615,7 @@ export function InboxPage({
               total={rows.length}
               allStarred={selection.every((thread) => thread.isStarred)}
               folder={folder}
+              canDelete={selection.every((thread) => canDeleteForever(accountOf.get(thread.accountId)?.provider ?? "gmail"))}
               onSelectAll={() =>
                 selection.length === rows.length ? clearSelection() : setPicked(new Set(rows.map((thread) => thread.id)))
               }
@@ -727,6 +734,7 @@ export function InboxPage({
                 </Empty>
               ) : (
                 <>
+                  {folder === "trash" && <TrashNotice accounts={accounts} />}
                   {list.isError && (
                     <p className="p-4 text-sm text-destructive">
                       {folder ? strings.folders.loadFailed : t.loadFailed}
@@ -755,6 +763,7 @@ export function InboxPage({
                         }
                         selected={thread.id === open?.id}
                         folder={folder}
+                        canDelete={canDeleteForever(accountOf.get(thread.accountId)?.provider ?? "gmail")}
                         checked={picked.has(thread.id)}
                         selecting={selecting}
                         onToggle={(range) => toggle(thread.id, range)}

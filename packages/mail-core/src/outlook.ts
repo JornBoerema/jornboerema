@@ -2,7 +2,7 @@ import { searchOutlook } from "./outlook-search"
 import { deleteOutlookDraft, getOutlookDraft, listOutlookDrafts, saveOutlookDraft, sendOutlookDraft } from "./outlook-drafts"
 import { getJson, requestTokens, sendJson } from "./http"
 import { readOutlookAttachment, readOutlookThread } from "./outlook-read"
-import { applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "./outlook-send"
+import { emptyOutlookTrash, applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "./outlook-send"
 import { GRAPH_BASE, syncOutlookPage } from "./outlook-sync"
 import { ProviderError, type MailProvider, type ProviderCredentials } from "./provider"
 
@@ -87,6 +87,8 @@ export function createOutlookProvider({
     getThread: readOutlookThread,
 
     applyThreadAction: applyOutlookThreadAction,
+
+    emptyTrash: emptyOutlookTrash,
 
     send: sendOutlook,
 

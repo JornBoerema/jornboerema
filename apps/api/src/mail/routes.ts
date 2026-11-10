@@ -1,7 +1,13 @@
 import { Hono, type Context } from "hono"
 import { z } from "zod"
 import { getAuth } from "@evido/auth/server"
-import { isRateLimited, MissingScopeError, ProviderError, ReauthRequiredError } from "@evido/mail-core/provider"
+import {
+  isRateLimited,
+  MissingScopeError,
+  ProviderError,
+  ReauthRequiredError,
+  UnsupportedActionError,
+} from "@evido/mail-core/provider"
 import {
   isMailFolder,
   isMailProvider,
@@ -51,6 +57,7 @@ import {
 } from "./webhooks-server"
 import {
   actOnConversation,
+  emptyTrash,
   ownedMessage,
   attachmentInConversation,
   forwardFromConversation,
@@ -183,6 +190,7 @@ function failure(c: Context, error: unknown) {
     return c.json({ error: msg(c, "mailReconnect"), reauth: true }, 409)
   if (error instanceof MailNotConfiguredError)
     return c.json({ error: msg(c, "mailNotConfigured") }, 503)
+  if (error instanceof UnsupportedActionError) return c.json({ error: msg(c, "mailCantDeleteForever") }, 400)
   // Still refused after trying again: nothing happened, so trying later is safe.
   if (isRateLimited(error)) return c.json({ error: msg(c, "mailBusy") }, 429)
   console.error("Mail request failed", error instanceof Error ? error.message : "unknown")
@@ -542,6 +550,15 @@ mailRoutes.post("/accounts/:id/conversation/attachment", requireTrustedOrigin, r
         "X-Content-Type-Options": "nosniff",
       },
     })
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Called until `done`: each call deletes one page for good.
+mailRoutes.post("/accounts/:id/trash/empty", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    return c.json(await emptyTrash(c.get("session").user.id, c.req.param("id")), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
