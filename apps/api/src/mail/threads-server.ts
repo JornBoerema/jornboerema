@@ -104,18 +104,34 @@ export async function listThreads(
   }
 }
 
-/** How many inbox conversations have unread mail, and the newest few of them. */
+/**
+ * Unread inbox mail as Gmail and Outlook count it: messages, over the whole
+ * mailbox, not just the year that is synced. A mailbox the provider doesn't
+ * answer for falls back to its synced unread conversations. The newest few
+ * unread conversations come along for notifications.
+ */
 export async function unreadSummary(userId: string) {
-  const [count] = await getDb().$queryRaw<{ count: number }[]>`
-    SELECT count(*)::int AS count FROM (
-      SELECT 1 FROM mail_messages
-      WHERE user_id = ${userId} AND folder = 'inbox'
-      GROUP BY account_id, coalesce(thread_id, id)
-      HAVING NOT bool_and(is_read)
-    ) unread
-  `
+  const db = getDb()
+  const accounts = await db.mailAccount.findMany({ where: { userId, status: "active" } })
+  const counts = await Promise.all(
+    accounts.map(async (account) => {
+      try {
+        return (await withAccessToken(account, (provider, token) => provider.inboxSummary(token))).unread
+      } catch {
+        const [synced] = await db.$queryRaw<{ count: number }[]>`
+          SELECT count(*)::int AS count FROM (
+            SELECT 1 FROM mail_messages
+            WHERE account_id = ${account.id} AND folder = 'inbox'
+            GROUP BY coalesce(thread_id, id)
+            HAVING NOT bool_and(is_read)
+          ) unread
+        `
+        return synced?.count ?? 0
+      }
+    })
+  )
   const { threads } = await listThreads(userId, { unreadOnly: true, limit: 5 })
-  return { count: count?.count ?? 0, latest: threads }
+  return { count: counts.reduce((sum, count) => sum + count, 0), latest: threads }
 }
 
 /** `hidden` when it was found in spam or trash, which normal reading leaves out. */
