@@ -166,7 +166,7 @@ export function Sidebar({
       <div className="list-navigation sidebar-sections">
         <div className="sidebar-top">
           {/* Apart from the folders: writing is an action, not a place. */}
-          <button type="button" className="list-link mb-3" aria-keyshortcuts="C" onClick={onCompose}>
+          <button type="button" className="list-link is-primary mb-3" aria-keyshortcuts="C" onClick={onCompose}>
             <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
             <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
             <kbd className="nav-kbd">C</kbd>
