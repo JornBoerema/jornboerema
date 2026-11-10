@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import type { MailDraftView } from "@evido/mail-core/types"
+import { errorText } from "@/lib/api"
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router"
 import { Toaster } from "@evido/ui/components/sonner"
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
@@ -10,7 +13,7 @@ import { MailSettings } from "@/components/mail-settings"
 import { Sidebar, type MailNavigation } from "@/components/sidebar"
 import { I18nProvider } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
-import { useDrafts, type DraftRef } from "@/lib/drafts"
+import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
 import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
 import { useSignatures } from "@/lib/signatures"
 import { InboxPage } from "@/pages/inbox"
@@ -44,6 +47,20 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const drafts = useDrafts(hasActive)
   // Loaded up front, so a new message has its signature from the start.
   useSignatures()
+
+  const queryClient = useQueryClient()
+  const [discardRequest, setDiscardRequest] = useState(0)
+  const removeDraft = (draft: DraftRef) => {
+    if (compose && draft.id === composeDraftId) return setDiscardRequest((count) => count + 1)
+    type List = { drafts: MailDraftView[]; failedAccounts: string[] }
+    queryClient.setQueryData<List>(
+      DRAFTS_KEY,
+      (data) => data && { ...data, drafts: data.drafts.filter((item) => item.id !== draft.id) }
+    )
+    deleteDraft(draft)
+      .catch((error: unknown) => toast.error(errorText(error)))
+      .finally(() => void queryClient.invalidateQueries({ queryKey: DRAFTS_KEY }))
+  }
 
   const startCompose = (draft: DraftRef | null) => {
     setOpen(null)
@@ -109,6 +126,8 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
           composeDraftId={composeDraftId}
           drafts={drafts}
           onOpenDraft={startCompose}
+          onDeleteDraft={removeDraft}
+          discardRequest={discardRequest}
           onComposeDraftChange={setComposeDraftId}
           onHideCompose={hideCompose}
           onCloseCompose={closeCompose}

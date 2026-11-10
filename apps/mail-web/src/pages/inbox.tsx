@@ -1,13 +1,15 @@
 import { useEffect, useRef } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import {
+  ArchiveIcon,
   Attachment01Icon,
+  Delete02Icon,
   CloudAlertIcon,
   InboxIcon,
   PencilEdit02Icon,
   StarIcon,
 } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import {
   Empty,
@@ -55,17 +57,46 @@ function shortDate(iso: string, locale: string) {
   })
 }
 
+/**
+ * Quick actions over the row's right end. They show on hover or keyboard focus,
+ * in place of the date, and sit beside the row's button rather than inside it.
+ */
+function RowActions({ actions }: { actions: { icon: IconSvgElement; label: string; run: () => void }[] }) {
+  return (
+    <span className="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+      {actions.map((action) => (
+        <Button
+          key={action.label}
+          variant="ghost"
+          size="icon-xs"
+          className="text-muted-foreground hover:bg-background/70 hover:text-foreground"
+          aria-label={action.label}
+          title={action.label}
+          onClick={action.run}
+        >
+          <HugeiconsIcon icon={action.icon} strokeWidth={1.75} aria-hidden="true" />
+        </Button>
+      ))}
+    </span>
+  )
+}
+
+/** What the quick actions cover: the date and the small icons beside it. */
+const UNDER_ACTIONS = "group-focus-within:invisible group-hover:invisible"
+
 function ThreadRow({
   thread,
   mailbox,
   selected,
   onOpen,
+  onAction,
 }: {
   thread: MailThreadView
   /** Only set when several mailboxes share the list. */
   mailbox: MailAccountView | undefined
   selected: boolean
   onOpen: () => void
+  onAction: (action: "archive" | "trash") => void
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
@@ -74,10 +105,11 @@ function ThreadRow({
     if (selected) row.current?.scrollIntoView({ block: "nearest" })
   }, [selected])
   const unread = !thread.isRead
-  const icon = "size-3.5 shrink-0 text-muted-foreground"
+  const icon = cn("size-3.5 shrink-0 text-muted-foreground", UNDER_ACTIONS)
+  const actions = strings.conversation
 
   return (
-    <li>
+    <li className="group relative">
       <button
         ref={row}
         type="button"
@@ -121,7 +153,7 @@ function ThreadRow({
             />
           )}
           <time
-            className="shrink-0 text-xs text-muted-foreground tabular-nums"
+            className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", UNDER_ACTIONS)}
             dateTime={thread.receivedAt}
           >
             {shortDate(thread.receivedAt, locale)}
@@ -143,6 +175,12 @@ function ThreadRow({
           )}
         </span>
       </button>
+      <RowActions
+        actions={[
+          { icon: ArchiveIcon, label: actions.archive, run: () => onAction("archive") },
+          { icon: Delete02Icon, label: actions.trash, run: () => onAction("trash") },
+        ]}
+      />
     </li>
   )
 }
@@ -152,18 +190,20 @@ function DraftRow({
   mailbox,
   selected,
   onOpen,
+  onDelete,
 }: {
   draft: MailDraftView
   mailbox: MailAccountView | undefined
   selected: boolean
   onOpen: () => void
+  onDelete: () => void
 }) {
   const { t, locale } = useI18n()
   const recipients = draft.to
     .map((address) => address.name || address.email)
     .join(", ")
   return (
-    <li>
+    <li className="group relative">
       <button
         type="button"
         aria-current={selected ? "true" : undefined}
@@ -187,11 +227,11 @@ function DraftRow({
               icon={Attachment01Icon}
               strokeWidth={1.75}
               aria-label={t.inbox.attachment}
-              className="size-3.5 shrink-0 text-muted-foreground"
+              className={cn("size-3.5 shrink-0 text-muted-foreground", UNDER_ACTIONS)}
             />
           )}
           <time
-            className="shrink-0 text-xs text-muted-foreground tabular-nums"
+            className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", UNDER_ACTIONS)}
             dateTime={draft.updatedAt}
           >
             {shortDate(draft.updatedAt, locale)}
@@ -213,6 +253,7 @@ function DraftRow({
           )}
         </span>
       </button>
+      <RowActions actions={[{ icon: Delete02Icon, label: t.compose.discard, run: onDelete }]} />
     </li>
   )
 }
@@ -269,6 +310,8 @@ export function InboxPage({
   composeDraftId,
   drafts,
   onOpenDraft,
+  onDeleteDraft,
+  discardRequest,
   onComposeDraftChange,
   onHideCompose,
   onCloseCompose,
@@ -283,6 +326,9 @@ export function InboxPage({
   composeDraftId: string | null
   drafts: ReturnType<typeof useDrafts>
   onOpenDraft: (draft: DraftRef) => void
+  onDeleteDraft: (draft: DraftRef) => void
+  /** Goes up when the open draft should be thrown away. */
+  discardRequest: number
   onComposeDraftChange: (id: string | null) => void
   onHideCompose: () => void
   onCloseCompose: () => void
@@ -429,6 +475,9 @@ export function InboxPage({
                     onOpen={() =>
                       onOpenDraft({ accountId: draft.accountId, id: draft.id })
                     }
+                    onDelete={() =>
+                      onDeleteDraft({ accountId: draft.accountId, id: draft.id })
+                    }
                   />
                 ))}
               </ul>
@@ -472,6 +521,11 @@ export function InboxPage({
                         }
                         selected={thread.id === open?.id}
                         onOpen={() => onOpen(thread)}
+                        onAction={(action) =>
+                          thread.id === open?.id
+                            ? leave(thread, action)
+                            : runAction({ id: thread.id, action })
+                        }
                       />
                     ))}
                   </ul>
@@ -504,6 +558,7 @@ export function InboxPage({
             onHide={onHideCompose}
             onClose={onCloseCompose}
             onDraftChange={onComposeDraftChange}
+            discardRequest={discardRequest}
           />
         )}
         {open ? (

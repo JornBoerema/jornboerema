@@ -59,6 +59,8 @@ type ComposeProps = {
   onClose: () => void
   /** The draft this message is saved as, once it is. */
   onDraftChange: (id: string | null) => void
+  /** Goes up when the draft is deleted from the list while open here. */
+  discardRequest: number
 }
 
 /** Escape hides the composer wherever focus is. Open dropdowns claim it first. */
@@ -136,6 +138,7 @@ function ComposeForm({
   onHide,
   onClose,
   onDraftChange,
+  discardRequest,
 }: ComposeProps & { initial: MailDraft | null }) {
   const t = useI18n().t.compose
   const queryClient = useQueryClient()
@@ -258,6 +261,14 @@ function ComposeForm({
       toast.error(errorText(error))
     },
   })
+
+  // Deleting from the list goes through here, so autosave can't bring the draft back.
+  const discardedFor = useRef(discardRequest)
+  useEffect(() => {
+    if (discardRequest === discardedFor.current) return
+    discardedFor.current = discardRequest
+    discard.mutate()
+  }, [discardRequest, discard])
 
   function submit() {
     if (send.isPending || !accountId) return
