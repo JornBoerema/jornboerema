@@ -308,6 +308,8 @@ export const en = {
     uploading: (name: string) => `Uploading ${name}`,
     uploadFailed: (name: string) => `${name} didn't upload. Remove it and add it again.`,
     stillUploading: "Wait until the attachments have uploaded.",
+    attachments: "Attachments",
+    uploadFailedShort: "Didn't upload",
     readFailed: "That file couldn't be read.",
   },
   conversation: {

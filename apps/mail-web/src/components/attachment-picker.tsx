@@ -1,7 +1,19 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react"
 import { toast } from "sonner"
-import { Alert02Icon, Attachment01Icon, Cancel01Icon } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+import {
+  Alert02Icon,
+  Attachment01Icon,
+  Cancel01Icon,
+  Doc02Icon,
+  File02Icon,
+  Image02Icon,
+  MusicNote02Icon,
+  Pdf02Icon,
+  Video02Icon,
+  Xls02Icon,
+  Zip02Icon,
+} from "@hugeicons/core-free-icons"
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { cn } from "@evido/ui/lib/utils"
 import { MAX_ATTACHMENTS_BYTES } from "@evido/mail-core/types"
@@ -13,16 +25,13 @@ import { IconTip } from "@/components/icon-tip"
 const LIMIT_LABEL = `${MAX_ATTACHMENTS_BYTES / (1024 * 1024)} MB`
 
 /**
- * Picks files and uploads each one in chunks straight away, with its progress
- * on the chip. The composer sends only the finished ones, by id.
+ * Uploads picked files in chunks straight away. The composer sends only the
+ * finished ones, by id; removing one stops its upload.
  */
-export function AttachmentPicker({
-  files,
-  onChange,
-}: {
-  files: ComposerFile[]
+export function useAttachments(
+  files: ComposerFile[],
   onChange: Dispatch<SetStateAction<ComposerFile[]>>
-}) {
+) {
   const t = useI18n().t.compose
   const running = useRef(new Map<string, AbortController>())
 
@@ -82,9 +91,34 @@ export function AttachmentPicker({
     onChange((list) => list.filter((item) => item.key !== file.key))
   }
 
+  return { add, remove }
+}
+
+const KB = 1024
+const MB = KB * 1024
+const sizeLabel = (bytes: number, locale: string) =>
+  bytes >= MB
+    ? `${(bytes / MB).toLocaleString(locale, { maximumFractionDigits: 1 })} MB`
+    : `${Math.max(1, Math.round(bytes / KB)).toLocaleString(locale)} KB`
+
+function iconFor(file: ComposerFile): IconSvgElement {
+  const type = file.contentType
+  const name = file.name.toLowerCase()
+  if (type === "application/pdf" || name.endsWith(".pdf")) return Pdf02Icon
+  if (type.startsWith("image/")) return Image02Icon
+  if (type.startsWith("video/")) return Video02Icon
+  if (type.startsWith("audio/")) return MusicNote02Icon
+  if (/\.(zip|rar|7z|gz|tar)$/.test(name)) return Zip02Icon
+  if (/\.(xlsx?|csv|numbers)$/.test(name)) return Xls02Icon
+  if (/\.(docx?|pages|rtf|odt)$/.test(name)) return Doc02Icon
+  return File02Icon
+}
+
+/** The paperclip: picks files, up to the limit together. */
+export function AttachButton({ onAdd }: { onAdd: (files: File[]) => void }) {
+  const t = useI18n().t.compose
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs">
-      <IconTip label={`${t.attach} (max ${LIMIT_LABEL})`}>
+    <IconTip label={`${t.attach} (max ${LIMIT_LABEL})`}>
       <Button
         asChild
         variant="ghost"
@@ -101,53 +135,84 @@ export function AttachmentPicker({
             multiple
             className="sr-only"
             onChange={(event) => {
-              add(Array.from(event.target.files ?? []))
+              onAdd(Array.from(event.target.files ?? []))
               event.target.value = ""
             }}
           />
         </label>
       </Button>
-      </IconTip>
+    </IconTip>
+  )
+}
+
+/** The attached files as small cards: kind, name, size, and how far the upload is. */
+export function AttachmentList({
+  files,
+  onRemove,
+  className,
+}: {
+  files: ComposerFile[]
+  onRemove: (file: ComposerFile) => void
+  className?: string
+}) {
+  const { t: strings, locale } = useI18n()
+  const t = strings.compose
+  if (files.length === 0) return null
+  return (
+    <ul aria-label={t.attachments} className={cn("flex flex-wrap gap-2", className)}>
       {files.map((file) => {
         const uploading = !file.failed && file.progress < 1
         return (
-          <span
+          <li
             key={file.key}
             className={cn(
-              "relative flex max-w-48 items-center gap-1 overflow-hidden rounded-md border py-0.5 pr-0.5 pl-2 text-muted-foreground",
-              file.failed && "border-destructive/50 text-destructive"
+              "group relative flex h-11 max-w-60 min-w-0 items-center gap-2.5 overflow-hidden rounded-xl border bg-muted/40 pr-1.5 pl-2",
+              file.failed && "border-destructive/40"
             )}
-            title={file.failed ? t.uploadFailed(file.name) : uploading ? t.uploading(file.name) : file.name}
           >
+            <span
+              className={cn(
+                "flex size-7 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground",
+                file.failed && "text-destructive"
+              )}
+            >
+              <HugeiconsIcon icon={file.failed ? Alert02Icon : iconFor(file)} strokeWidth={1.75} aria-hidden="true" className="size-4" />
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-xs font-medium">{file.name}</span>
+              <span
+                role={uploading ? "status" : undefined}
+                className={cn("truncate text-[11px] tabular-nums text-muted-foreground", file.failed && "text-destructive")}
+              >
+                {file.failed
+                  ? t.uploadFailedShort
+                  : uploading
+                    ? `${sizeLabel(file.size, locale)} · ${Math.round(file.progress * 100)}%`
+                    : sizeLabel(file.size, locale)}
+              </span>
+            </span>
+            <IconTip label={t.removeFile(file.name)}>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className="shrink-0 text-foreground/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-transparent! hover:text-foreground [@media(hover:none)]:opacity-100"
+                aria-label={t.removeFile(file.name)}
+                onClick={() => onRemove(file)}
+              >
+                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
+              </Button>
+            </IconTip>
             {uploading && (
               <span
                 aria-hidden="true"
-                className="absolute inset-y-0 left-0 bg-muted transition-[width] duration-300"
-                style={{ width: `${Math.max(4, file.progress * 100)}%` }}
+                className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-primary transition-transform duration-300"
+                style={{ transform: `scaleX(${Math.max(0.04, file.progress)})` }}
               />
             )}
-            {file.failed && (
-              <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="relative size-3.5 shrink-0" aria-hidden="true" />
-            )}
-            <span className="relative truncate">{file.name}</span>
-            {uploading && (
-              <span className="relative shrink-0 tabular-nums" role="status">
-                {Math.round(file.progress * 100)}%
-              </span>
-            )}
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              className="relative"
-              aria-label={t.removeFile(file.name)}
-              onClick={() => remove(file)}
-            >
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
-            </Button>
-          </span>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }

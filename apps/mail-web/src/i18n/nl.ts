@@ -309,6 +309,8 @@ export const nl: typeof en = {
     uploading: (name: string) => `${name} wordt geüpload`,
     uploadFailed: (name: string) => `${name} is niet geüpload. Haal hem weg en voeg hem opnieuw toe.`,
     stillUploading: "Wacht tot de bijlagen zijn geüpload.",
+    attachments: "Bijlagen",
+    uploadFailedShort: "Niet geüpload",
     readFailed: "Dat bestand kon niet worden gelezen.",
   },
   conversation: {

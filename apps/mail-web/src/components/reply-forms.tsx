@@ -8,7 +8,7 @@ import {
   type MailThreadMessage,
   type MailAccountView,
 } from "@evido/mail-core/types"
-import { AttachmentPicker } from "@/components/attachment-picker"
+import { AttachButton, AttachmentList, useAttachments } from "@/components/attachment-picker"
 import { SendButton } from "@/components/send-button"
 import { SignaturePicker } from "@/components/signature-picker"
 import { useSignatureChoice } from "@/lib/signatures"
@@ -85,6 +85,7 @@ export function ReplyForm({
   }
   const [files, setFiles] = useState<ComposerFile[]>([])
   const attachments = useAttachmentRefs(files)
+  const attach = useAttachments(files, setFiles)
   const { to, cc } = replyRecipients(message, selfEmail, all)
   const send = useMutation({
     mutationFn: () =>
@@ -137,10 +138,11 @@ export function ReplyForm({
           onChange={keep}
         />
       </Suspense>
+      <AttachmentList files={files} onRemove={attach.remove} className="mx-2 border-t px-1 pt-2.5 pb-1" />
       <AiPrompt writer={writer} className="mx-2 border-t px-2 pt-2.5 pb-1" />
       <div className="flex items-center justify-between gap-3 p-2">
         <div className="flex min-w-0 items-center gap-1">
-          <AttachmentPicker files={files} onChange={setFiles} />
+          <AttachButton onAdd={attach.add} />
           <AiWriteButton writer={writer} />
           <SignaturePicker choice={signatureChoice} />
         </div>

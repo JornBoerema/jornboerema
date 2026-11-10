@@ -26,7 +26,7 @@ import {
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { AddressRow } from "@/components/address-row"
-import { AttachmentPicker } from "@/components/attachment-picker"
+import { AttachButton, AttachmentList, useAttachments } from "@/components/attachment-picker"
 import { MessageInput, MessageRow } from "@/components/message-field"
 import type { RichTextHandle } from "@/components/rich-text-editor"
 import { useI18n } from "@/i18n"
@@ -181,6 +181,7 @@ function ComposeForm({
     fromRefs(initial?.attachments ?? [])
   )
   const attachments = useAttachmentRefs(files)
+  const attach = useAttachments(files, setFiles)
   const [editorReady, setEditorReady] = useState(false)
   const [initialHtml] = useState(
     () =>
@@ -441,10 +442,11 @@ function ComposeForm({
               />
             </Suspense>
             <div className="sticky bottom-4 z-10 mx-4 mb-4 shrink-0 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
+              <AttachmentList files={files} onRemove={attach.remove} className="mb-2 border-b px-0.5 pt-0.5 pb-2.5" />
               <AiPrompt writer={writer} className="mb-2 border-b px-1 pt-0.5 pb-2.5" />
               <div className="flex min-h-10 items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-1">
-                <AttachmentPicker files={files} onChange={setFiles} />
+                <AttachButton onAdd={attach.add} />
                 <AiWriteButton writer={writer} />
                 <SignaturePicker choice={signatureChoice} />
               </div>
