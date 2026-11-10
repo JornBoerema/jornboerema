@@ -5,12 +5,14 @@ import {
   Link01Icon,
   QuoteDownIcon,
   TextBoldIcon,
+  TextFontIcon,
   TextItalicIcon,
   TextStrikethroughIcon,
   TextUnderlineIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import Placeholder from "@tiptap/extension-placeholder"
+import { FontSize, TextStyle } from "@tiptap/extension-text-style"
 import { EditorContent, mergeAttributes, Node, useEditor, type Editor } from "@tiptap/react"
 import { BubbleMenu, type BubbleMenuProps } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
@@ -21,6 +23,14 @@ import { toEmailHtml } from "@/lib/email-compose"
 
 // A new object here would make the menu update the editor on every render, without end.
 const MENU_OPTIONS = { placement: "top", offset: 8 } as const
+
+/** Mail clients ignore classes, so sizes go inline. Normal is the message's own size. */
+const TEXT_SIZES = [
+  { id: "small", value: "12px" },
+  { id: "normal", value: null },
+  { id: "large", value: "18px" },
+  { id: "huge", value: "24px" },
+] as const
 
 export type RichTextValue = {
   text: string
@@ -100,6 +110,18 @@ function FormatMenu({
 }) {
   const t = useI18n().t.compose.format
   const [address, setAddress] = useState("")
+  const [choosingSize, setChoosingSize] = useState(false)
+  const currentSize = (editor.getAttributes("textStyle").fontSize as string | undefined) ?? null
+  // A new selection starts at the normal buttons again.
+  useEffect(() => {
+    const reset = () => {
+      if (editor.state.selection.empty) setChoosingSize(false)
+    }
+    editor.on("selectionUpdate", reset)
+    return () => {
+      editor.off("selectionUpdate", reset)
+    }
+  }, [editor])
   // The menu's visibility check runs outside React and needs the current value.
   const showingLink = useRef(linkOpen)
   useEffect(() => {
@@ -143,6 +165,7 @@ function FormatMenu({
     { icon: TextUnderlineIcon, label: t.underline, mark: "underline", run: () => chain().toggleUnderline().run() },
     { icon: TextStrikethroughIcon, label: t.strike, mark: "strike", run: () => chain().toggleStrike().run() },
     { icon: Link01Icon, label: t.link, mark: "link", run: () => onLinkOpen(true) },
+    { icon: TextFontIcon, label: t.size, mark: "textSize", run: () => setChoosingSize(true) },
     { icon: LeftToRightListBulletIcon, label: t.bulletList, mark: "bulletList", run: () => chain().toggleBulletList().run() },
     { icon: LeftToRightListNumberIcon, label: t.orderedList, mark: "orderedList", run: () => chain().toggleOrderedList().run() },
     { icon: QuoteDownIcon, label: t.quote, mark: "blockquote", run: () => chain().toggleBlockquote().run() },
@@ -166,13 +189,33 @@ function FormatMenu({
             onChange={(event) => setAddress(event.target.value)}
             onKeyDown={onLinkKey}
           />
+        ) : choosingSize ? (
+          TEXT_SIZES.map((size) => (
+            <Button
+              key={size.id}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={currentSize === size.value}
+              className={cn("h-7 rounded-lg px-2", currentSize === size.value && "bg-accent text-accent-foreground")}
+              style={size.value ? { fontSize: size.value } : undefined}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                if (size.value) chain().setFontSize(size.value).run()
+                else chain().unsetFontSize().run()
+                setChoosingSize(false)
+              }}
+            >
+              {t.sizes[size.id]}
+            </Button>
+          ))
         ) : (
           actions.map((action) => (
             <FormatButton
               key={action.mark}
               icon={action.icon}
               label={action.label}
-              active={editor.isActive(action.mark)}
+              active={action.mark === "textSize" ? currentSize !== null : editor.isActive(action.mark)}
               onClick={action.run}
             />
           ))
@@ -231,6 +274,8 @@ export default function RichTextEditor({
         link: { openOnClick: false, defaultProtocol: "https" },
       }),
       Placeholder.configure({ placeholder }),
+      TextStyle,
+      FontSize,
       Signature,
     ],
     editorProps: {

@@ -116,6 +116,8 @@ export const en = {
     saved: "Draft saved",
     saveFailed: "Couldn't save the draft",
     format: {
+      size: "Text size",
+      sizes: { small: "Small", normal: "Normal", large: "Large", huge: "Huge" },
       bold: "Bold",
       italic: "Italic",
       underline: "Underline",

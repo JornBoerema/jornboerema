@@ -117,6 +117,8 @@ export const nl: typeof en = {
     saved: "Concept opgeslagen",
     saveFailed: "Concept niet opgeslagen",
     format: {
+      size: "Tekstgrootte",
+      sizes: { small: "Klein", normal: "Normaal", large: "Groot", huge: "Extra groot" },
       bold: "Vet",
       italic: "Cursief",
       underline: "Onderstrepen",

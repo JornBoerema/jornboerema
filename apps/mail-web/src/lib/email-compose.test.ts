@@ -40,3 +40,10 @@ describe("signature", () => {
     expect([...parsed.querySelectorAll("[data-signature] p")].map((p) => p.getAttribute("style"))).toEqual(["margin:0", "margin:0"])
   })
 })
+
+describe("text sizes", () => {
+  it("keep their inline size in the sent html", () => {
+    const html = toEmailHtml('<p>Hi <span style="font-size: 24px">big</span></p>')
+    expect(html).toContain('<span style="font-size: 24px">big</span>')
+  })
+})
