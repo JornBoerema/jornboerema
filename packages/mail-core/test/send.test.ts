@@ -466,3 +466,35 @@ describe("change notifications", () => {
     expect(sent.map((item) => item.method)).toEqual(["PATCH", "POST"])
   })
 })
+
+describe("inline images", () => {
+  const logo = { contentId: "a1b2.0@evido", name: "logo.png", contentType: "image/png", data: Buffer.from("PNG").toString("base64") }
+
+  it("go next to the html in a related part, referred to by content id", async () => {
+    const sent = stub()
+    await sendGmail("t", { ...base, html: '<p><img src="cid:a1b2.0@evido"></p>', inline: [logo] })
+    // Upload endpoint, because the message carries files.
+    expect(sent[0]?.url).toContain("/upload/")
+    const raw = sent[0]?.raw ?? ""
+    expect(raw).toMatch(/multipart\/alternative/)
+    expect(raw).toMatch(/multipart\/related/)
+    expect(raw).toContain("Content-ID: <a1b2.0@evido>")
+    expect(raw).toContain("Content-Disposition: inline")
+    expect(raw.indexOf("text/plain")).toBeLessThan(raw.indexOf("multipart/related"))
+  })
+
+  it("refuse an id that could break the headers", async () => {
+    stub()
+    await expect(
+      sendGmail("t", { ...base, html: "<p>x</p>", inline: [{ ...logo, contentId: "a@b>\r\nBcc: x@y.z" }] })
+    ).rejects.toBeInstanceOf(ProviderError)
+  })
+
+  it("become inline attachments for Graph", async () => {
+    const sent = stub()
+    await sendOutlook("t", { ...base, html: '<img src="cid:a1b2.0@evido">', inline: [logo] })
+    expect((sent[0]?.body.message as { attachments: unknown[] }).attachments).toEqual([
+      { "@odata.type": "#microsoft.graph.fileAttachment", name: "logo.png", contentType: "image/png", contentBytes: logo.data, contentId: "a1b2.0@evido", isInline: true },
+    ])
+  })
+})

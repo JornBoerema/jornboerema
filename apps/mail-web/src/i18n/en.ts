@@ -95,6 +95,7 @@ export const en = {
     count: (count: number) => (count === 1 ? "1 draft" : `${count} drafts`),
   },
   compose: {
+    imageFailed: "That image couldn't be added.",
     title: "New message",
     from: "From",
     to: "To",

@@ -3,13 +3,15 @@ import { collect, emptyContent, headerOf, readGmailAttachment, type GmailFullMes
 import { decodeEntities, GMAIL_API } from "./gmail-sync"
 import { getJson, mapInChunks, sendBody, sendJson, textToHtml } from "./http"
 import { ProviderError } from "./provider"
-import type {
-  MailAddress,
-  MailAttachmentUpload,
-  MailForward,
-  MailOutgoing,
-  MailReply,
-  MailThreadAction,
+import {
+  INLINE_CONTENT_ID,
+  type MailAddress,
+  type MailAttachmentUpload,
+  type MailInlineUpload,
+  type MailForward,
+  type MailOutgoing,
+  type MailReply,
+  type MailThreadAction,
 } from "./types"
 
 const CRLF = "\r\n"
@@ -91,21 +93,40 @@ function textPart(contentType: string, value: string) {
   ].join(CRLF)
 }
 
-/** The plain version comes first: clients show the last alternative they understand. */
-function bodyPart(text: string, html?: string) {
-  const plain = textPart("text/plain", text)
-  if (!html) return plain
-  const boundary = `evido_alt_${randomBytes(16).toString("hex")}`
+function multipart(subtype: string, parts: string[]) {
+  const boundary = `evido_${subtype}_${randomBytes(16).toString("hex")}`
   return [
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `Content-Type: multipart/${subtype}; boundary="${boundary}"`,
     "",
-    `--${boundary}`,
-    plain,
-    `--${boundary}`,
-    textPart("text/html", html),
+    ...parts.map((part) => `--${boundary}${CRLF}${part}`),
     `--${boundary}--`,
     "",
   ].join(CRLF)
+}
+
+function inlinePart({ contentId, name, contentType, data }: MailInlineUpload) {
+  // The id goes into a header, so only a strict shape is accepted.
+  if (!INLINE_CONTENT_ID.test(contentId)) throw new ProviderError("Invalid inline image id")
+  return [
+    `Content-Type: ${safeContentType(contentType)}`,
+    "Content-Transfer-Encoding: base64",
+    `Content-ID: <${contentId}>`,
+    `Content-Disposition: inline; filename*=${encodeFileName(name)}`,
+    "",
+    wrapBase64(Buffer.from(data, "base64").toString("base64")),
+  ].join(CRLF)
+}
+
+/**
+ * The plain version comes first: clients show the last alternative they understand.
+ * Inline images sit next to the HTML that shows them, in a related part.
+ */
+function bodyPart(text: string, html?: string, inline: MailInlineUpload[] = []) {
+  const plain = textPart("text/plain", text)
+  if (!html) return plain
+  const rich = textPart("text/html", html)
+  const shown = inline.length > 0 ? multipart("related", [rich, ...inline.map(inlinePart)]) : rich
+  return multipart("alternative", [plain, shown])
 }
 
 export function buildMime(input: {
@@ -117,6 +138,7 @@ export function buildMime(input: {
   text: string
   html?: string
   attachments: MailAttachmentUpload[]
+  inline?: MailInlineUpload[]
   inReplyTo?: string
   references?: string
 }) {
@@ -130,7 +152,7 @@ export function buildMime(input: {
     ...(input.references ? [`References: ${oneLine(input.references)}`] : []),
     "MIME-Version: 1.0",
   ]
-  const body = bodyPart(input.text, input.html)
+  const body = bodyPart(input.text, input.html, input.inline)
   if (input.attachments.length === 0) return `${headers.join(CRLF)}${CRLF}${body}`
 
   const boundary = `evido_${randomBytes(16).toString("hex")}`
@@ -192,8 +214,12 @@ async function send(accessToken: string, mime: string, hasAttachments: boolean, 
   await writeMime(accessToken, { method: "POST", path: "messages/send", mime, hasAttachments, threadId })
 }
 
+/** Files make a message large, so it goes through the upload endpoint. */
+export const hasFiles = (input: { attachments: unknown[]; inline?: unknown[] }) =>
+  input.attachments.length + (input.inline?.length ?? 0) > 0
+
 export async function sendGmail(accessToken: string, input: MailOutgoing & { from: MailAddress }) {
-  await send(accessToken, buildMime(input), input.attachments.length > 0)
+  await send(accessToken, buildMime(input), hasFiles(input))
 }
 
 /** Only used to quote the original in a plain-text reply, so nothing here is rendered. */
@@ -258,10 +284,11 @@ export async function replyGmail(
     text: `${input.text}${CRLF}${CRLF}${quoted(original)}`,
     html: input.html && `${input.html}<br>${quotedHtml(original)}`,
     attachments: input.attachments,
+    inline: input.inline,
     inReplyTo: messageId,
     references,
   })
-  await send(accessToken, mime, input.attachments.length > 0, input.threadId)
+  await send(accessToken, mime, hasFiles(input), input.threadId)
 }
 
 export async function forwardGmail(
@@ -298,8 +325,9 @@ export async function forwardGmail(
     text: input.text ? `${input.text}${CRLF}${CRLF}${summary}` : summary,
     html: input.html && `${input.html}<br>${textToHtml(summary)}`,
     attachments,
+    inline: input.inline,
   })
-  await send(accessToken, mime, attachments.length > 0)
+  await send(accessToken, mime, hasFiles({ attachments, inline: input.inline }))
 }
 
 const LABEL_CHANGES = {

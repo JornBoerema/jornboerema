@@ -15,13 +15,14 @@ import {
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import { readingColumn } from "@/lib/layout"
-import type {
-  MailAccountView,
-  MailAddress,
-  MailAttachmentUpload,
-  MailDraft,
-  MailDraftContent,
-  MailOutgoing,
+import {
+  MAX_UPLOAD_BYTES,
+  type MailAccountView,
+  type MailAddress,
+  type MailAttachmentUpload,
+  type MailDraft,
+  type MailDraftContent,
+  type MailOutgoing,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { AddressRow } from "@/components/address-row"
@@ -40,6 +41,7 @@ import {
   type DraftRef,
 } from "@/lib/drafts"
 import { textToEditorHtml } from "@/lib/email-compose"
+import { fromInlineImages, uploadBytes } from "@/lib/inline-images"
 import { sendOnModEnter } from "@/lib/hotkeys"
 import { useSignatureFor } from "@/lib/signatures"
 
@@ -154,6 +156,7 @@ function ComposeForm({
   const [body, setBody] = useState({
     text: initial?.text ?? "",
     html: initial?.html ?? "",
+    inline: initial?.inline ?? [],
     written: Boolean(initial?.text.trim() || initial?.html),
   })
   const [files, setFiles] = useState<MailAttachmentUpload[]>(
@@ -161,7 +164,9 @@ function ComposeForm({
   )
   const [editorReady, setEditorReady] = useState(false)
   const [initialHtml] = useState(
-    () => initial && (initial.html ?? textToEditorHtml(initial.text))
+    () =>
+      initial &&
+      (initial.html ? fromInlineImages(initial.html, initial.inline) : textToEditorHtml(initial.text))
   )
   const reply = initial?.reply
   const signature = useSignatureFor(
@@ -180,6 +185,7 @@ function ComposeForm({
     text: body.text,
     ...(body.html && { html: body.html }),
     attachments: files,
+    ...(body.inline.length > 0 && { inline: body.inline }),
     ...(reply && { reply }),
   }
   const autosave = useDraftAutosave({
@@ -265,6 +271,8 @@ function ComposeForm({
     ]
     if (toList.length + ccList.length + bccList.length === 0)
       return toast.error(t.noRecipients)
+    if (uploadBytes([...files, ...body.inline]) > MAX_UPLOAD_BYTES)
+      return toast.error(t.tooLarge(`${MAX_UPLOAD_BYTES / (1024 * 1024)} MB`))
     send.mutate({
       to: toList,
       cc: ccList,
@@ -273,6 +281,7 @@ function ComposeForm({
       text: body.text,
       ...(body.html && { html: body.html }),
       attachments: files,
+      ...(body.inline.length > 0 && { inline: body.inline }),
     })
   }
 

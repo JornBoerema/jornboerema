@@ -96,6 +96,7 @@ export const nl: typeof en = {
     count: (count: number) => (count === 1 ? "1 concept" : `${count} concepten`),
   },
   compose: {
+    imageFailed: "Die afbeelding kon niet worden toegevoegd.",
     title: "Nieuw bericht",
     from: "Van",
     to: "Aan",

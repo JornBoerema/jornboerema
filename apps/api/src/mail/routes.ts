@@ -9,6 +9,7 @@ import {
   type ConnectErrorCode,
   MAIL_ACCOUNT_COLORS,
   MAX_SIGNATURE_LENGTH,
+  INLINE_CONTENT_ID,
   isDraftWorthKeeping,
 } from "@evido/mail-core/types"
 import { env } from "../env"
@@ -70,8 +71,23 @@ const attachments = z
     })
   )
   .max(20)
-  .refine((files) => files.reduce((sum, file) => sum + file.data.length, 0) * 0.75 <= MAX_UPLOAD_BYTES)
   .default([])
+const inline = z
+  .array(
+    z.object({
+      contentId: z.string().regex(INLINE_CONTENT_ID),
+      name: z.string().min(1).max(255),
+      contentType: z.string().regex(/^image\/[\w.+-]+$/),
+      data: z.base64(),
+    })
+  )
+  .max(50)
+  .optional()
+type Files = { attachments?: { data: string }[]; inline?: { data: string }[] }
+/** Files and inline images together, as decoded bytes. */
+const fitsUpload = (body: Files) =>
+  [...(body.attachments ?? []), ...(body.inline ?? [])].reduce((sum, file) => sum + file.data.length, 0) * 0.75 <=
+  MAX_UPLOAD_BYTES
 const signatureId = z.string().min(1).max(100).nullable().optional()
 const accountBody = z
   .object({
@@ -87,7 +103,7 @@ const signatureBody = z
   .object({ name: signatureName.optional(), html: signatureHtml.optional() })
   .refine((body) => body.name !== undefined || body.html !== undefined)
 const actionBody = z.object({ action: z.enum(MAIL_THREAD_ACTIONS) })
-const sendBody = z.object({
+const sendFields = z.object({
   to: recipients,
   cc: recipients,
   bcc: recipients,
@@ -95,9 +111,11 @@ const sendBody = z.object({
   text,
   html,
   attachments,
+  inline,
 })
+const sendBody = sendFields.refine(fitsUpload)
 const providerId = z.string().min(1).max(1000)
-const draftBody = sendBody.extend({
+const draftBody = sendFields.extend({
   draftId: providerId.nullable(),
   attachmentsChanged: z.boolean(),
   reply: z
@@ -107,7 +125,7 @@ const draftBody = sendBody.extend({
       references: z.string().max(20_000).optional(),
     })
     .optional(),
-})
+}).refine(fitsUpload)
 const replyBody = z.object({
   messageId: z.string().min(1).max(1000),
   to: recipients.min(1),
@@ -115,14 +133,16 @@ const replyBody = z.object({
   text: text.min(1),
   html,
   attachments,
-})
+  inline,
+}).refine(fitsUpload)
 const forwardBody = z.object({
   messageId: z.string().min(1).max(1000),
   to: recipients.min(1),
   cc: recipients,
   text,
   html,
-})
+  inline,
+}).refine(fitsUpload)
 const attachmentBody = z.object({
   messageId: z.string().min(1).max(1000),
   attachmentId: z.string().min(1).max(4000),

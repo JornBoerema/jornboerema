@@ -4,6 +4,7 @@ import { ProviderError } from "./provider"
 import type {
   MailAddress,
   MailAttachmentUpload,
+  MailInlineUpload,
   MailForward,
   MailOutgoing,
   MailReply,
@@ -26,6 +27,22 @@ const toFiles = (attachments: MailAttachmentUpload[]) =>
     contentBytes: data,
   }))
 
+/** Images the HTML shows through `cid:` links. */
+export const toInlineFiles = (images: MailInlineUpload[] = []) =>
+  images.map(({ contentId, name, contentType, data }) => ({
+    "@odata.type": "#microsoft.graph.fileAttachment",
+    name,
+    contentType,
+    contentBytes: data,
+    contentId,
+    isInline: true,
+  }))
+
+const allFiles = (input: { attachments: MailAttachmentUpload[]; inline?: MailInlineUpload[] }) => [
+  ...toFiles(input.attachments),
+  ...toInlineFiles(input.inline),
+]
+
 export async function sendOutlook(accessToken: string, input: MailOutgoing) {
   await sendJson("POST", `${GRAPH_BASE}/me/sendMail`, accessToken, {
     message: {
@@ -36,7 +53,7 @@ export async function sendOutlook(accessToken: string, input: MailOutgoing) {
       toRecipients: toRecipients(input.to),
       ccRecipients: toRecipients(input.cc),
       bccRecipients: toRecipients(input.bcc),
-      ...(input.attachments.length > 0 && { attachments: toFiles(input.attachments) }),
+      ...(allFiles(input).length > 0 && { attachments: allFiles(input) }),
     },
     saveToSentItems: true,
   })
@@ -53,7 +70,7 @@ export async function replyOutlook(accessToken: string, input: MailReply) {
       message: {
         toRecipients: toRecipients(input.to),
         ccRecipients: toRecipients(input.cc),
-        ...(input.attachments.length > 0 && { attachments: toFiles(input.attachments) }),
+        ...(allFiles(input).length > 0 && { attachments: allFiles(input) }),
       },
     },
     ID_HEADER
@@ -69,6 +86,7 @@ export async function forwardOutlook(accessToken: string, input: MailForward) {
     {
       comment: input.html ?? textToHtml(input.text),
       toRecipients: [...toRecipients(input.to), ...toRecipients(input.cc)],
+      ...(input.inline?.length && { message: { attachments: toInlineFiles(input.inline) } }),
     },
     ID_HEADER
   )

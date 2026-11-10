@@ -63,11 +63,17 @@ export function sendDraft(
   )
 }
 
-/** Everything but the files, which are compared by identity instead of by content. */
+/**
+ * Everything but the files and pictures. Files are compared by identity; pictures
+ * by content id, which the HTML already carries.
+ */
 const keyOf = (
   accountId: string,
-  { attachments: _files, ...rest }: MailDraftContent
+  { attachments: _files, inline: _pictures, ...rest }: MailDraftContent
 ) => JSON.stringify([accountId, rest])
+
+const pictureIds = (content: MailDraftContent) =>
+  (content.inline ?? []).map((image) => image.contentId).join(",")
 
 /**
  * Keeps the open message saved as a draft at its provider while it is written.
@@ -100,6 +106,7 @@ export function useDraftAutosave({
     initial ? null : keyOf(accountId, content)
   )
   const savedFiles = useRef(content.attachments)
+  const savedPictures = useRef(pictureIds(content))
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const timer = useRef<number | undefined>(undefined)
   const paused = useRef(false)
@@ -110,11 +117,16 @@ export function useDraftAutosave({
   if (ready && savedKey.current === null)
     savedKey.current = keyOf(accountId, content)
 
+  // Graph keeps files apart from the message, so it only re-uploads them when told.
+  const filesChanged = () =>
+    latest.current.content.attachments !== savedFiles.current ||
+    pictureIds(latest.current.content) !== savedPictures.current
+
   const isDirty = () =>
     savedKey.current !== null &&
     (keyOf(latest.current.accountId, latest.current.content) !==
       savedKey.current ||
-      latest.current.content.attachments !== savedFiles.current)
+      filesChanged())
 
   const run = useCallback(async () => {
     if (paused.current || !isDirty()) return
@@ -137,7 +149,7 @@ export function useDraftAutosave({
           json({
             ...current,
             draftId: target?.id ?? null,
-            attachmentsChanged: !target || files !== savedFiles.current,
+            attachmentsChanged: !target || filesChanged(),
           })
         )
         saved.current = { accountId: account, id: draftId }
@@ -147,6 +159,7 @@ export function useDraftAutosave({
       }
       savedKey.current = key
       savedFiles.current = files
+      savedPictures.current = pictureIds(current)
       reported.current(saved.current)
       void queryClient.invalidateQueries({ queryKey: DRAFTS_KEY })
     } catch {
@@ -191,8 +204,7 @@ export function useDraftAutosave({
       await queue.current
       return {
         ref: saved.current,
-        attachmentsChanged:
-          latest.current.content.attachments !== savedFiles.current,
+        attachmentsChanged: filesChanged(),
       }
     },
     resume: () => {

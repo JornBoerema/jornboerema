@@ -157,18 +157,22 @@ describe("outlook drafts", () => {
     expect(sent.slice(1).map((item) => item.method)).toEqual(["PATCH"])
   })
 
-  it("swaps files but keeps inline images when the files changed", async () => {
+  it("swaps all files, inline images included, when they changed", async () => {
     const sent = stub((url, method) =>
       method === "GET" && url.includes("/attachments")
-        ? [200, { value: [{ id: "f1", isInline: false }, { id: "img", isInline: true }] }]
+        ? [200, { value: [{ id: "f1" }, { id: "img" }] }]
         : [method === "DELETE" ? 204 : 200, {}]
     )
-    await saveOutlookDraft("t", { ...content, attachments: [pdf], draftId: "o1", attachmentsChanged: true })
+    const logo = { contentId: "logo.1@evido", name: "logo.png", contentType: "image/png", data: pdf.data }
+    await saveOutlookDraft("t", { ...content, attachments: [pdf], inline: [logo], draftId: "o1", attachmentsChanged: true })
     expect(sent.map((item) => `${item.method} ${item.url.split("/me/messages/")[1]}`)).toEqual([
       "PATCH o1",
       "DELETE o1/attachments/f1",
+      "DELETE o1/attachments/img",
+      "POST o1/attachments",
       "POST o1/attachments",
     ])
+    expect(sent[4]?.body).toMatchObject({ isInline: true, contentId: "logo.1@evido" })
   })
 
   it("lists and opens drafts", async () => {

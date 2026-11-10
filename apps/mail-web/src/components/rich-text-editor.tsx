@@ -11,6 +11,8 @@ import {
   TextUnderlineIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import FileHandler from "@tiptap/extension-file-handler"
+import Image from "@tiptap/extension-image"
 import Placeholder from "@tiptap/extension-placeholder"
 import { FontSize, TextStyle } from "@tiptap/extension-text-style"
 import { EditorContent, mergeAttributes, Node, useEditor, type Editor } from "@tiptap/react"
@@ -19,7 +21,10 @@ import StarterKit from "@tiptap/starter-kit"
 import { Button } from "@evido/ui/components/button"
 import { cn } from "@evido/ui/lib/utils"
 import { useI18n } from "@/i18n"
+import { toast } from "sonner"
+import type { MailInlineUpload } from "@evido/mail-core/types"
 import { toEmailHtml } from "@/lib/email-compose"
+import { prepareImage, toInlineImages } from "@/lib/inline-images"
 
 // A new object here would make the menu update the editor on every render, without end.
 const MENU_OPTIONS = { placement: "top", offset: 8 } as const
@@ -32,9 +37,15 @@ const TEXT_SIZES = [
   { id: "huge", value: "24px" },
 ] as const
 
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"]
+/** Pictures start at most this wide; the corners resize them. */
+const IMAGE_START_WIDTH = 600
+
 export type RichTextValue = {
   text: string
   html: string
+  /** The pictures `html` refers to as `cid:` links. Empty when they stay inline. */
+  inline: MailInlineUpload[]
   /** Something besides the signature has been written. */
   written: boolean
 }
@@ -234,6 +245,7 @@ export default function RichTextEditor({
   className,
   initialHtml,
   signature,
+  imagesAsFiles = true,
   onChange,
 }: {
   ref?: Ref<RichTextHandle>
@@ -248,17 +260,48 @@ export default function RichTextEditor({
    * right one already; a later change swaps it.
    */
   signature?: string
+  /**
+   * Pictures leave as inline files the HTML links to, as mail needs. Off keeps
+   * them in the HTML itself, for content stored here, such as signatures.
+   */
+  imagesAsFiles?: boolean
   /** Also called once the editor is ready, with the starting content as it reads it. */
   onChange: (value: RichTextValue) => void
 }) {
   const [linkOpen, setLinkOpen] = useState(false)
+  const t = useI18n().t.compose
   const emit = ({ editor: current }: { editor: Editor }) => {
     const text = current.getText({ blockSeparator: "\n\n" }).replace(/\n{3,}/g, "\n\n").trim()
     let written = false
+    let pictures = false
     current.state.doc.forEach((node) => {
-      if (node.type.name !== "signature" && node.textContent.trim()) written = true
+      let hasImage = false
+      node.descendants((child) => {
+        if (child.type.name === "image") hasImage = true
+      })
+      pictures ||= hasImage
+      if (node.type.name !== "signature" && (node.textContent.trim() || hasImage)) written = true
     })
-    onChange({ text, html: text ? toEmailHtml(current.getHTML()) : "", written })
+    if (!text && !pictures) return onChange({ text, html: "", inline: [], written })
+    const html = toEmailHtml(current.getHTML())
+    onChange(imagesAsFiles ? { text, ...toInlineImages(html), written } : { text, html, inline: [], written })
+  }
+
+  const insertImages = (target: Editor, files: File[], position?: number) => {
+    for (const file of files) {
+      prepareImage(file).then(
+        ({ src, width }) =>
+          target
+            .chain()
+            .focus()
+            .insertContentAt(position ?? target.state.selection.to, {
+              type: "image",
+              attrs: { src, width: Math.min(width, IMAGE_START_WIDTH) },
+            })
+            .run(),
+        () => toast.error(t.imageFailed)
+      )
+    }
   }
 
   const editor = useEditor({
@@ -277,6 +320,19 @@ export default function RichTextEditor({
       TextStyle,
       FontSize,
       Signature,
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+        resize: { enabled: true, directions: ["bottom-right", "bottom-left"], minWidth: 40, alwaysPreserveAspectRatio: true },
+      }),
+      FileHandler.configure({
+        allowedMimeTypes: IMAGE_TYPES,
+        onDrop: (current, files, position) => insertImages(current, files, position),
+        onPaste: (current, files, pasted) => {
+          // Copied web content brings its own pictures along in the HTML.
+          if (!pasted) insertImages(current, files)
+        },
+      }),
     ],
     editorProps: {
       attributes: { role: "textbox", "aria-label": label, "aria-multiline": "true" },

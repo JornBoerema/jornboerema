@@ -4,6 +4,7 @@ const STYLES: Record<string, string> = {
   OL: "margin:0 0 1em;padding-left:1.5em",
   BLOCKQUOTE: "margin:0 0 1em;padding-left:12px;border-left:2px solid #d0d0d0;color:#555555",
   CODE: "font-family:monospace;background:#f2f2f2;padding:1px 4px;border-radius:3px",
+  IMG: "max-width:100%;height:auto",
 }
 
 /**

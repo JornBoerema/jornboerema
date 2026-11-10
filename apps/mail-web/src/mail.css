@@ -49,6 +49,22 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* Pictures sit on the line like a large letter, as mail clients show them. */
+.mail-editor [data-resize-container] {
+  vertical-align: bottom;
+}
+.mail-editor img {
+  display: inline-block;
+  vertical-align: bottom;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.mail-editor img.ProseMirror-selectednode,
+.mail-editor [data-resize-container].ProseMirror-selectednode img {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 /* Visibly apart from the message; sent mail shows it like any other text. */
 .mail-editor [data-signature] {
   color: var(--muted-foreground);

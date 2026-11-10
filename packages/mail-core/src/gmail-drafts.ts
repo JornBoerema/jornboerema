@@ -1,5 +1,5 @@
 import { collect, emptyContent, headerOf, readGmailAttachment, toAddresses, type GmailFullMessage } from "./gmail-read"
-import { buildMime, writeMime } from "./gmail-send"
+import { buildMime, hasFiles, writeMime } from "./gmail-send"
 import { decodeEntities, GMAIL_API } from "./gmail-sync"
 import { cleanText, deleteResource, getJson, mapInChunks, sendJson } from "./http"
 import { ProviderError } from "./provider"
@@ -72,6 +72,18 @@ export async function getGmailDraft(accessToken: string, draftId: string): Promi
       ).toString("base64"),
     })
   )
+  const inline = await mapInChunks(
+    content.inline.filter((image) => image.id && image.contentId),
+    ATTACHMENT_CONCURRENCY,
+    async (image) => ({
+      contentId: image.contentId,
+      name: image.contentId,
+      contentType: image.contentType,
+      data: Buffer.from(
+        await readGmailAttachment(accessToken, { messageId: message.id, attachmentId: image.id })
+      ).toString("base64"),
+    })
+  )
   const inReplyTo = headerOf(headers, "in-reply-to")
   return {
     id: draft.id,
@@ -82,6 +94,7 @@ export async function getGmailDraft(accessToken: string, draftId: string): Promi
     text: content.text ?? "",
     ...(content.html && { html: content.html }),
     attachments,
+    ...(inline.length > 0 && { inline }),
     // Only a draft that answers something needs to stay in its conversation.
     ...(inReplyTo &&
       message.threadId && {
@@ -104,7 +117,7 @@ export async function saveGmailDraft(
     method: input.draftId ? "PUT" : "POST",
     path: input.draftId ? `drafts/${encodeURIComponent(input.draftId)}` : "drafts",
     mime,
-    hasAttachments: input.attachments.length > 0,
+    hasAttachments: hasFiles(input),
     threadId: input.reply?.threadId,
     wrap: (message) => ({ message }),
   })

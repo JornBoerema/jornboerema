@@ -14,6 +14,7 @@ import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
 import { sendOnModEnter } from "@/lib/hotkeys"
+import type { RichTextValue } from "@/components/rich-text-editor"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
@@ -53,7 +54,7 @@ export function ReplyForm({
 }) {
   const t = useI18n().t.conversation
   const queryClient = useQueryClient()
-  const [body, setBody] = useState({ text: "", html: "", written: false })
+  const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
   const [files, setFiles] = useState<MailAttachmentUpload[]>([])
   const { to, cc } = replyRecipients(message, selfEmail, all)
   const send = useMutation({
@@ -68,6 +69,7 @@ export function ReplyForm({
           text: body.text,
           ...(body.html && { html: body.html }),
           attachments: files,
+          ...(body.inline.length > 0 && { inline: body.inline }),
         }),
       }),
     onSuccess: () => {
@@ -124,7 +126,7 @@ export function ForwardForm({
   const { t: strings } = useI18n()
   const t = strings.conversation
   const [to, setTo] = useState("")
-  const [body, setBody] = useState({ text: "", html: "", written: false })
+  const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
   const send = useMutation({
     mutationFn: (recipients: MailAddress[]) =>
       api(`/api/mail/threads/${encodeURIComponent(threadId)}/forward`, {
@@ -136,6 +138,7 @@ export function ForwardForm({
           cc: [],
           text: body.text,
           ...(body.html && { html: body.html }),
+          ...(body.inline.length > 0 && { inline: body.inline }),
         }),
       }),
     onSuccess: () => {

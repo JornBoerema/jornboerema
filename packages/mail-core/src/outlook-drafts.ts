@@ -1,4 +1,5 @@
 import { cleanText, deleteResource, getJson, mapInChunks, sendBody, sendJson } from "./http"
+import { toInlineFiles } from "./outlook-send"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
 import {
@@ -32,6 +33,7 @@ type GraphDraft = {
     contentType?: string
     isInline?: boolean
     contentBytes?: string
+    contentId?: string | null
   }[]
 }
 
@@ -99,22 +101,33 @@ export async function getOutlookDraft(accessToken: string, draftId: string): Pro
           ]
         : []
     ),
+    inline: (draft.attachments ?? []).flatMap((file) =>
+      file.isInline && file.contentBytes && file.contentId
+        ? [
+            {
+              contentId: file.contentId.replace(/^<|>$/g, ""),
+              name: file.name ?? "image",
+              contentType: file.contentType ?? "application/octet-stream",
+              data: file.contentBytes,
+            },
+          ]
+        : []
+    ),
   }
 }
 
-/** Swaps the draft's files for `attachments`. Inline images belong to the body and stay. */
-async function replaceAttachments(accessToken: string, draftId: string, attachments: MailAttachmentUpload[]) {
-  const existing = await getJson<{ value?: { id: string; isInline?: boolean }[] }>(
-    `${messageUrl(draftId)}/attachments?$select=id,isInline`,
+/** Swaps every file on the draft, inline images included, for the ones given. */
+async function replaceAttachments(accessToken: string, draftId: string, input: MailDraftContent) {
+  const existing = await getJson<{ value?: { id: string }[] }>(
+    `${messageUrl(draftId)}/attachments?$select=id`,
     accessToken,
     ID_HEADER
   )
-  const stale = (existing.value ?? []).filter((file) => !file.isInline)
-  await mapInChunks(stale, WRITE_CONCURRENCY, (file) =>
+  await mapInChunks(existing.value ?? [], WRITE_CONCURRENCY, (file) =>
     deleteResource(`${messageUrl(draftId)}/attachments/${encodeURIComponent(file.id)}`, accessToken, ID_HEADER)
   )
-  await mapInChunks(attachments, WRITE_CONCURRENCY, (file) =>
-    sendJson("POST", `${messageUrl(draftId)}/attachments`, accessToken, toFile(file), ID_HEADER)
+  await mapInChunks([...input.attachments.map(toFile), ...toInlineFiles(input.inline)], WRITE_CONCURRENCY, (file) =>
+    sendJson("POST", `${messageUrl(draftId)}/attachments`, accessToken, file, ID_HEADER)
   )
 }
 
@@ -136,7 +149,10 @@ export async function saveOutlookDraft(
       "POST",
       `${GRAPH_BASE}/me/messages`,
       accessToken,
-      { ...fields, ...(input.attachments.length > 0 && { attachments: input.attachments.map(toFile) }) },
+      {
+        ...fields,
+        attachments: [...input.attachments.map(toFile), ...toInlineFiles(input.inline)],
+      },
       ID_HEADER
     )
     const created = (await response.json()) as { id?: string }
@@ -144,7 +160,7 @@ export async function saveOutlookDraft(
     return created.id
   }
   await sendJson("PATCH", messageUrl(input.draftId), accessToken, fields, ID_HEADER)
-  if (input.attachmentsChanged) await replaceAttachments(accessToken, input.draftId, input.attachments)
+  if (input.attachmentsChanged) await replaceAttachments(accessToken, input.draftId, input)
   return input.draftId
 }
 

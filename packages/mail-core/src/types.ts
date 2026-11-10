@@ -30,7 +30,8 @@ export type MailSignature = {
   html: string
 }
 
-export const MAX_SIGNATURE_LENGTH = 20_000
+/** Room for a logo or two, which a signature keeps inline. */
+export const MAX_SIGNATURE_LENGTH = 1_000_000
 export const MAX_SIGNATURES = 50
 
 export const MAIL_ACCOUNT_COLORS = 8
@@ -73,6 +74,12 @@ export type MailInlineImage = { id: string; contentId: string; size: number; con
 
 /** A file sent along with a message, as standard base64. */
 export type MailAttachmentUpload = { name: string; contentType: string; data: string }
+
+/** An image in the body, which refers to it as `cid:<contentId>`. Standard base64. */
+export type MailInlineUpload = { contentId: string; name: string; contentType: string; data: string }
+
+/** Safe inside a MIME header and a `cid:` URL. */
+export const INLINE_CONTENT_ID = /^[A-Za-z0-9._-]{1,100}@[A-Za-z0-9.-]{1,100}$/
 
 /** Graph takes up to 3 MB directly; Vercel rejects larger request bodies once base64-encoded. */
 export const MAX_UPLOAD_BYTES = 3 * 1024 * 1024
@@ -117,6 +124,8 @@ export type MailOutgoing = {
   /** The formatted body. `text` stays as the version for clients that can't show HTML. */
   html?: string
   attachments: MailAttachmentUpload[]
+  /** Images `html` shows inline. */
+  inline?: MailInlineUpload[]
 }
 
 export type MailReply = {
@@ -126,6 +135,7 @@ export type MailReply = {
   text: string
   html?: string
   attachments: MailAttachmentUpload[]
+  inline?: MailInlineUpload[]
 }
 
 export type MailForward = {
@@ -134,6 +144,7 @@ export type MailForward = {
   cc: MailAddress[]
   text: string
   html?: string
+  inline?: MailInlineUpload[]
 }
 
 /** Who a reply goes to. The result is shown to the user and sent exactly as shown. */

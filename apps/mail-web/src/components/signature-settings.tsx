@@ -178,12 +178,13 @@ function SignatureEditor({ signature, onBack }: { signature: MailSignature; onBa
                 placeholder={t.placeholder}
                 className="is-signature min-h-40"
                 initialHtml={initialHtml}
+                imagesAsFiles={false}
                 onChange={(value) => {
                   if (!started.current) {
                     started.current = true
                     return
                   }
-                  saveHtml(value.text ? value.html : "")
+                  saveHtml(value.html)
                 }}
               />
             </Suspense>
