@@ -51,3 +51,36 @@ export const todoEmails = {
           text: `${input.inviterName} invited you to the workspace “${input.workspaceName}” in Even doen.\n\nYou'll be ${input.role === "admin" ? "an admin: you can edit all lists and invite members" : "a member: you can view and edit all lists in this workspace"}.\n\nView and accept the invitation:\n${input.url}\n\nNo account yet? Create one with this email address first and confirm your email. You'll then return to the invitation.\n\nThe invitation is valid for 7 days. Not expecting this? You can ignore this email.`,
         },
 }
+
+/** Invite-only apps: an invitation, a granted request, and a request for the admin. */
+export const accessEmails = {
+  invite: (input: { to: string; appName: string; url: string; language: Language }): Email =>
+    input.language === "nl"
+      ? {
+          to: input.to,
+          subject: `Je bent uitgenodigd voor ${input.appName}`,
+          text: `Je bent uitgenodigd voor ${input.appName}.\n\nOpen de app en log in, of maak een account aan, met dit e-mailadres:\n${input.url}\n\nNiet verwacht? Dan kun je deze e-mail negeren.`,
+        }
+      : {
+          to: input.to,
+          subject: `You're invited to ${input.appName}`,
+          text: `You're invited to ${input.appName}.\n\nOpen the app and sign in, or create an account, with this email address:\n${input.url}\n\nNot expecting this? You can ignore this email.`,
+        },
+  granted: (input: { to: string; appName: string; url: string; language: Language }): Email =>
+    input.language === "nl"
+      ? {
+          to: input.to,
+          subject: `Je hebt toegang tot ${input.appName}`,
+          text: `Je aanvraag is goedgekeurd: je kunt ${input.appName} nu gebruiken.\n\n${input.url}`,
+        }
+      : {
+          to: input.to,
+          subject: `You now have access to ${input.appName}`,
+          text: `Your request was approved: you can use ${input.appName} now.\n\n${input.url}`,
+        },
+  requested: (input: { to: string; appName: string; who: string; url: string }): Email => ({
+    to: input.to,
+    subject: `Access request for ${input.appName}`,
+    text: `${input.who} asked for access to ${input.appName}.\n\nReview it in the admin portal:\n${input.url}`,
+  }),
+}

@@ -1,0 +1,52 @@
+import { auth } from "./auth.en"
+
+export const en = {
+  auth,
+  shell: {
+    brand: "Admin",
+    signOut: "Sign out",
+    noConnection: "No connection to the server.",
+    notAdminTitle: "No admin access",
+    notAdminBody: (email: string) => `You're signed in as ${email}, which isn't an admin account.`,
+    otherAccount: "Sign in with another account",
+  },
+  apps: {
+    title: "Apps",
+    description: "Who may use which app.",
+    inviteOnly: "Invite only",
+    open: "Open to everyone",
+    members: (count: number) => (count === 1 ? "1 member" : `${count} members`),
+    invites: (count: number) => (count === 1 ? "1 invited" : `${count} invited`),
+    requests: (count: number) => (count === 1 ? "1 request" : `${count} requests`),
+    loadFailed: "The apps couldn't be loaded.",
+  },
+  app: {
+    back: "Apps",
+    open: "Open app",
+    invite: "Invite someone",
+    inviteHelp: "They get an email. Signing in with this address lets them in.",
+    email: "Email address",
+    send: "Invite",
+    invited: (email: string) => `Invited ${email}`,
+    requests: "Requests",
+    requestsEmpty: "No one is waiting.",
+    approve: "Let in",
+    decline: "Decline",
+    approved: (name: string) => `${name} can use the app now`,
+    pending: "Invited",
+    pendingEmpty: "No open invitations.",
+    cancelInvite: (email: string) => `Cancel the invitation for ${email}`,
+    members: "Members",
+    membersEmpty: "No one has access yet.",
+    since: (date: string) => `since ${date}`,
+    remove: "Remove access",
+    removeTitle: (name: string) => `Remove ${name}'s access?`,
+    removeBody: "They can't open the app any more. Their data stays until they delete it themselves.",
+    removeCancel: "Cancel",
+    removeConfirm: "Remove access",
+    you: "you",
+    loadFailed: "This app couldn't be loaded.",
+  },
+}
+
+export type Dictionary = typeof en

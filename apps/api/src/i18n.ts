@@ -5,6 +5,9 @@ import { pickLanguage, type Language } from "@evido/i18n"
 const en = {
   // Session & request
   signInAgain: "Please sign in again.",
+  noAppAccess: "This app is invite-only for now.",
+  notAdmin: "Only admins can do this.",
+  alreadyHasAccess: "This person already has access.",
   invalidRequest: "Invalid request.",
   requestTooLarge: "Request too large.",
   checkInput: "Check your input.",
@@ -65,6 +68,9 @@ export type MessageKey = keyof typeof en
 
 const nl: Record<MessageKey, string> = {
   signInAgain: "Log opnieuw in.",
+  noAppAccess: "Deze app is voorlopig alleen op uitnodiging.",
+  notAdmin: "Alleen beheerders kunnen dit.",
+  alreadyHasAccess: "Deze persoon heeft al toegang.",
   invalidRequest: "Ongeldig verzoek.",
   requestTooLarge: "Verzoek te groot.",
   checkInput: "Controleer je invoer.",

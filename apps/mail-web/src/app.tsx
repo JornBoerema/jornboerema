@@ -24,6 +24,7 @@ import { isWaiting } from "@/lib/undo"
 import { InboxPage } from "@/pages/inbox"
 import { AuthPage } from "@/pages/auth"
 import { AuthLayout } from "@/pages/auth-layout"
+import { AccessGate } from "@/components/access-gate"
 
 /** A provider redirect lands here with its result, which the settings report. */
 const returnedFromProvider = () => Boolean(window.location.search)
@@ -232,9 +233,11 @@ function Root() {
   if (isPending) return null
   if (data)
     return (
-      <WithCachedMail userId={data.user.id}>
-        <MailApp user={data.user} />
-      </WithCachedMail>
+      <AccessGate user={data.user}>
+        <WithCachedMail userId={data.user.id}>
+          <MailApp user={data.user} />
+        </WithCachedMail>
+      </AccessGate>
     )
   // Better Auth reports a failed verification link here; "session" is a mailbox connect error.
   const error = new URLSearchParams(location.search).get("error")

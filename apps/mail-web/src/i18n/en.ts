@@ -2,6 +2,15 @@ import { auth } from "./auth.en"
 
 export const en = {
   auth,
+  access: {
+    title: "Even mailen is invite-only for now",
+    body: (email: string) => `You're signed in as ${email}. Ask for access and you'll get an email as soon as you can come in.`,
+    request: "Ask for access",
+    requestedTitle: "Access requested",
+    requestedBody: "You'll get an email as soon as you can come in.",
+    otherEmail: "Invited with another email address?",
+    signOut: "Sign in with that one",
+  },
   shell: {
     noConnection: "There is no connection. Please try again.",
     sidebar: "Navigation",

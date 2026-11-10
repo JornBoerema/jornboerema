@@ -37,6 +37,8 @@ model User {
   mailSignatures       MailSignature[]
   mailUploads          MailUpload[]
   mailOauthStates      MailOauthState[]
+  appAccess            AppAccess[]
+  appAccessRequests    AppAccessRequest[]
 
   @@map("user")
 }
@@ -553,4 +555,45 @@ model MailMessage {
   @@index([accountId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_account_received_idx")
   @@index([userId, folder, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_folder_received_idx")
   @@map("mail_messages")
+}
+
+/// Who may use an invite-only app ("mail"). Apps not listed as invite-only ignore it.
+model AppAccess {
+  userId    String   @map("user_id")
+  app       String
+  grantedAt DateTime @default(now()) @map("granted_at")
+  /// The admin's email, or null when granted by the system (such as existing users).
+  grantedBy String?  @map("granted_by")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, app])
+  @@index([app])
+  @@map("app_access")
+}
+
+/// An email address invited to an app. Signing in with it, verified, grants access.
+model AppInvite {
+  id         String    @id
+  app        String
+  /// Lowercased.
+  email      String
+  invitedBy  String?   @map("invited_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  acceptedAt DateTime? @map("accepted_at")
+
+  @@unique([app, email])
+  @@map("app_invites")
+}
+
+/// Someone signed in who asked to be let into an invite-only app.
+model AppAccessRequest {
+  id        String   @id
+  app       String
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([app, userId])
+  @@index([app])
+  @@map("app_access_requests")
 }

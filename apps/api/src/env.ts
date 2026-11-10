@@ -5,6 +5,13 @@ export const env = {
   apiUrl: (process.env.BETTER_AUTH_URL ?? "http://localhost:4000").replace(/\/$/, ""),
   todoWebUrl: (process.env.TODO_WEB_URL ?? "http://localhost:3000").replace(/\/$/, ""),
   mailWebUrl: (process.env.MAIL_WEB_URL ?? "http://localhost:3004").replace(/\/$/, ""),
+  /** jornboerema.nl, whose /admin manages every app. */
+  adminWebUrl: (process.env.ADMIN_WEB_URL ?? "http://localhost:3002").replace(/\/$/, ""),
+  /** Who may use the admin portal, by verified sign-in email. */
+  adminEmails: (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
   trustedOrigins: trustedOrigins(),
   realtimeEnabled: !!process.env.ABLY_API_KEY,
 }

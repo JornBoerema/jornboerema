@@ -3,6 +3,15 @@ import type { en } from "./en"
 
 export const nl: typeof en = {
   auth,
+  access: {
+    title: "Even mailen is voorlopig op uitnodiging",
+    body: (email: string) => `Je bent ingelogd als ${email}. Vraag toegang aan, dan krijg je een mail zodra je erin kunt.`,
+    request: "Toegang aanvragen",
+    requestedTitle: "Toegang aangevraagd",
+    requestedBody: "Je krijgt een mail zodra je erin kunt.",
+    otherEmail: "Uitgenodigd met een ander e-mailadres?",
+    signOut: "Log daarmee in",
+  },
   shell: {
     noConnection: "Er is geen verbinding. Probeer het opnieuw.",
     sidebar: "Navigatie",

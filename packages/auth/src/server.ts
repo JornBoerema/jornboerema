@@ -58,7 +58,11 @@ function required(name: string) {
 
 /** Web origins (all Evido front-ends) that may call the API with credentials. */
 export function trustedOrigins() {
-  const origins = [...(process.env.TRUSTED_ORIGINS ?? "").split(","), process.env.MAIL_WEB_URL ?? ""]
+  const origins = [
+    ...(process.env.TRUSTED_ORIGINS ?? "").split(","),
+    process.env.MAIL_WEB_URL ?? "",
+    process.env.ADMIN_WEB_URL ?? "",
+  ]
     .map((origin) => origin.trim().replace(/\/$/, ""))
     .filter(Boolean)
   return [...new Set(origins)]

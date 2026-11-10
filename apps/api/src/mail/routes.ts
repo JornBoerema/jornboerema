@@ -26,7 +26,12 @@ import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
 import { getRealtime, mailChannel } from "../lib/realtime"
-import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
+import { every } from "hono/combine"
+import { requireAppAccess } from "../lib/access"
+import { noStore, requireSession as signedIn, requireTrustedOrigin, type AppEnv } from "../lib/session"
+
+/** Signed in, and let into Even mailen: it is invite-only for now. */
+const requireSession = every(signedIn, requireAppAccess("mail"))
 import {
   ConnectExpiredError,
   disconnectAccount,
