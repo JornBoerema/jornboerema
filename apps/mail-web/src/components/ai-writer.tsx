@@ -182,62 +182,78 @@ export function AiWriteButton({ writer }: { writer: AiWriter }) {
 /** One line: what to write. Enter writes, Escape closes. */
 export function AiPrompt({ writer, className }: { writer: AiWriter; className?: string }) {
   const t = useI18n().t.compose
-  if (!writer.enabled || !writer.open) return null
+  const input = useRef<HTMLInputElement>(null)
+  const { open } = writer
+  useEffect(() => {
+    if (open) input.current?.focus({ preventScroll: true })
+  }, [open])
+  if (!writer.enabled) return null
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <HugeiconsIcon
-        icon={SparklesIcon}
-        strokeWidth={1.75}
-        aria-hidden="true"
-        className="size-4 shrink-0 text-primary"
-      />
-      <input
-        autoFocus
-        aria-label={t.aiWrite}
-        value={writer.instruction}
-        readOnly={writer.pending}
-        placeholder={writer.editing ? t.aiPlaceholderEdit : t.aiPlaceholderNew}
-        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground read-only:opacity-60"
-        onChange={(event) => writer.setInstruction(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            // Not the composer's own Enter handling, which would send.
-            event.preventDefault()
-            event.stopPropagation()
-            writer.submit()
-          } else if (event.key === "Escape") {
-            event.preventDefault()
-            event.stopPropagation()
-            writer.close()
-          }
-        }}
-      />
-      {writer.pending && (
-        <span role="status" className="shrink-0 text-xs text-muted-foreground">
-          {t.aiWriting}
-        </span>
+    // Unfolds by growing its row from nothing, and folds back the same way.
+    <div
+      inert={!open}
+      className={cn(
+        "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
+        open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
       )}
-      {/* One round control: write, or stop while writing. Closing is the sparkle button or Escape. */}
-      <button
-        type="button"
-        aria-label={writer.pending ? t.aiStop : t.aiSubmit}
-        title={writer.pending ? t.aiStop : t.aiSubmit}
-        disabled={!writer.pending && !writer.instruction.trim()}
-        onClick={writer.pending ? writer.close : writer.submit}
-        className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-          writer.pending || writer.instruction.trim()
-            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "bg-muted text-muted-foreground"
-        )}
-      >
-        <HugeiconsIcon
-          icon={writer.pending ? StopIcon : ArrowUp02Icon}
-          strokeWidth={2.25}
-          aria-hidden="true"
-          className={writer.pending ? "size-3.5 fill-current" : "size-4"}
-        />
-      </button>
+    >
+      <div className="min-h-0 overflow-hidden">
+        <div className={cn("flex items-center gap-2", className)}>
+          <HugeiconsIcon
+            icon={SparklesIcon}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className="size-4 shrink-0 text-primary"
+          />
+          <input
+            ref={input}
+            aria-label={t.aiWrite}
+            value={writer.instruction}
+            readOnly={writer.pending}
+            placeholder={writer.editing ? t.aiPlaceholderEdit : t.aiPlaceholderNew}
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground read-only:opacity-60"
+            onChange={(event) => writer.setInstruction(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                // Not the composer's own Enter handling, which would send.
+                event.preventDefault()
+                event.stopPropagation()
+                writer.submit()
+              } else if (event.key === "Escape") {
+                event.preventDefault()
+                event.stopPropagation()
+                writer.close()
+              }
+            }}
+          />
+          {writer.pending && (
+            <span role="status" className="shrink-0 text-xs text-muted-foreground">
+              {t.aiWriting}
+            </span>
+          )}
+          {/* One round control: write, or stop while writing. Closing is the sparkle button or Escape. */}
+          <button
+            type="button"
+            aria-label={writer.pending ? t.aiStop : t.aiSubmit}
+            title={writer.pending ? t.aiStop : t.aiSubmit}
+            disabled={!writer.pending && !writer.instruction.trim()}
+            onClick={writer.pending ? writer.close : writer.submit}
+            className={cn(
+              "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+              writer.pending || writer.instruction.trim()
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            <HugeiconsIcon
+              icon={writer.pending ? StopIcon : ArrowUp02Icon}
+              strokeWidth={2.25}
+              aria-hidden="true"
+              className={writer.pending ? "size-3.5 fill-current" : "size-4"}
+            />
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
