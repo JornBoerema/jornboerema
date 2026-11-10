@@ -42,11 +42,17 @@ import {
 } from "@/lib/drafts"
 import { textToEditorHtml } from "@/lib/email-compose"
 import { fromInlineImages, uploadBytes } from "@/lib/inline-images"
-import { fromRefs, isUploading, useAttachmentRefs, type ComposerFile } from "@/lib/uploads"
+import {
+  fromRefs,
+  isUploading,
+  useAttachmentRefs,
+  type ComposerFile,
+} from "@/lib/uploads"
 import { sendOnModEnter } from "@/lib/hotkeys"
 import { syncSoon } from "@/lib/mail"
 import { UndoneError, waitForUndo } from "@/lib/undo"
-import { useSignatureFor } from "@/lib/signatures"
+import { useSignatureChoice } from "@/lib/signatures"
+import { SignaturePicker } from "@/components/signature-picker"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
@@ -176,13 +182,16 @@ function ComposeForm({
   const [initialHtml] = useState(
     () =>
       initial &&
-      (initial.html ? fromInlineImages(initial.html, initial.inline) : textToEditorHtml(initial.text))
+      (initial.html
+        ? fromInlineImages(initial.html, initial.inline)
+        : textToEditorHtml(initial.text))
   )
   const reply = initial?.reply
-  const signature = useSignatureFor(
+  const signatureChoice = useSignatureChoice(
     usable.find((account) => account.id === accountId),
     reply ? "reply" : "new"
   )
+  const signature = signatureChoice.html
   const hasDraft = Boolean(
     to || cc || bcc || subject || body.written || files.length
   )
@@ -258,11 +267,15 @@ function ComposeForm({
     onSuccess: (_result, message) => {
       toast.success(t.sent)
       const recipients = new Set(
-        [...message.to, ...message.cc, ...message.bcc].map((address) => address.email.toLowerCase())
+        [...message.to, ...message.cc, ...message.bcc].map((address) =>
+          address.email.toLowerCase()
+        )
       )
       syncSoon(queryClient, [
         accountId,
-        ...usable.filter((account) => recipients.has(account.email.toLowerCase())).map((account) => account.id),
+        ...usable
+          .filter((account) => recipients.has(account.email.toLowerCase()))
+          .map((account) => account.id),
       ])
       finished()
     },
@@ -410,7 +423,10 @@ function ComposeForm({
               />
             </Suspense>
             <div className="sticky bottom-4 z-10 mx-4 mb-4 flex min-h-14 shrink-0 items-center justify-between gap-3 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
-              <AttachmentPicker files={files} onChange={setFiles} />
+              <div className="flex min-w-0 items-center gap-1">
+                <AttachmentPicker files={files} onChange={setFiles} />
+                <SignaturePicker choice={signatureChoice} />
+              </div>
               <div className="flex shrink-0 items-center gap-1">
                 <span
                   role="status"

@@ -31,7 +31,6 @@ import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
-import { useSignatureFor } from "@/lib/signatures"
 import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
@@ -357,7 +356,6 @@ export function ConversationPage({
     onLeave(starred ? "unstar" : "star")
   }
   const id = summary.id
-  const replySignature = useSignatureFor(account, "reply")
   const alwaysShowImages = useAlwaysShowImages()
   const [showImagesOnce, setShowImagesOnce] = useState(false)
   const allowImages = alwaysShowImages || showImagesOnce
@@ -481,7 +479,7 @@ export function ConversationPage({
                 <ForwardForm
                   threadId={id}
                   message={last}
-                  signature={replySignature}
+                  account={account}
                   initial={replyDraft}
                   onClose={() => setReplyMode(null)}
                 />
@@ -491,8 +489,7 @@ export function ConversationPage({
                   threadId={id}
                   message={last}
                   selfEmail={account?.email ?? ""}
-                  accountId={account?.id}
-                  signature={replySignature}
+                  account={account}
                   all={replyMode === "all"}
                   initial={replyDraft}
                   onClose={() => setReplyMode(null)}

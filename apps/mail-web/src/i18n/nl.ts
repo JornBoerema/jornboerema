@@ -25,6 +25,7 @@ export const nl: typeof en = {
     signOut: "Uitloggen",
   },
   signatures: {
+    pick: "Handtekening",
     back: "Alle handtekeningen",
     edit: "Handtekening bewerken",
     emptyPreview: "Leeg",

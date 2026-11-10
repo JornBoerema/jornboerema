@@ -6,8 +6,11 @@ import {
   replyRecipients,
   type MailAddress,
   type MailThreadMessage,
+  type MailAccountView,
 } from "@evido/mail-core/types"
 import { AttachmentPicker } from "@/components/attachment-picker"
+import { SignaturePicker } from "@/components/signature-picker"
+import { useSignatureChoice } from "@/lib/signatures"
 import { isUploading, useAttachmentRefs, type ComposerFile } from "@/lib/uploads"
 import { AddressRow } from "@/components/address-row"
 import { useI18n } from "@/i18n"
@@ -43,8 +46,7 @@ export function ReplyForm({
   threadId,
   message,
   selfEmail,
-  accountId,
-  signature,
+  account,
   all,
   initial,
   onClose,
@@ -53,9 +55,7 @@ export function ReplyForm({
   message: MailThreadMessage
   selfEmail: string
   /** The mailbox replying, synced right after so the reply shows. */
-  accountId: string | undefined
-  /** Empty for none. */
-  signature: string
+  account: MailAccountView | undefined
   all: boolean
   /** A reply started earlier on this conversation, kept in the browser. */
   initial: ReplyDraft | null
@@ -63,6 +63,9 @@ export function ReplyForm({
 }) {
   const t = useI18n().t.conversation
   const queryClient = useQueryClient()
+  const accountId = account?.id
+  const signatureChoice = useSignatureChoice(account, "reply")
+  const signature = signatureChoice.html
   const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
   const [initialHtml] = useState(() => (initial ? fromInlineImages(initial.html, initial.inline) : undefined))
   const keep = (value: RichTextValue) => {
@@ -124,7 +127,10 @@ export function ReplyForm({
         />
       </Suspense>
       <div className="flex items-center justify-between gap-3 p-2">
-        <AttachmentPicker files={files} onChange={setFiles} />
+        <div className="flex min-w-0 items-center gap-1">
+          <AttachmentPicker files={files} onChange={setFiles} />
+          <SignaturePicker choice={signatureChoice} />
+        </div>
         <Actions
           canSend={canSend}
           onClose={() => {
@@ -141,18 +147,20 @@ export function ReplyForm({
 export function ForwardForm({
   threadId,
   message,
-  signature,
+  account,
   initial,
   onClose,
 }: {
   threadId: string
   message: MailThreadMessage
-  signature: string
+  account: MailAccountView | undefined
   initial: ReplyDraft | null
   onClose: () => void
 }) {
   const { t: strings } = useI18n()
   const t = strings.conversation
+  const signatureChoice = useSignatureChoice(account, "reply")
+  const signature = signatureChoice.html
   const [to, setTo] = useState(initial?.to ?? "")
   const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
   const [initialHtml] = useState(() => (initial ? fromInlineImages(initial.html, initial.inline) : undefined))
@@ -216,9 +224,12 @@ export function ForwardForm({
         />
       </Suspense>
       <div className="flex items-center justify-between gap-3 p-2">
-        <p className="px-2 text-xs text-muted-foreground">
-          {message.attachments.length > 0 && t.forwardAttachments(message.attachments.length)}
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <SignaturePicker choice={signatureChoice} />
+          <p className="truncate px-2 text-xs text-muted-foreground">
+            {message.attachments.length > 0 && t.forwardAttachments(message.attachments.length)}
+          </p>
+        </div>
         <Actions
           canSend={!send.isPending}
           onClose={() => {

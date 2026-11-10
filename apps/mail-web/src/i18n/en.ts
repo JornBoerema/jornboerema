@@ -24,6 +24,7 @@ export const en = {
     signOut: "Sign out",
   },
   signatures: {
+    pick: "Signature",
     back: "All signatures",
     edit: "Edit signature",
     emptyPreview: "Empty",
