@@ -1,5 +1,6 @@
-import { useState, type RefObject } from "react"
-import { useMutation } from "@tanstack/react-query"
+import { useEffect, useRef, useState, type RefObject } from "react"
+import { currentLanguage } from "@evido/i18n/react"
+import { parseWritten } from "@evido/mail-core/write"
 import { toast } from "sonner"
 import { Cancel01Icon, SparklesIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -8,15 +9,15 @@ import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import type { RichTextHandle } from "@/components/rich-text-editor"
 import { useI18n } from "@/i18n"
-import { api, errorText } from "@/lib/api"
+import { API_URL, ApiError, errorText } from "@/lib/api"
 import { textToEditorHtml } from "@/lib/email-compose"
 import { useAiWriting } from "@/lib/preferences"
 
-type Written = { subject: string | null; text: string }
-
 /**
  * Has a language model write the message, or rewrite what is there, from one
- * short line. The result lands in the editor as a single undo step.
+ * short line. The text appears as the model writes it, so it reads like typing
+ * without waiting any longer than the model takes. The result is a single undo
+ * step.
  */
 export function useAiWriter({
   url,
@@ -40,39 +41,97 @@ export function useAiWriter({
   const [open, setOpen] = useState(false)
   const [instruction, setInstruction] = useState("")
   const [editing, setEditing] = useState(false)
-  const write = useMutation({
-    mutationFn: (text: string) =>
-      api<Written>(url, {
+  const [pending, setPending] = useState(false)
+  const running = useRef<AbortController | null>(null)
+
+  // Leaving the composer stops the model; what it wrote so far stays.
+  useEffect(() => () => running.current?.abort(), [])
+
+  async function write(text: string) {
+    const controller = new AbortController()
+    running.current = controller
+    setPending(true)
+    const previousSubject = subject ?? ""
+    const fillsSubject = Boolean(onSubject) && !previousSubject.trim()
+    let written = ""
+    let shownSubject: string | null = null
+    let frame = 0
+    const show = () => {
+      frame = 0
+      const { subject: streamedSubject, text: body } = parseWritten(written, { done: false })
+      editor.current?.streamBody(textToEditorHtml(body))
+      if (fillsSubject && streamedSubject && streamedSubject !== shownSubject) {
+        shownSubject = streamedSubject
+        onSubject?.(streamedSubject)
+      }
+    }
+    try {
+      const headers = new Headers({ "Content-Type": "application/json", "Accept-Language": currentLanguage() })
+      const response = await fetch(`${API_URL}${url}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        headers,
+        signal: controller.signal,
         body: JSON.stringify({
           instruction: text,
           draft: editor.current?.bodyText() ?? "",
-          subject: subject ?? "",
+          subject: previousSubject,
           hasSignature,
           forward,
         }),
-      }),
-    onSuccess: (result) => {
-      const previousSubject = subject
-      editor.current?.setBody(textToEditorHtml(result.text))
-      const newSubject = result.subject && onSubject && !subject?.trim() ? result.subject : null
-      if (newSubject) onSubject?.(newSubject)
-      setOpen(false)
-      setInstruction("")
-      toast(t.aiWritten, {
-        id: "ai-written",
-        action: {
-          label: t.aiUndo,
-          onClick: () => {
-            editor.current?.undo()
-            if (newSubject) onSubject?.(previousSubject ?? "")
-          },
-        },
       })
-    },
-    onError: (error) => toast.error(errorText(error)),
-  })
+      if (!response.ok || !response.body) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null
+        throw new ApiError(body?.error ?? response.statusText, response.status)
+      }
+      editor.current?.startStream()
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        written += value
+        // At most once a frame, however fast the words come in.
+        if (!frame) frame = requestAnimationFrame(show)
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        cancelAnimationFrame(frame)
+        editor.current?.cancelStream()
+        if (shownSubject) onSubject?.(previousSubject)
+        toast.error(errorText(error))
+        setPending(false)
+        running.current = null
+        return
+      }
+    }
+    cancelAnimationFrame(frame)
+    running.current = null
+    setPending(false)
+    const result = parseWritten(written)
+    if (!result.text) {
+      editor.current?.cancelStream()
+      if (shownSubject) onSubject?.(previousSubject)
+      if (!controller.signal.aborted) toast.error(t.aiEmpty)
+      return
+    }
+    editor.current?.finishStream(textToEditorHtml(result.text))
+    const newSubject = fillsSubject && result.subject ? result.subject : null
+    if (newSubject) onSubject?.(newSubject)
+    setOpen(false)
+    setInstruction("")
+    toast(t.aiWritten, {
+      id: "ai-written",
+      action: {
+        label: t.aiUndo,
+        onClick: () => {
+          editor.current?.undo()
+          if (newSubject) onSubject?.(previousSubject)
+        },
+      },
+    })
+  }
+
   return {
     enabled,
     open,
@@ -80,18 +139,21 @@ export function useAiWriter({
     setInstruction,
     /** Something is written already, so the instruction says what to change. */
     editing,
-    pending: write.isPending,
+    pending,
     toggle: () => {
+      if (pending) return
       if (open) return setOpen(false)
       setEditing(Boolean(editor.current?.bodyText()))
       setOpen(true)
     },
+    /** While writing, stops and keeps what is there. */
     close: () => {
+      running.current?.abort()
       setOpen(false)
       editor.current?.focus()
     },
     submit: () => {
-      if (instruction.trim() && !write.isPending) write.mutate(instruction.trim())
+      if (instruction.trim() && !pending) void write(instruction.trim())
     },
   }
 }
@@ -134,9 +196,9 @@ export function AiPrompt({ writer, className }: { writer: AiWriter; className?: 
         autoFocus
         aria-label={t.aiWrite}
         value={writer.instruction}
-        disabled={writer.pending}
+        readOnly={writer.pending}
         placeholder={writer.editing ? t.aiPlaceholderEdit : t.aiPlaceholderNew}
-        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground read-only:opacity-60"
         onChange={(event) => writer.setInstruction(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -165,8 +227,8 @@ export function AiPrompt({ writer, className }: { writer: AiWriter; className?: 
         type="button"
         variant="ghost"
         size="icon-xs"
-        aria-label={t.aiClose}
-        title={t.aiClose}
+        aria-label={writer.pending ? t.aiStop : t.aiClose}
+        title={writer.pending ? t.aiStop : t.aiClose}
         onClick={writer.close}
       >
         <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />

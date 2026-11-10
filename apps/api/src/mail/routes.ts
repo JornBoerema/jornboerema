@@ -48,7 +48,7 @@ import {
   updateSignature,
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
-import { writeMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
+import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { syncAccount } from "./sync-server"
 import {
   createUpload,
@@ -310,12 +310,16 @@ const writeRequest = (c: Context<AppEnv>, body: z.infer<typeof writeBody>): Writ
   senderName: c.get("session").user.name ?? "",
 })
 
+/** Plain text as it is written, never buffered on the way. */
+const streamed = (c: Context, stream: ReadableStream<Uint8Array>) =>
+  c.body(stream, 200, { ...noStore, "Content-Type": "text/plain; charset=utf-8", "X-Accel-Buffering": "no" })
+
 // Sent to a language model on request only; neither the instruction nor the answer is kept.
 mailRoutes.post("/write", requireTrustedOrigin, requireSession, async (c) => {
   const body = await readBody(c, writeBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    return c.json(await writeMessage(writeRequest(c, body), { language: languageOf(c) }), 200, noStore)
+    return streamed(c, await streamMessage(writeRequest(c, body), { language: languageOf(c) }))
   } catch (error) {
     return writeFailure(c, error)
   }
@@ -327,8 +331,7 @@ mailRoutes.post("/threads/:id/write", requireTrustedOrigin, requireSession, asyn
   try {
     const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
     const { messages } = await readConversation(conversation, { includeHidden: conversation.hidden })
-    const written = await writeMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages })
-    return c.json(written, 200, noStore)
+    return streamed(c, await streamMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages }))
   } catch (error) {
     return writeFailure(c, error)
   }
@@ -579,8 +582,7 @@ mailRoutes.post("/accounts/:id/conversation/write", requireTrustedOrigin, requir
     const conversation = await conversationOf(c)
     if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const { messages } = await readConversation(conversation, { includeHidden: c.req.query("hidden") === "1" })
-    const written = await writeMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages })
-    return c.json(written, 200, noStore)
+    return streamed(c, await streamMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages }))
   } catch (error) {
     return writeFailure(c, error)
   }

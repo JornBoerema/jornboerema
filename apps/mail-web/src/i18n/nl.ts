@@ -215,6 +215,8 @@ export const nl: typeof en = {
     aiWritten: "Geschreven door AI",
     aiUndo: "Ongedaan maken",
     aiClose: "Sluiten",
+    aiStop: "Stoppen met schrijven",
+    aiEmpty: "De AI schreef niets. Probeer het anders te omschrijven.",
     aiSubmit: "Schrijven",
     suggestions: "Suggesties",
     sending: "Bericht wordt verzonden…",

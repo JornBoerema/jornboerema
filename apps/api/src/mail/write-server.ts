@@ -7,7 +7,8 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 const DEFAULT_MODEL = "anthropic/claude-haiku-5.5"
 /** The conversation a reply answers, newest part kept when long. */
 const MAX_CONTEXT = 12_000
-const TIMEOUT_MS = 30_000
+// Under the function's 30 second limit, so a slow model ends with an error, not a cut.
+const TIMEOUT_MS = 25_000
 
 export class WriteFailedError extends Error {}
 export class WriteNotConfiguredError extends Error {}
@@ -25,8 +26,6 @@ export type WriteRequest = {
   forward: boolean
 }
 
-export type WriteResult = { subject: string | null; text: string }
-
 const LANGUAGE_NAMES: Record<Language, string> = { en: "English", nl: "Dutch" }
 
 const textOf = (message: MailThreadMessage) =>
@@ -42,32 +41,15 @@ function conversationText(messages: MailThreadMessage[]) {
   return text.length > MAX_CONTEXT ? text.slice(-MAX_CONTEXT) : text
 }
 
-/** "Subject: …" on the first line, when asked for one, then the body. */
-export function parseWritten(content: string, wantsSubject: boolean): WriteResult {
-  let text = content.replace(/\r\n/g, "\n").trim()
-  let subject: string | null = null
-  const match = /^subject:[ \t]*(.*)\n+/i.exec(text)
-  if (match) {
-    subject = match[1]?.trim() || null
-    text = text.slice(match[0].length)
-  }
-  // Models like to fence or bold things; a mail body has neither.
-  text = text
-    .replace(/^```[a-z]*\n?|\n?```$/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
-  return { subject: wantsSubject ? subject : null, text }
-}
-
 /**
  * Writes or rewrites a message from a short instruction. A reply gets the
- * conversation it answers, so it can refer to what was said.
+ * conversation it answers, so it can refer to what was said. The text streams
+ * as plain UTF-8 while the model writes it; the client splits off a subject.
  */
-export async function writeMessage(
+export async function streamMessage(
   input: WriteRequest,
   options: { language: Language; conversation?: MailThreadMessage[] }
-): Promise<WriteResult> {
+): Promise<ReadableStream<Uint8Array>> {
   const key = process.env.OPENROUTER_API_KEY
   if (!key) throw new WriteNotConfiguredError()
   const isReply = Boolean(options.conversation?.length)
@@ -113,6 +95,7 @@ export async function writeMessage(
     },
     body: JSON.stringify({
       model: process.env.OPENROUTER_WRITE_MODEL || DEFAULT_MODEL,
+      stream: true,
       temperature: 0.5,
       max_tokens: 1200,
       reasoning: { enabled: false },
@@ -127,9 +110,35 @@ export async function writeMessage(
   }).catch((error: unknown) => {
     throw new WriteFailedError(String(error))
   })
-  if (!response.ok) throw new WriteFailedError(`OpenRouter answered ${response.status}`)
-  const body = (await response.json()) as { choices?: { message?: { content?: string } }[] }
-  const result = parseWritten(body.choices?.[0]?.message?.content ?? "", wantsSubject)
-  if (!result.text) throw new WriteFailedError("Empty answer")
-  return result
+  if (!response.ok || !response.body) throw new WriteFailedError(`OpenRouter answered ${response.status}`)
+  return response.body.pipeThrough(new TextDecoderStream()).pipeThrough(contentOfEvents()).pipeThrough(new TextEncoderStream())
+}
+
+/** Server-sent events from OpenRouter in, only the written text out. */
+function contentOfEvents() {
+  let buffer = ""
+  const emit = (line: string, controller: TransformStreamDefaultController<string>) => {
+    // Comments keep the connection open; [DONE] ends it.
+    if (!line.startsWith("data:")) return
+    const data = line.slice(5).trim()
+    if (!data || data === "[DONE]") return
+    try {
+      const event = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] }
+      const text = event.choices?.[0]?.delta?.content
+      if (text) controller.enqueue(text)
+    } catch {
+      // A broken event is skipped; the rest still arrives.
+    }
+  }
+  return new TransformStream<string, string>({
+    transform(chunk, controller) {
+      buffer += chunk
+      const lines = buffer.split("\n")
+      buffer = lines.pop() ?? ""
+      for (const line of lines) emit(line, controller)
+    },
+    flush(controller) {
+      emit(buffer, controller)
+    },
+  })
 }

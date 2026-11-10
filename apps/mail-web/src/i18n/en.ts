@@ -214,6 +214,8 @@ export const en = {
     aiWritten: "Written by AI",
     aiUndo: "Undo",
     aiClose: "Close",
+    aiStop: "Stop writing",
+    aiEmpty: "The AI wrote nothing. Try describing it differently.",
     aiSubmit: "Write",
     suggestions: "Suggestions",
     sending: "Sending…",

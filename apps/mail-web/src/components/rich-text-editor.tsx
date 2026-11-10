@@ -15,7 +15,7 @@ import FileHandler from "@tiptap/extension-file-handler"
 import Image from "@tiptap/extension-image"
 import Placeholder from "@tiptap/extension-placeholder"
 import { FontSize, TextStyle } from "@tiptap/extension-text-style"
-import { EditorContent, mergeAttributes, Node, useEditor, type Editor } from "@tiptap/react"
+import { EditorContent, mergeAttributes, Node, useEditor, type Editor, type JSONContent } from "@tiptap/react"
 import { BubbleMenu, type BubbleMenuProps } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import { Button } from "@evido/ui/components/button"
@@ -85,7 +85,26 @@ export type RichTextHandle = {
   bodyText: () => string
   /** Puts `html` in place of everything above the signature, as one undo step. */
   setBody: (html: string) => void
+  /**
+   * Shows text as it is being written, without filling the undo history;
+   * `finishStream` makes the result a single undo step back to how it was.
+   */
+  startStream: () => void
+  streamBody: (html: string) => void
+  finishStream: (html: string) => void
+  cancelStream: () => void
   undo: () => void
+}
+
+/** Everything above the signature becomes `html`; the blank line before the signature stays. */
+function replaceBody(editor: Editor, html: string, history: boolean) {
+  const { end, signature } = bodyRange(editor)
+  const content = signature ? `${html}<p></p>` : html
+  const chain = editor.chain()
+  if (!history) chain.setMeta("addToHistory", false)
+  chain.insertContentAt({ from: 0, to: end }, content, { updateSelection: false })
+  if (history) chain.focus("start")
+  chain.run()
 }
 
 function bodyRange(editor: Editor) {
@@ -380,6 +399,15 @@ export default function RichTextEditor({
     replaceSignature(editor, signature)
   }, [editor, signature])
 
+  const beforeStream = useRef<JSONContent[] | null>(null)
+  const restoreBeforeStream = (current: Editor) => {
+    const saved = beforeStream.current
+    beforeStream.current = null
+    if (!saved) return
+    const { end } = bodyRange(current)
+    current.chain().setMeta("addToHistory", false).insertContentAt({ from: 0, to: end }, saved, { updateSelection: false }).run()
+  }
+
   // Back where the cursor was, which is never inside the signature unless put there.
   useImperativeHandle(
     ref,
@@ -391,14 +419,24 @@ export default function RichTextEditor({
         return editor.state.doc.textBetween(0, end, "\n").trim()
       },
       setBody: (html) => {
+        if (editor) replaceBody(editor, html, true)
+      },
+      startStream: () => {
         if (!editor) return
-        const { end, signature } = bodyRange(editor)
-        // The blank line before the signature stays.
-        editor
-          .chain()
-          .insertContentAt({ from: 0, to: end }, signature ? `${html}<p></p>` : html)
-          .focus("start")
-          .run()
+        const { end } = bodyRange(editor)
+        const content = editor.state.doc.slice(0, end).content.toJSON() as JSONContent[] | null
+        beforeStream.current = content?.length ? content : [{ type: "paragraph" }]
+      },
+      streamBody: (html) => {
+        if (editor && beforeStream.current) replaceBody(editor, html, false)
+      },
+      finishStream: (html) => {
+        if (!editor) return
+        restoreBeforeStream(editor)
+        replaceBody(editor, html, true)
+      },
+      cancelStream: () => {
+        if (editor) restoreBeforeStream(editor)
       },
       undo: () => editor?.commands.undo(),
     }),
