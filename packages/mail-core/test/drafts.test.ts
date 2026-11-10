@@ -152,9 +152,11 @@ describe("outlook drafts", () => {
   it("creates with files, then patches without re-uploading them", async () => {
     const sent = stub(() => [200, { id: "o1" }])
     expect(await saveOutlookDraft("t", { ...content, attachments: [pdf], draftId: null, attachmentsChanged: true })).toBe("o1")
-    expect(sent[0]?.body).toMatchObject({ subject: "Plan", body: { contentType: "HTML" }, attachments: [{ name: "a.pdf" }] })
+    expect(sent[0]?.body).toMatchObject({ subject: "Plan", body: { contentType: "HTML" } })
+    expect(sent[1]?.url).toMatch(/\/me\/messages\/o1\/attachments$/)
+    expect(sent[1]?.body).toMatchObject({ name: "a.pdf" })
     await saveOutlookDraft("t", { ...content, attachments: [pdf], draftId: "o1", attachmentsChanged: false })
-    expect(sent.slice(1).map((item) => item.method)).toEqual(["PATCH"])
+    expect(sent.slice(2).map((item) => item.method)).toEqual(["PATCH"])
   })
 
   it("swaps all files, inline images included, when they changed", async () => {
@@ -172,7 +174,8 @@ describe("outlook drafts", () => {
       "POST o1/attachments",
       "POST o1/attachments",
     ])
-    expect(sent[4]?.body).toMatchObject({ isInline: true, contentId: "logo.1@evido" })
+    expect(sent[3]?.body).toMatchObject({ isInline: true, contentId: "logo.1@evido" })
+    expect(sent[4]?.body).toMatchObject({ name: "a.pdf" })
   })
 
   it("lists and opens drafts", async () => {

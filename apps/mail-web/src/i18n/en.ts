@@ -242,6 +242,9 @@ export const en = {
     },
     removeFile: (name: string) => `Remove ${name}`,
     tooLarge: (limit: string) => `Attachments can be ${limit} in total.`,
+    uploading: (name: string) => `Uploading ${name}`,
+    uploadFailed: (name: string) => `${name} didn't upload. Remove it and add it again.`,
+    stillUploading: "Wait until the attachments have uploaded.",
     readFailed: "That file couldn't be read.",
   },
   conversation: {

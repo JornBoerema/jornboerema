@@ -35,6 +35,7 @@ model User {
   mailAccounts         MailAccount[]
   mailMessages         MailMessage[]
   mailSignatures       MailSignature[]
+  mailUploads          MailUpload[]
   mailOauthStates      MailOauthState[]
 
   @@map("user")
@@ -472,6 +473,33 @@ model MailSummary {
 
   @@unique([accountId, threadId, messageId, language], map: "mail_summaries_key")
   @@map("mail_summaries")
+}
+
+/// A file on its way into a message, sent in chunks because one request may
+/// carry 4.5 MB at most. Removed once sent, or after two days.
+model MailUpload {
+  id          String            @id
+  userId      String            @map("user_id")
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  contentType String            @map("content_type")
+  /// In bytes; the upload is complete once its chunks add up to this.
+  size        Int
+  createdAt   DateTime          @default(now()) @map("created_at")
+  chunks      MailUploadChunk[]
+
+  @@index([createdAt], map: "mail_uploads_created_idx")
+  @@map("mail_uploads")
+}
+
+model MailUploadChunk {
+  uploadId String     @map("upload_id")
+  upload   MailUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  index    Int
+  data     Bytes
+
+  @@id([uploadId, index])
+  @@map("mail_upload_chunks")
 }
 
 /// A pending OAuth connect flow. `id` is the SHA-256 of the state value.

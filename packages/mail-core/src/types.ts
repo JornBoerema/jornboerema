@@ -83,8 +83,16 @@ export type MailInlineUpload = { contentId: string; name: string; contentType: s
 /** Safe inside a MIME header and a `cid:` URL. */
 export const INLINE_CONTENT_ID = /^[A-Za-z0-9._-]{1,100}@[A-Za-z0-9.-]{1,100}$/
 
-/** Graph takes up to 3 MB directly; Vercel rejects larger request bodies once base64-encoded. */
+/** Inline pictures still travel in the request itself, so together they stay this small. */
 export const MAX_UPLOAD_BYTES = 3 * 1024 * 1024
+
+/** All files on one message, as Gmail allows. They are uploaded in chunks first. */
+export const MAX_ATTACHMENTS_BYTES = 25 * 1024 * 1024
+/** One chunk per request, comfortably under Vercel's 4.5 MB request limit. */
+export const UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024
+
+/** A file already uploaded in chunks, as clients refer to it in a message. */
+export type MailAttachmentRef = { uploadId: string; name: string; contentType: string; size: number }
 
 /** A full message as read from the provider. Never stored by the app. */
 export type MailThreadMessage = {
@@ -280,3 +288,11 @@ export type MailSummary =
   | { kind: "summary"; summary: string }
   /** Too short to be worth summing up, or no summary service. */
   | { kind: "none" }
+
+/** As the browser sends it: files by the id of their finished upload. */
+export type WithAttachmentRefs<T extends { attachments: unknown }> = Omit<T, "attachments"> & {
+  attachments: MailAttachmentRef[]
+}
+export type MailDraftRequest = WithAttachmentRefs<MailDraftContent>
+/** An opened draft, its files already copied into uploads. */
+export type MailDraftOpened = WithAttachmentRefs<MailDraft>

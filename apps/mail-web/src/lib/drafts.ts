@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   isDraftWorthKeeping,
-  type MailDraft,
-  type MailDraftContent,
+  type MailDraftOpened,
+  type MailDraftRequest,
   type MailDraftView,
 } from "@evido/mail-core/types"
 import { api } from "@/lib/api"
@@ -35,7 +35,7 @@ const draftPath = ({ accountId, id }: DraftRef) =>
 export function useDraft(ref: DraftRef | null) {
   return useQuery({
     queryKey: ["mail-draft", ref?.accountId, ref?.id],
-    queryFn: () => api<MailDraft>(draftPath(ref as DraftRef)),
+    queryFn: () => api<MailDraftOpened>(draftPath(ref as DraftRef)),
     enabled: ref !== null,
     staleTime: 0,
     gcTime: 0,
@@ -54,7 +54,7 @@ export const deleteDraft = (ref: DraftRef) =>
 
 export function sendDraft(
   ref: DraftRef,
-  content: MailDraftContent,
+  content: MailDraftRequest,
   attachmentsChanged: boolean
 ) {
   return api(
@@ -69,10 +69,10 @@ export function sendDraft(
  */
 const keyOf = (
   accountId: string,
-  { attachments: _files, inline: _pictures, ...rest }: MailDraftContent
+  { attachments: _files, inline: _pictures, ...rest }: MailDraftRequest
 ) => JSON.stringify([accountId, rest])
 
-const pictureIds = (content: MailDraftContent) =>
+const pictureIds = (content: MailDraftRequest) =>
   (content.inline ?? []).map((image) => image.contentId).join(",")
 
 /**
@@ -88,7 +88,7 @@ export function useDraftAutosave({
   onSaved,
 }: {
   accountId: string
-  content: MailDraftContent
+  content: MailDraftRequest
   /** The text holds more than a signature. */
   written: boolean
   /** The draft this message was opened from. */

@@ -12,11 +12,13 @@ import {
   isMailFolder,
   isMailProvider,
   MAIL_THREAD_ACTIONS,
+  MAX_ATTACHMENTS_BYTES,
   MAX_UPLOAD_BYTES,
   type ConnectErrorCode,
   MAIL_ACCOUNT_COLORS,
   MAX_SIGNATURE_LENGTH,
   MAX_SEARCH_LENGTH,
+  UPLOAD_CHUNK_BYTES,
   INLINE_CONTENT_ID,
   isDraftWorthKeeping,
 } from "@evido/mail-core/types"
@@ -47,6 +49,17 @@ import {
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
 import { syncAccount } from "./sync-server"
+import {
+  createUpload,
+  deleteUploads,
+  dropOldUploads,
+  loadAttachments,
+  putChunk,
+  storeAsUpload,
+  UploadIncompleteError,
+  UploadNotFoundError,
+  UploadTooLargeError,
+} from "./uploads-server"
 import {
   authorizeCron,
   authorizeGmailWebhook,
@@ -83,12 +96,14 @@ const address = z.object({ name: z.string().max(200).nullable(), email: z.email(
 const recipients = z.array(address).max(100)
 const text = z.string().max(100_000)
 const html = z.string().max(500_000).optional()
+// Files are uploaded in chunks first; a message refers to them by id.
 const attachments = z
   .array(
     z.object({
+      uploadId: z.uuid(),
       name: z.string().min(1).max(255),
       contentType: z.string().max(200),
-      data: z.base64(),
+      size: z.number().int().min(0).max(MAX_ATTACHMENTS_BYTES),
     })
   )
   .max(20)
@@ -104,11 +119,11 @@ const inline = z
   )
   .max(50)
   .optional()
-type Files = { attachments?: { data: string }[]; inline?: { data: string }[] }
-/** Files and inline images together, as decoded bytes. */
+type Files = { attachments?: { size: number }[]; inline?: { data: string }[] }
+/** Inline pictures travel in the request and stay small; files add up to Gmail's limit. */
 const fitsUpload = (body: Files) =>
-  [...(body.attachments ?? []), ...(body.inline ?? [])].reduce((sum, file) => sum + file.data.length, 0) * 0.75 <=
-  MAX_UPLOAD_BYTES
+  (body.inline ?? []).reduce((sum, file) => sum + file.data.length, 0) * 0.75 <= MAX_UPLOAD_BYTES &&
+  (body.attachments ?? []).reduce((sum, file) => sum + file.size, 0) <= MAX_ATTACHMENTS_BYTES
 const signatureId = z.string().min(1).max(100).nullable().optional()
 const accountBody = z
   .object({
@@ -190,6 +205,9 @@ function failure(c: Context, error: unknown) {
     return c.json({ error: msg(c, "mailReconnect"), reauth: true }, 409)
   if (error instanceof MailNotConfiguredError)
     return c.json({ error: msg(c, "mailNotConfigured") }, 503)
+  if (error instanceof UploadTooLargeError) return c.json({ error: msg(c, "attachmentsTooLarge") }, 413)
+  if (error instanceof UploadNotFoundError || error instanceof UploadIncompleteError)
+    return c.json({ error: msg(c, "attachmentMissing") }, 400)
   if (error instanceof UnsupportedActionError) return c.json({ error: msg(c, "mailCantDeleteForever") }, 400)
   // Still refused after trying again: nothing happened, so trying later is safe.
   if (isRateLimited(error)) return c.json({ error: msg(c, "mailBusy") }, 429)
@@ -313,7 +331,9 @@ mailRoutes.post("/threads/:id/reply", requireTrustedOrigin, requireSession, asyn
   const body = await readBody(c, replyBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    await replyToThread(c.get("session").user.id, c.req.param("id"), body)
+    const userId = c.get("session").user.id
+    await replyToThread(userId, c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
+    await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -357,7 +377,9 @@ mailRoutes.post("/accounts/:id/send", requireTrustedOrigin, requireSession, asyn
   if (!body || body.to.length + body.cc.length + body.bcc.length === 0)
     return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    await sendMessage(c.get("session").user.id, c.req.param("id"), body)
+    const userId = c.get("session").user.id
+    await sendMessage(userId, c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
+    await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -371,7 +393,10 @@ mailRoutes.get("/drafts", requireSession, async (c) =>
 // Like mail bodies, drafts pass through and are never written here.
 mailRoutes.get("/accounts/:id/drafts/:draftId", requireSession, async (c) => {
   try {
-    const draft = await readDraft(c.get("session").user.id, c.req.param("id"), c.req.param("draftId"))
+    const userId = c.get("session").user.id
+    const saved = await readDraft(userId, c.req.param("id"), c.req.param("draftId"))
+    // Its files become uploads, so the client refers to them like freshly attached ones.
+    const draft = { ...saved, attachments: await Promise.all(saved.attachments.map((file) => storeAsUpload(userId, file))) }
     return c.json(draft, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -382,7 +407,9 @@ mailRoutes.post("/accounts/:id/drafts", requireTrustedOrigin, requireSession, as
   const body = await readBody(c, draftBody)
   if (!body || !isDraftWorthKeeping(body)) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    return c.json(await saveDraft(c.get("session").user.id, c.req.param("id"), body), 200, noStore)
+    const userId = c.get("session").user.id
+    const files = await loadAttachments(userId, body.attachments)
+    return c.json(await saveDraft(userId, c.req.param("id"), { ...body, attachments: files }), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -394,7 +421,10 @@ mailRoutes.post("/accounts/:id/drafts/:draftId/send", requireTrustedOrigin, requ
     return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
     const draftId = c.req.param("draftId")
-    await sendDraft(c.get("session").user.id, c.req.param("id"), { ...body, draftId })
+    const userId = c.get("session").user.id
+    const files = await loadAttachments(userId, body.attachments)
+    await sendDraft(userId, c.req.param("id"), { ...body, attachments: files, draftId })
+    await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -516,7 +546,9 @@ mailRoutes.post("/accounts/:id/conversation/reply", requireTrustedOrigin, requir
   try {
     const conversation = await conversationOf(c)
     if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
-    await replyInConversation(conversation, body)
+    const userId = c.get("session").user.id
+    await replyInConversation(conversation, { ...body, attachments: await loadAttachments(userId, body.attachments) })
+    await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -564,6 +596,41 @@ mailRoutes.post("/accounts/:id/trash/empty", requireTrustedOrigin, requireSessio
   }
 })
 
+const uploadBody = z.object({
+  name: z.string().min(1).max(255),
+  contentType: z.string().max(200),
+  size: z.number().int().min(0).max(MAX_ATTACHMENTS_BYTES),
+})
+
+mailRoutes.post("/uploads", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, uploadBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await createUpload(c.get("session").user.id, body), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Raw bytes, one chunk per request, so no request comes near Vercel's 4.5 MB limit.
+mailRoutes.put("/uploads/:id/chunks/:index", requireTrustedOrigin, requireSession, async (c) => {
+  const index = Number(c.req.param("index"))
+  if (!Number.isInteger(index)) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const bytes = new Uint8Array(await c.req.arrayBuffer())
+    if (bytes.length > UPLOAD_CHUNK_BYTES) return c.json({ error: msg(c, "requestTooLarge") }, 413)
+    await putChunk(c.get("session").user.id, c.req.param("id"), index, bytes)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.delete("/uploads/:id", requireTrustedOrigin, requireSession, async (c) => {
+  await deleteUploads(c.get("session").user.id, [c.req.param("id")])
+  return c.json({ ok: true }, 200, noStore)
+})
+
 mailRoutes.get("/realtime", requireSession, async (c) => {
   if (!process.env.ABLY_API_KEY) return c.json({ error: msg(c, "realtimeUnavailable") }, 503)
   const userId = c.get("session").user.id
@@ -593,7 +660,8 @@ mailRoutes.post("/webhook/gmail", async (c) => {
 
 mailRoutes.get("/cron/watches", async (c) => {
   if (!authorizeCron(c.req.header("authorization"))) return c.body(null, 401)
-  return c.json(await renewWatches(), 200, noStore)
+  const dropped = await dropOldUploads()
+  return c.json({ ...(await renewWatches()), droppedUploads: dropped }, 200, noStore)
 })
 
 mailRoutes.patch("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {

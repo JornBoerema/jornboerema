@@ -1,11 +1,10 @@
 import { cleanText, deleteResource, getJson, mapInChunks, sendBody, sendJson } from "./http"
-import { toInlineFiles } from "./outlook-send"
+import { attachToMessage, toInlineFiles } from "./outlook-send"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
 import {
   MAX_LISTED_DRAFTS,
   type MailAddress,
-  type MailAttachmentUpload,
   type MailDraft,
   type MailDraftContent,
   type MailDraftView,
@@ -45,13 +44,6 @@ const toAddresses = (recipients: Recipient[] | undefined): MailAddress[] =>
 
 const toRecipients = (addresses: MailAddress[]) =>
   addresses.map(({ name, email }) => ({ emailAddress: { address: email, ...(name && { name }) } }))
-
-const toFile = ({ name, contentType, data }: MailAttachmentUpload) => ({
-  "@odata.type": "#microsoft.graph.fileAttachment",
-  name,
-  contentType,
-  contentBytes: data,
-})
 
 const messageUrl = (id: string) => `${GRAPH_BASE}/me/messages/${encodeURIComponent(id)}`
 
@@ -126,9 +118,11 @@ async function replaceAttachments(accessToken: string, draftId: string, input: M
   await mapInChunks(existing.value ?? [], WRITE_CONCURRENCY, (file) =>
     deleteResource(`${messageUrl(draftId)}/attachments/${encodeURIComponent(file.id)}`, accessToken, ID_HEADER)
   )
-  await mapInChunks([...input.attachments.map(toFile), ...toInlineFiles(input.inline)], WRITE_CONCURRENCY, (file) =>
+  await mapInChunks(toInlineFiles(input.inline), WRITE_CONCURRENCY, (file) =>
     sendJson("POST", `${messageUrl(draftId)}/attachments`, accessToken, file, ID_HEADER)
   )
+  // One at a time: a large one goes through its own upload session.
+  for (const file of input.attachments) await attachToMessage(accessToken, draftId, file)
 }
 
 export async function saveOutlookDraft(
@@ -149,14 +143,12 @@ export async function saveOutlookDraft(
       "POST",
       `${GRAPH_BASE}/me/messages`,
       accessToken,
-      {
-        ...fields,
-        attachments: [...input.attachments.map(toFile), ...toInlineFiles(input.inline)],
-      },
+      { ...fields, attachments: toInlineFiles(input.inline) },
       ID_HEADER
     )
     const created = (await response.json()) as { id?: string }
     if (!created.id) throw new ProviderError("Graph draft has no id")
+    for (const file of input.attachments) await attachToMessage(accessToken, created.id, file)
     return created.id
   }
   await sendJson("PATCH", messageUrl(input.draftId), accessToken, fields, ID_HEADER)

@@ -1,4 +1,4 @@
-import { getJson, mapInChunks, sendJson, textToHtml } from "./http"
+import { getJson, mapInChunks, sendBody, sendJson, textToHtml } from "./http"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
 import type {
@@ -43,7 +43,73 @@ const allFiles = (input: { attachments: MailAttachmentUpload[]; inline?: MailInl
   ...toInlineFiles(input.inline),
 ]
 
+/** Graph takes a file this big directly; larger ones need an upload session. */
+const DIRECT_ATTACHMENT_BYTES = 3 * 1024 * 1024
+/** Upload session chunks must be multiples of 320 KiB; this is 12 of them. */
+const SESSION_CHUNK_BYTES = 12 * 320 * 1024
+
+const bytesOf = (file: { data: string }) => Math.floor((file.data.length * 3) / 4)
+
+/** Too big for one JSON request to Graph, which caps those at about 4 MB. */
+export const needsUploadSessions = (files: { data: string }[]) =>
+  files.reduce((sum, file) => sum + bytesOf(file), 0) > DIRECT_ATTACHMENT_BYTES
+
+/**
+ * Puts a file on a draft: directly when small, through an upload session when not.
+ * The session URL is pre-authorised, so it must not get the bearer token.
+ */
+export async function attachToMessage(accessToken: string, messageId: string, file: MailAttachmentUpload) {
+  const url = `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments`
+  const bytes = Buffer.from(file.data, "base64")
+  if (bytes.length <= DIRECT_ATTACHMENT_BYTES) {
+    await sendJson("POST", url, accessToken, toFiles([file])[0], ID_HEADER)
+    return
+  }
+  const session = await sendJson(
+    "POST",
+    `${url}/createUploadSession`,
+    accessToken,
+    { AttachmentItem: { attachmentType: "file", name: file.name, size: bytes.length, contentType: file.contentType } },
+    ID_HEADER
+  )
+  const { uploadUrl } = (await session.json()) as { uploadUrl?: string }
+  if (!uploadUrl?.startsWith("https://")) throw new ProviderError("Graph upload session has no URL")
+  for (let start = 0; start < bytes.length; start += SESSION_CHUNK_BYTES) {
+    const chunk = bytes.subarray(start, Math.min(start + SESSION_CHUNK_BYTES, bytes.length))
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Length": String(chunk.length),
+        "Content-Range": `bytes ${start}-${start + chunk.length - 1}/${bytes.length}`,
+      },
+      body: chunk,
+      signal: AbortSignal.timeout(60_000),
+    })
+    if (!response.ok) throw new ProviderError(`Graph upload answered ${response.status}`, { status: response.status })
+  }
+}
+
+const messageFields = (input: MailOutgoing) => ({
+  subject: input.subject,
+  body: input.html ? { contentType: "HTML", content: input.html } : { contentType: "Text", content: input.text },
+  toRecipients: toRecipients(input.to),
+  ccRecipients: toRecipients(input.cc),
+  bccRecipients: toRecipients(input.bcc),
+})
+
 export async function sendOutlook(accessToken: string, input: MailOutgoing) {
+  // Large files can't go in one request: build a draft, attach them, then send it.
+  if (needsUploadSessions(input.attachments)) {
+    const created = await sendJson("POST", `${GRAPH_BASE}/me/messages`, accessToken, {
+      ...messageFields(input),
+      attachments: toInlineFiles(input.inline),
+    }, ID_HEADER)
+    const { id } = (await created.json()) as { id?: string }
+    if (!id) throw new ProviderError("Graph draft has no id")
+    for (const file of input.attachments) await attachToMessage(accessToken, id, file)
+    await sendBody("POST", `${GRAPH_BASE}/me/messages/${encodeURIComponent(id)}/send`, accessToken, "application/json", "", ID_HEADER)
+    return
+  }
   await sendJson("POST", `${GRAPH_BASE}/me/sendMail`, accessToken, {
     message: {
       subject: input.subject,
@@ -61,6 +127,28 @@ export async function sendOutlook(accessToken: string, input: MailOutgoing) {
 
 /** Graph adds the quoted original and the threading headers itself. */
 export async function replyOutlook(accessToken: string, input: MailReply) {
+  if (needsUploadSessions(input.attachments)) {
+    // createReply makes the same reply as a draft, which can then take large files.
+    const draft = await sendJson(
+      "POST",
+      `${GRAPH_BASE}/me/messages/${encodeURIComponent(input.messageId)}/createReply`,
+      accessToken,
+      {
+        comment: input.html ?? textToHtml(input.text),
+        message: {
+          toRecipients: toRecipients(input.to),
+          ccRecipients: toRecipients(input.cc),
+          attachments: toInlineFiles(input.inline),
+        },
+      },
+      ID_HEADER
+    )
+    const { id } = (await draft.json()) as { id?: string }
+    if (!id) throw new ProviderError("Graph reply draft has no id")
+    for (const file of input.attachments) await attachToMessage(accessToken, id, file)
+    await sendBody("POST", `${GRAPH_BASE}/me/messages/${encodeURIComponent(id)}/send`, accessToken, "application/json", "", ID_HEADER)
+    return
+  }
   await sendJson(
     "POST",
     `${GRAPH_BASE}/me/messages/${encodeURIComponent(input.messageId)}/reply`,

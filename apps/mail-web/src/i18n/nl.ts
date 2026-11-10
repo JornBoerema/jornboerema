@@ -243,6 +243,9 @@ export const nl: typeof en = {
     },
     removeFile: (name: string) => `${name} verwijderen`,
     tooLarge: (limit: string) => `Bijlagen mogen samen ${limit} zijn.`,
+    uploading: (name: string) => `${name} wordt geüpload`,
+    uploadFailed: (name: string) => `${name} is niet geüpload. Haal hem weg en voeg hem opnieuw toe.`,
+    stillUploading: "Wacht tot de bijlagen zijn geüpload.",
     readFailed: "Dat bestand kon niet worden gelezen.",
   },
   conversation: {

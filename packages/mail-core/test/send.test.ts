@@ -590,3 +590,33 @@ describe("spam and deleting for good", () => {
     expect(sent.map((item) => item.url.split("/me/messages/")[1])).toEqual(["a/permanentDelete", "b/permanentDelete"])
   })
 })
+
+describe("large files to Outlook", () => {
+  const big = { name: "big.bin", contentType: "application/octet-stream", data: Buffer.alloc(5 * 1024 * 1024, 7).toString("base64") }
+
+  it("sends through a draft with an upload session, without the token on the session URL", async () => {
+    const calls: { url: string; method: string; headers: Record<string, string> }[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        calls.push({ url, method: init.method ?? "GET", headers: (init.headers ?? {}) as Record<string, string> })
+        if (url.endsWith("/me/messages")) return new Response(JSON.stringify({ id: "d1" }), { status: 201 })
+        if (url.endsWith("/createUploadSession")) return new Response(JSON.stringify({ uploadUrl: "https://outlook.office.com/upload/x" }), { status: 201 })
+        return new Response("{}", { status: 200 })
+      })
+    )
+    await sendOutlook("t", { ...base, attachments: [big] })
+    const puts = calls.filter((call) => call.url.startsWith("https://outlook.office.com/upload/"))
+    expect(puts.length).toBe(2)
+    expect(puts.every((call) => !("Authorization" in call.headers))).toBe(true)
+    expect(puts[0]?.headers["Content-Range"]).toBe(`bytes 0-${12 * 320 * 1024 - 1}/${5 * 1024 * 1024}`)
+    expect(calls.at(-1)?.url).toMatch(/\/me\/messages\/d1\/send$/)
+    expect(calls.some((call) => call.url.endsWith("/sendMail"))).toBe(false)
+  })
+
+  it("keeps small files in the one sendMail request", async () => {
+    const sent = stub()
+    await sendOutlook("t", { ...base, attachments: [pdf] })
+    expect(sent.map((item) => item.url.split("/v1.0")[1])).toEqual(["/me/sendMail"])
+  })
+})

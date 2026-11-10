@@ -19,10 +19,10 @@ import {
   MAX_UPLOAD_BYTES,
   type MailAccountView,
   type MailAddress,
-  type MailAttachmentUpload,
-  type MailDraft,
-  type MailDraftContent,
+  type MailDraftOpened,
+  type MailDraftRequest,
   type MailOutgoing,
+  type WithAttachmentRefs,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { AddressRow } from "@/components/address-row"
@@ -42,6 +42,7 @@ import {
 } from "@/lib/drafts"
 import { textToEditorHtml } from "@/lib/email-compose"
 import { fromInlineImages, uploadBytes } from "@/lib/inline-images"
+import { fromRefs, isUploading, useAttachmentRefs, type ComposerFile } from "@/lib/uploads"
 import { sendOnModEnter } from "@/lib/hotkeys"
 import { syncSoon } from "@/lib/mail"
 import { UndoneError, waitForUndo } from "@/lib/undo"
@@ -144,7 +145,7 @@ function ComposeForm({
   onClose,
   onDraftChange,
   discardRequest,
-}: ComposeProps & { initial: MailDraft | null }) {
+}: ComposeProps & { initial: MailDraftOpened | null }) {
   const t = useI18n().t.compose
   const queryClient = useQueryClient()
   const usable = accounts.filter((account) => account.status === "active")
@@ -167,9 +168,10 @@ function ComposeForm({
     inline: initial?.inline ?? [],
     written: Boolean(initial?.text.trim() || initial?.html),
   })
-  const [files, setFiles] = useState<MailAttachmentUpload[]>(
-    initial?.attachments ?? []
+  const [files, setFiles] = useState<ComposerFile[]>(() =>
+    fromRefs(initial?.attachments ?? [])
   )
+  const attachments = useAttachmentRefs(files)
   const [editorReady, setEditorReady] = useState(false)
   const [initialHtml] = useState(
     () =>
@@ -185,14 +187,14 @@ function ComposeForm({
     to || cc || bcc || subject || body.written || files.length
   )
 
-  const content: MailDraftContent = {
+  const content: MailDraftRequest = {
     to: recipientList(to),
     cc: recipientList(cc),
     bcc: recipientList(bcc),
     subject,
     text: body.text,
     ...(body.html && { html: body.html }),
-    attachments: files,
+    attachments,
     ...(body.inline.length > 0 && { inline: body.inline }),
     ...(reply && { reply }),
   }
@@ -225,7 +227,7 @@ function ComposeForm({
   }
 
   const send = useMutation({
-    mutationFn: async (message: MailOutgoing) => {
+    mutationFn: async (message: WithAttachmentRefs<MailOutgoing>) => {
       const { ref, attachmentsChanged } = await autosave.pause()
       // Out of the way while it can still be taken back, like Gmail's undo send.
       onHide()
@@ -301,7 +303,8 @@ function ComposeForm({
     ]
     if (toList.length + ccList.length + bccList.length === 0)
       return toast.error(t.noRecipients)
-    if (uploadBytes([...files, ...body.inline]) > MAX_UPLOAD_BYTES)
+    if (isUploading(files)) return toast.error(t.stillUploading)
+    if (uploadBytes(body.inline) > MAX_UPLOAD_BYTES)
       return toast.error(t.tooLarge(`${MAX_UPLOAD_BYTES / (1024 * 1024)} MB`))
     send.mutate({
       to: toList,
@@ -310,7 +313,7 @@ function ComposeForm({
       subject,
       text: body.text,
       ...(body.html && { html: body.html }),
-      attachments: files,
+      attachments,
       ...(body.inline.length > 0 && { inline: body.inline }),
     })
   }

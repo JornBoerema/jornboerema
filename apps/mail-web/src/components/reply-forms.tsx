@@ -5,10 +5,10 @@ import { Button } from "@evido/ui/components/button"
 import {
   replyRecipients,
   type MailAddress,
-  type MailAttachmentUpload,
   type MailThreadMessage,
 } from "@evido/mail-core/types"
 import { AttachmentPicker } from "@/components/attachment-picker"
+import { isUploading, useAttachmentRefs, type ComposerFile } from "@/lib/uploads"
 import { AddressRow } from "@/components/address-row"
 import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
@@ -70,7 +70,8 @@ export function ReplyForm({
     if (value.written) saveReplyDraft(threadId, { mode: all ? "all" : "reply", html: value.html, inline: value.inline })
     else clearReplyDraft(threadId)
   }
-  const [files, setFiles] = useState<MailAttachmentUpload[]>([])
+  const [files, setFiles] = useState<ComposerFile[]>([])
+  const attachments = useAttachmentRefs(files)
   const { to, cc } = replyRecipients(message, selfEmail, all)
   const send = useMutation({
     mutationFn: () =>
@@ -83,7 +84,7 @@ export function ReplyForm({
           cc,
           text: body.text,
           ...(body.html && { html: body.html }),
-          attachments: files,
+          attachments,
           ...(body.inline.length > 0 && { inline: body.inline }),
         }),
       }),
@@ -96,7 +97,7 @@ export function ReplyForm({
     },
     onError: (error) => toast.error(errorText(error)),
   })
-  const canSend = !send.isPending && body.written && to.length > 0
+  const canSend = !send.isPending && body.written && to.length > 0 && !isUploading(files)
 
   return (
     <form
