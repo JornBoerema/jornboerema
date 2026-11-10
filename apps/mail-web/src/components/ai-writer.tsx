@@ -2,10 +2,9 @@ import { useEffect, useRef, useState, type RefObject } from "react"
 import { currentLanguage } from "@evido/i18n/react"
 import { parseWritten } from "@evido/mail-core/write"
 import { toast } from "sonner"
-import { Cancel01Icon, SparklesIcon } from "@hugeicons/core-free-icons"
+import { ArrowUp02Icon, SparklesIcon, StopIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
-import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import type { RichTextHandle } from "@/components/rich-text-editor"
 import { useI18n } from "@/i18n"
@@ -213,26 +212,32 @@ export function AiPrompt({ writer, className }: { writer: AiWriter; className?: 
           }
         }}
       />
-      {writer.pending ? (
-        <span role="status" className="flex shrink-0 items-center gap-1.5 px-2 text-xs text-muted-foreground">
-          <Spinner />
+      {writer.pending && (
+        <span role="status" className="shrink-0 text-xs text-muted-foreground">
           {t.aiWriting}
         </span>
-      ) : (
-        <Button type="button" size="sm" disabled={!writer.instruction.trim()} onClick={writer.submit}>
-          {t.aiSubmit}
-        </Button>
       )}
-      <Button
+      {/* One round control: write, or stop while writing. Closing is the sparkle button or Escape. */}
+      <button
         type="button"
-        variant="ghost"
-        size="icon-xs"
-        aria-label={writer.pending ? t.aiStop : t.aiClose}
-        title={writer.pending ? t.aiStop : t.aiClose}
-        onClick={writer.close}
+        aria-label={writer.pending ? t.aiStop : t.aiSubmit}
+        title={writer.pending ? t.aiStop : t.aiSubmit}
+        disabled={!writer.pending && !writer.instruction.trim()}
+        onClick={writer.pending ? writer.close : writer.submit}
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+          writer.pending || writer.instruction.trim()
+            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+            : "bg-muted text-muted-foreground"
+        )}
       >
-        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
-      </Button>
+        <HugeiconsIcon
+          icon={writer.pending ? StopIcon : ArrowUp02Icon}
+          strokeWidth={2.25}
+          aria-hidden="true"
+          className={writer.pending ? "size-3.5 fill-current" : "size-4"}
+        />
+      </button>
     </div>
   )
 }
