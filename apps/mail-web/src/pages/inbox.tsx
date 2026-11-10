@@ -61,7 +61,11 @@ function shortDate(iso: string, locale: string) {
  * Quick actions over the row's right end. They show on hover or keyboard focus,
  * in place of the date, and sit beside the row's button rather than inside it.
  */
-function RowActions({ actions }: { actions: { icon: IconSvgElement; label: string; run: () => void }[] }) {
+function RowActions({
+  actions,
+}: {
+  actions: { icon: IconSvgElement; label: string; run: () => void; destructive?: boolean }[]
+}) {
   return (
     <span className="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
       {actions.map((action) => (
@@ -69,7 +73,12 @@ function RowActions({ actions }: { actions: { icon: IconSvgElement; label: strin
           key={action.label}
           variant="ghost"
           size="icon-xs"
-          className="text-muted-foreground hover:bg-background/70 hover:text-foreground"
+          className={cn(
+            "text-muted-foreground",
+            action.destructive
+              ? "hover:bg-destructive/10 hover:text-destructive"
+              : "hover:bg-background/70 hover:text-foreground"
+          )}
           aria-label={action.label}
           title={action.label}
           onClick={action.run}
@@ -117,7 +126,8 @@ function ThreadRow({
         onClick={onOpen}
         className={cn(
           "flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors outline-none focus-visible:bg-accent",
-          selected ? "bg-accent" : "hover:bg-accent/60"
+          // On the whole row, so it stays while the pointer is on a quick action.
+          selected ? "bg-accent" : "group-hover:bg-accent/60"
         )}
       >
         <span className="flex items-center gap-2">
@@ -178,7 +188,7 @@ function ThreadRow({
       <RowActions
         actions={[
           { icon: ArchiveIcon, label: actions.archive, run: () => onAction("archive") },
-          { icon: Delete02Icon, label: actions.trash, run: () => onAction("trash") },
+          { icon: Delete02Icon, label: actions.trash, run: () => onAction("trash"), destructive: true },
         ]}
       />
     </li>
@@ -210,7 +220,8 @@ function DraftRow({
         onClick={onOpen}
         className={cn(
           "flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors outline-none focus-visible:bg-accent",
-          selected ? "bg-accent" : "hover:bg-accent/60"
+          // On the whole row, so it stays while the pointer is on a quick action.
+          selected ? "bg-accent" : "group-hover:bg-accent/60"
         )}
       >
         <span className="flex items-center gap-2">
@@ -253,7 +264,7 @@ function DraftRow({
           )}
         </span>
       </button>
-      <RowActions actions={[{ icon: Delete02Icon, label: t.compose.discard, run: onDelete }]} />
+      <RowActions actions={[{ icon: Delete02Icon, label: t.compose.discard, run: onDelete, destructive: true }]} />
     </li>
   )
 }
