@@ -16,6 +16,8 @@ import { api, errorText } from "@/lib/api"
 import { conversationUrl, syncSoon } from "@/lib/mail"
 import { sendOnModEnter } from "@/lib/hotkeys"
 import type { RichTextValue } from "@/components/rich-text-editor"
+import { fromInlineImages } from "@/lib/inline-images"
+import { clearReplyDraft, saveReplyDraft, type ReplyDraft } from "@/lib/reply-drafts"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
@@ -44,6 +46,7 @@ export function ReplyForm({
   accountId,
   signature,
   all,
+  initial,
   onClose,
 }: {
   threadId: string
@@ -54,11 +57,19 @@ export function ReplyForm({
   /** Empty for none. */
   signature: string
   all: boolean
+  /** A reply started earlier on this conversation, kept in the browser. */
+  initial: ReplyDraft | null
   onClose: () => void
 }) {
   const t = useI18n().t.conversation
   const queryClient = useQueryClient()
   const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
+  const [initialHtml] = useState(() => (initial ? fromInlineImages(initial.html, initial.inline) : undefined))
+  const keep = (value: RichTextValue) => {
+    setBody(value)
+    if (value.written) saveReplyDraft(threadId, { mode: all ? "all" : "reply", html: value.html, inline: value.inline })
+    else clearReplyDraft(threadId)
+  }
   const [files, setFiles] = useState<MailAttachmentUpload[]>([])
   const { to, cc } = replyRecipients(message, selfEmail, all)
   const send = useMutation({
@@ -78,6 +89,7 @@ export function ReplyForm({
       }),
     onSuccess: () => {
       toast.success(t.sent)
+      clearReplyDraft(threadId)
       onClose()
       void queryClient.invalidateQueries({ queryKey: ["mail-thread", threadId] })
       if (accountId) syncSoon(queryClient, [accountId])
@@ -106,12 +118,20 @@ export function ReplyForm({
           placeholder={t.replyPlaceholder}
           className="min-h-32 flex-1"
           signature={signature}
-          onChange={setBody}
+          initialHtml={initialHtml}
+          onChange={keep}
         />
       </Suspense>
       <div className="flex items-center justify-between gap-3 p-2">
         <AttachmentPicker files={files} onChange={setFiles} />
-        <Actions canSend={canSend} onClose={onClose} />
+        <Actions
+          canSend={canSend}
+          onClose={() => {
+            // Cancelling throws the reply away; leaving the conversation keeps it.
+            clearReplyDraft(threadId)
+            onClose()
+          }}
+        />
       </div>
     </form>
   )
@@ -121,17 +141,29 @@ export function ForwardForm({
   threadId,
   message,
   signature,
+  initial,
   onClose,
 }: {
   threadId: string
   message: MailThreadMessage
   signature: string
+  initial: ReplyDraft | null
   onClose: () => void
 }) {
   const { t: strings } = useI18n()
   const t = strings.conversation
-  const [to, setTo] = useState("")
+  const [to, setTo] = useState(initial?.to ?? "")
   const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
+  const [initialHtml] = useState(() => (initial ? fromInlineImages(initial.html, initial.inline) : undefined))
+  const keep = (next: { to?: string; value?: RichTextValue }) => {
+    const recipients = next.to ?? to
+    const value = next.value ?? body
+    if (next.to !== undefined) setTo(next.to)
+    if (next.value) setBody(next.value)
+    if (value.written || recipients.trim())
+      saveReplyDraft(threadId, { mode: "forward", html: value.html, inline: value.inline, to: recipients })
+    else clearReplyDraft(threadId)
+  }
   const send = useMutation({
     mutationFn: (recipients: MailAddress[]) =>
       api(conversationUrl(threadId, "/forward"), {
@@ -148,6 +180,7 @@ export function ForwardForm({
       }),
     onSuccess: () => {
       toast.success(t.sent)
+      clearReplyDraft(threadId)
       onClose()
     },
     onError: (error) => toast.error(errorText(error)),
@@ -170,21 +203,28 @@ export function ForwardForm({
         submit()
       }}
     >
-      <AddressRow label={t.to} autoFocus value={to} onChange={setTo} />
+      <AddressRow label={t.to} autoFocus value={to} onChange={(value) => keep({ to: value })} />
       <Suspense fallback={<div className="min-h-24" />}>
         <RichTextEditor
           label={t.forwardPlaceholder}
           placeholder={t.forwardPlaceholder}
           className="min-h-24 flex-1"
           signature={signature}
-          onChange={setBody}
+          initialHtml={initialHtml}
+          onChange={(value) => keep({ value })}
         />
       </Suspense>
       <div className="flex items-center justify-between gap-3 p-2">
         <p className="px-2 text-xs text-muted-foreground">
           {message.attachments.length > 0 && t.forwardAttachments(message.attachments.length)}
         </p>
-        <Actions canSend={!send.isPending} onClose={onClose} />
+        <Actions
+          canSend={!send.isPending}
+          onClose={() => {
+            clearReplyDraft(threadId)
+            onClose()
+          }}
+        />
       </div>
     </form>
   )

@@ -30,6 +30,7 @@ import {
 import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
+import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useSignatureFor } from "@/lib/signatures"
 import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
@@ -360,7 +361,10 @@ export function ConversationPage({
   const alwaysShowImages = useAlwaysShowImages()
   const [showImagesOnce, setShowImagesOnce] = useState(false)
   const allowImages = alwaysShowImages || showImagesOnce
-  const [replyMode, setReplyMode] = useState<"reply" | "all" | "forward" | null>(null)
+  // A reply left half written here comes back open, as it was.
+  const [savedReply] = useState(() => readReplyDraft(summary.id))
+  const [replyMode, setReplyMode] = useState<ReplyMode | null>(savedReply?.mode ?? null)
+  const replyDraft = savedReply?.mode === replyMode ? savedReply : null
   const { mutate: runAction } = useThreadAction()
   // Often already here: rows load their conversation when hovered. Bodies stay in
   // memory for a few minutes and are never written to disk.
@@ -474,7 +478,13 @@ export function ConversationPage({
           {last && (
             <div className="@container sticky bottom-4 z-10 mt-auto mb-4 pt-4">
               {replyMode === "forward" ? (
-                <ForwardForm threadId={id} message={last} signature={replySignature} onClose={() => setReplyMode(null)} />
+                <ForwardForm
+                  threadId={id}
+                  message={last}
+                  signature={replySignature}
+                  initial={replyDraft}
+                  onClose={() => setReplyMode(null)}
+                />
               ) : replyMode ? (
                 <ReplyForm
                   key={replyMode}
@@ -484,6 +494,7 @@ export function ConversationPage({
                   accountId={account?.id}
                   signature={replySignature}
                   all={replyMode === "all"}
+                  initial={replyDraft}
                   onClose={() => setReplyMode(null)}
                 />
               ) : (
