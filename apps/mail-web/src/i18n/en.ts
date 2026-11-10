@@ -21,6 +21,10 @@ export const en = {
     signOut: "Sign out",
   },
   signatures: {
+    back: "All signatures",
+    edit: "Edit signature",
+    emptyPreview: "Empty",
+    usedBy: (count: number) => (count === 0 ? "Not used" : count === 1 ? "Used by 1 mailbox" : `Used by ${count} mailboxes`),
     description: "Write signatures once, then choose which one each mailbox adds.",
     title: "Signatures",
     add: "New signature",

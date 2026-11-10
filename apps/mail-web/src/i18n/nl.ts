@@ -22,6 +22,10 @@ export const nl: typeof en = {
     signOut: "Uitloggen",
   },
   signatures: {
+    back: "Alle handtekeningen",
+    edit: "Handtekening bewerken",
+    emptyPreview: "Leeg",
+    usedBy: (count: number) => (count === 0 ? "Niet gebruikt" : count === 1 ? "Gebruikt door 1 mailbox" : `Gebruikt door ${count} mailboxen`),
     description: "Schrijf handtekeningen één keer en kies per mailbox welke hij toevoegt.",
     title: "Handtekeningen",
     add: "Nieuwe handtekening",
