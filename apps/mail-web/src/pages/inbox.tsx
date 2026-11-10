@@ -58,7 +58,7 @@ import {
   type SyncStatus,
 } from "@/lib/mail"
 import { EmptyPane } from "@/components/empty-pane"
-import { TrashNotice } from "@/components/empty-trash"
+import { EmptyTrashButton } from "@/components/empty-trash"
 import { isDestructive, MOVE_ICONS, moveLabel } from "@/lib/thread-actions"
 import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
@@ -653,6 +653,7 @@ export function InboxPage({
               </span>
             )}
           </span>
+          {folder === "trash" && <EmptyTrashButton accounts={accounts} />}
           <Button
             variant="ghost"
             size="icon-sm"
@@ -734,7 +735,6 @@ export function InboxPage({
                 </Empty>
               ) : (
                 <>
-                  {folder === "trash" && <TrashNotice accounts={accounts} />}
                   {list.isError && (
                     <p className="p-4 text-sm text-destructive">
                       {folder ? strings.folders.loadFailed : t.loadFailed}

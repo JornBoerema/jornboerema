@@ -259,7 +259,6 @@ export const en = {
     emptyTrashConfirm: "Empty trash",
     emptyTrashCancel: "Cancel",
     emptiedTrash: (count: number) => `${count} deleted for good`,
-    gmailTrashNote: "Gmail empties its trash by itself after 30 days.",
     summary: "Summary",
     code: "Verification code",
     copyCode: "Copy code",

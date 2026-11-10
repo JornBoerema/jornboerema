@@ -260,7 +260,6 @@ export const nl: typeof en = {
     emptyTrashConfirm: "Prullenbak legen",
     emptyTrashCancel: "Annuleren",
     emptiedTrash: (count: number) => `${count} definitief verwijderd`,
-    gmailTrashNote: "Gmail leegt de prullenbak zelf na 30 dagen.",
     summary: "Samenvatting",
     code: "Verificatiecode",
     copyCode: "Code kopiëren",
