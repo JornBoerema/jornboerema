@@ -131,50 +131,58 @@ function applyToFolder(page: MailFolderPage, folder: MailFolder, id: string, act
 }
 
 /** Updates the list at once; a refusal from the provider puts the real state back. */
-/** Moves wait a moment so they can be taken back; marks and stars go at once. */
-const UNDOABLE: MailThreadAction[] = ["archive", "trash", "inbox"]
+/** One conversation, or several at once from a selection. */
+type ActionInput = { action: MailThreadAction } & ({ id: string; ids?: never } | { ids: string[]; id?: never })
+const idsOf = (input: ActionInput) => input.ids ?? [input.id]
+const ACTION_CONCURRENCY = 3
 
 export function useThreadAction() {
   const queryClient = useQueryClient()
   const t = useI18n().t.conversation
-  const done: Partial<Record<MailThreadAction, string>> = {
+  // Moves wait a moment so they can be taken back; marks and stars go at once.
+  const done: Partial<Record<MailThreadAction, (count: number) => string>> = {
     archive: t.archived,
     trash: t.trashed,
     inbox: t.movedToInbox,
   }
   return useMutation({
     mutationKey: ACTION_KEY,
-    mutationFn: async ({ id, action }: { id: string; action: MailThreadAction }) => {
-      const { leaving } = UNDOABLE.includes(action)
-        ? await waitForUndo(done[action] ?? "", t.undo)
-        : { leaving: false }
-      return api(conversationUrl(id, "/actions"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-        // Lets the request finish while the tab closes.
-        keepalive: leaving,
-      })
+    mutationFn: async (input: ActionInput) => {
+      const ids = idsOf(input)
+      const message = done[input.action]
+      // One undo for the whole selection, not one per conversation.
+      const { leaving } = message ? await waitForUndo(message(ids.length), t.undo) : { leaving: false }
+      const post = (id: string) =>
+        api(conversationUrl(id, "/actions"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: input.action }),
+          // Lets the request finish while the tab closes.
+          keepalive: leaving,
+        })
+      for (let start = 0; start < ids.length; start += ACTION_CONCURRENCY)
+        await Promise.all(ids.slice(start, start + ACTION_CONCURRENCY).map(post))
     },
-    onMutate: async ({ id, action }) => {
+    onMutate: async (input) => {
+      const { action } = input
+      const ids = idsOf(input)
       await queryClient.cancelQueries({ queryKey: MESSAGES_KEY })
       await queryClient.cancelQueries({ queryKey: FOLDERS_KEY })
-      for (const folder of MAIL_FOLDERS)
-        queryClient.setQueryData<InfiniteData<MailFolderPage>>(
-          folderKey(folder),
-          (data) => data && { ...data, pages: data.pages.map((page) => applyToFolder(page, folder, id, action)) }
+      for (const id of ids) {
+        for (const folder of MAIL_FOLDERS)
+          queryClient.setQueryData<InfiniteData<MailFolderPage>>(
+            folderKey(folder),
+            (data) => data && { ...data, pages: data.pages.map((page) => applyToFolder(page, folder, id, action)) }
+          )
+        queryClient.setQueriesData<InfiniteData<MailThreadsPage>>(
+          { queryKey: MESSAGES_KEY },
+          (data) =>
+            data && {
+              ...data,
+              pages: data.pages.map((page) => ({ ...page, threads: applyAction(page.threads, id, action) })),
+            }
         )
-      queryClient.setQueriesData<InfiniteData<MailThreadsPage>>(
-        { queryKey: MESSAGES_KEY },
-        (data) =>
-          data && {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              threads: applyAction(page.threads, id, action),
-            })),
-          }
-      )
+      }
     },
     // Undone: the list comes back from the server below, as nothing changed there.
     onError: (error) => {

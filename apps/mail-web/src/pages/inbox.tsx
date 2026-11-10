@@ -1,7 +1,10 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import {
   ArchiveIcon,
+  Cancel01Icon,
+  Mail01Icon,
+  MailOpen01Icon,
   Attachment01Icon,
   Delete02Icon,
   CloudAlertIcon,
@@ -12,6 +15,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
+import { Checkbox } from "@evido/ui/components/checkbox"
 import {
   Empty,
   EmptyContent,
@@ -104,7 +108,10 @@ function ThreadRow({
   mailbox,
   selected,
   folder,
+  checked,
+  selecting,
   onOpen,
+  onToggle,
   onAction,
 }: {
   thread: MailThreadView
@@ -113,7 +120,13 @@ function ThreadRow({
   selected: boolean
   /** The folder this list shows; null for the inbox. */
   folder: MailFolder | null
+  /** Part of the selection. */
+  checked: boolean
+  /** Something in the list is selected, so every checkbox shows. */
+  selecting: boolean
   onOpen: () => void
+  /** `range` extends the selection from the last one picked, as with Shift. */
+  onToggle: (range: boolean) => void
   onAction: (action: MailThreadAction) => void
 }) {
   const { t: strings, locale } = useI18n()
@@ -132,11 +145,17 @@ function ThreadRow({
         ref={row}
         type="button"
         aria-current={selected ? "true" : undefined}
-        onClick={onOpen}
+        onClick={(event) => {
+          // Cmd or Ctrl adds to the selection and Shift takes a range, as in a file list.
+          if (event.metaKey || event.ctrlKey || event.shiftKey) {
+            event.preventDefault()
+            onToggle(event.shiftKey)
+          } else onOpen()
+        }}
         className={cn(
-          "flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors outline-none focus-visible:bg-accent",
+          "flex w-full flex-col gap-0.5 rounded-lg py-2 pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
           // On the whole row, so it stays while the pointer is on a quick action.
-          selected ? "bg-accent" : "group-hover:bg-accent/60"
+          checked ? "bg-primary/10" : selected ? "bg-accent" : "group-hover:bg-accent/60"
         )}
       >
         <span className="flex items-center gap-2">
@@ -196,6 +215,21 @@ function ThreadRow({
           )}
         </span>
       </button>
+      {/* The gutter shows unread mail, and a checkbox on hover or while selecting. */}
+      <span className="absolute top-2.5 left-2.5 flex size-4 items-center justify-center">
+        {unread && !checked && !selecting && (
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-primary group-focus-within:hidden group-hover:hidden" />
+        )}
+        <Checkbox
+          checked={checked}
+          aria-label={strings.selection.select(thread.subject || t.noSubject)}
+          className={cn(!checked && !selecting && "hidden group-focus-within:flex group-hover:flex")}
+          onClick={(event) => {
+            event.preventDefault()
+            onToggle(event.shiftKey)
+          }}
+        />
+      </span>
       <RowActions
         actions={[
           thread.isStarred
@@ -284,6 +318,61 @@ function DraftRow({
       </button>
       <RowActions actions={[{ icon: Delete02Icon, label: t.compose.discard, run: onDelete, destructive: true }]} />
     </li>
+  )
+}
+
+/** The list header while conversations are selected: what can be done to all of them. */
+function SelectionBar({
+  count,
+  total,
+  allStarred,
+  folder,
+  onSelectAll,
+  onAction,
+  onClear,
+}: {
+  count: number
+  total: number
+  allStarred: boolean
+  folder: MailFolder | null
+  onSelectAll: () => void
+  onAction: (action: MailThreadAction) => void
+  onClear: () => void
+}) {
+  const strings = useI18n().t
+  const t = strings.selection
+  const c = strings.conversation
+  const button = (icon: IconSvgElement, label: string, run: () => void, className?: string) => (
+    <Button key={label} variant="ghost" size="icon-sm" aria-label={label} title={label} className={className} onClick={run}>
+      <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" />
+    </Button>
+  )
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-1 pl-2.5">
+      <Checkbox
+        checked={count === total ? true : "indeterminate"}
+        aria-label={t.selectAll}
+        onClick={(event) => {
+          event.preventDefault()
+          onSelectAll()
+        }}
+      />
+      <span role="status" className="mr-auto min-w-0 truncate pl-2 text-sm font-medium">
+        {t.selected(count)}
+      </span>
+      {button(StarIcon, allStarred ? c.unstar : c.star, () => onAction(allStarred ? "unstar" : "star"), cn(allStarred && STARRED))}
+      {moveActions(folder).map((action) =>
+        button(
+          MOVE_ICONS[action] ?? ArchiveIcon,
+          action === "inbox" ? c.moveToInbox : c[action as "archive" | "trash"],
+          () => onAction(action),
+          action === "trash" ? "hover:text-destructive" : undefined
+        )
+      )}
+      {button(MailOpen01Icon, t.markRead, () => onAction("read"))}
+      {button(Mail01Icon, c.markUnread, () => onAction("unread"))}
+      {button(Cancel01Icon, t.clear, onClear)}
+    </div>
   )
 }
 
@@ -409,6 +498,57 @@ export function InboxPage({
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
 
   useEffect(() => onOpen(null), [accountId, onOpen])
+
+  // Selection: ids of conversations in this list, plus where a Shift range starts.
+  const [picked, setPicked] = useState<Set<string>>(() => new Set())
+  const anchor = useRef<string | null>(null)
+  useEffect(() => {
+    setPicked(new Set())
+    anchor.current = null
+  }, [navigation.view, accountId])
+  const selection = showDrafts ? [] : rows.filter((thread) => picked.has(thread.id))
+  const selecting = selection.length > 0
+
+  function toggle(id: string, range: boolean) {
+    setPicked((current) => {
+      const next = new Set(current)
+      const from = anchor.current ? rows.findIndex((thread) => thread.id === anchor.current) : -1
+      const to = rows.findIndex((thread) => thread.id === id)
+      if (range && from >= 0 && to >= 0) {
+        const [low, high] = from < to ? [from, to] : [to, from]
+        for (const thread of rows.slice(low, high + 1)) next.add(thread.id)
+      } else if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    anchor.current = id
+  }
+
+  function clearSelection() {
+    setPicked(new Set())
+    anchor.current = null
+  }
+
+  function bulk(action: MailThreadAction) {
+    const ids = selection.map((thread) => thread.id)
+    if (open && ids.includes(open.id) && leavesList(folder, action)) onOpen(null)
+    runAction({ ids, action })
+    clearSelection()
+  }
+
+  // Cmd/Ctrl+A selects the list, unless focus is in a field or a dialog is open.
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "a" || showDrafts) return
+      const target = event.target
+      if (target instanceof HTMLElement && target.closest("input,textarea,select,[contenteditable]")) return
+      if (document.querySelector("[role=dialog],[role=alertdialog],[role=menu],[role=listbox]")) return
+      event.preventDefault()
+      setPicked(new Set(rows.map((thread) => thread.id)))
+    }
+    document.addEventListener("keydown", keydown)
+    return () => document.removeEventListener("keydown", keydown)
+  })
   const composing = compose !== null
   const composerVisible = composing && !composeHidden
   const showingDetail = Boolean(open) || composerVisible
@@ -441,7 +581,11 @@ export function InboxPage({
     k: () => step(-1),
     c: onCompose,
     "/": navigation.onSearch,
-    Escape: () => onOpen(null),
+    x: () => {
+      if (open && !showDrafts) toggle(open.id, false)
+    },
+    // Clearing a selection comes before closing the conversation.
+    Escape: () => (selecting ? clearSelection() : onOpen(null)),
   })
 
   return (
@@ -460,13 +604,27 @@ export function InboxPage({
         >
           <MailMenu {...navigation} />
           <SidebarExpand sidebar={navigation.sidebar} />
-          <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
-            {showDrafts
-              ? strings.drafts.title
-              : folder
-                ? strings.folders[folder]
-                : (selectedAccount?.email ?? t.title)}
-          </h1>
+          {selecting ? (
+            <SelectionBar
+              count={selection.length}
+              total={rows.length}
+              allStarred={selection.every((thread) => thread.isStarred)}
+              folder={folder}
+              onSelectAll={() =>
+                selection.length === rows.length ? clearSelection() : setPicked(new Set(rows.map((thread) => thread.id)))
+              }
+              onAction={bulk}
+              onClear={clearSelection}
+            />
+          ) : (
+            <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
+              {showDrafts
+                ? strings.drafts.title
+                : folder
+                  ? strings.folders[folder]
+                  : (selectedAccount?.email ?? t.title)}
+            </h1>
+          )}
           <span
             role="status"
             className="flex items-center text-muted-foreground"
@@ -600,6 +758,9 @@ export function InboxPage({
                         }
                         selected={thread.id === open?.id}
                         folder={folder}
+                        checked={picked.has(thread.id)}
+                        selecting={selecting}
+                        onToggle={(range) => toggle(thread.id, range)}
                         onOpen={() => onOpen(thread)}
                         onAction={(action) =>
                           thread.id === open?.id

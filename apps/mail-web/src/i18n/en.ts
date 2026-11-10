@@ -107,6 +107,13 @@ export const en = {
     allMailboxes: "Inbox",
     settings: "Settings",
   },
+  selection: {
+    selected: (count: number) => `${count} selected`,
+    selectAll: "Select all",
+    select: (subject: string) => `Select ${subject}`,
+    clear: "Clear selection",
+    markRead: "Mark as read",
+  },
   folders: {
     starred: "Starred",
     sent: "Sent",
@@ -170,9 +177,9 @@ export const en = {
     readFailed: "That file couldn't be read.",
   },
   conversation: {
-    archived: "Archived",
-    trashed: "Moved to trash",
-    movedToInbox: "Moved to inbox",
+    archived: (count: number) => (count === 1 ? "Archived" : `${count} conversations archived`),
+    trashed: (count: number) => (count === 1 ? "Moved to trash" : `${count} conversations moved to trash`),
+    movedToInbox: (count: number) => (count === 1 ? "Moved to inbox" : `${count} conversations moved to inbox`),
     undo: "Undo",
     star: "Star",
     unstar: "Remove star",

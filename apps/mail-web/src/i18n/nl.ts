@@ -108,6 +108,13 @@ export const nl: typeof en = {
     allMailboxes: "Inbox",
     settings: "Instellingen",
   },
+  selection: {
+    selected: (count: number) => `${count} geselecteerd`,
+    selectAll: "Alles selecteren",
+    select: (subject: string) => `${subject} selecteren`,
+    clear: "Selectie wissen",
+    markRead: "Markeren als gelezen",
+  },
   folders: {
     starred: "Met ster",
     sent: "Verzonden",
@@ -171,9 +178,9 @@ export const nl: typeof en = {
     readFailed: "Dat bestand kon niet worden gelezen.",
   },
   conversation: {
-    archived: "Gearchiveerd",
-    trashed: "Naar prullenbak verplaatst",
-    movedToInbox: "Terug in inbox",
+    archived: (count: number) => (count === 1 ? "Gearchiveerd" : `${count} gesprekken gearchiveerd`),
+    trashed: (count: number) => (count === 1 ? "Naar prullenbak verplaatst" : `${count} gesprekken naar prullenbak`),
+    movedToInbox: (count: number) => (count === 1 ? "Terug in inbox" : `${count} gesprekken terug in inbox`),
     undo: "Ongedaan maken",
     star: "Ster toevoegen",
     unstar: "Ster verwijderen",
