@@ -271,7 +271,8 @@ export default function RichTextEditor({
   const [linkOpen, setLinkOpen] = useState(false)
   const t = useI18n().t.compose
   const emit = ({ editor: current }: { editor: Editor }) => {
-    const text = current.getText({ blockSeparator: "\n\n" }).replace(/\n{3,}/g, "\n\n").trim()
+    // One line per paragraph, so the plain version keeps the same blank lines.
+    const text = current.getText({ blockSeparator: "\n" }).trim()
     let written = false
     let pictures = false
     current.state.doc.forEach((node) => {

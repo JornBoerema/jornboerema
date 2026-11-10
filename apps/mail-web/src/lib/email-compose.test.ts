@@ -25,9 +25,9 @@ describe("toEmailHtml", () => {
 })
 
 describe("textToEditorHtml", () => {
-  it("keeps paragraphs and line breaks, and escapes markup", () => {
+  it("makes each line a paragraph, blank ones included, and escapes markup", () => {
     expect(textToEditorHtml("Hi <b>Al</b>\nline two\n\nBye")).toBe(
-      "<p>Hi &lt;b&gt;Al&lt;/b&gt;<br>line two</p><p>Bye</p>"
+      "<p>Hi &lt;b&gt;Al&lt;/b&gt;</p><p>line two</p><p></p><p>Bye</p>"
     )
   })
 })
@@ -36,7 +36,7 @@ describe("signature", () => {
   it("keeps its lines together", () => {
     const html = toEmailHtml('<p>Hi</p><div data-signature=""><p>Jorn</p><p>Evido</p></div>')
     const parsed = new DOMParser().parseFromString(html, "text/html").body
-    expect(parsed.querySelector("p")?.getAttribute("style")).toBe("margin:0 0 1em")
+    expect(parsed.querySelector("p")?.getAttribute("style")).toBe("margin:0")
     expect([...parsed.querySelectorAll("[data-signature] p")].map((p) => p.getAttribute("style"))).toEqual(["margin:0", "margin:0"])
   })
 })

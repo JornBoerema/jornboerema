@@ -18,8 +18,9 @@
   outline: none;
   overflow-wrap: anywhere;
 }
+/* Lines sit together as in Gmail and Outlook; an empty line is the gap. */
 .mail-editor .ProseMirror > * + * {
-  margin-top: 8px;
+  margin-top: 0;
 }
 .mail-editor ul {
   list-style: disc;
@@ -30,7 +31,7 @@
   padding-left: 24px;
 }
 .mail-editor li > p {
-  margin: 2px 0;
+  margin: 0;
 }
 .mail-editor blockquote {
   border-left: 2px solid var(--border);
@@ -64,11 +65,6 @@
 .mail-editor [data-resize-container].ProseMirror-selectednode img {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
-}
-/* Signature lines sit together, here and in the signature settings. */
-.mail-editor [data-signature] > * + *,
-.mail-editor.is-signature .ProseMirror > * + * {
-  margin-top: 0;
 }
 /* Also once a signature follows the empty first line. */
 .mail-editor .ProseMirror > p.is-empty:first-child::before {

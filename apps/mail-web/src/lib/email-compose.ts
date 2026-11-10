@@ -1,8 +1,12 @@
+/**
+ * Like Gmail and Outlook: every Enter is a line of its own with no gap, and an
+ * empty line is the blank line. Margins here would add space on top of that.
+ */
 const STYLES: Record<string, string> = {
-  P: "margin:0 0 1em",
-  UL: "margin:0 0 1em;padding-left:1.5em",
-  OL: "margin:0 0 1em;padding-left:1.5em",
-  BLOCKQUOTE: "margin:0 0 1em;padding-left:12px;border-left:2px solid #d0d0d0;color:#555555",
+  P: "margin:0",
+  UL: "margin:0;padding-left:1.5em",
+  OL: "margin:0;padding-left:1.5em",
+  BLOCKQUOTE: "margin:0;padding-left:12px;border-left:2px solid #d0d0d0;color:#555555",
   CODE: "font-family:monospace;background:#f2f2f2;padding:1px 4px;border-radius:3px",
   IMG: "max-width:100%;height:auto",
 }
@@ -22,10 +26,6 @@ export function toEmailHtml(html: string) {
     if (style) element.setAttribute("style", style)
     if (element.tagName === "P" && !element.hasChildNodes()) element.append(document.createElement("br"))
   })
-  // Signature lines sit together, like a letterhead.
-  template.content.querySelectorAll("[data-signature] p").forEach((paragraph) => {
-    paragraph.setAttribute("style", "margin:0")
-  })
   const container = document.createElement("div")
   container.setAttribute("style", "font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5")
   container.append(template.content)
@@ -35,12 +35,12 @@ export function toEmailHtml(html: string) {
 const escapeHtml = (text: string) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;")
 
-/** A plain-text draft as editor content: blank lines start paragraphs, single breaks stay. */
+/** A plain-text draft as editor content: one paragraph per line, blank lines included. */
 export const textToEditorHtml = (text: string) =>
   text
     .trim()
-    .split(/\r?\n\s*\r?\n/)
-    .map((block) => `<p>${escapeHtml(block).replace(/\r?\n/g, "<br>")}</p>`)
+    .split(/\r?\n/)
+    .map((line) => `<p>${escapeHtml(line)}</p>`)
     .join("")
 
 const BLOCKS = new Set(["P", "DIV", "LI", "BLOCKQUOTE", "H1", "H2", "H3", "H4", "H5", "H6"])
