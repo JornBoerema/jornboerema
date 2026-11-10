@@ -207,3 +207,11 @@
   margin-top: auto;
   padding-top: 12px;
 }
+.rail-tip-kbd {
+  margin-left: 2px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--background) 18%, transparent);
+  font-family: inherit;
+  font-size: 11px;
+}

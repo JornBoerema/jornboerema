@@ -25,6 +25,7 @@ import { InboxPage } from "@/pages/inbox"
 import { AuthPage } from "@/pages/auth"
 import { AuthLayout } from "@/pages/auth-layout"
 import { AccessGate } from "@/components/access-gate"
+import { TooltipProvider } from "@evido/ui/components/tooltip"
 
 /** A provider redirect lands here with its result, which the settings report. */
 const returnedFromProvider = () => Boolean(window.location.search)
@@ -253,18 +254,20 @@ export function App() {
     <ThemeProvider>
       <I18nProvider>
         <QueryClientProvider client={client}>
-          <BrowserRouter>
-            <Routes>
-              <Route index element={<Root />} />
-              <Route element={<AuthLayout />}>
-                <Route path="login" element={<AuthPage mode="login" />} />
-                <Route path="signup" element={<AuthPage mode="register" />} />
-                <Route path="forgot-password" element={<AuthPage mode="forgot" />} />
-                <Route path="reset-password" element={<AuthPage mode="reset" />} />
-              </Route>
-              <Route path="*" element={<Navigate replace to="/" />} />
-            </Routes>
-          </BrowserRouter>
+          <TooltipProvider delayDuration={150}>
+            <BrowserRouter>
+              <Routes>
+                <Route index element={<Root />} />
+                <Route element={<AuthLayout />}>
+                  <Route path="login" element={<AuthPage mode="login" />} />
+                  <Route path="signup" element={<AuthPage mode="register" />} />
+                  <Route path="forgot-password" element={<AuthPage mode="forgot" />} />
+                  <Route path="reset-password" element={<AuthPage mode="reset" />} />
+                </Route>
+                <Route path="*" element={<Navigate replace to="/" />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
           <Toaster position="bottom-right" closeButton />
         </QueryClientProvider>
       </I18nProvider>

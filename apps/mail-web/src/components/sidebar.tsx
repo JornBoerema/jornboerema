@@ -31,6 +31,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@evido/ui/components/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@evido/ui/components/tooltip"
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
 import { MAIL_FOLDERS, type MailAccountView, type MailFolder } from "@evido/mail-core/types"
@@ -351,18 +352,32 @@ function RailLink({
   children?: ReactNode
 }) {
   return (
-    <button
-      type="button"
-      className={cn("rail-link", selected && "is-selected")}
-      aria-current={selected ? "page" : undefined}
-      aria-label={label}
-      title={shortcut ? `${label} (${shortcut})` : label}
-      aria-keyshortcuts={shortcut}
-      onClick={onClick}
-    >
-      {icon ? <HugeiconsIcon icon={icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" /> : children}
-      {badge && <span className="rail-badge" aria-hidden="true" />}
-    </button>
+    <RailTip label={label} shortcut={shortcut}>
+      <button
+        type="button"
+        className={cn("rail-link", selected && "is-selected")}
+        aria-current={selected ? "page" : undefined}
+        aria-label={label}
+        aria-keyshortcuts={shortcut}
+        onClick={onClick}
+      >
+        {icon ? <HugeiconsIcon icon={icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" /> : children}
+        {badge && <span className="rail-badge" aria-hidden="true" />}
+      </button>
+    </RailTip>
+  )
+}
+
+/** The name of a rail icon, beside it on the right. */
+function RailTip({ label, shortcut, children }: { label: string; shortcut?: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={10}>
+        {label}
+        {shortcut && <kbd className="rail-tip-kbd">{shortcut}</kbd>}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -391,20 +406,21 @@ function SidebarRail({
   const shownView: MailView | null = composing ? null : view
   return (
     <aside id="list-sidebar" className="list-sidebar mail-rail max-lg:hidden!" aria-label={t.shell.sidebar}>
-      <button
-        ref={sidebar.expandButton}
-        type="button"
-        className="rail-brand"
-        aria-label={t.shell.expand}
-        title={t.shell.expandTitle}
-        aria-keyshortcuts="Meta+B Control+B"
-        aria-expanded={false}
-        aria-controls="list-sidebar"
-        onClick={sidebar.toggle}
-      >
-        <HugeiconsIcon icon={Mail01Icon} strokeWidth={2.5} aria-hidden="true" className="rail-logo size-5" />
-        <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" className="rail-expand size-4" />
-      </button>
+      <RailTip label={t.shell.expand} shortcut="⌘B">
+        <button
+          ref={sidebar.expandButton}
+          type="button"
+          className="rail-brand"
+          aria-label={t.shell.expand}
+          aria-keyshortcuts="Meta+B Control+B"
+          aria-expanded={false}
+          aria-controls="list-sidebar"
+          onClick={sidebar.toggle}
+        >
+          <HugeiconsIcon icon={Mail01Icon} strokeWidth={2.5} aria-hidden="true" className="rail-logo size-5" />
+          <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" className="rail-expand size-4" />
+        </button>
+      </RailTip>
       <nav className="rail-group" aria-label={t.shell.sidebar}>
         <RailLink
           icon={PencilEdit02Icon}
@@ -457,13 +473,15 @@ function SidebarRail({
       </nav>
       <div className="rail-footer">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className="rail-account" aria-label={t.shell.account(user.email)} title={user.email}>
-              <span className="workspace-avatar" aria-hidden="true">
-                {initialOf(user)}
-              </span>
-            </button>
-          </DropdownMenuTrigger>
+          <RailTip label={user.email}>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="rail-account" aria-label={t.shell.account(user.email)}>
+                <span className="workspace-avatar" aria-hidden="true">
+                  {initialOf(user)}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+          </RailTip>
           <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} side="right" />
         </DropdownMenu>
       </div>
