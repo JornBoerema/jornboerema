@@ -9,7 +9,7 @@ import type { MailSummary } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"
-import { useSummaries } from "@/lib/preferences"
+import { useFindCodes, useSummaries } from "@/lib/preferences"
 
 const CARD = "mb-3 rounded-xl border bg-muted/40 px-4 py-3"
 
@@ -55,20 +55,24 @@ function CodeCard({ code }: { code: string }) {
  */
 export function MailSummaryCard({ threadId }: { threadId: string }) {
   const t = useI18n().t.conversation
-  const enabled = useSummaries()
-  // Turned off, the server still looks for a code, but sends nothing to a model.
+  const summaries = useSummaries()
+  const codes = useFindCodes()
+  // Each feature can be off on its own; with both off nothing is asked at all.
   const summary = useQuery({
-    queryKey: ["mail-summary", threadId, enabled],
+    queryKey: ["mail-summary", threadId, summaries, codes],
     queryFn: () => {
       const url = conversationUrl(threadId, "/summary")
-      return api<MailSummary>(enabled ? url : `${url}${url.includes("?") ? "&" : "?"}ai=0`)
+      const off = [!summaries && "ai=0", !codes && "codes=0"].filter(Boolean).join("&")
+      return api<MailSummary>(off ? `${url}${url.includes("?") ? "&" : "?"}${off}` : url)
     },
+    enabled: summaries || codes,
     staleTime: Infinity,
     gcTime: 30 * 60 * 1000,
     retry: false,
     refetchOnWindowFocus: false,
   })
 
+  if (!summaries && !codes) return null
   if (summary.isPending)
     return (
       <div className={CARD} aria-hidden="true">

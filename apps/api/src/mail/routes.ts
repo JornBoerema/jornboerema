@@ -268,7 +268,10 @@ mailRoutes.get("/threads", requireSession, async (c) => {
 mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
   try {
     const { messages } = await readThread(c.get("session").user.id, c.req.param("id"))
-    return c.json(await summarize(messages, languageOf(c), { useModel: c.req.query("ai") !== "0" }), 200, noStore)
+    return c.json(await summarize(messages, languageOf(c), {
+      useModel: c.req.query("ai") !== "0",
+      findCodes: c.req.query("codes") !== "0",
+    }), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)
@@ -477,7 +480,10 @@ mailRoutes.get("/accounts/:id/conversation/summary", requireSession, async (c) =
     const conversation = await conversationOf(c)
     if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const { messages } = await readConversation(conversation, { includeHidden: c.req.query("hidden") === "1" })
-    return c.json(await summarize(messages, languageOf(c), { useModel: c.req.query("ai") !== "0" }), 200, noStore)
+    return c.json(await summarize(messages, languageOf(c), {
+      useModel: c.req.query("ai") !== "0",
+      findCodes: c.req.query("codes") !== "0",
+    }), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)

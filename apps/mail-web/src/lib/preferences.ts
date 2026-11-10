@@ -84,3 +84,28 @@ export function setSummaries(enabled: boolean) {
 export function useSummaries() {
   return useSyncExternalStore(subscribe, readSummaries)
 }
+
+const CODES_KEY = "evido.mail.codes"
+
+function readCodes() {
+  try {
+    return localStorage.getItem(CODES_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setFindCodes(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(CODES_KEY)
+    else localStorage.setItem(CODES_KEY, "off")
+  } catch {
+    // Storage can be blocked; codes then keep showing.
+  }
+  listeners.forEach((listener) => listener())
+}
+
+/** On unless turned off: sign-in codes shown ready to copy. */
+export function useFindCodes() {
+  return useSyncExternalStore(subscribe, readCodes)
+}

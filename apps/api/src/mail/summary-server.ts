@@ -37,11 +37,11 @@ const LANGUAGE_NAMES: Record<Language, string> = { en: "English", nl: "Dutch" }
 export async function summarize(
   messages: MailThreadMessage[],
   language: Language,
-  options: { useModel: boolean }
+  options: { useModel: boolean; findCodes: boolean }
 ): Promise<MailSummary> {
   const newest = messages.at(-1)
   if (!newest) return { kind: "none" }
-  const code = findOneTimeCode(newest.subject, textOf(newest))
+  const code = options.findCodes ? findOneTimeCode(newest.subject, textOf(newest)) : null
   if (code) return { kind: "code", code }
 
   const text = conversationText(messages)

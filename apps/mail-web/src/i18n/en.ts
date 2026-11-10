@@ -17,6 +17,7 @@ export const en = {
     appearance: "Appearance",
     privacy: "Privacy",
     notifications: "Notifications",
+    ai: "AI",
     signatures: "Signatures",
     menu: "Menu",
     signOut: "Sign out",
@@ -56,6 +57,14 @@ export const en = {
     unsupported: "This browser doesn't support notifications.",
     newMail: (count: number) => `${count} new messages`,
   },
+  ai: {
+    title: "Smart features",
+    deviceOnly: "Applies to this browser only.",
+    summaries: "Summaries",
+    summariesHelp: "Three lines on what a conversation says. It is sent to a language model through OpenRouter, only to providers that don't keep or train on it.",
+    codes: "Sign-in codes",
+    codesHelp: "A verification code in a mail shown above it, ready to copy. Found by the app itself; nothing is sent anywhere for it.",
+  },
   appearance: {
     theme: "Theme and language",
     deviceOnly: "Saved on this device.",
@@ -69,9 +78,6 @@ export const en = {
     automatic: "Automatic",
   },
   privacy: {
-    summaries: "Summaries",
-    summariesToggle: "Sum up conversations",
-    summariesHelp: "Sends the conversation to a language model through OpenRouter, only to providers that don't keep or train on it. Sign-in codes are found without it.",
     images: "Images in email",
     deviceOnly: "Saved on this device.",
     alwaysShow: "Always show images",

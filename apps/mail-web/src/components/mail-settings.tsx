@@ -5,6 +5,7 @@ import {
   PaintBoardIcon,
   SecurityCheckIcon,
   SignatureIcon,
+  SparklesIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
@@ -25,8 +26,10 @@ import { notificationsSupported } from "@/lib/notifications"
 import {
   setAlwaysShowImages,
   setNotifyNewMail,
+  setFindCodes,
   setSummaries,
   useAlwaysShowImages,
+  useFindCodes,
   useNotifyNewMail,
   useSummaries,
 } from "@/lib/preferences"
@@ -107,20 +110,28 @@ function NotificationSettings() {
 function PrivacySettings() {
   const t = useI18n().t.privacy
   const alwaysShow = useAlwaysShowImages()
-  const summaries = useSummaries()
   return (
-    <div className="flex flex-col gap-8">
-      <SettingsSection title={t.images} description={t.deviceOnly}>
-        <SettingsRow title={t.alwaysShow} htmlFor="always-show-images" description={t.alwaysShowHelp}>
-          <Switch id="always-show-images" checked={alwaysShow} onCheckedChange={setAlwaysShowImages} />
-        </SettingsRow>
-      </SettingsSection>
-      <SettingsSection title={t.summaries} description={t.deviceOnly}>
-        <SettingsRow title={t.summariesToggle} htmlFor="mail-summaries" description={t.summariesHelp}>
-          <Switch id="mail-summaries" checked={summaries} onCheckedChange={setSummaries} />
-        </SettingsRow>
-      </SettingsSection>
-    </div>
+    <SettingsSection title={t.images} description={t.deviceOnly}>
+      <SettingsRow title={t.alwaysShow} htmlFor="always-show-images" description={t.alwaysShowHelp}>
+        <Switch id="always-show-images" checked={alwaysShow} onCheckedChange={setAlwaysShowImages} />
+      </SettingsRow>
+    </SettingsSection>
+  )
+}
+
+function AiSettings() {
+  const t = useI18n().t.ai
+  const summaries = useSummaries()
+  const codes = useFindCodes()
+  return (
+    <SettingsSection title={t.title} description={t.deviceOnly}>
+      <SettingsRow title={t.summaries} htmlFor="mail-summaries" description={t.summariesHelp}>
+        <Switch id="mail-summaries" checked={summaries} onCheckedChange={setSummaries} />
+      </SettingsRow>
+      <SettingsRow title={t.codes} htmlFor="mail-codes" description={t.codesHelp}>
+        <Switch id="mail-codes" checked={codes} onCheckedChange={setFindCodes} />
+      </SettingsRow>
+    </SettingsSection>
   )
 }
 
@@ -148,6 +159,11 @@ export function MailSettings({
       id: "notifications",
       label: t.notifications,
       icon: <HugeiconsIcon icon={Notification03Icon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
+      id: "ai",
+      label: t.ai,
+      icon: <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
       id: "appearance",
@@ -178,6 +194,7 @@ export function MailSettings({
       {page === "mailboxes" && <AccountsPage />}
       {page === "signatures" && <SignatureSettings />}
       {page === "notifications" && <NotificationSettings />}
+      {page === "ai" && <AiSettings />}
       {page === "appearance" && <AppearanceSettings />}
       {page === "privacy" && <PrivacySettings />}
     </SettingsDialog>

@@ -18,6 +18,7 @@ export const nl: typeof en = {
     appearance: "Weergave",
     privacy: "Privacy",
     notifications: "Meldingen",
+    ai: "AI",
     signatures: "Handtekeningen",
     menu: "Menu",
     signOut: "Uitloggen",
@@ -57,6 +58,14 @@ export const nl: typeof en = {
     unsupported: "Deze browser ondersteunt geen meldingen.",
     newMail: (count: number) => `${count} nieuwe berichten`,
   },
+  ai: {
+    title: "Slimme functies",
+    deviceOnly: "Geldt alleen voor deze browser.",
+    summaries: "Samenvattingen",
+    summariesHelp: "Drie regels over wat er in een gesprek staat. Het gesprek gaat via OpenRouter naar een taalmodel, alleen naar providers die het niet bewaren of erop trainen.",
+    codes: "Inlogcodes",
+    codesHelp: "Een verificatiecode uit een mail bovenaan, klaar om te kopiëren. De app vindt die zelf; er wordt niets voor verstuurd.",
+  },
   appearance: {
     theme: "Thema en taal",
     deviceOnly: "Opgeslagen op dit apparaat.",
@@ -70,9 +79,6 @@ export const nl: typeof en = {
     automatic: "Automatisch",
   },
   privacy: {
-    summaries: "Samenvattingen",
-    summariesToggle: "Gesprekken samenvatten",
-    summariesHelp: "Stuurt het gesprek via OpenRouter naar een taalmodel, alleen naar providers die het niet bewaren of erop trainen. Inlogcodes worden ook zonder herkend.",
     images: "Afbeeldingen in e-mails",
     deviceOnly: "Opgeslagen op dit apparaat.",
     alwaysShow: "Afbeeldingen altijd tonen",
