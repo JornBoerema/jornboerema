@@ -26,3 +26,14 @@ export function toEmailHtml(html: string) {
   container.append(template.content)
   return container.outerHTML
 }
+
+const escapeHtml = (text: string) =>
+  text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;")
+
+/** A plain-text draft as editor content: blank lines start paragraphs, single breaks stay. */
+export const textToEditorHtml = (text: string) =>
+  text
+    .trim()
+    .split(/\r?\n\s*\r?\n/)
+    .map((block) => `<p>${escapeHtml(block).replace(/\r?\n/g, "<br>")}</p>`)
+    .join("")

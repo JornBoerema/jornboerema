@@ -1,3 +1,4 @@
+import { deleteGmailDraft, getGmailDraft, listGmailDrafts, saveGmailDraft, sendGmailDraft } from "./gmail-drafts"
 import { readGmailAttachment, readGmailThread } from "./gmail-read"
 import { applyGmailThreadAction, forwardGmail, replyGmail, sendGmail } from "./gmail-send"
 import { GMAIL_API, syncGmailPage } from "./gmail-sync"
@@ -91,6 +92,16 @@ export function createGmailProvider({ clientId, clientSecret }: ProviderCredenti
     reply: replyGmail,
 
     forward: forwardGmail,
+
+    listDrafts: listGmailDrafts,
+
+    getDraft: getGmailDraft,
+
+    saveDraft: saveGmailDraft,
+
+    sendDraft: sendGmailDraft,
+
+    deleteDraft: deleteGmailDraft,
 
     getAttachment: readGmailAttachment,
 

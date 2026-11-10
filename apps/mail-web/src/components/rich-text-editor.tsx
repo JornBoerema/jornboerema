@@ -154,6 +154,7 @@ export default function RichTextEditor({
   placeholder,
   autoFocus,
   className,
+  initialHtml,
   onChange,
 }: {
   ref?: Ref<RichTextHandle>
@@ -161,9 +162,16 @@ export default function RichTextEditor({
   placeholder: string
   autoFocus?: boolean
   className?: string
+  /** Content to start from, such as an opened draft. */
+  initialHtml?: string
+  /** Also called once the editor is ready, with the starting content as it reads it. */
   onChange: (value: RichTextValue) => void
 }) {
   const [linkOpen, setLinkOpen] = useState(false)
+  const emit = ({ editor: current }: { editor: Editor }) => {
+    const text = current.getText({ blockSeparator: "\n\n" }).replace(/\n{3,}/g, "\n\n").trim()
+    onChange({ text, html: text ? toEmailHtml(current.getHTML()) : "" })
+  }
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -191,10 +199,9 @@ export default function RichTextEditor({
         return false
       },
     },
-    onUpdate: ({ editor: current }) => {
-      const text = current.getText({ blockSeparator: "\n\n" }).replace(/\n{3,}/g, "\n\n").trim()
-      onChange({ text, html: text ? toEmailHtml(current.getHTML()) : "" })
-    },
+    content: initialHtml,
+    onCreate: emit,
+    onUpdate: emit,
   })
 
   useImperativeHandle(ref, () => ({ focus: () => editor?.commands.focus("end") }), [editor])

@@ -10,6 +10,7 @@ import { MailSettings } from "@/components/mail-settings"
 import { Sidebar, type MailNavigation } from "@/components/sidebar"
 import { I18nProvider } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
+import { useDrafts, type DraftRef } from "@/lib/drafts"
 import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
 import { InboxPage } from "@/pages/inbox"
 import { AuthPage } from "@/pages/auth"
@@ -25,16 +26,31 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const syncStatus = useMailSync(accounts.data?.accounts)
   useMailRealtime(user.id)
   const [filter, setFilter] = useState("")
-  const [composing, setComposing] = useState(false)
+  const [view, setView] = useState<"inbox" | "drafts">("inbox")
+  // A new key starts a fresh composer, for a new message or another draft.
+  const [compose, setCompose] = useState<{ key: number; draft: DraftRef | null } | null>(null)
+  const [composeDraftId, setComposeDraftId] = useState<string | null>(null)
   const [open, setOpen] = useState<MailThreadView | null>(null)
   const [composeHidden, setComposeHidden] = useState(false)
   const hideCompose = useCallback(() => setComposeHidden(true), [])
   const closeCompose = useCallback(() => {
-    setComposing(false)
+    setCompose(null)
+    setComposeDraftId(null)
     setComposeHidden(false)
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
   const hasActive = list.some((account) => account.status === "active")
+  const drafts = useDrafts(hasActive)
+
+  const startCompose = (draft: DraftRef | null) => {
+    setOpen(null)
+    setComposeHidden(false)
+    // The draft being written is already open; bring it back instead of reloading it.
+    if (compose && (draft === null ? compose.draft === null && !composeDraftId : draft.id === composeDraftId))
+      return
+    setComposeDraftId(draft?.id ?? null)
+    setCompose((current) => ({ key: (current?.key ?? 0) + 1, draft }))
+  }
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -52,14 +68,25 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     accountId: list.some((account) => account.id === filter) ? filter : "",
     user,
     sidebar,
+    view,
+    draftCount: drafts.data?.drafts.length ?? 0,
     // An empty composer closes as soon as it is out of view, so this is always a real draft.
-    draftWaiting: composing && (composeHidden || open !== null),
-    onSelectAccount: setFilter,
+    draftWaiting: compose !== null && (composeHidden || open !== null),
+    onSelectAccount: (id) => {
+      setFilter(id)
+      setView("inbox")
+    },
+    onSelectDrafts: () => {
+      setFilter("")
+      setView("drafts")
+    },
     onCompose: () => {
       if (!hasActive) return
-      setOpen(null)
-      setComposing(true)
-      setComposeHidden(false)
+      // "Resume draft" brings back the one out of view; otherwise this starts a new one.
+      if (compose) {
+        setOpen(null)
+        setComposeHidden(false)
+      } else startCompose(null)
     },
     onSettings: () => setSettingsOpen(true),
   }
@@ -74,8 +101,12 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
           loadingAccounts={accounts.isPending}
           open={open}
           onOpen={setOpen}
-          composing={composing}
+          compose={compose}
           composeHidden={composeHidden}
+          composeDraftId={composeDraftId}
+          drafts={drafts}
+          onOpenDraft={startCompose}
+          onComposeDraftChange={setComposeDraftId}
           onHideCompose={hideCompose}
           onCloseCompose={closeCompose}
         />

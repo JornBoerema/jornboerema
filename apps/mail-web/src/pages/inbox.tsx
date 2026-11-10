@@ -21,14 +21,20 @@ import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import type {
   MailAccountView,
+  MailDraftView,
   MailThreadAction,
   MailThreadsPage,
   MailThreadView,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
-import { MailMenu, SidebarExpand, type MailNavigation } from "@/components/sidebar"
+import {
+  MailMenu,
+  SidebarExpand,
+  type MailNavigation,
+} from "@/components/sidebar"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
+import type { DraftRef, useDrafts } from "@/lib/drafts"
 import { useHotkeys } from "@/lib/hotkeys"
 import { MESSAGES_KEY, useThreadAction, type SyncStatus } from "@/lib/mail"
 import { ComposePage } from "@/pages/compose"
@@ -38,7 +44,10 @@ function shortDate(iso: string, locale: string) {
   const date = new Date(iso)
   const now = new Date()
   if (date.toDateString() === now.toDateString())
-    return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    return date.toLocaleTimeString(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
   return date.toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
@@ -80,29 +89,128 @@ function ThreadRow({
         )}
       >
         <span className="flex items-center gap-2">
-          <span className={cn("min-w-0 flex-1 truncate", unread ? "font-semibold" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate",
+              unread ? "font-semibold" : "text-muted-foreground"
+            )}
+          >
             {unread && <span className="sr-only">{t.unread}: </span>}
             {thread.fromName ?? thread.fromEmail ?? t.unknownSender}
             {thread.messageCount > 1 && (
-              <span className="font-normal text-muted-foreground"> {thread.messageCount}</span>
+              <span className="font-normal text-muted-foreground">
+                {" "}
+                {thread.messageCount}
+              </span>
             )}
           </span>
           {thread.isStarred && (
-            <HugeiconsIcon icon={StarIcon} strokeWidth={1.75} aria-label={t.starred} className={icon} />
+            <HugeiconsIcon
+              icon={StarIcon}
+              strokeWidth={1.75}
+              aria-label={t.starred}
+              className={icon}
+            />
           )}
           {thread.hasAttachments && (
-            <HugeiconsIcon icon={Attachment01Icon} strokeWidth={1.75} aria-label={t.attachment} className={icon} />
+            <HugeiconsIcon
+              icon={Attachment01Icon}
+              strokeWidth={1.75}
+              aria-label={t.attachment}
+              className={icon}
+            />
           )}
-          <time className="shrink-0 text-xs text-muted-foreground tabular-nums" dateTime={thread.receivedAt}>
+          <time
+            className="shrink-0 text-xs text-muted-foreground tabular-nums"
+            dateTime={thread.receivedAt}
+          >
             {shortDate(thread.receivedAt, locale)}
           </time>
         </span>
         <span className="flex items-baseline gap-2">
           <span className="min-w-0 flex-1 truncate text-muted-foreground">
-            <span className={cn(unread && "font-medium text-foreground")}>{thread.subject || t.noSubject}</span>
+            <span className={cn(unread && "font-medium text-foreground")}>
+              {thread.subject || t.noSubject}
+            </span>
             {thread.snippet && ` · ${thread.snippet}`}
           </span>
-          {mailbox && <AccountDot color={mailbox.color} label={mailbox.email} className="mr-0.5 self-center" />}
+          {mailbox && (
+            <AccountDot
+              color={mailbox.color}
+              label={mailbox.email}
+              className="mr-0.5 self-center"
+            />
+          )}
+        </span>
+      </button>
+    </li>
+  )
+}
+
+function DraftRow({
+  draft,
+  mailbox,
+  selected,
+  onOpen,
+}: {
+  draft: MailDraftView
+  mailbox: MailAccountView | undefined
+  selected: boolean
+  onOpen: () => void
+}) {
+  const { t, locale } = useI18n()
+  const recipients = draft.to
+    .map((address) => address.name || address.email)
+    .join(", ")
+  return (
+    <li>
+      <button
+        type="button"
+        aria-current={selected ? "true" : undefined}
+        onClick={onOpen}
+        className={cn(
+          "flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors outline-none focus-visible:bg-accent",
+          selected ? "bg-accent" : "hover:bg-accent/60"
+        )}
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate",
+              !recipients && "text-muted-foreground"
+            )}
+          >
+            {recipients || t.drafts.noRecipients}
+          </span>
+          {draft.hasAttachments && (
+            <HugeiconsIcon
+              icon={Attachment01Icon}
+              strokeWidth={1.75}
+              aria-label={t.inbox.attachment}
+              className="size-3.5 shrink-0 text-muted-foreground"
+            />
+          )}
+          <time
+            className="shrink-0 text-xs text-muted-foreground tabular-nums"
+            dateTime={draft.updatedAt}
+          >
+            {shortDate(draft.updatedAt, locale)}
+          </time>
+        </span>
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+            <span className="text-foreground">
+              {draft.subject || t.inbox.noSubject}
+            </span>
+            {draft.snippet && ` · ${draft.snippet}`}
+          </span>
+          {mailbox && (
+            <AccountDot
+              color={mailbox.color}
+              label={mailbox.email}
+              className="mr-0.5 self-center"
+            />
+          )}
         </span>
       </button>
     </li>
@@ -123,7 +231,13 @@ function ListSkeleton() {
 }
 
 /** Loads the next page when the end of the list scrolls into view. */
-function LoadMore({ onVisible, loading }: { onVisible: () => void; loading: boolean }) {
+function LoadMore({
+  onVisible,
+  loading,
+}: {
+  onVisible: () => void
+  loading: boolean
+}) {
   const marker = useRef<HTMLDivElement>(null)
   const latest = useRef(onVisible)
   useEffect(() => {
@@ -150,8 +264,12 @@ export function InboxPage({
   loadingAccounts,
   open,
   onOpen,
-  composing,
+  compose,
   composeHidden,
+  composeDraftId,
+  drafts,
+  onOpenDraft,
+  onComposeDraftChange,
   onHideCompose,
   onCloseCompose,
 }: {
@@ -160,12 +278,19 @@ export function InboxPage({
   loadingAccounts: boolean
   open: MailThreadView | null
   onOpen: (thread: MailThreadView | null) => void
-  composing: boolean
+  compose: { key: number; draft: DraftRef | null } | null
   composeHidden: boolean
+  composeDraftId: string | null
+  drafts: ReturnType<typeof useDrafts>
+  onOpenDraft: (draft: DraftRef) => void
+  onComposeDraftChange: (id: string | null) => void
   onHideCompose: () => void
   onCloseCompose: () => void
 }) {
-  const t = useI18n().t.inbox
+  const strings = useI18n().t
+  const t = strings.inbox
+  const showDrafts = navigation.view === "drafts"
+  const draftRows = drafts.data?.drafts ?? []
   const { accounts, accountId, onCompose, onSettings } = navigation
   const { mutate: runAction } = useThreadAction()
   const messages = useInfiniteQuery({
@@ -185,17 +310,23 @@ export function InboxPage({
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
 
   useEffect(() => onOpen(null), [accountId, onOpen])
+  const composing = compose !== null
   const composerVisible = composing && !composeHidden
   const showingDetail = Boolean(open) || composerVisible
 
   function step(by: number) {
+    if (showDrafts) return
     const next = rows[Math.max(0, position + by)]
     if (next) onOpen(next)
   }
 
   function leave(thread: MailThreadView, action: MailThreadAction) {
     // Marking unread means "not now", so the next mail shouldn't open by itself.
-    onOpen(action === "unread" ? null : (rows[position + 1] ?? rows[position - 1] ?? null))
+    onOpen(
+      action === "unread"
+        ? null
+        : (rows[position + 1] ?? rows[position - 1] ?? null)
+    )
     runAction({ id: thread.id, action })
   }
 
@@ -222,8 +353,15 @@ export function InboxPage({
         >
           <MailMenu {...navigation} />
           <SidebarExpand sidebar={navigation.sidebar} />
-          <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{selectedAccount?.email ?? t.title}</h1>
-          <span role="status" className="flex items-center text-muted-foreground">
+          <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
+            {showDrafts
+              ? strings.drafts.title
+              : (selectedAccount?.email ?? t.title)}
+          </h1>
+          <span
+            role="status"
+            className="flex items-center text-muted-foreground"
+          >
             {syncStatus === "syncing" && (
               <span title={t.syncing}>
                 <Spinner />
@@ -232,7 +370,12 @@ export function InboxPage({
             )}
             {syncStatus === "failed" && (
               <span title={t.syncFailed}>
-                <HugeiconsIcon icon={CloudAlertIcon} strokeWidth={1.75} aria-hidden="true" className="size-4" />
+                <HugeiconsIcon
+                  icon={CloudAlertIcon}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                  className="size-4"
+                />
                 <span className="sr-only">{t.syncFailed}</span>
               </span>
             )}
@@ -244,47 +387,101 @@ export function InboxPage({
             aria-label={t.compose}
             onClick={onCompose}
           >
-            <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={1.75} aria-hidden="true" />
+            <HugeiconsIcon
+              icon={PencilEdit02Icon}
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
           </Button>
         </header>
 
         {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
         <div className="relative min-h-0 flex-1 overflow-y-auto">
-          {(messages.isPending || loadingAccounts) && <ListSkeleton />}
-          {!loadingAccounts && accounts.length === 0 ? (
-            <Empty className="h-full">
-              <EmptyHeader>
-                <EmptyTitle>{t.noMailboxes}</EmptyTitle>
-                <EmptyDescription>{t.noMailboxesBody}</EmptyDescription>
-              </EmptyHeader>
-              <EmptyContent>
-                <Button onClick={onSettings}>{t.connect}</Button>
-              </EmptyContent>
-            </Empty>
-          ) : (
+          {showDrafts ? (
             <>
-              {messages.isError && <p className="p-4 text-sm text-destructive">{t.loadFailed}</p>}
-              {messages.isSuccess && !loadingAccounts && rows.length === 0 && (
+              {drafts.isPending && <ListSkeleton />}
+              {drafts.isError && (
+                <p className="p-4 text-sm text-destructive">
+                  {strings.drafts.loadFailed}
+                </p>
+              )}
+              {!!drafts.data?.failedAccounts.length && (
+                <p className="px-4 pb-2 text-xs text-muted-foreground">
+                  {strings.drafts.someFailed}
+                </p>
+              )}
+              {drafts.isSuccess && draftRows.length === 0 && (
                 <p className="p-4 text-sm text-muted-foreground">
-                  {syncStatus === "syncing" ? t.firstSync : t.empty}
+                  {strings.drafts.empty}
                 </p>
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
-                {rows.map((thread) => (
-                  <ThreadRow
-                    key={thread.id}
-                    thread={thread}
-                    mailbox={!accountId && accounts.length > 1 ? accountOf.get(thread.accountId) : undefined}
-                    selected={thread.id === open?.id}
-                    onOpen={() => onOpen(thread)}
+                {draftRows.map((draft) => (
+                  <DraftRow
+                    key={`${draft.accountId}:${draft.id}`}
+                    draft={draft}
+                    mailbox={
+                      accounts.length > 1
+                        ? accountOf.get(draft.accountId)
+                        : undefined
+                    }
+                    selected={composerVisible && draft.id === composeDraftId}
+                    onOpen={() =>
+                      onOpenDraft({ accountId: draft.accountId, id: draft.id })
+                    }
                   />
                 ))}
               </ul>
-              {messages.hasNextPage && (
-                <LoadMore
-                  loading={messages.isFetchingNextPage}
-                  onVisible={() => void messages.fetchNextPage()}
-                />
+            </>
+          ) : (
+            <>
+              {(messages.isPending || loadingAccounts) && <ListSkeleton />}
+              {!loadingAccounts && accounts.length === 0 ? (
+                <Empty className="h-full">
+                  <EmptyHeader>
+                    <EmptyTitle>{t.noMailboxes}</EmptyTitle>
+                    <EmptyDescription>{t.noMailboxesBody}</EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    <Button onClick={onSettings}>{t.connect}</Button>
+                  </EmptyContent>
+                </Empty>
+              ) : (
+                <>
+                  {messages.isError && (
+                    <p className="p-4 text-sm text-destructive">
+                      {t.loadFailed}
+                    </p>
+                  )}
+                  {messages.isSuccess &&
+                    !loadingAccounts &&
+                    rows.length === 0 && (
+                      <p className="p-4 text-sm text-muted-foreground">
+                        {syncStatus === "syncing" ? t.firstSync : t.empty}
+                      </p>
+                    )}
+                  <ul className="flex flex-col gap-0.5 px-2 pb-2">
+                    {rows.map((thread) => (
+                      <ThreadRow
+                        key={thread.id}
+                        thread={thread}
+                        mailbox={
+                          !accountId && accounts.length > 1
+                            ? accountOf.get(thread.accountId)
+                            : undefined
+                        }
+                        selected={thread.id === open?.id}
+                        onOpen={() => onOpen(thread)}
+                      />
+                    ))}
+                  </ul>
+                  {messages.hasNextPage && (
+                    <LoadMore
+                      loading={messages.isFetchingNextPage}
+                      onVisible={() => void messages.fetchNextPage()}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
@@ -297,13 +494,16 @@ export function InboxPage({
           showingDetail ? "flex" : "hidden md:flex"
         )}
       >
-        {composing && (
+        {compose && (
           <ComposePage
+            key={compose.key}
             accounts={accounts}
             defaultAccountId={accountId}
+            draft={compose.draft}
             hidden={Boolean(open) || composeHidden}
             onHide={onHideCompose}
             onClose={onCloseCompose}
+            onDraftChange={onComposeDraftChange}
           />
         )}
         {open ? (
@@ -317,7 +517,12 @@ export function InboxPage({
         ) : (
           !composerVisible && (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-              <HugeiconsIcon icon={InboxIcon} strokeWidth={1.5} aria-hidden="true" className="size-5" />
+              <HugeiconsIcon
+                icon={InboxIcon}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className="size-5"
+              />
               {t.nothingOpen}
             </div>
           )

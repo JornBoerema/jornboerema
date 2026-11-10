@@ -108,7 +108,7 @@ function bodyPart(text: string, html?: string) {
   ].join(CRLF)
 }
 
-function buildMime(input: {
+export function buildMime(input: {
   from: MailAddress
   to: MailAddress[]
   cc: MailAddress[]
@@ -144,36 +144,52 @@ function buildMime(input: {
   ].join(CRLF)
 }
 
-/** Attachments go through the upload endpoint, which accepts far larger messages. */
-async function send(accessToken: string, mime: string, hasAttachments: boolean, threadId?: string) {
-  if (!hasAttachments) {
-    const raw = Buffer.from(mime, "utf8").toString("base64url")
-    await sendJson("POST", `${GMAIL_API}/messages/send`, accessToken, {
-      raw,
-      ...(threadId && { threadId }),
-    })
-    return
+/**
+ * Writes a message to a Gmail resource (`messages/send`, `drafts`, `drafts/{id}`).
+ * Attachments go through the upload endpoint, which accepts far larger messages.
+ */
+export async function writeMime(
+  accessToken: string,
+  input: {
+    method: "POST" | "PUT"
+    path: string
+    mime: string
+    hasAttachments: boolean
+    /** Wraps the message: drafts nest it under `message`. */
+    wrap?: (message: Record<string, string>) => Record<string, unknown>
+    threadId?: string
+  }
+) {
+  const wrap = input.wrap ?? ((message) => message)
+  const thread: Record<string, string> = input.threadId ? { threadId: input.threadId } : {}
+  if (!input.hasAttachments) {
+    const raw = Buffer.from(input.mime, "utf8").toString("base64url")
+    return sendJson(input.method, `${GMAIL_API}/${input.path}`, accessToken, wrap({ raw, ...thread }))
   }
   const boundary = `evido_upload_${randomBytes(16).toString("hex")}`
   const body = [
     `--${boundary}`,
     "Content-Type: application/json; charset=UTF-8",
     "",
-    JSON.stringify(threadId ? { threadId } : {}),
+    JSON.stringify(wrap(thread)),
     `--${boundary}`,
     "Content-Type: message/rfc822",
     "",
-    mime,
+    input.mime,
     `--${boundary}--`,
     "",
   ].join(CRLF)
-  await sendBody(
-    "POST",
-    "https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/send?uploadType=multipart",
+  return sendBody(
+    input.method,
+    `https://gmail.googleapis.com/upload/gmail/v1/users/me/${input.path}?uploadType=multipart`,
     accessToken,
     `multipart/related; boundary=${boundary}`,
     body
   )
+}
+
+async function send(accessToken: string, mime: string, hasAttachments: boolean, threadId?: string) {
+  await writeMime(accessToken, { method: "POST", path: "messages/send", mime, hasAttachments, threadId })
 }
 
 export async function sendGmail(accessToken: string, input: MailOutgoing & { from: MailAddress }) {

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { ArrowLeft02Icon, Delete02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -12,12 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@evido/ui/components/select"
+import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import { readingColumn } from "@/lib/layout"
 import type {
   MailAccountView,
   MailAddress,
   MailAttachmentUpload,
+  MailDraft,
+  MailDraftContent,
   MailOutgoing,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
@@ -26,58 +29,167 @@ import { AttachmentPicker } from "@/components/attachment-picker"
 import { MessageInput, MessageRow } from "@/components/message-field"
 import type { RichTextHandle } from "@/components/rich-text-editor"
 import { useI18n } from "@/i18n"
-import { parseAddresses } from "@/lib/addresses"
+import { isEmail, joinRecipients, parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
+import {
+  deleteDraft,
+  DRAFTS_KEY,
+  sendDraft,
+  useDraft,
+  useDraftAutosave,
+  type DraftRef,
+} from "@/lib/drafts"
+import { textToEditorHtml } from "@/lib/email-compose"
 import { sendOnModEnter } from "@/lib/hotkeys"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
-export function ComposePage({
-  accounts,
-  defaultAccountId,
-  hidden,
-  onHide,
-  onClose,
-}: {
+type ComposeProps = {
   accounts: MailAccountView[]
   /** The mailbox being viewed, if one is. */
   defaultAccountId: string
+  /** The saved draft to continue, or null for a new message. */
+  draft: DraftRef | null
   /** Out of view for now; a draft stays until the composer comes back. */
   hidden: boolean
   onHide: () => void
   onClose: () => void
-}) {
+  /** The draft this message is saved as, once it is. */
+  onDraftChange: (id: string | null) => void
+}
+
+/** Escape hides the composer wherever focus is. Open dropdowns claim it first. */
+function useEscapeToHide(hidden: boolean, onHide: () => void) {
+  useEffect(() => {
+    if (hidden) return
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      // ProseMirror marks every Escape as handled without doing anything with it.
+      const inEditor =
+        event.target instanceof HTMLElement &&
+        event.target.closest(".ProseMirror")
+      if (inEditor || !event.defaultPrevented) onHide()
+    }
+    document.addEventListener("keydown", keydown)
+    return () => document.removeEventListener("keydown", keydown)
+  }, [hidden, onHide])
+}
+
+function ComposeHeader({ onHide }: { onHide: () => void }) {
   const t = useI18n().t.compose
+  return (
+    <header className="flex h-10 shrink-0 items-center px-2">
+      {/* Phones have no Escape key. */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="md:hidden"
+        aria-label={t.close}
+        onClick={onHide}
+      >
+        <HugeiconsIcon
+          icon={ArrowLeft02Icon}
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
+      </Button>
+    </header>
+  )
+}
+
+export function ComposePage(props: ComposeProps) {
+  const t = useI18n().t.drafts
+  const loaded = useDraft(props.draft)
+  useEscapeToHide(
+    props.hidden || !props.draft || Boolean(loaded.data),
+    props.onHide
+  )
+  if (props.draft && !loaded.data)
+    return (
+      <div
+        className={cn("flex min-h-0 flex-1 flex-col", props.hidden && "hidden")}
+      >
+        <ComposeHeader onHide={props.onHide} />
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          {loaded.isError ? t.openFailed : <Spinner />}
+        </div>
+      </div>
+    )
+  return <ComposeForm {...props} initial={loaded.data ?? null} />
+}
+
+const recipientList = (value: string) =>
+  parseAddresses(value).addresses.filter((item) => isEmail(item.email))
+const recipientText = (addresses: MailAddress[] = []) =>
+  joinRecipients(addresses.map((item) => item.email))
+
+function ComposeForm({
+  accounts,
+  defaultAccountId,
+  draft,
+  initial,
+  hidden,
+  onHide,
+  onClose,
+  onDraftChange,
+}: ComposeProps & { initial: MailDraft | null }) {
+  const t = useI18n().t.compose
+  const queryClient = useQueryClient()
   const usable = accounts.filter((account) => account.status === "active")
   const [accountId, setAccountId] = useState(
-    usable.find((account) => account.id === defaultAccountId)?.id ?? usable[0]?.id ?? ""
+    draft?.accountId ??
+      usable.find((account) => account.id === defaultAccountId)?.id ??
+      usable[0]?.id ??
+      ""
   )
-  const [to, setTo] = useState("")
-  const [cc, setCc] = useState("")
-  const [bcc, setBcc] = useState("")
-  const [copies, setCopies] = useState(false)
-  const [subject, setSubject] = useState("")
-  const [body, setBody] = useState({ text: "", html: "" })
-  const [files, setFiles] = useState<MailAttachmentUpload[]>([])
-  const hasDraft = Boolean(to || cc || bcc || subject || body.text || files.length)
+  const [to, setTo] = useState(() => recipientText(initial?.to))
+  const [cc, setCc] = useState(() => recipientText(initial?.cc))
+  const [bcc, setBcc] = useState(() => recipientText(initial?.bcc))
+  const [copies, setCopies] = useState(
+    Boolean(initial?.cc.length || initial?.bcc.length)
+  )
+  const [subject, setSubject] = useState(initial?.subject ?? "")
+  const [body, setBody] = useState({
+    text: initial?.text ?? "",
+    html: initial?.html ?? "",
+  })
+  const [files, setFiles] = useState<MailAttachmentUpload[]>(
+    initial?.attachments ?? []
+  )
+  const [editorReady, setEditorReady] = useState(false)
+  const [initialHtml] = useState(
+    () => initial && (initial.html ?? textToEditorHtml(initial.text))
+  )
+  const reply = initial?.reply
+  const hasDraft = Boolean(
+    to || cc || bcc || subject || body.text || files.length
+  )
+
+  const content: MailDraftContent = {
+    to: recipientList(to),
+    cc: recipientList(cc),
+    bcc: recipientList(bcc),
+    subject,
+    text: body.text,
+    ...(body.html && { html: body.html }),
+    attachments: files,
+    ...(reply && { reply }),
+  }
+  const autosave = useDraftAutosave({
+    accountId,
+    content,
+    initial: draft,
+    ready: !draft || editorReady,
+    onSaved: (ref) => onDraftChange(ref?.id ?? null),
+  })
 
   // Only something worth coming back to stays around while out of view.
   useEffect(() => {
     if (hidden && !hasDraft) onClose()
   }, [hidden, hasDraft, onClose])
 
-  // On the document, so Escape works wherever focus is. Open dropdowns claim it first.
-  useEffect(() => {
-    if (hidden) return
-    const keydown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return
-      // ProseMirror marks every Escape as handled without doing anything with it.
-      const inEditor = event.target instanceof HTMLElement && event.target.closest(".ProseMirror")
-      if (inEditor || !event.defaultPrevented) onHide()
-    }
-    document.addEventListener("keydown", keydown)
-    return () => document.removeEventListener("keydown", keydown)
-  }, [hidden, onHide])
+  useEscapeToHide(hidden, onHide)
 
   const editor = useRef<RichTextHandle>(null)
   const wasHidden = useRef(hidden)
@@ -86,18 +198,52 @@ export function ComposePage({
     wasHidden.current = hidden
   }, [hidden])
 
+  const finished = () => {
+    void queryClient.invalidateQueries({ queryKey: DRAFTS_KEY })
+    onClose()
+  }
+
   const send = useMutation({
-    mutationFn: (message: MailOutgoing) =>
-      api(`/api/mail/accounts/${accountId}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(message),
-      }),
+    mutationFn: async (message: MailOutgoing) => {
+      const { ref, attachmentsChanged } = await autosave.pause()
+      try {
+        // A saved draft is sent as itself, so it leaves the drafts folder at the provider too.
+        if (ref?.accountId === accountId)
+          await sendDraft(
+            ref,
+            { ...message, ...(reply && { reply }) },
+            attachmentsChanged
+          )
+        else {
+          await api(`/api/mail/accounts/${accountId}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(message),
+          })
+          if (ref) await deleteDraft(ref).catch(() => undefined)
+        }
+      } catch (error) {
+        autosave.resume()
+        throw error
+      }
+    },
     onSuccess: () => {
       toast.success(t.sent)
-      onClose()
+      finished()
     },
     onError: (error) => toast.error(errorText(error)),
+  })
+
+  const discard = useMutation({
+    mutationFn: async () => {
+      const { ref } = await autosave.pause()
+      if (ref) await deleteDraft(ref)
+    },
+    onSuccess: finished,
+    onError: (error) => {
+      autosave.resume()
+      toast.error(errorText(error))
+    },
   })
 
   function submit() {
@@ -110,7 +256,8 @@ export function ComposePage({
       MailAddress[],
       MailAddress[],
     ]
-    if (toList.length + ccList.length + bccList.length === 0) return toast.error(t.noRecipients)
+    if (toList.length + ccList.length + bccList.length === 0)
+      return toast.error(t.noRecipients)
     send.mutate({
       to: toList,
       cc: ccList,
@@ -122,18 +269,22 @@ export function ComposePage({
     })
   }
 
+  const status = {
+    idle: "",
+    saving: t.saving,
+    saved: t.saved,
+    failed: t.saveFailed,
+  }[autosave.status]
+
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", hidden && "hidden")}>
-      <header className="flex h-10 shrink-0 items-center px-2">
-        {/* Phones have no Escape key. */}
-        <Button type="button" variant="ghost" size="icon-sm" className="md:hidden" aria-label={t.close} onClick={onHide}>
-          <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.75} aria-hidden="true" />
-        </Button>
-      </header>
+      <ComposeHeader onHide={onHide} />
       {/* Relative keeps the file input, which is absolute, inside this scroller. */}
       <div className="@container relative min-h-0 flex-1 overflow-y-auto">
         <div className={cn(readingColumn, "flex min-h-full flex-col pt-2")}>
-          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight md:px-8">{t.title}</h2>
+          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight md:px-8">
+            {draft ? t.editTitle : t.title}
+          </h2>
           <form
             className="flex flex-1 flex-col md:px-4"
             onKeyDown={sendOnModEnter}
@@ -146,7 +297,7 @@ export function ComposePage({
               {usable.length > 1 && (
                 <MessageRow label={t.from}>
                   <Select value={accountId} onValueChange={setAccountId}>
-                    <SelectTrigger className="-ml-3 h-8! min-w-0 max-w-fit flex-1 bg-transparent">
+                    <SelectTrigger className="-ml-3 h-8! max-w-fit min-w-0 flex-1 bg-transparent">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent align="start">
@@ -189,7 +340,10 @@ export function ComposePage({
                 </>
               )}
               <MessageRow label={t.subject}>
-                <MessageInput value={subject} onChange={(event) => setSubject(event.target.value)} />
+                <MessageInput
+                  value={subject}
+                  onChange={(event) => setSubject(event.target.value)}
+                />
               </MessageRow>
             </div>
             <Suspense fallback={<div className="min-h-40 flex-1" />}>
@@ -198,25 +352,49 @@ export function ComposePage({
                 label={t.body}
                 placeholder={t.body}
                 className="min-h-40 flex-1"
-                onChange={setBody}
+                initialHtml={initialHtml ?? undefined}
+                onChange={(value) => {
+                  setBody(value)
+                  setEditorReady(true)
+                }}
               />
             </Suspense>
             <div className="sticky bottom-4 z-10 mx-4 mb-4 flex min-h-14 shrink-0 items-center justify-between gap-3 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
               <AttachmentPicker files={files} onChange={setFiles} />
               <div className="flex shrink-0 items-center gap-1">
-                {hasDraft && (
+                <span
+                  role="status"
+                  className={cn(
+                    "mr-1 text-xs max-sm:sr-only",
+                    autosave.status === "failed"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {status}
+                </span>
+                {(hasDraft || draft) && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     aria-label={t.discard}
                     title={t.discard}
-                    onClick={onClose}
+                    disabled={discard.isPending || send.isPending}
+                    onClick={() => discard.mutate()}
                   >
-                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.75} aria-hidden="true" />
+                    <HugeiconsIcon
+                      icon={Delete02Icon}
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />
                   </Button>
                 )}
-                <Button type="submit" disabled={send.isPending || !accountId} title={`${t.send} (⌘↵)`}>
+                <Button
+                  type="submit"
+                  disabled={send.isPending || !accountId}
+                  title={`${t.send} (⌘↵)`}
+                >
                   {t.send}
                 </Button>
               </div>

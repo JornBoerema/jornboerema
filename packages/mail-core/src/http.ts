@@ -72,7 +72,7 @@ export const SLOW_READ_TIMEOUT_MS = 25_000
  * that actually went through would invite the user to send it twice.
  */
 export async function sendBody(
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "PUT",
   url: string,
   accessToken: string,
   contentType: string,
@@ -90,12 +90,22 @@ export async function sendBody(
 }
 
 export const sendJson = (
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "PUT",
   url: string,
   accessToken: string,
   body: unknown,
   headers?: Record<string, string>
 ) => sendBody(method, url, accessToken, "application/json", JSON.stringify(body), headers)
+
+/** Deletes a provider resource. Already gone counts as done. */
+export async function deleteResource(url: string, accessToken: string, headers?: Record<string, string>) {
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: { ...headers, Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  })
+  if (response.status !== 404) await ensureOk(response, url)
+}
 
 /** Runs `work` over `items` a few at a time, keeping providers within their rate limits. */
 export async function mapInChunks<T, R>(items: T[], size: number, work: (item: T) => Promise<R>) {

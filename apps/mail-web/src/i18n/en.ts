@@ -58,6 +58,15 @@ export const en = {
     attachment: "Has attachment",
     reconnectNeeded: "Access has ended",
   },
+  drafts: {
+    title: "Drafts",
+    empty: "No drafts. A message becomes a draft once you start its subject or text.",
+    loadFailed: "Your drafts couldn't be loaded.",
+    someFailed: "Drafts from some mailboxes couldn't be loaded.",
+    noRecipients: "No recipients",
+    openFailed: "This draft couldn't be opened.",
+    count: (count: number) => (count === 1 ? "1 draft" : `${count} drafts`),
+  },
   compose: {
     title: "New message",
     from: "From",
@@ -75,6 +84,10 @@ export const en = {
     attach: "Attach files",
     removeRecipient: (address: string) => `Remove ${address}`,
     discard: "Discard draft",
+    editTitle: "Draft",
+    saving: "Saving…",
+    saved: "Draft saved",
+    saveFailed: "Couldn't save the draft",
     format: {
       bold: "Bold",
       italic: "Italic",

@@ -63,7 +63,7 @@ function toAddress(value: string | undefined): MailAddress | null {
   return email ? { name, email } : null
 }
 
-const toAddresses = (value: string | undefined): MailAddress[] =>
+export const toAddresses = (value: string | undefined): MailAddress[] =>
   value ? splitAddresses(value).flatMap((item) => toAddress(item) ?? []) : []
 
 /** Inline images belong to the body, so they are not listed as attachments. */

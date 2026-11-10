@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest"
-import { toEmailHtml } from "./email-compose"
+import { textToEditorHtml, toEmailHtml } from "./email-compose"
 
 const body = (html: string) => new DOMParser().parseFromString(toEmailHtml(html), "text/html").body
 
@@ -21,5 +21,13 @@ describe("toEmailHtml", () => {
     const result = body('<p><strong>a</strong> <a href="https://x.nl">b</a></p>')
     expect(result.querySelector("strong")?.textContent).toBe("a")
     expect(result.querySelector("a")?.getAttribute("href")).toBe("https://x.nl")
+  })
+})
+
+describe("textToEditorHtml", () => {
+  it("keeps paragraphs and line breaks, and escapes markup", () => {
+    expect(textToEditorHtml("Hi <b>Al</b>\nline two\n\nBye")).toBe(
+      "<p>Hi &lt;b&gt;Al&lt;/b&gt;<br>line two</p><p>Bye</p>"
+    )
   })
 })

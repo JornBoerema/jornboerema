@@ -1,3 +1,4 @@
+import { deleteOutlookDraft, getOutlookDraft, listOutlookDrafts, saveOutlookDraft, sendOutlookDraft } from "./outlook-drafts"
 import { getJson, requestTokens, sendJson } from "./http"
 import { readOutlookAttachment, readOutlookThread } from "./outlook-read"
 import { applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "./outlook-send"
@@ -91,6 +92,16 @@ export function createOutlookProvider({
     reply: replyOutlook,
 
     forward: forwardOutlook,
+
+    listDrafts: listOutlookDrafts,
+
+    getDraft: getOutlookDraft,
+
+    saveDraft: saveOutlookDraft,
+
+    sendDraft: sendOutlookDraft,
+
+    deleteDraft: deleteOutlookDraft,
 
     getAttachment: readOutlookAttachment,
 

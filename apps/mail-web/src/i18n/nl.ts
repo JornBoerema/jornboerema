@@ -59,6 +59,15 @@ export const nl: typeof en = {
     attachment: "Heeft bijlage",
     reconnectNeeded: "Toegang verlopen",
   },
+  drafts: {
+    title: "Concepten",
+    empty: "Geen concepten. Een bericht wordt een concept zodra je aan het onderwerp of de tekst begint.",
+    loadFailed: "Je concepten konden niet worden geladen.",
+    someFailed: "Concepten van sommige mailboxen konden niet worden geladen.",
+    noRecipients: "Geen ontvangers",
+    openFailed: "Dit concept kon niet worden geopend.",
+    count: (count: number) => (count === 1 ? "1 concept" : `${count} concepten`),
+  },
   compose: {
     title: "Nieuw bericht",
     from: "Van",
@@ -76,6 +85,10 @@ export const nl: typeof en = {
     attach: "Bestanden toevoegen",
     removeRecipient: (address: string) => `${address} verwijderen`,
     discard: "Concept verwijderen",
+    editTitle: "Concept",
+    saving: "Opslaan…",
+    saved: "Concept opgeslagen",
+    saveFailed: "Concept niet opgeslagen",
     format: {
       bold: "Vet",
       italic: "Cursief",

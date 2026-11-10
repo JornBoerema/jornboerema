@@ -149,3 +149,29 @@ export function replyRecipients(message: MailThreadMessage, selfEmail: string, a
 
 /** Reason codes the OAuth callback hands back to the web app in `?error=`. */
 export type ConnectErrorCode = "denied" | "expired" | "session" | "missing_scope" | "failed"
+
+/** A saved, unsent message as the drafts list shows it. Read live from the provider. */
+export type MailDraftView = {
+  /** The provider's draft id. Gmail keeps it across saves; Graph uses the message id. */
+  id: string
+  accountId: string
+  subject: string
+  snippet: string
+  to: MailAddress[]
+  updatedAt: string
+  hasAttachments: boolean
+}
+
+/** Keeps a draft that answers a conversation in that conversation. Opaque to clients. */
+export type MailDraftReply = { threadId: string; inReplyTo?: string; references?: string }
+
+export type MailDraftContent = MailOutgoing & { reply?: MailDraftReply }
+
+export type MailDraft = MailDraftContent & { id: string }
+
+/** A drafts list shows this many per mailbox, newest first. */
+export const MAX_LISTED_DRAFTS = 25
+
+/** Worth keeping: a message only becomes a draft once its subject or text is started. */
+export const isDraftWorthKeeping = (draft: { subject: string; text: string }) =>
+  Boolean(draft.subject.trim() || draft.text.trim())

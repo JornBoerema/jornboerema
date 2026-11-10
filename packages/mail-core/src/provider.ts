@@ -1,12 +1,15 @@
 import type {
   InboxSummary,
   MailAddress,
+  MailDraft,
+  MailDraftContent,
   MailForward,
   MailOutgoing,
   MailProviderId,
   MailReply,
   MailThreadAction,
   MailThreadMessage,
+  MailDraftView,
 } from "./types"
 
 export type ProviderCredentials = { clientId: string; clientSecret: string }
@@ -82,6 +85,21 @@ export interface MailProvider {
   reply(accessToken: string, input: MailReply & { from: MailAddress; threadId: string }): Promise<void>
   /** Sends the original with its attachments to new recipients. */
   forward(accessToken: string, input: MailForward & { from: MailAddress }): Promise<void>
+  /** The newest drafts, at most MAX_LISTED_DRAFTS. `accountId` is filled in by the caller. */
+  listDrafts(accessToken: string): Promise<Omit<MailDraftView, "accountId">[]>
+  /** Includes attachment contents, so saving it again keeps them. */
+  getDraft(accessToken: string, draftId: string): Promise<MailDraft>
+  /**
+   * Creates the draft when `draftId` is null and replaces its content otherwise.
+   * Returns the id to save to next time. `attachmentsChanged` false lets Graph skip re-uploading.
+   */
+  saveDraft(
+    accessToken: string,
+    input: MailDraftContent & { from: MailAddress; draftId: string | null; attachmentsChanged: boolean }
+  ): Promise<string>
+  /** Sends a saved draft as it is at the provider. */
+  sendDraft(accessToken: string, draftId: string): Promise<void>
+  deleteDraft(accessToken: string, draftId: string): Promise<void>
   getAttachment(
     accessToken: string,
     input: { messageId: string; attachmentId: string }

@@ -22,7 +22,8 @@ export function useHotkeys(bindings: Record<string, () => void>) {
       const action = latest.current[event.key]
       if (!action || isBlocked(event)) return
       // Otherwise the key would also land in a box this shortcut just focused.
-      event.preventDefault()
+      // Escape types nothing, and other layers such as the composer listen for it too.
+      if (event.key !== "Escape") event.preventDefault()
       action()
     }
     document.addEventListener("keydown", onKeyDown)

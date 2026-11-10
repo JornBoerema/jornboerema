@@ -8,6 +8,7 @@ import {
   MAX_UPLOAD_BYTES,
   type ConnectErrorCode,
   MAIL_ACCOUNT_COLORS,
+  isDraftWorthKeeping,
 } from "@evido/mail-core/types"
 import { env } from "../env"
 import { msg } from "../i18n"
@@ -25,6 +26,7 @@ import {
   setAccountColor,
   startConnect,
 } from "./accounts-server"
+import { deleteDraft, listDrafts, readDraft, saveDraft, sendDraft } from "./drafts-server"
 import { syncAccount } from "./sync-server"
 import {
   authorizeCron,
@@ -71,6 +73,18 @@ const sendBody = z.object({
   text,
   html,
   attachments,
+})
+const providerId = z.string().min(1).max(1000)
+const draftBody = sendBody.extend({
+  draftId: providerId.nullable(),
+  attachmentsChanged: z.boolean(),
+  reply: z
+    .object({
+      threadId: providerId,
+      inReplyTo: z.string().max(2000).optional(),
+      references: z.string().max(20_000).optional(),
+    })
+    .optional(),
 })
 const replyBody = z.object({
   messageId: z.string().min(1).max(1000),
@@ -254,6 +268,52 @@ mailRoutes.post("/accounts/:id/send", requireTrustedOrigin, requireSession, asyn
     return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
     await sendMessage(c.get("session").user.id, c.req.param("id"), body)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/drafts", requireSession, async (c) =>
+  c.json(await listDrafts(c.get("session").user.id), 200, noStore)
+)
+
+// Like mail bodies, drafts pass through and are never written here.
+mailRoutes.get("/accounts/:id/drafts/:draftId", requireSession, async (c) => {
+  try {
+    const draft = await readDraft(c.get("session").user.id, c.req.param("id"), c.req.param("draftId"))
+    return c.json(draft, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/drafts", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, draftBody)
+  if (!body || !isDraftWorthKeeping(body)) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await saveDraft(c.get("session").user.id, c.req.param("id"), body), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/drafts/:draftId/send", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, draftBody)
+  if (!body || body.to.length + body.cc.length + body.bcc.length === 0)
+    return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const draftId = c.req.param("draftId")
+    await sendDraft(c.get("session").user.id, c.req.param("id"), { ...body, draftId })
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.delete("/accounts/:id/drafts/:draftId", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    await deleteDraft(c.get("session").user.id, c.req.param("id"), c.req.param("draftId"))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)

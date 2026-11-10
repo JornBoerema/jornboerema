@@ -1,6 +1,7 @@
 import {
   Add01Icon,
   Alert02Icon,
+  File01Icon,
   InboxIcon,
   Logout01Icon,
   Menu01Icon,
@@ -35,9 +36,12 @@ export type MailNavigation = {
   accountId: string
   user: { name: string; email: string }
   sidebar: ReturnType<typeof useCollapsibleSidebar>
+  view: "inbox" | "drafts"
+  draftCount: number
   /** A started message is out of view, ready to pick up again. */
   draftWaiting: boolean
   onSelectAccount: (id: string) => void
+  onSelectDrafts: () => void
   onCompose: () => void
   onSettings: () => void
 }
@@ -50,13 +54,17 @@ export function Sidebar({
   accountId,
   user,
   sidebar,
+  view,
+  draftCount,
   draftWaiting,
   onSelectAccount,
+  onSelectDrafts,
   onCompose,
   onSettings,
 }: MailNavigation) {
   const { t } = useI18n()
-  const allSelected = accountId === ""
+  const allSelected = view === "inbox" && accountId === ""
+  const draftsSelected = view === "drafts"
   return (
     <aside
       id="list-sidebar"
@@ -82,6 +90,20 @@ export function Sidebar({
             <HugeiconsIcon icon={InboxIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
             <span>{t.inbox.allMailboxes}</span>
           </button>
+          <button
+            type="button"
+            className={cn("list-link", draftsSelected && "is-selected")}
+            aria-current={draftsSelected ? "page" : undefined}
+            onClick={onSelectDrafts}
+          >
+            <HugeiconsIcon icon={File01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+            <span>{t.drafts.title}</span>
+            {draftCount > 0 && (
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums" aria-label={t.drafts.count(draftCount)}>
+                {draftCount}
+              </span>
+            )}
+          </button>
         </div>
         <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
           <div className="sidebar-heading">
@@ -99,7 +121,7 @@ export function Sidebar({
           </div>
           <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
             {accounts.map((account) => {
-              const selected = account.id === accountId
+              const selected = view === "inbox" && account.id === accountId
               const active = account.status === "active"
               return (
                 <button
@@ -189,12 +211,21 @@ export function SidebarExpand({ sidebar }: Pick<MailNavigation, "sidebar">) {
 }
 
 /** The sidebar's choices in one menu, for screens too narrow to keep it open. */
+/** Not an account id, which are UUIDs. */
+const DRAFTS_CHOICE = "drafts:"
+
 export function MailMenu({
   accounts,
   accountId,
+  view,
+  draftCount,
   onSelectAccount,
+  onSelectDrafts,
   onSettings,
-}: Pick<MailNavigation, "accounts" | "accountId" | "onSelectAccount" | "onSettings">) {
+}: Pick<
+  MailNavigation,
+  "accounts" | "accountId" | "view" | "draftCount" | "onSelectAccount" | "onSelectDrafts" | "onSettings"
+>) {
   const { t } = useI18n()
   return (
     <DropdownMenu>
@@ -204,8 +235,15 @@ export function MailMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuRadioGroup value={accountId} onValueChange={onSelectAccount}>
+        <DropdownMenuRadioGroup
+          value={view === "drafts" ? DRAFTS_CHOICE : accountId}
+          onValueChange={(value) => (value === DRAFTS_CHOICE ? onSelectDrafts() : onSelectAccount(value))}
+        >
           <DropdownMenuRadioItem value="">{t.inbox.allMailboxes}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value={DRAFTS_CHOICE}>
+            {t.drafts.title}
+            {draftCount > 0 && <span className="ml-auto text-xs text-muted-foreground tabular-nums">{draftCount}</span>}
+          </DropdownMenuRadioItem>
           {accounts.map((account) => (
             <DropdownMenuRadioItem key={account.id} value={account.id}>
               <AccountDot color={account.color} />
