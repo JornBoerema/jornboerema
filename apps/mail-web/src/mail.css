@@ -80,20 +80,3 @@
     font-size: 16px;
   }
 }
-
-/* The sidebar's one action: writing. Primary, so it reads as a button among places. */
-.list-link.is-primary {
-  background: var(--primary);
-  color: var(--primary-foreground);
-  font-weight: 550;
-}
-.list-link.is-primary:hover {
-  background: color-mix(in oklab, var(--primary) 88%, black);
-}
-.list-link.is-primary > svg,
-.list-link.is-primary .nav-kbd {
-  color: inherit;
-}
-.list-link.is-primary .nav-kbd {
-  opacity: 0.75;
-}
