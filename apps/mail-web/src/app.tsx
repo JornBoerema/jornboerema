@@ -11,6 +11,7 @@ import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { MailSettings } from "@/components/mail-settings"
 import { MailSpotlight } from "@/components/mail-spotlight"
+import { ShortcutsSpotlight } from "@/components/shortcuts-spotlight"
 import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
 import { I18nProvider, useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
@@ -64,6 +65,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const hasActive = list.some((account) => account.status === "active")
   const drafts = useDrafts(hasActive)
   // Loaded up front, so a new message has its signature from the start.
@@ -107,6 +109,14 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      // ? lists every shortcut, unless it is being typed or a dialog is open.
+      if (event.key === "?" && !event.metaKey && !event.ctrlKey && !event.repeat) {
+        const typing = event.target instanceof HTMLElement && event.target.closest("input,textarea,select,[contenteditable]")
+        if (typing || document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return
+        event.preventDefault()
+        setShortcutsOpen(true)
+        return
+      }
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.repeat) return
       const key = event.key.toLowerCase()
       if (key === ",") {
@@ -167,6 +177,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     },
     onSettings: () => setSettingsOpen(true),
     onSearch: () => setSearchOpen(true),
+    onShortcuts: () => setShortcutsOpen(true),
   }
 
   return (
@@ -193,6 +204,13 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
         />
       </main>
       <MailSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ShortcutsSpotlight
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
+        onCompose={navigation.onCompose}
+        onSearch={() => setSearchOpen(true)}
+        onSettings={() => setSettingsOpen(true)}
+      />
       <MailSpotlight
         open={searchOpen}
         onOpenChange={setSearchOpen}

@@ -10,6 +10,7 @@ import {
   StarIcon,
   File01Icon,
   InboxIcon,
+  KeyboardIcon,
   Logout01Icon,
   Menu01Icon,
   PencilEdit02Icon,
@@ -66,6 +67,7 @@ export type MailNavigation = {
   onCompose: () => void
   onSettings: () => void
   onSearch: () => void
+  onShortcuts: () => void
 }
 
 const NAV_ICON = "size-4 shrink-0"
@@ -152,6 +154,7 @@ export function Sidebar({
   onSelectFolder,
   onCompose,
   onSettings,
+  onShortcuts,
 }: MailNavigation) {
   const { t, locale } = useI18n()
   const unread = useUnread(true).data?.count
@@ -285,6 +288,11 @@ export function Sidebar({
               <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} aria-hidden="true" />
               {t.shell.settings}
               <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onShortcuts}>
+              <HugeiconsIcon icon={KeyboardIcon} strokeWidth={2} aria-hidden="true" />
+              {t.shortcuts.title}
+              <DropdownMenuShortcut>?</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void signOut()}>
               <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
