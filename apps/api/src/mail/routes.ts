@@ -54,6 +54,7 @@ import {
   ownedConversation,
   readConversation,
   replyInConversation,
+  quickSearch,
   searchMail,
   actOnThread,
   forwardThread,
@@ -406,6 +407,12 @@ mailRoutes.delete("/signatures/:id", requireTrustedOrigin, requireSession, async
   } catch (error) {
     return failure(c, error)
   }
+})
+
+mailRoutes.get("/search/quick", requireSession, async (c) => {
+  const query = c.req.query("q")?.trim() ?? ""
+  if (!query || query.length > MAX_SEARCH_LENGTH) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  return c.json({ hits: await quickSearch(c.get("session").user.id, query) }, 200, noStore)
 })
 
 mailRoutes.get("/search", requireSession, async (c) => {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { searchGmail } from "../src/gmail-search"
 import { searchOutlook } from "../src/outlook-search"
+import { rankSearchHits, searchWords, type MailSearchHit } from "../src/types"
 
 function stub(answer: (url: string) => [number, unknown]) {
   const urls: string[] = []
@@ -80,5 +81,35 @@ describe("outlook search", () => {
     const urls = stub(() => [200, {}])
     expect(await searchOutlook("t", '""')).toEqual([])
     expect(urls).toHaveLength(0)
+  })
+})
+
+describe("ranking", () => {
+  const hit = (threadId: string, fields: Partial<MailSearchHit>): MailSearchHit => ({
+    accountId: "a",
+    threadId,
+    subject: "",
+    snippet: "",
+    fromName: null,
+    fromEmail: null,
+    receivedAt: "2026-11-01T00:00:00Z",
+    isRead: true,
+    hasAttachments: false,
+    ...fields,
+  })
+
+  it("puts sender matches before subject matches before mentions in the text", () => {
+    const ranked = rankSearchHits("instagram", [
+      hit("footer", { fromName: "DeAutoUnie", receivedAt: "2026-11-10T12:00:00Z" }),
+      hit("subject", { subject: "Je Instagram-account", receivedAt: "2026-11-09T00:00:00Z" }),
+      hit("old", { fromName: "Instagram", receivedAt: "2026-11-01T00:00:00Z" }),
+      hit("new", { fromEmail: "no-reply@mail.instagram.com", receivedAt: "2026-11-10T00:00:00Z" }),
+      hit("new", { fromName: "duplicate" }),
+    ])
+    expect(ranked.map((item) => item.threadId)).toEqual(["new", "old", "subject", "footer"])
+  })
+
+  it("ignores operators when ranking", () => {
+    expect(searchWords("from:al Offerte  has:attachment")).toEqual(["offerte"])
   })
 })

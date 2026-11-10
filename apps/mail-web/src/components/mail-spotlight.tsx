@@ -20,7 +20,12 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
-import type { MailAccountView, MailSearchHit, MailThreadView } from "@evido/mail-core/types"
+import {
+  rankSearchHits,
+  type MailAccountView,
+  type MailSearchHit,
+  type MailThreadView,
+} from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
@@ -29,17 +34,19 @@ import { searchHitAsThread } from "@/lib/mail"
 
 /** Searching goes to every mailbox, so it waits for a pause in typing. */
 const SEARCH_DELAY_MS = 300
+/** Matching what's already synced is cheap, so it can follow typing closely. */
+const QUICK_DELAY_MS = 120
 const MIN_QUERY = 2
 
 const normalize = (value: string) =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase()
 
-function useDebounced(value: string) {
+function useDebounced(value: string, delay: number) {
   const [settled, setSettled] = useState(value)
   useEffect(() => {
-    const timer = window.setTimeout(() => setSettled(value), SEARCH_DELAY_MS)
+    const timer = window.setTimeout(() => setSettled(value), delay)
     return () => window.clearTimeout(timer)
-  }, [value])
+  }, [value, delay])
   return settled
 }
 
@@ -68,8 +75,9 @@ export function MailSpotlight({
   const { t: strings, locale } = useI18n()
   const t = strings.spotlight
   const [query, setQuery] = useState("")
-  const settled = useDebounced(query.trim())
-  const searching = settled.length >= MIN_QUERY
+  const settled = useDebounced(query.trim(), SEARCH_DELAY_MS)
+  const quickQuery = useDebounced(query.trim(), QUICK_DELAY_MS)
+  const searching = settled.length >= MIN_QUERY || quickQuery.length >= MIN_QUERY
   const previousFocus = useRef<HTMLElement | null>(null)
   const navigating = useRef(false)
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
@@ -78,7 +86,14 @@ export function MailSpotlight({
     queryKey: ["mail-search", settled],
     queryFn: () =>
       api<{ hits: MailSearchHit[]; failedAccounts: string[] }>(`/api/mail/search?q=${encodeURIComponent(settled)}`),
-    enabled: open && searching,
+    enabled: open && settled.length >= MIN_QUERY,
+    staleTime: 60 * 1000,
+    // Unlike the quick matches, an older answer would linger for seconds under a new query.
+  })
+  const quick = useQuery({
+    queryKey: ["mail-search-quick", quickQuery],
+    queryFn: () => api<{ hits: MailSearchHit[] }>(`/api/mail/search/quick?q=${encodeURIComponent(quickQuery)}`),
+    enabled: open && quickQuery.length >= MIN_QUERY,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
   })
@@ -111,8 +126,25 @@ export function MailSpotlight({
     { id: "settings", label: t.settings, icon: Settings01Icon, run: onSettings },
   ].filter((command) => words.every((word) => normalize(command.label).includes(word)))
 
-  const hits = searching ? (results.data?.hits ?? []) : []
+  // Synced matches show at once; the providers' results join them when they arrive.
+  const hits = searching
+    ? rankSearchHits(query.trim(), [...(quick.data?.hits ?? []), ...(results.data?.hits ?? [])])
+    : []
   const pending = searching && (results.isFetching || settled !== query.trim())
+
+  // cmdk keeps pointing at an item that is gone once results change, and Enter then
+  // does nothing. A new query or new results start at the first item instead.
+  const values = [...commands.map((command) => command.id), ...hits.map((hit) => `${hit.accountId}:${hit.threadId}`)]
+  const valuesKey = values.join("|")
+  const [selected, setSelected] = useState("")
+  const first = valuesKey.split("|")[0] ?? ""
+  const firstRef = useRef(first)
+  firstRef.current = first
+  useEffect(() => setSelected(firstRef.current), [query])
+  // Arriving results keep a choice made with the arrow keys, if it is still there.
+  useEffect(() => {
+    setSelected((current) => (valuesKey.split("|").includes(current) ? current : first))
+  }, [valuesKey, first])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,7 +161,7 @@ export function MailSpotlight({
       >
         <DialogTitle className="sr-only">{t.title}</DialogTitle>
         <DialogDescription className="sr-only">{t.description}</DialogDescription>
-        <Command loop shouldFilter={false}>
+        <Command loop shouldFilter={false} value={selected} onValueChange={setSelected}>
           <CommandInput
             aria-label={t.search}
             placeholder={t.placeholder}

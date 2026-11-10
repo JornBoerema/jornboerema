@@ -1,13 +1,16 @@
 import { getDb, Prisma, type MailAccount } from "@evido/db"
-import type {
-  MailForward,
-  MailOutgoing,
-  MailReply,
-  MailSearchHit,
-  MailThreadAction,
-  MailThreadDetail,
-  MailThreadsPage,
-  MailThreadView,
+import {
+  MAX_SEARCH_HITS,
+  rankSearchHits,
+  searchWords,
+  type MailForward,
+  type MailOutgoing,
+  type MailReply,
+  type MailSearchHit,
+  type MailThreadAction,
+  type MailThreadDetail,
+  type MailThreadsPage,
+  type MailThreadView,
 } from "@evido/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 
@@ -174,9 +177,10 @@ export async function searchMail(userId: string, query: string) {
   for (const result of results)
     if (result.status === "rejected")
       console.error("Mail search failed", result.reason instanceof Error ? result.reason.message : "unknown")
-  const hits = results
-    .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
-    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+  const hits = rankSearchHits(
+    query,
+    results.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+  )
   // Conversations in the inbox list open as that row, so the list can show it.
   const synced = await getDb().mailMessage.findMany({
     where: { userId, OR: hits.map((hit) => ({ accountId: hit.accountId, threadId: hit.threadId })) },
@@ -197,4 +201,43 @@ export async function searchMail(userId: string, query: string) {
       results[index]?.status === "rejected" ? [account.id] : []
     ),
   }
+}
+
+/**
+ * Instant matches on what is already synced: sender and subject of the inbox.
+ * Shown while the providers search, which also look through the text.
+ */
+export async function quickSearch(userId: string, query: string): Promise<MailSearchHit[]> {
+  const words = searchWords(query)
+  if (words.length === 0) return []
+  const contains = (word: string) => ({ contains: word, mode: "insensitive" as const })
+  const rows = await getDb().mailMessage.findMany({
+    where: {
+      userId,
+      AND: words.map((word) => ({
+        OR: [{ subject: contains(word) }, { fromName: contains(word) }, { fromEmail: contains(word) }],
+      })),
+    },
+    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+    take: MAX_SEARCH_HITS * 4,
+  })
+  const hits = rows.flatMap((row): MailSearchHit[] =>
+    row.threadId
+      ? [
+          {
+            accountId: row.accountId,
+            threadId: row.threadId,
+            subject: row.subject,
+            snippet: row.snippet,
+            fromName: row.fromName,
+            fromEmail: row.fromEmail,
+            receivedAt: row.receivedAt.toISOString(),
+            isRead: row.isRead,
+            hasAttachments: row.hasAttachments,
+            messageId: row.id,
+          },
+        ]
+      : []
+  )
+  return rankSearchHits(query, hits).slice(0, MAX_SEARCH_HITS)
 }

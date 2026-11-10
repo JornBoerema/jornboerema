@@ -219,3 +219,36 @@ export type MailSearchHit = {
 /** Each mailbox returns at most this many conversations per search. */
 export const MAX_SEARCH_HITS = 15
 export const MAX_SEARCH_LENGTH = 500
+
+/** Words that rank results. Operators such as from:x are for the provider only. */
+export const searchWords = (query: string) =>
+  query
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter((word) => word && !word.includes(":"))
+
+/**
+ * Best matches first: every word in the sender, then in the subject, then the
+ * rest, which is usually a mention in the text such as a footer link. Newest first
+ * within each. Duplicates of a conversation keep their first copy.
+ */
+export function rankSearchHits(query: string, hits: MailSearchHit[]) {
+  const words = searchWords(query)
+  const covers = (value: string) => {
+    const text = value.toLocaleLowerCase()
+    return words.length > 0 && words.every((word) => text.includes(word))
+  }
+  const score = (hit: MailSearchHit) =>
+    covers(`${hit.fromName ?? ""} ${hit.fromEmail ?? ""}`) ? 2 : covers(hit.subject) ? 1 : 0
+  const seen = new Set<string>()
+  return hits
+    .filter((hit) => {
+      const key = `${hit.accountId}:${hit.threadId}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .map((hit) => ({ hit, score: score(hit) }))
+    .sort((a, b) => b.score - a.score || b.hit.receivedAt.localeCompare(a.hit.receivedAt))
+    .map(({ hit }) => hit)
+}
