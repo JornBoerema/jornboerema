@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   useMutation,
   useQuery,
@@ -16,6 +16,7 @@ import {
   type MailSearchHit,
   type MailSyncResult,
   type MailThreadAction,
+  type MailThreadDetail,
   type MailThreadsPage,
   type MailThreadView,
 } from "@evido/mail-core/types"
@@ -287,4 +288,35 @@ export function syncSoon(queryClient: QueryClient, accountIds: string[]) {
       void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
     })
   }, AFTER_SEND_MS)
+}
+
+/** Opened and prefetched conversations stay this long in memory, never on disk. */
+const THREAD_MEMORY_MS = 5 * 60 * 1000
+/** Hovering this long counts as aiming at a row, not passing over it. */
+const HOVER_INTENT_MS = 60
+
+export const threadQuery = (id: string) => ({
+  queryKey: ["mail-thread", id],
+  queryFn: () => api<MailThreadDetail>(conversationUrl(id)),
+  staleTime: 60 * 1000,
+  gcTime: THREAD_MEMORY_MS,
+})
+
+/**
+ * Loads conversations before they're opened, so opening one is instant: the row
+ * under the pointer, and the neighbours of the open one for J, K and archive.
+ */
+export function usePrefetchThreads() {
+  const queryClient = useQueryClient()
+  const timer = useRef<number | undefined>(undefined)
+  return useMemo(
+    () => ({
+      now: (id: string) => void queryClient.prefetchQuery(threadQuery(id)),
+      onHover: (id: string | null) => {
+        window.clearTimeout(timer.current)
+        if (id) timer.current = window.setTimeout(() => void queryClient.prefetchQuery(threadQuery(id)), HOVER_INTENT_MS)
+      },
+    }),
+    [queryClient]
+  )
 }

@@ -24,7 +24,6 @@ import type {
   MailFolder,
   MailAttachmentInfo,
   MailThreadAction,
-  MailThreadDetail,
   MailThreadMessage,
   MailThreadView,
 } from "@evido/mail-core/types"
@@ -33,10 +32,10 @@ import { MailSummaryCard } from "@/components/mail-summary"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { useSignatureFor } from "@/lib/signatures"
 import { useI18n } from "@/i18n"
-import { api, apiBlob } from "@/lib/api"
+import { apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
 import { useHotkeys } from "@/lib/hotkeys"
-import { conversationUrl, moveActions, STARRED, useThreadAction } from "@/lib/mail"
+import { conversationUrl, moveActions, STARRED, threadQuery, useThreadAction } from "@/lib/mail"
 import { useAlwaysShowImages } from "@/lib/preferences"
 
 /** Long enough that walking past a mail with j/k leaves it unread. */
@@ -137,7 +136,8 @@ function useBodyWithInlineImages(threadId: string, message: SanitizedMessage) {
   const images = useQuery({
     queryKey: ["mail-inline", threadId, message.id],
     enabled: wanted.length > 0,
-    gcTime: 0,
+    // Like the bodies: a few minutes in memory, so reopening shows them at once.
+    gcTime: 5 * 60 * 1000,
     staleTime: Infinity,
     queryFn: () =>
       Promise.all(
@@ -360,13 +360,9 @@ export function ConversationPage({
   const allowImages = alwaysShowImages || showImagesOnce
   const [replyMode, setReplyMode] = useState<"reply" | "all" | "forward" | null>(null)
   const { mutate: runAction } = useThreadAction()
-  const thread = useQuery({
-    queryKey: ["mail-thread", id],
-    queryFn: () => api<MailThreadDetail>(conversationUrl(id)),
-    // Mail bodies stay out of the client cache once the conversation is closed.
-    gcTime: 0,
-    staleTime: 0,
-  })
+  // Often already here: rows load their conversation when hovered. Bodies stay in
+  // memory for a few minutes and are never written to disk.
+  const thread = useQuery(threadQuery(id))
 
   const opened = thread.isSuccess
   const needsRead = !summary.isRead
@@ -440,10 +436,15 @@ export function ConversationPage({
           </h2>
           <MailSummaryCard threadId={id} />
           {thread.isPending && (
-            <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <Spinner />
-              {t.loading}
-            </p>
+            // What the list already knows, while the message itself comes in.
+            <div className="flex flex-col gap-3 py-2" aria-busy="true">
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="font-medium">{summary.fromName ?? summary.fromEmail}</span>
+                <Spinner className="size-3.5 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">{summary.snippet}</p>
+              <span className="sr-only">{t.loading}</span>
+            </div>
           )}
           {thread.isError && <p className="py-4 text-sm text-destructive">{t.loadFailed}</p>}
           {blockedImages && (

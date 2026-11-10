@@ -51,6 +51,7 @@ import {
   listKey,
   moveActions,
   STARRED,
+  usePrefetchThreads,
   useThreadAction,
   type SyncStatus,
 } from "@/lib/mail"
@@ -461,6 +462,7 @@ export function InboxPage({
   const draftRows = drafts.data?.drafts ?? []
   const { accounts, accountId, onCompose, onSettings } = navigation
   const { mutate: runAction } = useThreadAction()
+  const prefetch = usePrefetchThreads()
   const folder = isMailFolder(navigation.view) ? navigation.view : null
   // Every folder is synced, so each list is one query on our own database.
   const list = useInfiniteQuery({
@@ -477,6 +479,13 @@ export function InboxPage({
   })
   const rows = list.data?.pages.flatMap((page) => page.threads) ?? []
   const position = open ? rows.findIndex((thread) => thread.id === open.id) : -1
+  // The neighbours of the open conversation are where J, K and archive go next.
+  const before = position > 0 ? rows[position - 1]?.id : undefined
+  const after = position >= 0 ? rows[position + 1]?.id : undefined
+  useEffect(() => {
+    if (after) prefetch.now(after)
+    if (before) prefetch.now(before)
+  }, [before, after, prefetch])
   const selectedAccount = accounts.find((account) => account.id === accountId)
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
 
@@ -750,6 +759,7 @@ export function InboxPage({
                         onHover={(hovering) => {
                           if (hovering) hovered.current = thread.id
                           else if (hovered.current === thread.id) hovered.current = null
+                          prefetch.onHover(hovering ? thread.id : null)
                         }}
                         onOpen={() => onOpen(thread)}
                         onAction={(action) =>
