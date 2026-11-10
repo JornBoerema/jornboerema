@@ -83,7 +83,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     onCompose: () => {
       if (!hasActive) return
       // "Resume draft" brings back the one out of view; otherwise this starts a new one.
-      if (compose) {
+      if (compose && (composeHidden || open !== null)) {
         setOpen(null)
         setComposeHidden(false)
       } else startCompose(null)
