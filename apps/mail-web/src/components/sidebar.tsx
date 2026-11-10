@@ -150,7 +150,7 @@ export function Sidebar({
   onCompose,
   onSettings,
 }: MailNavigation) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const unread = useUnread(true).data?.count
   const allSelected = view === "inbox" && accountId === ""
   const draftsSelected = view === "drafts"
@@ -181,7 +181,7 @@ export function Sidebar({
             <span>{t.inbox.allMailboxes}</span>
             {!!unread && (
               <span className="list-count" aria-label={t.emptyPane.unread(String(unread))}>
-                {unread > 999 ? "999+" : unread}
+                {unread.toLocaleString(locale)}
               </span>
             )}
           </button>

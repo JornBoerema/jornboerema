@@ -57,6 +57,6 @@ export function useNewMailNotifications(
 /** The unread count in the tab, like "(3) Even mailen". */
 export function useUnreadTitle(count: number | undefined, base: string) {
   useEffect(() => {
-    document.title = count ? `(${count > 99 ? "99+" : count}) ${base}` : base
+    document.title = count ? `(${count.toLocaleString()}) ${base}` : base
   }, [count, base])
 }
