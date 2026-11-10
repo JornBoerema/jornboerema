@@ -61,6 +61,8 @@ export const en = {
     newMail: (count: number) => `${count} new messages`,
   },
   ai: {
+    writing: "Write with AI",
+    writingHelp: "A button in the composer that writes or rewrites your message from a short description. What you wrote, and for a reply the conversation, is sent to a language model through OpenRouter, only when you ask.",
     title: "Smart features",
     deviceOnly: "Applies to this browser only.",
     summaries: "Summaries",
@@ -157,6 +159,7 @@ export const en = {
     archive: "Archive",
   },
   shortcuts: {
+    aiWrite: "Write with AI",
     title: "Keyboard shortcuts",
     description: "Every key the app knows.",
     placeholder: "Keyboard shortcuts…",
@@ -204,6 +207,14 @@ export const en = {
     count: (count: number) => (count === 1 ? "1 draft" : `${count} drafts`),
   },
   compose: {
+    aiWrite: "Write with AI",
+    aiPlaceholderNew: "What should the mail say? For example: thank Piet and say Thursday works",
+    aiPlaceholderEdit: "What should change? For example: shorter, more formal, add a question",
+    aiWriting: "Writing…",
+    aiWritten: "Written by AI",
+    aiUndo: "Undo",
+    aiClose: "Close",
+    aiSubmit: "Write",
     suggestions: "Suggestions",
     sending: "Sending…",
     undo: "Undo",

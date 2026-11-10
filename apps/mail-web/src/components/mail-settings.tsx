@@ -26,9 +26,11 @@ import { notificationsSupported } from "@/lib/notifications"
 import {
   setAlwaysShowImages,
   setNotifyNewMail,
+  setAiWriting,
   setFindCodes,
   setSummaries,
   useAlwaysShowImages,
+  useAiWriting,
   useFindCodes,
   useNotifyNewMail,
   useSummaries,
@@ -123,10 +125,14 @@ function AiSettings() {
   const t = useI18n().t.ai
   const summaries = useSummaries()
   const codes = useFindCodes()
+  const writing = useAiWriting()
   return (
     <SettingsSection title={t.title} description={t.deviceOnly}>
       <SettingsRow title={t.summaries} htmlFor="mail-summaries" description={t.summariesHelp}>
         <Switch id="mail-summaries" checked={summaries} onCheckedChange={setSummaries} />
+      </SettingsRow>
+      <SettingsRow title={t.writing} htmlFor="mail-ai-writing" description={t.writingHelp}>
+        <Switch id="mail-ai-writing" checked={writing} onCheckedChange={setAiWriting} />
       </SettingsRow>
       <SettingsRow title={t.codes} htmlFor="mail-codes" description={t.codesHelp}>
         <Switch id="mail-codes" checked={codes} onCheckedChange={setFindCodes} />

@@ -79,7 +79,26 @@ function replaceSignature(editor: Editor, html: string) {
     chain.insertContentAt(editor.state.doc.content.size, `<p></p>${signatureBlock(html)}`, options).run()
   }
 }
-export type RichTextHandle = { focus: () => void }
+export type RichTextHandle = {
+  focus: () => void
+  /** What is written above the signature, as plain text. */
+  bodyText: () => string
+  /** Puts `html` in place of everything above the signature, as one undo step. */
+  setBody: (html: string) => void
+  undo: () => void
+}
+
+function bodyRange(editor: Editor) {
+  let end = editor.state.doc.content.size
+  let signature = false
+  editor.state.doc.forEach((node, offset) => {
+    if (node.type.name === "signature" && !signature) {
+      end = offset
+      signature = true
+    }
+  })
+  return { end, signature }
+}
 
 function FormatButton({
   icon,
@@ -362,7 +381,29 @@ export default function RichTextEditor({
   }, [editor, signature])
 
   // Back where the cursor was, which is never inside the signature unless put there.
-  useImperativeHandle(ref, () => ({ focus: () => editor?.commands.focus() }), [editor])
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => editor?.commands.focus(),
+      bodyText: () => {
+        if (!editor) return ""
+        const { end } = bodyRange(editor)
+        return editor.state.doc.textBetween(0, end, "\n").trim()
+      },
+      setBody: (html) => {
+        if (!editor) return
+        const { end, signature } = bodyRange(editor)
+        // The blank line before the signature stays.
+        editor
+          .chain()
+          .insertContentAt({ from: 0, to: end }, signature ? `${html}<p></p>` : html)
+          .focus("start")
+          .run()
+      },
+      undo: () => editor?.commands.undo(),
+    }),
+    [editor]
+  )
 
   return (
     <div className={cn("mail-editor", className)}>

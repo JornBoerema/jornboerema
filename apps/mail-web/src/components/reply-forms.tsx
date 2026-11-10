@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react"
+import { lazy, Suspense, useRef, useState, type KeyboardEvent } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@evido/ui/components/button"
@@ -17,7 +17,9 @@ import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
 import { conversationUrl, syncSoon } from "@/lib/mail"
-import { sendOnModEnter } from "@/lib/hotkeys"
+import { isAiWriteKey, sendOnModEnter } from "@/lib/hotkeys"
+import { AiPrompt, AiWriteButton, useAiWriter, type AiWriter } from "@/components/ai-writer"
+import type { RichTextHandle } from "@/components/rich-text-editor"
 import type { RichTextValue } from "@/components/rich-text-editor"
 import { fromInlineImages } from "@/lib/inline-images"
 import { clearReplyDraft, saveReplyDraft, type ReplyDraft } from "@/lib/reply-drafts"
@@ -40,6 +42,13 @@ function Actions({ canSend, onClose }: { canSend: boolean; onClose: () => void }
       </Button>
     </div>
   )
+}
+
+function keyDown(event: KeyboardEvent<HTMLFormElement>, writer: AiWriter) {
+  if (isAiWriteKey(event) && writer.enabled) {
+    event.preventDefault()
+    writer.toggle()
+  } else sendOnModEnter(event)
 }
 
 export function ReplyForm({
@@ -66,6 +75,8 @@ export function ReplyForm({
   const accountId = account?.id
   const signatureChoice = useSignatureChoice(account, "reply")
   const signature = signatureChoice.html
+  const editor = useRef<RichTextHandle>(null)
+  const writer = useAiWriter({ url: conversationUrl(threadId, "/write"), editor, hasSignature: Boolean(signature) })
   const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
   const [initialHtml] = useState(() => (initial ? fromInlineImages(initial.html, initial.inline) : undefined))
   const keep = (value: RichTextValue) => {
@@ -105,7 +116,7 @@ export function ReplyForm({
   return (
     <form
       className={FORM}
-      onKeyDown={sendOnModEnter}
+      onKeyDown={(event) => keyDown(event, writer)}
       onSubmit={(event) => {
         event.preventDefault()
         if (canSend) send.mutate()
@@ -117,6 +128,7 @@ export function ReplyForm({
       </p>
       <Suspense fallback={<div className="min-h-32" />}>
         <RichTextEditor
+          ref={editor}
           autoFocus
           label={t.replyPlaceholder}
           placeholder={t.replyPlaceholder}
@@ -126,10 +138,12 @@ export function ReplyForm({
           onChange={keep}
         />
       </Suspense>
+      <AiPrompt writer={writer} className="mx-2 border-t px-2 pt-2.5 pb-1" />
       <div className="flex items-center justify-between gap-3 p-2">
         <div className="flex min-w-0 items-center gap-1">
           <AttachmentPicker files={files} onChange={setFiles} />
           <SignaturePicker choice={signatureChoice} />
+          <AiWriteButton writer={writer} />
         </div>
         <Actions
           canSend={canSend}
@@ -161,6 +175,13 @@ export function ForwardForm({
   const t = strings.conversation
   const signatureChoice = useSignatureChoice(account, "reply")
   const signature = signatureChoice.html
+  const editor = useRef<RichTextHandle>(null)
+  const writer = useAiWriter({
+    url: conversationUrl(threadId, "/write"),
+    editor,
+    hasSignature: Boolean(signature),
+    forward: true,
+  })
   const [to, setTo] = useState(initial?.to ?? "")
   const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
   const [initialHtml] = useState(() => (initial ? fromInlineImages(initial.html, initial.inline) : undefined))
@@ -206,7 +227,7 @@ export function ForwardForm({
   return (
     <form
       className={FORM}
-      onKeyDown={sendOnModEnter}
+      onKeyDown={(event) => keyDown(event, writer)}
       onSubmit={(event) => {
         event.preventDefault()
         submit()
@@ -215,6 +236,7 @@ export function ForwardForm({
       <AddressRow label={t.to} autoFocus value={to} onChange={(value) => keep({ to: value })} />
       <Suspense fallback={<div className="min-h-24" />}>
         <RichTextEditor
+          ref={editor}
           label={t.forwardPlaceholder}
           placeholder={t.forwardPlaceholder}
           className="min-h-24 flex-1"
@@ -223,9 +245,11 @@ export function ForwardForm({
           onChange={(value) => keep({ value })}
         />
       </Suspense>
+      <AiPrompt writer={writer} className="mx-2 border-t px-2 pt-2.5 pb-1" />
       <div className="flex items-center justify-between gap-3 p-2">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1">
           <SignaturePicker choice={signatureChoice} />
+          <AiWriteButton writer={writer} />
           <p className="truncate px-2 text-xs text-muted-foreground">
             {message.attachments.length > 0 && t.forwardAttachments(message.attachments.length)}
           </p>

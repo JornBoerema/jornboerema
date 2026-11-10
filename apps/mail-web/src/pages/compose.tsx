@@ -48,7 +48,8 @@ import {
   useAttachmentRefs,
   type ComposerFile,
 } from "@/lib/uploads"
-import { sendOnModEnter } from "@/lib/hotkeys"
+import { isAiWriteKey, sendOnModEnter } from "@/lib/hotkeys"
+import { AiPrompt, AiWriteButton, useAiWriter } from "@/components/ai-writer"
 import { syncSoon } from "@/lib/mail"
 import { UndoneError, waitForUndo } from "@/lib/undo"
 import { useSignatureChoice } from "@/lib/signatures"
@@ -192,6 +193,17 @@ function ComposeForm({
     reply ? "reply" : "new"
   )
   const signature = signatureChoice.html
+  const editor = useRef<RichTextHandle>(null)
+  const writer = useAiWriter({
+    // A saved reply opened here still answers its conversation.
+    url: reply
+      ? `/api/mail/accounts/${encodeURIComponent(accountId)}/conversation/write?thread=${encodeURIComponent(reply.threadId)}`
+      : "/api/mail/write",
+    editor,
+    hasSignature: Boolean(signature),
+    subject,
+    onSubject: setSubject,
+  })
   const hasDraft = Boolean(
     to || cc || bcc || subject || body.written || files.length
   )
@@ -223,7 +235,6 @@ function ComposeForm({
 
   useEscapeToHide(hidden, onHide)
 
-  const editor = useRef<RichTextHandle>(null)
   const wasHidden = useRef(hidden)
   useEffect(() => {
     if (wasHidden.current && !hidden) editor.current?.focus()
@@ -349,7 +360,12 @@ function ComposeForm({
           </h2>
           <form
             className="flex flex-1 flex-col md:px-4"
-            onKeyDown={sendOnModEnter}
+            onKeyDown={(event) => {
+              if (isAiWriteKey(event) && writer.enabled) {
+                event.preventDefault()
+                writer.toggle()
+              } else sendOnModEnter(event)
+            }}
             onSubmit={(event) => {
               event.preventDefault()
               submit()
@@ -422,10 +438,13 @@ function ComposeForm({
                 }}
               />
             </Suspense>
-            <div className="sticky bottom-4 z-10 mx-4 mb-4 flex min-h-14 shrink-0 items-center justify-between gap-3 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
+            <div className="sticky bottom-4 z-10 mx-4 mb-4 shrink-0 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
+              <AiPrompt writer={writer} className="mb-2 border-b px-1 pt-0.5 pb-2.5" />
+              <div className="flex min-h-10 items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-1">
                 <AttachmentPicker files={files} onChange={setFiles} />
                 <SignaturePicker choice={signatureChoice} />
+                <AiWriteButton writer={writer} />
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <span
@@ -464,6 +483,7 @@ function ComposeForm({
                 >
                   {t.send}
                 </Button>
+              </div>
               </div>
             </div>
           </form>

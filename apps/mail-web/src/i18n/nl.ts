@@ -62,6 +62,8 @@ export const nl: typeof en = {
     newMail: (count: number) => `${count} nieuwe berichten`,
   },
   ai: {
+    writing: "Schrijven met AI",
+    writingHelp: "Een knop in het opstelscherm die je bericht schrijft of herschrijft vanuit een korte omschrijving. Wat je schreef, en bij een antwoord het gesprek, gaat via OpenRouter naar een taalmodel, alleen als je erom vraagt.",
     title: "Slimme functies",
     deviceOnly: "Geldt alleen voor deze browser.",
     summaries: "Samenvattingen",
@@ -158,6 +160,7 @@ export const nl: typeof en = {
     archive: "Archiveren",
   },
   shortcuts: {
+    aiWrite: "Schrijven met AI",
     title: "Sneltoetsen",
     description: "Alle toetsen die de app kent.",
     placeholder: "Sneltoetsen…",
@@ -205,6 +208,14 @@ export const nl: typeof en = {
     count: (count: number) => (count === 1 ? "1 concept" : `${count} concepten`),
   },
   compose: {
+    aiWrite: "Schrijven met AI",
+    aiPlaceholderNew: "Wat moet erin? Bijvoorbeeld: bedank Piet en zeg dat donderdag past",
+    aiPlaceholderEdit: "Wat moet er anders? Bijvoorbeeld: korter, formeler, stel een vraag",
+    aiWriting: "Schrijven…",
+    aiWritten: "Geschreven door AI",
+    aiUndo: "Ongedaan maken",
+    aiClose: "Sluiten",
+    aiSubmit: "Schrijven",
     suggestions: "Suggesties",
     sending: "Bericht wordt verzonden…",
     undo: "Ongedaan maken",

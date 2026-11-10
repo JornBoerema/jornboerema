@@ -48,6 +48,7 @@ import {
   updateSignature,
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
+import { writeMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { syncAccount } from "./sync-server"
 import {
   createUpload,
@@ -290,6 +291,49 @@ mailRoutes.get("/threads", requireSession, async (c) => {
   }
 })
 
+const writeBody = z.object({
+  instruction: z.string().trim().min(1).max(2000),
+  draft: z.string().max(20_000).default(""),
+  subject: z.string().max(500).default(""),
+  hasSignature: z.boolean().default(false),
+  forward: z.boolean().default(false),
+})
+
+function writeFailure(c: Context, error: unknown) {
+  if (error instanceof WriteNotConfiguredError) return c.json({ error: msg(c, "writeUnavailable") }, 503)
+  if (error instanceof WriteFailedError) return c.json({ error: msg(c, "writeFailed") }, 502)
+  return failure(c, error)
+}
+
+const writeRequest = (c: Context<AppEnv>, body: z.infer<typeof writeBody>): WriteRequest => ({
+  ...body,
+  senderName: c.get("session").user.name ?? "",
+})
+
+// Sent to a language model on request only; neither the instruction nor the answer is kept.
+mailRoutes.post("/write", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, writeBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await writeMessage(writeRequest(c, body), { language: languageOf(c) }), 200, noStore)
+  } catch (error) {
+    return writeFailure(c, error)
+  }
+})
+
+mailRoutes.post("/threads/:id/write", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, writeBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    const { messages } = await readConversation(conversation, { includeHidden: conversation.hidden })
+    const written = await writeMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages })
+    return c.json(written, 200, noStore)
+  } catch (error) {
+    return writeFailure(c, error)
+  }
+})
+
 // Mail bodies pass through on request and are never written anywhere.
 // Read live, summed up, and not kept: the summary goes to the reader only.
 const summaryOptions = (c: Context) => ({
@@ -526,6 +570,19 @@ mailRoutes.get("/accounts/:id/conversation/summary", requireSession, async (c) =
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/conversation/write", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, writeBody)
+  try {
+    const conversation = await conversationOf(c)
+    if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    const { messages } = await readConversation(conversation, { includeHidden: c.req.query("hidden") === "1" })
+    const written = await writeMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages })
+    return c.json(written, 200, noStore)
+  } catch (error) {
+    return writeFailure(c, error)
   }
 })
 

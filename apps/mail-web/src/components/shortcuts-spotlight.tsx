@@ -77,6 +77,7 @@ export function ShortcutsSpotlight({
       heading: t.writing,
       items: [
         { keys: [MOD, "Enter"], label: t.send },
+        { keys: [MOD, "J"], label: t.aiWrite },
         { keys: [MOD, "B"], label: t.bold },
         { keys: [MOD, "I"], label: t.italic },
         { keys: [MOD, "U"], label: t.underline },

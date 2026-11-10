@@ -37,3 +37,7 @@ export function sendOnModEnter(event: ReactKeyboardEvent<HTMLFormElement>) {
   event.preventDefault()
   event.currentTarget.requestSubmit()
 }
+
+/** ⌘J / Ctrl+J opens writing with AI in a composer. */
+export const isAiWriteKey = (event: ReactKeyboardEvent) =>
+  event.key.toLowerCase() === "j" && (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey

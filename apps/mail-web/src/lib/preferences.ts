@@ -109,3 +109,28 @@ export function setFindCodes(enabled: boolean) {
 export function useFindCodes() {
   return useSyncExternalStore(subscribe, readCodes)
 }
+
+const WRITING_KEY = "evido.mail.ai-writing"
+
+function readWriting() {
+  try {
+    return localStorage.getItem(WRITING_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setAiWriting(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(WRITING_KEY)
+    else localStorage.setItem(WRITING_KEY, "off")
+  } catch {
+    // Storage can be blocked; the button then stays.
+  }
+  listeners.forEach((listener) => listener())
+}
+
+/** On unless turned off: a button that has a language model write the message. */
+export function useAiWriting() {
+  return useSyncExternalStore(subscribe, readWriting)
+}
