@@ -430,6 +430,7 @@ model MailAccount {
   createdAt            DateTime          @default(now()) @map("created_at")
   updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
   messages             MailMessage[]
+  summaries            MailSummary[]
 
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
   @@index([watchId], map: "mail_accounts_watch_id_idx")
@@ -451,6 +452,26 @@ model MailSignature {
 
   @@index([userId, createdAt], map: "mail_signatures_user_created_idx")
   @@map("mail_signatures")
+}
+
+/// What the reading pane shows above a conversation, made once per newest message
+/// and language. The summary is a few sentences derived from the mail.
+model MailSummary {
+  id        String      @id
+  accountId String      @map("account_id")
+  account   MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  threadId  String      @map("thread_id")
+  /// The conversation's newest message when this was made; a reply makes a new one.
+  messageId String      @map("message_id")
+  language  String
+  /// A one-time code in the newest message, found without a model.
+  code      String?
+  /// Null until a model was asked; then the summary, or empty when it had none.
+  summary   String?
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@unique([accountId, threadId, messageId, language], map: "mail_summaries_key")
+  @@map("mail_summaries")
 }
 
 /// A pending OAuth connect flow. `id` is the SHA-256 of the state value.

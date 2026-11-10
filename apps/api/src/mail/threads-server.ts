@@ -119,9 +119,9 @@ export async function unreadSummary(userId: string) {
 }
 
 /** `hidden` when it was found in spam or trash, which normal reading leaves out. */
-type Conversation = { account: MailAccount; threadId: string; hidden?: boolean }
+export type Conversation = { account: MailAccount; threadId: string; hidden?: boolean }
 
-async function ownedMessage(userId: string, messageId: string): Promise<Conversation> {
+export async function ownedMessage(userId: string, messageId: string): Promise<Conversation> {
   const message = await getDb().mailMessage.findFirst({
     where: { id: messageId, userId },
     include: { account: true },

@@ -39,7 +39,7 @@ import {
   TooManySignaturesError,
   updateSignature,
 } from "./signatures-server"
-import { summarize, SummaryFailedError } from "./summary-server"
+import { summaryFor, SummaryFailedError } from "./summary-server"
 import { syncAccount } from "./sync-server"
 import {
   authorizeCron,
@@ -51,6 +51,7 @@ import {
 } from "./webhooks-server"
 import {
   actOnConversation,
+  ownedMessage,
   attachmentInConversation,
   forwardFromConversation,
   ownedConversation,
@@ -265,13 +266,16 @@ mailRoutes.get("/threads", requireSession, async (c) => {
 
 // Mail bodies pass through on request and are never written anywhere.
 // Read live, summed up, and not kept: the summary goes to the reader only.
+const summaryOptions = (c: Context) => ({
+  useModel: c.req.query("ai") !== "0",
+  findCodes: c.req.query("codes") !== "0",
+})
+
+// Made once per newest message and kept; the mail itself isn't.
 mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
   try {
-    const { messages } = await readThread(c.get("session").user.id, c.req.param("id"))
-    return c.json(await summarize(messages, languageOf(c), {
-      useModel: c.req.query("ai") !== "0",
-      findCodes: c.req.query("codes") !== "0",
-    }), 200, noStore)
+    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    return c.json(await summaryFor(conversation, languageOf(c), summaryOptions(c)), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)
@@ -479,11 +483,8 @@ mailRoutes.get("/accounts/:id/conversation/summary", requireSession, async (c) =
   try {
     const conversation = await conversationOf(c)
     if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
-    const { messages } = await readConversation(conversation, { includeHidden: c.req.query("hidden") === "1" })
-    return c.json(await summarize(messages, languageOf(c), {
-      useModel: c.req.query("ai") !== "0",
-      findCodes: c.req.query("codes") !== "0",
-    }), 200, noStore)
+    const hidden = c.req.query("hidden") === "1"
+    return c.json(await summaryFor({ ...conversation, hidden }, languageOf(c), summaryOptions(c)), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)

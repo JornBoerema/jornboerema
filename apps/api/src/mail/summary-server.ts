@@ -1,7 +1,10 @@
+import { randomUUID } from "node:crypto"
+import { getDb } from "@evido/db"
 import { findOneTimeCode } from "@evido/mail-core/codes"
 import { htmlToText } from "@evido/mail-core/gmail-send"
 import type { MailSummary, MailThreadMessage } from "@evido/mail-core/types"
 import type { Language } from "@evido/i18n"
+import { readConversation, type Conversation } from "./threads-server"
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 /** Fast, cheap and good in Dutch. OPENROUTER_MODEL picks another. */
@@ -58,24 +61,17 @@ export function asParagraph(text: string, cutOff: boolean) {
   return paragraph
 }
 
-/**
- * A one-time code when the newest message has one, found here without sending the
- * mail anywhere; otherwise at most three lines from a language model.
- */
-export async function summarize(
-  messages: MailThreadMessage[],
-  language: Language,
-  options: { useModel: boolean; findCodes: boolean }
-): Promise<MailSummary> {
+/** A one-time code in the newest message, found here without sending the mail anywhere. */
+function codeIn(messages: MailThreadMessage[]) {
   const newest = messages.at(-1)
-  if (!newest) return { kind: "none" }
-  const code = options.findCodes ? findOneTimeCode(newest.subject, textOf(newest)) : null
-  if (code) return { kind: "code", code }
+  return newest ? findOneTimeCode(newest.subject, textOf(newest)) : null
+}
 
+/** At most three lines from a language model; empty when there's nothing worth summing up. */
+async function modelSummary(messages: MailThreadMessage[], language: Language) {
   const text = conversationText(messages)
   const key = process.env.OPENROUTER_API_KEY
-  if (!options.useModel || !key || text.length < MIN_TEXT) return { kind: "none" }
-
+  if (!key || text.length < MIN_TEXT) return ""
   const response = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
@@ -117,6 +113,68 @@ export async function summarize(
     choices?: { message?: { content?: string }; finish_reason?: string }[]
   }
   const choice = body.choices?.[0]
-  const summary = asParagraph(choice?.message?.content ?? "", choice?.finish_reason === "length")
-  return summary ? { kind: "summary", summary } : { kind: "none" }
+  return asParagraph(choice?.message?.content ?? "", choice?.finish_reason === "length")
+}
+
+type Options = { useModel: boolean; findCodes: boolean }
+
+function answer({ code, summary }: { code: string | null; summary: string | null }, options: Options): MailSummary {
+  if (options.findCodes && code) return { kind: "code", code }
+  if (options.useModel && summary) return { kind: "summary", summary }
+  return { kind: "none" }
+}
+
+/** Kept unless a model is wanted and was never asked for this one. */
+const settles = (row: { summary: string | null } | null, options: Options) =>
+  row !== null && (row.summary !== null || !options.useModel)
+
+/**
+ * The code or summary for a conversation, made once per newest message and
+ * language and kept. A kept one for a synced conversation needs no read from the
+ * provider at all; a new reply gets a new one.
+ */
+export async function summaryFor(
+  conversation: Conversation,
+  language: Language,
+  options: Options
+): Promise<MailSummary> {
+  const db = getDb()
+  const accountId = conversation.account.id
+  const keyOf = (messageId: string) => ({
+    accountId_threadId_messageId_language: { accountId, threadId: conversation.threadId, messageId, language },
+  })
+  const newestSynced = await db.mailMessage.findFirst({
+    where: { accountId, threadId: conversation.threadId },
+    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+    select: { providerMessageId: true },
+  })
+  if (newestSynced) {
+    const kept = await db.mailSummary.findUnique({ where: keyOf(newestSynced.providerMessageId) })
+    if (kept && settles(kept, options)) return answer(kept, options)
+  }
+
+  const { messages } = await readConversation(conversation, { includeHidden: conversation.hidden })
+  const newest = messages.at(-1)
+  if (!newest) return { kind: "none" }
+  const kept = await db.mailSummary.findUnique({ where: keyOf(newest.id) })
+  if (kept && settles(kept, options)) return answer(kept, options)
+
+  const code = kept?.code ?? codeIn(messages)
+  // Only asked when it would be shown: a found code takes its place unless codes are off.
+  const wantsModel = options.useModel && (!code || !options.findCodes)
+  const summary = wantsModel ? await modelSummary(messages, language) : (kept?.summary ?? null)
+  await db.mailSummary.upsert({
+    where: keyOf(newest.id),
+    create: {
+      id: randomUUID(),
+      accountId,
+      threadId: conversation.threadId,
+      messageId: newest.id,
+      language,
+      code,
+      summary,
+    },
+    update: { code, summary },
+  })
+  return answer({ code, summary }, options)
 }
