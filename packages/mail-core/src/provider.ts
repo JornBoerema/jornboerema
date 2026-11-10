@@ -138,11 +138,14 @@ export class MissingScopeError extends Error {}
 export class ProviderError extends Error {
   status?: number
   code?: string
+  /** How long the provider asked to wait, from Retry-After. */
+  retryAfterMs?: number
 
-  constructor(message: string, details?: { status?: number; code?: string }) {
+  constructor(message: string, details?: { status?: number; code?: string; retryAfterMs?: number }) {
     super(message)
     this.status = details?.status
     this.code = details?.code
+    this.retryAfterMs = details?.retryAfterMs
   }
 }
 

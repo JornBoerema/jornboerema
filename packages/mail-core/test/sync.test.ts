@@ -142,10 +142,15 @@ describe("gmail sync", () => {
     ).rejects.toBeInstanceOf(SyncCursorExpiredError)
   })
 
-  it("recognizes throttling from the reason Google sends", async () => {
+  it("recognizes throttling from the reason Google sends, after trying again", async () => {
+    vi.useFakeTimers()
     const cursor = v2({ historyId: "1", backfill: false })
-    stubRoutes([[/\/history\?/, 403, { error: { code: 403, errors: [{ reason: "rateLimitExceeded" }] } }]])
-    expect(isRateLimited(await syncGmailPage("t", { cursor, since }).catch((e: unknown) => e))).toBe(true)
+    const requests = stubRoutes([[/\/history\?/, 403, { error: { code: 403, errors: [{ reason: "rateLimitExceeded" }] } }]])
+    const result = syncGmailPage("t", { cursor, since }).catch((e: unknown) => e)
+    await vi.advanceTimersByTimeAsync(8000)
+    expect(isRateLimited(await result)).toBe(true)
+    expect(requests).toHaveLength(4)
+    vi.useRealTimers()
     stubRoutes([[/\/history\?/, 403, { error: { code: 403, errors: [{ reason: "insufficientPermissions" }] } }]])
     expect(isRateLimited(await syncGmailPage("t", { cursor, since }).catch((e: unknown) => e))).toBe(false)
   })

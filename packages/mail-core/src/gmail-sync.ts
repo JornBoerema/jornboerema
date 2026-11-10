@@ -9,9 +9,9 @@ import {
 
 export const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 const PAGE_SIZE = 100
-// Each read costs 5 of the 250 quota units a user gets per second. Four at a time
-// stays near half of that, since an answer takes 100 to 200ms.
-const READ_CONCURRENCY = 4
+// Each read costs 5 of the 250 quota units a user gets per second. Three at a time
+// leaves room for what the user does meanwhile: a send alone costs 100.
+const READ_CONCURRENCY = 3
 /** Cursors from before every folder was synced lack this, which starts a full sync. */
 const CURSOR_VERSION = 2
 

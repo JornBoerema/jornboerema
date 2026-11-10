@@ -526,3 +526,40 @@ describe("star and back to the inbox", () => {
     expect(sent.map((item) => [item.url.split("/me/messages/")[1], item.body])).toEqual([["a/move", { destinationId: "inbox" }]])
   })
 })
+
+describe("busy providers", () => {
+  it("send again after a refusal for being busy, honouring Retry-After", async () => {
+    vi.useFakeTimers()
+    let calls = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        calls++
+        return calls === 1
+          ? new Response(JSON.stringify({ error: { code: 429 } }), { status: 429, headers: { "Retry-After": "3" } })
+          : new Response("{}", { status: 200 })
+      })
+    )
+    const sending = sendGmail("t", base)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(calls).toBe(1)
+    await vi.advanceTimersByTimeAsync(1500)
+    await sending
+    expect(calls).toBe(2)
+    vi.useRealTimers()
+  })
+
+  it("don't retry other failures, or a wait that is too long", async () => {
+    let calls = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        calls++
+        return new Response("{}", { status: calls === 1 ? 500 : 429, headers: { "Retry-After": "60" } })
+      })
+    )
+    await expect(sendGmail("t", base)).rejects.toBeInstanceOf(ProviderError)
+    await expect(sendGmail("t", base)).rejects.toBeInstanceOf(ProviderError)
+    expect(calls).toBe(2)
+  })
+})

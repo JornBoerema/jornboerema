@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono"
 import { z } from "zod"
 import { getAuth } from "@evido/auth/server"
-import { MissingScopeError, ProviderError, ReauthRequiredError } from "@evido/mail-core/provider"
+import { isRateLimited, MissingScopeError, ProviderError, ReauthRequiredError } from "@evido/mail-core/provider"
 import {
   isMailFolder,
   isMailProvider,
@@ -181,6 +181,8 @@ function failure(c: Context, error: unknown) {
     return c.json({ error: msg(c, "mailReconnect"), reauth: true }, 409)
   if (error instanceof MailNotConfiguredError)
     return c.json({ error: msg(c, "mailNotConfigured") }, 503)
+  // Still refused after trying again: nothing happened, so trying later is safe.
+  if (isRateLimited(error)) return c.json({ error: msg(c, "mailBusy") }, 429)
   console.error("Mail request failed", error instanceof Error ? error.message : "unknown")
   return c.json({ error: msg(c, "mailProviderFailed") }, 502)
 }
