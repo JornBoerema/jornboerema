@@ -73,11 +73,10 @@ function RowActions({
           key={action.label}
           variant="ghost"
           size="icon-xs"
+          // Only the icon reacts; the row already shows what is hovered.
           className={cn(
-            "text-muted-foreground",
-            action.destructive
-              ? "hover:bg-destructive/10 hover:text-destructive"
-              : "hover:bg-background/70 hover:text-foreground"
+            "text-muted-foreground hover:bg-transparent! dark:hover:bg-transparent!",
+            action.destructive ? "hover:text-destructive" : "hover:text-foreground"
           )}
           aria-label={action.label}
           title={action.label}
