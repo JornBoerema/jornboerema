@@ -473,15 +473,13 @@ function SidebarRail({
       </nav>
       <div className="rail-footer">
         <DropdownMenu>
-          <RailTip label={user.email}>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="rail-account" aria-label={t.shell.account(user.email)}>
-                <span className="workspace-avatar" aria-hidden="true">
-                  {initialOf(user)}
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-          </RailTip>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="rail-account" aria-label={t.shell.account(user.email)}>
+              <span className="workspace-avatar" aria-hidden="true">
+                {initialOf(user)}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
           <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} side="right" />
         </DropdownMenu>
       </div>
