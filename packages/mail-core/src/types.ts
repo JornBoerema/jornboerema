@@ -199,3 +199,23 @@ export const MAX_LISTED_DRAFTS = 25
 /** Worth keeping: a message only becomes a draft once its subject or text is started. */
 export const isDraftWorthKeeping = (draft: { subject: string; text: string }) =>
   Boolean(draft.subject.trim() || draft.text.trim())
+
+/** A conversation search found, read live. It may be outside the synced inbox. */
+export type MailSearchHit = {
+  accountId: string
+  /** The provider's conversation id. */
+  threadId: string
+  subject: string
+  snippet: string
+  fromName: string | null
+  fromEmail: string | null
+  receivedAt: string
+  isRead: boolean
+  hasAttachments: boolean
+  /** The newest synced message, when the conversation is in the inbox list. */
+  messageId?: string
+}
+
+/** Each mailbox returns at most this many conversations per search. */
+export const MAX_SEARCH_HITS = 15
+export const MAX_SEARCH_LENGTH = 500

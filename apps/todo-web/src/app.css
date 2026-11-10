@@ -363,18 +363,7 @@
   .dashboard-content { padding-bottom: 24px; }
 }
 
-.list-spotlight { padding: 8px; gap: 0; border-radius: 12px; top: min(20dvh, 160px); translate: -50% 0; transform: none; max-height: calc(100dvh - 40px); }
-.list-spotlight [data-slot="command"] { border-radius: 8px; padding: 0; }
-.list-spotlight [data-slot="command-input-wrapper"] { padding: 4px 4px 8px; }
-.list-spotlight [data-slot="input-group"] { border-radius: 8px; height: 42px; }
-.list-spotlight [data-slot="command-list"] { max-height: min(360px, 45dvh); }
-.list-spotlight [data-slot="command-item"] { border-radius: 6px; min-height: 42px; cursor: pointer; }
-.spotlight-name { min-width: 0; overflow-wrap: anywhere; }
 .spotlight-shared { display: block; color: var(--muted-foreground); font-size: 11px; margin-top: 2px; }
-.spotlight-help { display: flex; gap: 16px; padding: 12px 12px 4px; font-size: 11px; color: var(--muted-foreground); }
-@media (max-width: 700px) {
-  .list-spotlight { top: 20px; }
-}
 
 .note-content { overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
 .note-content::-webkit-scrollbar { display: none; }

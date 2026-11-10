@@ -10,6 +10,7 @@ import { cn } from "@evido/ui/lib/utils"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { MailSettings } from "@/components/mail-settings"
+import { MailSpotlight } from "@/components/mail-spotlight"
 import { Sidebar, type MailNavigation } from "@/components/sidebar"
 import { I18nProvider } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
@@ -43,6 +44,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     setComposeHidden(false)
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
+  const [searchOpen, setSearchOpen] = useState(false)
   const hasActive = list.some((account) => account.status === "active")
   const drafts = useDrafts(hasActive)
   // Loaded up front, so a new message has its signature from the start.
@@ -74,9 +76,19 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (event.key !== "," || !(event.metaKey || event.ctrlKey)) return
-      event.preventDefault()
-      setSettingsOpen(true)
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.repeat) return
+      const key = event.key.toLowerCase()
+      if (key === ",") {
+        event.preventDefault()
+        setSettingsOpen(true)
+      }
+      if (key === "k") {
+        // In the editor ⌘K makes a link; other dialogs keep their own keys.
+        const inEditor = event.target instanceof HTMLElement && event.target.closest(".ProseMirror")
+        if (inEditor || document.querySelector('[role="dialog"]:not(.list-spotlight), [role="alertdialog"]')) return
+        event.preventDefault()
+        setSearchOpen((current) => !current)
+      }
     }
     document.addEventListener("keydown", keydown)
     return () => document.removeEventListener("keydown", keydown)
@@ -109,6 +121,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       } else startCompose(null)
     },
     onSettings: () => setSettingsOpen(true),
+    onSearch: () => setSearchOpen(true),
   }
 
   return (
@@ -134,6 +147,16 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
         />
       </main>
       <MailSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <MailSpotlight
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        accounts={list}
+        onOpenThread={setOpen}
+        onCompose={navigation.onCompose}
+        onDrafts={navigation.onSelectDrafts}
+        onMailbox={navigation.onSelectAccount}
+        onSettings={navigation.onSettings}
+      />
     </div>
   )
 }

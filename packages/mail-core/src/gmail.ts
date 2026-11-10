@@ -1,3 +1,4 @@
+import { searchGmail } from "./gmail-search"
 import { deleteGmailDraft, getGmailDraft, listGmailDrafts, saveGmailDraft, sendGmailDraft } from "./gmail-drafts"
 import { readGmailAttachment, readGmailThread } from "./gmail-read"
 import { applyGmailThreadAction, forwardGmail, replyGmail, sendGmail } from "./gmail-send"
@@ -92,6 +93,8 @@ export function createGmailProvider({ clientId, clientSecret }: ProviderCredenti
     reply: replyGmail,
 
     forward: forwardGmail,
+
+    search: searchGmail,
 
     listDrafts: listGmailDrafts,
 

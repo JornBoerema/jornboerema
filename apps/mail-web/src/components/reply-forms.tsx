@@ -13,6 +13,7 @@ import { AddressRow } from "@/components/address-row"
 import { useI18n } from "@/i18n"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
+import { conversationUrl } from "@/lib/mail"
 import { sendOnModEnter } from "@/lib/hotkeys"
 import type { RichTextValue } from "@/components/rich-text-editor"
 
@@ -59,7 +60,7 @@ export function ReplyForm({
   const { to, cc } = replyRecipients(message, selfEmail, all)
   const send = useMutation({
     mutationFn: () =>
-      api(`/api/mail/threads/${encodeURIComponent(threadId)}/reply`, {
+      api(conversationUrl(threadId, "/reply"), {
         method: "POST",
         headers: JSON_HEADERS,
         body: JSON.stringify({
@@ -129,7 +130,7 @@ export function ForwardForm({
   const [body, setBody] = useState<RichTextValue>({ text: "", html: "", inline: [], written: false })
   const send = useMutation({
     mutationFn: (recipients: MailAddress[]) =>
-      api(`/api/mail/threads/${encodeURIComponent(threadId)}/forward`, {
+      api(conversationUrl(threadId, "/forward"), {
         method: "POST",
         headers: JSON_HEADERS,
         body: JSON.stringify({

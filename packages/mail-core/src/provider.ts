@@ -10,6 +10,7 @@ import type {
   MailThreadAction,
   MailThreadMessage,
   MailDraftView,
+  MailSearchHit,
 } from "./types"
 
 export type ProviderCredentials = { clientId: string; clientSecret: string }
@@ -85,6 +86,8 @@ export interface MailProvider {
   reply(accessToken: string, input: MailReply & { from: MailAddress; threadId: string }): Promise<void>
   /** Sends the original with its attachments to new recipients. */
   forward(accessToken: string, input: MailForward & { from: MailAddress }): Promise<void>
+  /** Conversations matching `query`, best first. Drafts, spam and trash are left out. */
+  search(accessToken: string, query: string): Promise<Omit<MailSearchHit, "accountId">[]>
   /** The newest drafts, at most MAX_LISTED_DRAFTS. `accountId` is filled in by the caller. */
   listDrafts(accessToken: string): Promise<Omit<MailDraftView, "accountId">[]>
   /** Includes attachment contents, so saving it again keeps them. */

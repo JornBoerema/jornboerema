@@ -32,7 +32,7 @@ import { useI18n } from "@/i18n"
 import { api, apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
 import { useHotkeys } from "@/lib/hotkeys"
-import { useThreadAction } from "@/lib/mail"
+import { conversationUrl, useThreadAction } from "@/lib/mail"
 import { useAlwaysShowImages } from "@/lib/preferences"
 
 /** Long enough that walking past a mail with j/k leaves it unread. */
@@ -92,7 +92,7 @@ const MAX_INLINE_BYTES = 2 * 1024 * 1024
 const MAX_INLINE_IMAGES = 20
 
 const fetchAttachment = (threadId: string, messageId: string, attachmentId: string) =>
-  apiBlob(`/api/mail/threads/${encodeURIComponent(threadId)}/attachment`, {
+  apiBlob(conversationUrl(threadId, "/attachment"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messageId, attachmentId }),
@@ -331,7 +331,7 @@ export function ConversationPage({
   const { mutate: runAction } = useThreadAction()
   const thread = useQuery({
     queryKey: ["mail-thread", id],
-    queryFn: () => api<MailThreadDetail>(`/api/mail/threads/${encodeURIComponent(id)}`),
+    queryFn: () => api<MailThreadDetail>(conversationUrl(id)),
     // Mail bodies stay out of the client cache once the conversation is closed.
     gcTime: 0,
     staleTime: 0,

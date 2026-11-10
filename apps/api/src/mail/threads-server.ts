@@ -1,8 +1,9 @@
-import { getDb, Prisma } from "@evido/db"
+import { getDb, Prisma, type MailAccount } from "@evido/db"
 import type {
   MailForward,
   MailOutgoing,
   MailReply,
+  MailSearchHit,
   MailThreadAction,
   MailThreadDetail,
   MailThreadsPage,
@@ -72,37 +73,41 @@ export async function listThreads(
   }
 }
 
-async function ownedMessage(userId: string, messageId: string) {
+type Conversation = { account: MailAccount; threadId: string }
+
+async function ownedMessage(userId: string, messageId: string): Promise<Conversation> {
   const message = await getDb().mailMessage.findFirst({
     where: { id: messageId, userId },
     include: { account: true },
   })
   if (!message?.threadId) throw new MailMessageNotFoundError()
-  return { ...message, threadId: message.threadId }
+  return { account: message.account, threadId: message.threadId }
+}
+
+/** A conversation by its provider id, such as one search found outside the synced inbox. */
+export async function ownedConversation(userId: string, accountId: string, threadId: string): Promise<Conversation> {
+  return { account: await ownedAccount(userId, accountId), threadId }
 }
 
 /** Reads a conversation live from the provider. Nothing from it is written to the database. */
-export async function readThread(userId: string, messageId: string): Promise<MailThreadDetail> {
-  const { account, threadId } = await ownedMessage(userId, messageId)
-  const messages = await withAccessToken(account, (provider, token) =>
-    provider.getThread(token, threadId)
-  )
+export async function readConversation({ account, threadId }: Conversation): Promise<MailThreadDetail> {
+  const messages = await withAccessToken(account, (provider, token) => provider.getThread(token, threadId))
   return { messages }
 }
 
 /** Changes the mailbox first; the list only follows once the provider has accepted it. */
-export async function actOnThread(userId: string, messageId: string, action: MailThreadAction) {
-  const { account, accountId, threadId } = await ownedMessage(userId, messageId)
+export async function actOnConversation({ account, threadId }: Conversation, action: MailThreadAction) {
   const db = getDb()
-  const where = { accountId, threadId }
+  const where = { accountId: account.id, threadId }
   const rows = await db.mailMessage.findMany({ where, select: { providerMessageId: true } })
-  await withAccessToken(account, (provider, token) =>
-    provider.applyThreadAction(token, {
-      threadId,
-      messageIds: rows.map((row) => row.providerMessageId),
-      action,
-    })
-  )
+  await withAccessToken(account, async (provider, token) => {
+    // Not in the synced inbox, like an older or sent conversation: ask the provider.
+    const messageIds =
+      rows.length > 0
+        ? rows.map((row) => row.providerMessageId)
+        : (await provider.getThread(token, threadId)).map((message) => message.id)
+    await provider.applyThreadAction(token, { threadId, messageIds, action })
+  })
   if (action === "archive" || action === "trash") await db.mailMessage.deleteMany({ where })
   else await db.mailMessage.updateMany({ where, data: { isRead: action === "read" } })
 }
@@ -112,32 +117,84 @@ const sender = (account: { email: string; displayName: string | null }) => ({
   email: account.email,
 })
 
-export async function replyToThread(userId: string, messageId: string, reply: MailReply) {
-  const { account, threadId } = await ownedMessage(userId, messageId)
+export async function replyInConversation({ account, threadId }: Conversation, reply: MailReply) {
   await withAccessToken(account, (provider, token) =>
     provider.reply(token, { ...reply, threadId, from: sender(account) })
   )
 }
 
-export async function forwardThread(userId: string, messageId: string, forward: MailForward) {
-  const { account } = await ownedMessage(userId, messageId)
+export async function forwardFromConversation({ account }: Conversation, forward: MailForward) {
   await withAccessToken(account, (provider, token) =>
     provider.forward(token, { ...forward, from: sender(account) })
   )
 }
 
-export async function readAttachment(
+export async function attachmentInConversation(
+  { account }: Conversation,
+  input: { messageId: string; attachmentId: string }
+) {
+  return withAccessToken(account, (provider, token) => provider.getAttachment(token, input))
+}
+
+export const readThread = async (userId: string, messageId: string) =>
+  readConversation(await ownedMessage(userId, messageId))
+
+export const actOnThread = async (userId: string, messageId: string, action: MailThreadAction) =>
+  actOnConversation(await ownedMessage(userId, messageId), action)
+
+export const replyToThread = async (userId: string, messageId: string, reply: MailReply) =>
+  replyInConversation(await ownedMessage(userId, messageId), reply)
+
+export const forwardThread = async (userId: string, messageId: string, forward: MailForward) =>
+  forwardFromConversation(await ownedMessage(userId, messageId), forward)
+
+export const readAttachment = async (
   userId: string,
   messageId: string,
   input: { messageId: string; attachmentId: string }
-) {
-  const { account } = await ownedMessage(userId, messageId)
-  return withAccessToken(account, (provider, token) => provider.getAttachment(token, input))
-}
+) => attachmentInConversation(await ownedMessage(userId, messageId), input)
 
 export async function sendMessage(userId: string, accountId: string, outgoing: MailOutgoing) {
   const account = await ownedAccount(userId, accountId)
   await withAccessToken(account, (provider, token) =>
     provider.send(token, { ...outgoing, from: sender(account) })
   )
+}
+
+/** Searches every active mailbox live. A mailbox that fails is reported, not fatal. */
+export async function searchMail(userId: string, query: string) {
+  const accounts = await getDb().mailAccount.findMany({ where: { userId, status: "active" } })
+  const results = await Promise.allSettled(
+    accounts.map((account) =>
+      withAccessToken(account, (provider, token) => provider.search(token, query)).then((hits) =>
+        hits.map((hit): MailSearchHit => ({ ...hit, accountId: account.id }))
+      )
+    )
+  )
+  for (const result of results)
+    if (result.status === "rejected")
+      console.error("Mail search failed", result.reason instanceof Error ? result.reason.message : "unknown")
+  const hits = results
+    .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+  // Conversations in the inbox list open as that row, so the list can show it.
+  const synced = await getDb().mailMessage.findMany({
+    where: { userId, OR: hits.map((hit) => ({ accountId: hit.accountId, threadId: hit.threadId })) },
+    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+    select: { id: true, accountId: true, threadId: true },
+  })
+  const newest = new Map<string, string>()
+  for (const row of synced) {
+    const key = `${row.accountId}:${row.threadId}`
+    if (!newest.has(key)) newest.set(key, row.id)
+  }
+  return {
+    hits: hits.map((hit) => {
+      const messageId = newest.get(`${hit.accountId}:${hit.threadId}`)
+      return messageId ? { ...hit, messageId } : hit
+    }),
+    failedAccounts: accounts.flatMap((account, index) =>
+      results[index]?.status === "rejected" ? [account.id] : []
+    ),
+  }
 }

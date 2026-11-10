@@ -9,6 +9,7 @@ import {
   type ConnectErrorCode,
   MAIL_ACCOUNT_COLORS,
   MAX_SIGNATURE_LENGTH,
+  MAX_SEARCH_LENGTH,
   INLINE_CONTENT_ID,
   isDraftWorthKeeping,
 } from "@evido/mail-core/types"
@@ -47,6 +48,13 @@ import {
   renewWatches,
 } from "./webhooks-server"
 import {
+  actOnConversation,
+  attachmentInConversation,
+  forwardFromConversation,
+  ownedConversation,
+  readConversation,
+  replyInConversation,
+  searchMail,
   actOnThread,
   forwardThread,
   InvalidThreadCursorError,
@@ -395,6 +403,87 @@ mailRoutes.delete("/signatures/:id", requireTrustedOrigin, requireSession, async
   try {
     await deleteSignature(c.get("session").user.id, c.req.param("id"))
     return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/search", requireSession, async (c) => {
+  const query = c.req.query("q")?.trim() ?? ""
+  if (!query || query.length > MAX_SEARCH_LENGTH) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  return c.json(await searchMail(c.get("session").user.id, query), 200, noStore)
+})
+
+// A conversation by provider id, for ones search found outside the synced inbox.
+// The id goes in the query string: Graph ids contain "/" and "=".
+const conversationId = z.string().min(1).max(1000)
+async function conversationOf(c: Context<AppEnv>) {
+  const threadId = conversationId.safeParse(c.req.query("thread"))
+  if (!threadId.success) return null
+  return ownedConversation(c.get("session").user.id, c.req.param("id") ?? "", threadId.data)
+}
+
+mailRoutes.get("/accounts/:id/conversation", requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return c.json(await readConversation(conversation), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/conversation/actions", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, actionBody)
+  try {
+    const conversation = await conversationOf(c)
+    if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    await actOnConversation(conversation, body.action)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/conversation/reply", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, replyBody)
+  try {
+    const conversation = await conversationOf(c)
+    if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    await replyInConversation(conversation, body)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/conversation/forward", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, forwardBody)
+  try {
+    const conversation = await conversationOf(c)
+    if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    await forwardFromConversation(conversation, body)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Same as the thread attachment route: always a download, never rendered.
+mailRoutes.post("/accounts/:id/conversation/attachment", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, attachmentBody)
+  try {
+    const conversation = await conversationOf(c)
+    if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    const bytes = await attachmentInConversation(conversation, body)
+    return new Response(new Blob([bytes as BlobPart]).stream(), {
+      headers: {
+        ...noStore,
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": "attachment",
+        "X-Content-Type-Options": "nosniff",
+      },
+    })
   } catch (error) {
     return failure(c, error)
   }

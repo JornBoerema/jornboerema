@@ -9,6 +9,7 @@ import { Realtime } from "ably"
 import { toast } from "sonner"
 import type {
   MailAccountView,
+  MailSearchHit,
   MailSyncResult,
   MailThreadAction,
   MailThreadsPage,
@@ -25,6 +26,38 @@ const SYNC_INTERVAL_MS = 5 * 60 * 1000
 const BUSY_RETRY_MS = 3 * 1000
 
 export type SyncStatus = "idle" | "syncing" | "failed"
+
+const SEARCHED = "search:"
+
+/**
+ * The API path of a conversation. Ones search found outside the synced inbox
+ * have no row id, so they are addressed by mailbox and provider thread id.
+ */
+export function conversationUrl(id: string, suffix = "") {
+  if (!id.startsWith(SEARCHED)) return `/api/mail/threads/${encodeURIComponent(id)}${suffix}`
+  const rest = id.slice(SEARCHED.length)
+  const split = rest.indexOf(":")
+  const accountId = rest.slice(0, split)
+  const threadId = rest.slice(split + 1)
+  return `/api/mail/accounts/${encodeURIComponent(accountId)}/conversation${suffix}?thread=${encodeURIComponent(threadId)}`
+}
+
+/** A search hit as a list line, so the reading pane can open it like any other. */
+export function searchHitAsThread(hit: MailSearchHit): MailThreadView {
+  return {
+    id: hit.messageId ?? `${SEARCHED}${hit.accountId}:${hit.threadId}`,
+    accountId: hit.accountId,
+    subject: hit.subject,
+    snippet: hit.snippet,
+    fromName: hit.fromName,
+    fromEmail: hit.fromEmail,
+    receivedAt: hit.receivedAt,
+    isRead: hit.isRead,
+    isStarred: false,
+    hasAttachments: hit.hasAttachments,
+    messageCount: 1,
+  }
+}
 
 export function useAccounts() {
   return useQuery({
@@ -46,7 +79,7 @@ export function useThreadAction() {
   return useMutation({
     mutationKey: ACTION_KEY,
     mutationFn: ({ id, action }: { id: string; action: MailThreadAction }) =>
-      api(`/api/mail/threads/${encodeURIComponent(id)}/actions`, {
+      api(conversationUrl(id, "/actions"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),

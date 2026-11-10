@@ -7,6 +7,7 @@ import {
   CloudAlertIcon,
   InboxIcon,
   PencilEdit02Icon,
+  Search01Icon,
   StarIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
@@ -37,25 +38,12 @@ import {
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import type { DraftRef, useDrafts } from "@/lib/drafts"
+import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
 import { MESSAGES_KEY, useThreadAction, type SyncStatus } from "@/lib/mail"
 import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
 
-function shortDate(iso: string, locale: string) {
-  const date = new Date(iso)
-  const now = new Date()
-  if (date.toDateString() === now.toDateString())
-    return date.toLocaleTimeString(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  return date.toLocaleDateString(locale, {
-    day: "numeric",
-    month: "short",
-    ...(date.getFullYear() !== now.getFullYear() && { year: "numeric" }),
-  })
-}
 
 /**
  * Quick actions over the row's right end. They show on hover or keyboard focus,
@@ -377,6 +365,11 @@ export function InboxPage({
   }
 
   function leave(thread: MailThreadView, action: MailThreadAction) {
+    // Opened from search and not in this list: there's no next one to move to.
+    if (position < 0) {
+      onOpen(null)
+      return runAction({ id: thread.id, action })
+    }
     // Marking unread means "not now", so the next mail shouldn't open by itself.
     onOpen(
       action === "unread"
@@ -390,6 +383,7 @@ export function InboxPage({
     j: () => step(1),
     k: () => step(-1),
     c: onCompose,
+    "/": navigation.onSearch,
     Escape: () => onOpen(null),
   })
 
@@ -436,6 +430,15 @@ export function InboxPage({
               </span>
             )}
           </span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="lg:hidden"
+            aria-label={strings.spotlight.search}
+            onClick={navigation.onSearch}
+          >
+            <HugeiconsIcon icon={Search01Icon} strokeWidth={1.75} aria-hidden="true" />
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"

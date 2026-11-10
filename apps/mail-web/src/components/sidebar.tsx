@@ -6,6 +6,7 @@ import {
   Logout01Icon,
   Menu01Icon,
   PencilEdit02Icon,
+  Search01Icon,
   Settings01Icon,
   SidebarLeft01Icon,
   UnfoldMoreIcon,
@@ -44,9 +45,11 @@ export type MailNavigation = {
   onSelectDrafts: () => void
   onCompose: () => void
   onSettings: () => void
+  onSearch: () => void
 }
 
 const NAV_ICON = "size-4 shrink-0"
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 
 /** The shared Evido sidebar. Smaller screens get MailMenu instead. */
 export function Sidebar({
@@ -61,6 +64,7 @@ export function Sidebar({
   onSelectDrafts,
   onCompose,
   onSettings,
+  onSearch,
 }: MailNavigation) {
   const { t } = useI18n()
   const allSelected = view === "inbox" && accountId === ""
@@ -76,6 +80,11 @@ export function Sidebar({
       <Brand />
       <div className="list-navigation sidebar-sections">
         <div className="sidebar-top">
+          <button type="button" className="list-link" aria-keyshortcuts="Meta+K Control+K /" onClick={onSearch}>
+            <HugeiconsIcon icon={Search01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+            <span>{t.spotlight.trigger}</span>
+            <kbd className="nav-kbd">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
+          </button>
           <button type="button" className="list-link" aria-keyshortcuts="C" onClick={onCompose}>
             <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
             <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>

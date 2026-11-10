@@ -44,6 +44,7 @@
     "./globals.css": "./src/styles/globals.css",
     "./sidebar.css": "./src/styles/sidebar.css",
     "./auth.css": "./src/styles/auth.css",
+    "./spotlight.css": "./src/styles/spotlight.css",
     "./lib/theme": "./src/lib/theme.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx",
