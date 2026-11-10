@@ -30,7 +30,7 @@ import { AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { ACCOUNTS_KEY, useAccounts } from "@/lib/mail"
-import { SIGNATURES_KEY, useSignatures } from "@/lib/signatures"
+import { previewOf, SIGNATURES_KEY, useSignatures } from "@/lib/signatures"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
@@ -72,13 +72,6 @@ function useDebouncedSave<T>(save: (value: T) => void) {
       pending.current = null
     }, SAVE_DELAY_MS)
   }
-}
-
-/** The signature as one line of text, for the list. Parsed inertly: nothing loads or runs. */
-function previewOf(html: string) {
-  const body = new DOMParser().parseFromString(html, "text/html").body
-  body.querySelectorAll("p, div, li, br").forEach((element) => element.after(" · "))
-  return (body.textContent ?? "").replace(/(\s*·\s*)+/g, " · ").replace(/^ · | · $/g, "").trim()
 }
 
 function SignatureEditor({ signature, onBack }: { signature: MailSignature; onBack: () => void }) {

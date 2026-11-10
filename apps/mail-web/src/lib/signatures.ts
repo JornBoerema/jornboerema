@@ -41,3 +41,10 @@ export function useSignatureChoice(
 }
 
 export type SignatureChoice = ReturnType<typeof useSignatureChoice>
+
+/** The signature as one line of text, for the list. Parsed inertly: nothing loads or runs. */
+export function previewOf(html: string) {
+  const body = new DOMParser().parseFromString(html, "text/html").body
+  body.querySelectorAll("p, div, li, br").forEach((element) => element.after(" · "))
+  return (body.textContent ?? "").replace(/(\s*·\s*)+/g, " · ").replace(/^ · | · $/g, "").trim()
+}
