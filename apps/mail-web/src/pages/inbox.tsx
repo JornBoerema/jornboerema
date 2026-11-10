@@ -349,6 +349,7 @@ export function InboxPage({
   discardRequest,
   onComposeDraftChange,
   onHideCompose,
+  onShowCompose,
   onCloseCompose,
 }: {
   navigation: MailNavigation
@@ -366,6 +367,7 @@ export function InboxPage({
   discardRequest: number
   onComposeDraftChange: (id: string | null) => void
   onHideCompose: () => void
+  onShowCompose: () => void
   onCloseCompose: () => void
 }) {
   const strings = useI18n().t
@@ -634,6 +636,7 @@ export function InboxPage({
             draft={compose.draft}
             hidden={Boolean(open) || composeHidden}
             onHide={onHideCompose}
+            onShow={onShowCompose}
             onClose={onCloseCompose}
             onDraftChange={onComposeDraftChange}
             discardRequest={discardRequest}

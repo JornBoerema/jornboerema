@@ -128,6 +128,8 @@ export const en = {
     count: (count: number) => (count === 1 ? "1 draft" : `${count} drafts`),
   },
   compose: {
+    sending: "Sending…",
+    undo: "Undo",
     imageFailed: "That image couldn't be added.",
     title: "New message",
     from: "From",
@@ -167,6 +169,10 @@ export const en = {
     readFailed: "That file couldn't be read.",
   },
   conversation: {
+    archived: "Archived",
+    trashed: "Moved to trash",
+    movedToInbox: "Moved to inbox",
+    undo: "Undo",
     star: "Star",
     unstar: "Remove star",
     moveToInbox: "Move to inbox",

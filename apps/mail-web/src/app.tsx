@@ -17,6 +17,7 @@ import { authClient } from "@/lib/auth-client"
 import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
 import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
 import { useSignatures } from "@/lib/signatures"
+import { isWaiting } from "@/lib/undo"
 import { InboxPage } from "@/pages/inbox"
 import { AuthPage } from "@/pages/auth"
 import { AuthLayout } from "@/pages/auth-layout"
@@ -38,6 +39,10 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const [open, setOpen] = useState<MailThreadView | null>(null)
   const [composeHidden, setComposeHidden] = useState(false)
   const hideCompose = useCallback(() => setComposeHidden(true), [])
+  const showCompose = useCallback(() => {
+    setOpen(null)
+    setComposeHidden(false)
+  }, [])
   const closeCompose = useCallback(() => {
     setCompose(null)
     setComposeDraftId(null)
@@ -91,7 +96,15 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       }
     }
     document.addEventListener("keydown", keydown)
-    return () => document.removeEventListener("keydown", keydown)
+    // A send or move that can still be undone would otherwise go in a hurry, or not at all.
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (isWaiting()) event.preventDefault()
+    }
+    window.addEventListener("beforeunload", beforeUnload)
+    return () => {
+      document.removeEventListener("keydown", keydown)
+      window.removeEventListener("beforeunload", beforeUnload)
+    }
   }, [])
 
   const navigation: MailNavigation = {
@@ -148,6 +161,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
           discardRequest={discardRequest}
           onComposeDraftChange={setComposeDraftId}
           onHideCompose={hideCompose}
+          onShowCompose={showCompose}
           onCloseCompose={closeCompose}
         />
       </main>

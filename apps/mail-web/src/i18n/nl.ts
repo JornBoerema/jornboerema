@@ -129,6 +129,8 @@ export const nl: typeof en = {
     count: (count: number) => (count === 1 ? "1 concept" : `${count} concepten`),
   },
   compose: {
+    sending: "Bericht wordt verzonden…",
+    undo: "Ongedaan maken",
     imageFailed: "Die afbeelding kon niet worden toegevoegd.",
     title: "Nieuw bericht",
     from: "Van",
@@ -168,6 +170,10 @@ export const nl: typeof en = {
     readFailed: "Dat bestand kon niet worden gelezen.",
   },
   conversation: {
+    archived: "Gearchiveerd",
+    trashed: "Naar prullenbak verplaatst",
+    movedToInbox: "Terug in inbox",
+    undo: "Ongedaan maken",
     star: "Ster toevoegen",
     unstar: "Ster verwijderen",
     moveToInbox: "Terug naar inbox",

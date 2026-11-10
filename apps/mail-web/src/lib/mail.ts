@@ -19,7 +19,9 @@ import {
   type MailThreadsPage,
   type MailThreadView,
 } from "@evido/mail-core/types"
+import { useI18n } from "@/i18n"
 import { api, ApiError, errorText } from "@/lib/api"
+import { UndoneError, waitForUndo } from "@/lib/undo"
 
 export const ACCOUNTS_KEY = ["mail-accounts"]
 export const MESSAGES_KEY = ["mail-messages"]
@@ -129,16 +131,31 @@ function applyToFolder(page: MailFolderPage, folder: MailFolder, id: string, act
 }
 
 /** Updates the list at once; a refusal from the provider puts the real state back. */
+/** Moves wait a moment so they can be taken back; marks and stars go at once. */
+const UNDOABLE: MailThreadAction[] = ["archive", "trash", "inbox"]
+
 export function useThreadAction() {
   const queryClient = useQueryClient()
+  const t = useI18n().t.conversation
+  const done: Partial<Record<MailThreadAction, string>> = {
+    archive: t.archived,
+    trash: t.trashed,
+    inbox: t.movedToInbox,
+  }
   return useMutation({
     mutationKey: ACTION_KEY,
-    mutationFn: ({ id, action }: { id: string; action: MailThreadAction }) =>
-      api(conversationUrl(id, "/actions"), {
+    mutationFn: async ({ id, action }: { id: string; action: MailThreadAction }) => {
+      const { leaving } = UNDOABLE.includes(action)
+        ? await waitForUndo(done[action] ?? "", t.undo)
+        : { leaving: false }
+      return api(conversationUrl(id, "/actions"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
-      }),
+        // Lets the request finish while the tab closes.
+        keepalive: leaving,
+      })
+    },
     onMutate: async ({ id, action }) => {
       await queryClient.cancelQueries({ queryKey: MESSAGES_KEY })
       await queryClient.cancelQueries({ queryKey: FOLDERS_KEY })
@@ -159,7 +176,10 @@ export function useThreadAction() {
           }
       )
     },
-    onError: (error) => toast.error(errorText(error)),
+    // Undone: the list comes back from the server below, as nothing changed there.
+    onError: (error) => {
+      if (!(error instanceof UndoneError)) toast.error(errorText(error))
+    },
     onSettled: () => {
       // A refetch while another action runs would briefly bring its thread back.
       if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 1) {
@@ -185,7 +205,9 @@ export function useMailRealtime(userId: string) {
     })
     const channel = realtime.channels.get(`mail:${userId}`)
     void channel.subscribe("changed", () => {
-      void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+      // A refetch now would bring back a conversation whose move is still waiting.
+      if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
+        void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
     })
     return () => realtime.close()
   }, [userId, queryClient])
@@ -213,7 +235,8 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
     async function syncOne(id: string) {
       while (!stopped) {
         const result = await api<MailSyncResult>(`/api/mail/accounts/${id}/sync`, { method: "POST" })
-        if (result.changed > 0) void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+        if (result.changed > 0 && queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
+          void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
         if (result.done || result.rateLimited) return
         if (result.busy) await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_MS))
       }

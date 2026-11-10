@@ -43,6 +43,7 @@ import {
 import { textToEditorHtml } from "@/lib/email-compose"
 import { fromInlineImages, uploadBytes } from "@/lib/inline-images"
 import { sendOnModEnter } from "@/lib/hotkeys"
+import { UndoneError, waitForUndo } from "@/lib/undo"
 import { useSignatureFor } from "@/lib/signatures"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
@@ -56,6 +57,8 @@ type ComposeProps = {
   /** Out of view for now; a draft stays until the composer comes back. */
   hidden: boolean
   onHide: () => void
+  /** Brings it back into view, after undoing a send. */
+  onShow: () => void
   onClose: () => void
   /** The draft this message is saved as, once it is. */
   onDraftChange: (id: string | null) => void
@@ -136,6 +139,7 @@ function ComposeForm({
   initial,
   hidden,
   onHide,
+  onShow,
   onClose,
   onDraftChange,
   discardRequest,
@@ -222,7 +226,10 @@ function ComposeForm({
   const send = useMutation({
     mutationFn: async (message: MailOutgoing) => {
       const { ref, attachmentsChanged } = await autosave.pause()
+      // Out of the way while it can still be taken back, like Gmail's undo send.
+      onHide()
       try {
+        await waitForUndo(t.sending, t.undo)
         // A saved draft is sent as itself, so it leaves the drafts folder at the provider too.
         if (ref?.accountId === accountId)
           await sendDraft(
@@ -239,7 +246,9 @@ function ComposeForm({
           if (ref) await deleteDraft(ref).catch(() => undefined)
         }
       } catch (error) {
+        // Undone, or failed: the message comes back as it was, to change or try again.
         autosave.resume()
+        onShow()
         throw error
       }
     },
@@ -247,7 +256,9 @@ function ComposeForm({
       toast.success(t.sent)
       finished()
     },
-    onError: (error) => toast.error(errorText(error)),
+    onError: (error) => {
+      if (!(error instanceof UndoneError)) toast.error(errorText(error))
+    },
   })
 
   const discard = useMutation({
