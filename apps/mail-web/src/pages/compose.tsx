@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@evido/ui/components/select"
 import { cn } from "@evido/ui/lib/utils"
+import { readingColumn } from "@/lib/layout"
 import type {
   MailAccountView,
   MailAddress,
@@ -130,8 +131,8 @@ export function ComposePage({
         </Button>
       </header>
       {/* Relative keeps the file input, which is absolute, inside this scroller. */}
-      <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col pt-2">
+      <div className="@container relative min-h-0 flex-1 overflow-y-auto">
+        <div className={cn(readingColumn, "flex min-h-full flex-col pt-2")}>
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight md:px-8">{t.title}</h2>
           <form
             className="flex flex-1 flex-col md:px-4"

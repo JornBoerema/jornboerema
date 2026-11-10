@@ -15,6 +15,7 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
+import { readingColumn } from "@/lib/layout"
 import type {
   MailAccountView,
   MailAddress,
@@ -382,8 +383,8 @@ export function ConversationPage({
       </header>
 
       {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
-      <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 pt-2 md:px-8">
+      <div className="@container relative min-h-0 flex-1 overflow-y-auto">
+        <div className={cn(readingColumn, "flex min-h-full flex-col px-4 pt-2 md:px-8")}>
           <h2 className="mb-2 text-lg font-semibold tracking-tight break-words">
             {messages[0]?.subject || summary.subject}
           </h2>
