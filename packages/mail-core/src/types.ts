@@ -17,19 +17,21 @@ export type MailAccountView = {
   status: MailAccountStatus
   /** Index into the client's palette, below MAIL_ACCOUNT_COLORS. */
   color: number
-  signature: MailSignature
+  /** Which signatures this mailbox adds. Null means none. */
+  signatures: { newId: string | null; replyId: string | null }
   createdAt: string
 }
 
-/** Added below what the user writes, like the signatures in Gmail and Outlook. */
+/** A signature the user wrote, like the ones in Gmail and Outlook settings. */
 export type MailSignature = {
-  /** Editor HTML. Empty means no signature. */
+  id: string
+  name: string
+  /** Editor HTML. */
   html: string
-  forNew: boolean
-  forReplies: boolean
 }
 
 export const MAX_SIGNATURE_LENGTH = 20_000
+export const MAX_SIGNATURES = 50
 
 export const MAIL_ACCOUNT_COLORS = 8
 

@@ -34,6 +34,7 @@ model User {
   workspaceInvitations WorkspaceInvitation[]
   mailAccounts         MailAccount[]
   mailMessages         MailMessage[]
+  mailSignatures       MailSignature[]
   mailOauthStates      MailOauthState[]
 
   @@map("user")
@@ -411,10 +412,12 @@ model MailAccount {
   status               MailAccountStatus @default(active)
   /// Index into the client's palette; tells mailboxes apart in a shared list.
   color                Int               @default(0)
-  /// Added below what the user writes. HTML from the app's own editor; empty means none.
-  signatureHtml        String            @default("") @map("signature_html")
-  signatureForNew      Boolean           @default(true) @map("signature_for_new")
-  signatureForReplies  Boolean           @default(true) @map("signature_for_replies")
+  /// Signature for new messages from this mailbox. Null means none.
+  signatureNewId       String?           @map("signature_new_id")
+  signatureNew         MailSignature?    @relation("SignatureForNew", fields: [signatureNewId], references: [id], onDelete: SetNull)
+  /// Signature for replies and forwards from this mailbox. Null means none.
+  signatureReplyId     String?           @map("signature_reply_id")
+  signatureReply       MailSignature?    @relation("SignatureForReply", fields: [signatureReplyId], references: [id], onDelete: SetNull)
   /// Opaque provider position (Gmail history id, Graph delta link). Null until the first sync.
   syncCursor           String?           @map("sync_cursor")
   /// Oldest mail this account keeps. Fixed when a full sync starts.
@@ -431,6 +434,23 @@ model MailAccount {
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
   @@index([watchId], map: "mail_accounts_watch_id_idx")
   @@map("mail_accounts")
+}
+
+/// A signature the user wrote; mailboxes pick which one they use.
+model MailSignature {
+  id          String        @id
+  userId      String        @map("user_id")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  /// HTML from the app's own editor.
+  html        String
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
+  forNew      MailAccount[] @relation("SignatureForNew")
+  forReplies  MailAccount[] @relation("SignatureForReply")
+
+  @@index([userId, createdAt], map: "mail_signatures_user_created_idx")
+  @@map("mail_signatures")
 }
 
 /// A pending OAuth connect flow. `id` is the SHA-256 of the state value.

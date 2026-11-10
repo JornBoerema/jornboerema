@@ -23,11 +23,19 @@ import {
   listAccounts,
   MailAccountNotFoundError,
   MailNotConfiguredError,
+  MailSignatureNotFoundError,
   readInboxSummary,
   updateAccountSettings,
   startConnect,
 } from "./accounts-server"
 import { deleteDraft, listDrafts, readDraft, saveDraft, sendDraft } from "./drafts-server"
+import {
+  createSignature,
+  deleteSignature,
+  listSignatures,
+  TooManySignaturesError,
+  updateSignature,
+} from "./signatures-server"
 import { syncAccount } from "./sync-server"
 import {
   authorizeCron,
@@ -64,18 +72,20 @@ const attachments = z
   .max(20)
   .refine((files) => files.reduce((sum, file) => sum + file.data.length, 0) * 0.75 <= MAX_UPLOAD_BYTES)
   .default([])
+const signatureId = z.string().min(1).max(100).nullable().optional()
 const accountBody = z
   .object({
     color: z.number().int().min(0).lt(MAIL_ACCOUNT_COLORS).optional(),
-    signature: z
-      .object({
-        html: z.string().max(MAX_SIGNATURE_LENGTH).optional(),
-        forNew: z.boolean().optional(),
-        forReplies: z.boolean().optional(),
-      })
-      .optional(),
+    signatureNewId: signatureId,
+    signatureReplyId: signatureId,
   })
-  .refine((body) => body.color !== undefined || body.signature !== undefined)
+  .refine((body) => Object.values(body).some((value) => value !== undefined))
+const signatureName = z.string().trim().min(1).max(100)
+const signatureHtml = z.string().max(MAX_SIGNATURE_LENGTH)
+const newSignatureBody = z.object({ name: signatureName, html: signatureHtml })
+const signatureBody = z
+  .object({ name: signatureName.optional(), html: signatureHtml.optional() })
+  .refine((body) => body.name !== undefined || body.html !== undefined)
 const actionBody = z.object({ action: z.enum(MAIL_THREAD_ACTIONS) })
 const sendBody = z.object({
   to: recipients,
@@ -126,6 +136,10 @@ async function readBody<T extends z.ZodType>(c: Context, schema: T): Promise<z.o
 function failure(c: Context, error: unknown) {
   if (error instanceof MailAccountNotFoundError)
     return c.json({ error: msg(c, "mailAccountGone") }, 404)
+  if (error instanceof MailSignatureNotFoundError)
+    return c.json({ error: msg(c, "mailSignatureGone") }, 404)
+  if (error instanceof TooManySignaturesError)
+    return c.json({ error: msg(c, "mailTooManySignatures") }, 409)
   if (
     error instanceof MailMessageNotFoundError ||
     (error instanceof ProviderError && error.status === 404)
@@ -326,6 +340,40 @@ mailRoutes.post("/accounts/:id/drafts/:draftId/send", requireTrustedOrigin, requ
 mailRoutes.delete("/accounts/:id/drafts/:draftId", requireTrustedOrigin, requireSession, async (c) => {
   try {
     await deleteDraft(c.get("session").user.id, c.req.param("id"), c.req.param("draftId"))
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/signatures", requireSession, async (c) =>
+  c.json({ signatures: await listSignatures(c.get("session").user.id) }, 200, noStore)
+)
+
+mailRoutes.post("/signatures", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, newSignatureBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await createSignature(c.get("session").user.id, body), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.patch("/signatures/:id", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, signatureBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    await updateSignature(c.get("session").user.id, c.req.param("id"), body)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.delete("/signatures/:id", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    await deleteSignature(c.get("session").user.id, c.req.param("id"))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)

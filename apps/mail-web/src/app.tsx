@@ -12,6 +12,7 @@ import { I18nProvider } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { useDrafts, type DraftRef } from "@/lib/drafts"
 import { useAccounts, useMailRealtime, useMailSync } from "@/lib/mail"
+import { useSignatures } from "@/lib/signatures"
 import { InboxPage } from "@/pages/inbox"
 import { AuthPage } from "@/pages/auth"
 import { AuthLayout } from "@/pages/auth-layout"
@@ -41,6 +42,8 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
   const hasActive = list.some((account) => account.status === "active")
   const drafts = useDrafts(hasActive)
+  // Loaded up front, so a new message has its signature from the start.
+  useSignatures()
 
   const startCompose = (draft: DraftRef | null) => {
     setOpen(null)

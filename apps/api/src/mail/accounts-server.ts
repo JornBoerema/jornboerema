@@ -14,7 +14,6 @@ import {
   firstFreeColor,
   type InboxSummary,
   type MailAccountView,
-  type MailSignature,
   type MailProviderId,
 } from "@evido/mail-core/types"
 import { defer } from "../lib/defer"
@@ -63,11 +62,7 @@ function toView(account: MailAccount): MailAccountView {
     displayName: account.displayName,
     status: account.status,
     color: account.color,
-    signature: {
-      html: account.signatureHtml,
-      forNew: account.signatureForNew,
-      forReplies: account.signatureForReplies,
-    },
+    signatures: { newId: account.signatureNewId, replyId: account.signatureReplyId },
     createdAt: account.createdAt.toISOString(),
   }
 }
@@ -214,22 +209,24 @@ export async function ownedAccount(userId: string, id: string) {
   return account
 }
 
+export class MailSignatureNotFoundError extends Error {}
+
 export type AccountSettings = {
   color?: number
-  signature?: Partial<MailSignature>
+  signatureNewId?: string | null
+  signatureReplyId?: string | null
 }
 
-export async function updateAccountSettings(userId: string, id: string, { color, signature }: AccountSettings) {
+export async function updateAccountSettings(userId: string, id: string, settings: AccountSettings) {
   const account = await ownedAccount(userId, id)
-  await getDb().mailAccount.update({
-    where: { id: account.id },
-    data: {
-      color,
-      signatureHtml: signature?.html,
-      signatureForNew: signature?.forNew,
-      signatureForReplies: signature?.forReplies,
-    },
-  })
+  const db = getDb()
+  const chosen = [settings.signatureNewId, settings.signatureReplyId].filter((value) => typeof value === "string")
+  // A mailbox may only point at its owner's signatures.
+  if (chosen.length > 0) {
+    const owned = await db.mailSignature.count({ where: { userId, id: { in: chosen } } })
+    if (owned !== new Set(chosen).size) throw new MailSignatureNotFoundError()
+  }
+  await db.mailAccount.update({ where: { id: account.id }, data: settings })
 }
 
 export async function readInboxSummary(userId: string, id: string): Promise<InboxSummary> {

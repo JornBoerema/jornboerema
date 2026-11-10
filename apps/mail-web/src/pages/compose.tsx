@@ -41,6 +41,7 @@ import {
 } from "@/lib/drafts"
 import { textToEditorHtml } from "@/lib/email-compose"
 import { sendOnModEnter } from "@/lib/hotkeys"
+import { useSignatureFor } from "@/lib/signatures"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
@@ -163,8 +164,10 @@ function ComposeForm({
     () => initial && (initial.html ?? textToEditorHtml(initial.text))
   )
   const reply = initial?.reply
-  const sender = usable.find((account) => account.id === accountId)?.signature
-  const signature = sender && (reply ? sender.forReplies : sender.forNew) ? sender.html : ""
+  const signature = useSignatureFor(
+    usable.find((account) => account.id === accountId),
+    reply ? "reply" : "new"
+  )
   const hasDraft = Boolean(
     to || cc || bcc || subject || body.written || files.length
   )

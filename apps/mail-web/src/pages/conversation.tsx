@@ -27,6 +27,7 @@ import type {
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
+import { useSignatureFor } from "@/lib/signatures"
 import { useI18n } from "@/i18n"
 import { api, apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
@@ -322,7 +323,7 @@ export function ConversationPage({
 }) {
   const t = useI18n().t.conversation
   const id = summary.id
-  const replySignature = account?.signature.forReplies ? account.signature.html : ""
+  const replySignature = useSignatureFor(account, "reply")
   const alwaysShowImages = useAlwaysShowImages()
   const [showImagesOnce, setShowImagesOnce] = useState(false)
   const allowImages = alwaysShowImages || showImagesOnce
