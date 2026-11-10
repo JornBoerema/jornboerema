@@ -44,6 +44,7 @@ export const en = {
     defaults: "Per mailbox",
     defaultsHelp: "Which signature each mailbox adds. You can still change it in a message.",
     forNew: "New messages",
+    mailbox: "Mailbox",
     forReplies: "Replies and forwards",
     none: "No signature",
     saveFailed: "The signature couldn't be saved.",

@@ -45,6 +45,7 @@ export const nl: typeof en = {
     defaults: "Per mailbox",
     defaultsHelp: "Welke handtekening elke mailbox toevoegt. In een bericht kun je hem nog aanpassen.",
     forNew: "Nieuwe berichten",
+    mailbox: "Mailbox",
     forReplies: "Antwoorden en doorsturen",
     none: "Geen handtekening",
     saveFailed: "De handtekening kon niet worden opgeslagen.",

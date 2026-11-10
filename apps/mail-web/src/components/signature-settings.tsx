@@ -227,6 +227,9 @@ function SignatureRow({
   )
 }
 
+/** One line per mailbox, with the choices in columns; stacked on narrow screens. */
+const MAILBOX_GRID = "grid items-center gap-3 px-5 sm:grid-cols-[minmax(0,1fr)_10.5rem_10.5rem]"
+
 function SignatureChoice({
   id,
   label,
@@ -243,11 +246,12 @@ function SignatureChoice({
   const t = useI18n().t.signatures
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <label htmlFor={id} className="text-xs text-muted-foreground">
+      {/* The table's column heads name these on wider screens; stacked, each says it itself. */}
+      <label htmlFor={id} className="text-xs text-muted-foreground sm:sr-only">
         {label}
       </label>
       <Select value={value ?? NONE} onValueChange={(next) => onChange(next === NONE ? null : next)}>
-        <SelectTrigger id={id} className="w-full">
+        <SelectTrigger id={id} size="sm" className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -295,27 +299,25 @@ function MailboxSignatures({ account, signatures }: { account: MailAccountView; 
     },
   })
   return (
-    <div className="flex flex-col gap-3 px-5 py-4">
-      <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
+    <div className={`${MAILBOX_GRID} py-2.5`}>
+      <p className="flex min-w-0 items-center gap-2 text-sm">
         <AccountDot color={account.color} />
         <span className="truncate">{account.email}</span>
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SignatureChoice
-          id={`signature-new-${account.id}`}
-          label={t.forNew}
-          value={account.signatures?.newId ?? null}
-          signatures={signatures}
-          onChange={(signatureNewId) => choose.mutate({ signatureNewId })}
-        />
-        <SignatureChoice
-          id={`signature-reply-${account.id}`}
-          label={t.forReplies}
-          value={account.signatures?.replyId ?? null}
-          signatures={signatures}
-          onChange={(signatureReplyId) => choose.mutate({ signatureReplyId })}
-        />
-      </div>
+      <SignatureChoice
+        id={`signature-new-${account.id}`}
+        label={t.forNew}
+        value={account.signatures?.newId ?? null}
+        signatures={signatures}
+        onChange={(signatureNewId) => choose.mutate({ signatureNewId })}
+      />
+      <SignatureChoice
+        id={`signature-reply-${account.id}`}
+        label={t.forReplies}
+        value={account.signatures?.replyId ?? null}
+        signatures={signatures}
+        onChange={(signatureReplyId) => choose.mutate({ signatureReplyId })}
+      />
     </div>
   )
 }
@@ -368,7 +370,16 @@ export function SignatureSettings() {
         {accounts.length === 0 ? (
           <SettingsRow title={t.noMailboxes} />
         ) : (
-          accounts.map((account) => <MailboxSignatures key={account.id} account={account} signatures={signatures} />)
+          <>
+            <div className={`${MAILBOX_GRID} py-2.5 text-xs text-muted-foreground max-sm:hidden`} aria-hidden="true">
+              <span>{t.mailbox}</span>
+              <span>{t.forNew}</span>
+              <span>{t.forReplies}</span>
+            </div>
+            {accounts.map((account) => (
+              <MailboxSignatures key={account.id} account={account} signatures={signatures} />
+            ))}
+          </>
         )}
       </SettingsSection>
     </div>
