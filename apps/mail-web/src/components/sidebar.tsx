@@ -16,7 +16,9 @@ import {
   Menu01Icon,
   PencilEdit02Icon,
   Settings01Icon,
-  SidebarLeft01Icon,
+  // Hugeicons names these by the panel's state: Close points right (expand), Open points left (collapse).
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
   UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
@@ -187,7 +189,7 @@ export function Sidebar({
             aria-controls="list-sidebar"
             onClick={sidebar.toggle}
           >
-            <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" />
+            <HugeiconsIcon icon={PanelLeftOpenIcon} strokeWidth={2} aria-hidden="true" />
           </Button>
         </IconTip>
       </div>
@@ -416,7 +418,7 @@ function SidebarRail({
           onClick={sidebar.toggle}
         >
           <HugeiconsIcon icon={Mail01Icon} strokeWidth={2.5} aria-hidden="true" className="rail-logo size-5" />
-          <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" className="rail-expand size-4" />
+          <HugeiconsIcon icon={PanelLeftCloseIcon} strokeWidth={2} aria-hidden="true" className="rail-expand size-4" />
         </button>
       </RailTip>
       <nav className="rail-group" aria-label={t.shell.sidebar}>
