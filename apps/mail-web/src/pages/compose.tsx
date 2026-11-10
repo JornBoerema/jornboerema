@@ -50,6 +50,7 @@ import {
 } from "@/lib/uploads"
 import { isAiWriteKey, sendOnModEnter } from "@/lib/hotkeys"
 import { AiPrompt, AiWriteButton, useAiWriter } from "@/components/ai-writer"
+import { SendButton } from "@/components/send-button"
 import { syncSoon } from "@/lib/mail"
 import { UndoneError, waitForUndo } from "@/lib/undo"
 import { useSignatureChoice } from "@/lib/signatures"
@@ -476,13 +477,7 @@ function ComposeForm({
                     />
                   </Button>
                 )}
-                <Button
-                  type="submit"
-                  disabled={send.isPending || !accountId}
-                  title={`${t.send} (⌘↵)`}
-                >
-                  {t.send}
-                </Button>
+                <SendButton label={t.send} disabled={send.isPending || !accountId} />
               </div>
               </div>
             </div>

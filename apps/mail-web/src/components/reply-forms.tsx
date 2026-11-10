@@ -9,6 +9,7 @@ import {
   type MailAccountView,
 } from "@evido/mail-core/types"
 import { AttachmentPicker } from "@/components/attachment-picker"
+import { SendButton } from "@/components/send-button"
 import { SignaturePicker } from "@/components/signature-picker"
 import { useSignatureChoice } from "@/lib/signatures"
 import { isUploading, useAttachmentRefs, type ComposerFile } from "@/lib/uploads"
@@ -37,9 +38,7 @@ function Actions({ canSend, onClose }: { canSend: boolean; onClose: () => void }
       <Button type="button" size="sm" variant="ghost" onClick={onClose}>
         {t.cancel}
       </Button>
-      <Button type="submit" size="sm" disabled={!canSend} title={`${t.send} (⌘↵)`}>
-        {t.send}
-      </Button>
+      <SendButton label={t.send} disabled={!canSend} />
     </div>
   )
 }
