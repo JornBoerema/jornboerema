@@ -12,7 +12,7 @@ function isBlocked(event: KeyboardEvent) {
 }
 
 /** Single-key shortcuts, inactive while typing or while a dialog or menu is open. */
-export function useHotkeys(bindings: Record<string, () => void>) {
+export function useHotkeys(bindings: Record<string, (event: KeyboardEvent) => void>) {
   const latest = useRef(bindings)
   useEffect(() => {
     latest.current = bindings
@@ -24,7 +24,7 @@ export function useHotkeys(bindings: Record<string, () => void>) {
       // Otherwise the key would also land in a box this shortcut just focused.
       // Escape types nothing, and other layers such as the composer listen for it too.
       if (event.key !== "Escape") event.preventDefault()
-      action()
+      action(event)
     }
     document.addEventListener("keydown", onKeyDown)
     return () => document.removeEventListener("keydown", onKeyDown)

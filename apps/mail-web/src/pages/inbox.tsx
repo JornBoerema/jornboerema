@@ -109,6 +109,7 @@ function ThreadRow({
   selecting,
   onOpen,
   onToggle,
+  onHover,
   onAction,
 }: {
   thread: MailThreadView
@@ -124,6 +125,8 @@ function ThreadRow({
   onOpen: () => void
   /** `range` extends the selection from the last one picked, as with Shift. */
   onToggle: (range: boolean) => void
+  /** The pointer entered or left the row; Space then selects it. */
+  onHover: (hovering: boolean) => void
   onAction: (action: MailThreadAction) => void
 }) {
   const { t: strings, locale } = useI18n()
@@ -137,7 +140,7 @@ function ThreadRow({
   const actions = strings.conversation
 
   return (
-    <li className="group relative">
+    <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
       <button
         ref={row}
         type="button"
@@ -482,6 +485,7 @@ export function InboxPage({
   // Selection: ids of conversations in this list, plus where a Shift range starts.
   const [picked, setPicked] = useState<Set<string>>(() => new Set())
   const anchor = useRef<string | null>(null)
+  const hovered = useRef<string | null>(null)
   useEffect(() => {
     setPicked(new Set())
     anchor.current = null
@@ -563,6 +567,11 @@ export function InboxPage({
     "/": navigation.onSearch,
     x: () => {
       if (open && !showDrafts) toggle(open.id, false)
+    },
+    // Space selects the row under the pointer, or the open one; Shift takes a range.
+    " ": (event) => {
+      const id = hovered.current ?? open?.id
+      if (id && !showDrafts && rows.some((thread) => thread.id === id)) toggle(id, event.shiftKey)
     },
     // Clearing a selection comes before closing the conversation.
     Escape: () => (selecting ? clearSelection() : onOpen(null)),
@@ -738,6 +747,10 @@ export function InboxPage({
                         checked={picked.has(thread.id)}
                         selecting={selecting}
                         onToggle={(range) => toggle(thread.id, range)}
+                        onHover={(hovering) => {
+                          if (hovering) hovered.current = thread.id
+                          else if (hovered.current === thread.id) hovered.current = null
+                        }}
                         onOpen={() => onOpen(thread)}
                         onAction={(action) =>
                           thread.id === open?.id
