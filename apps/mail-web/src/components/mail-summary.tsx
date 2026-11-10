@@ -90,7 +90,7 @@ export function MailSummaryCard({ threadId }: { threadId: string }) {
         <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
         {t.summary}
       </p>
-      <p className="line-clamp-3 text-sm whitespace-pre-line">{summary.data.summary}</p>
+      <p className="text-sm text-pretty">{summary.data.summary}</p>
     </section>
   )
 }
