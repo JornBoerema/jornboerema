@@ -55,6 +55,7 @@ import {
   useThreadAction,
   type SyncStatus,
 } from "@/lib/mail"
+import { EmptyPane } from "@/components/empty-pane"
 import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
 
@@ -813,17 +814,7 @@ export function InboxPage({
             onLeave={(action) => leave(open, action)}
           />
         ) : (
-          !composerVisible && (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-              <HugeiconsIcon
-                icon={InboxIcon}
-                strokeWidth={1.5}
-                aria-hidden="true"
-                className="size-5"
-              />
-              {t.nothingOpen}
-            </div>
-          )
+          !composerVisible && <EmptyPane />
         )}
       </section>
     </>

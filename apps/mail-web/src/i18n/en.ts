@@ -144,6 +144,15 @@ export const en = {
     someFailed: "Some mailboxes couldn't be loaded.",
     to: (names: string) => `To: ${names}`,
   },
+  emptyPane: {
+    unread: (count: string) => `${count} unread in your inbox`,
+    allRead: "You're all caught up.",
+    shortcuts: "Shortcuts",
+    browse: "Go through mail",
+    compose: "New message",
+    search: "Search",
+    archive: "Archive",
+  },
   drafts: {
     title: "Drafts",
     empty: "No drafts. A message becomes a draft once you start its subject or text.",

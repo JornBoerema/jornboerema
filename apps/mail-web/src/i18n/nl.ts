@@ -145,6 +145,15 @@ export const nl: typeof en = {
     someFailed: "Sommige mailboxen konden niet worden geladen.",
     to: (names: string) => `Aan: ${names}`,
   },
+  emptyPane: {
+    unread: (count: string) => `${count} ongelezen in je inbox`,
+    allRead: "Alles is gelezen.",
+    shortcuts: "Sneltoetsen",
+    browse: "Door je mail gaan",
+    compose: "Nieuw bericht",
+    search: "Zoeken",
+    archive: "Archiveren",
+  },
   drafts: {
     title: "Concepten",
     empty: "Geen concepten. Een bericht wordt een concept zodra je aan het onderwerp of de tekst begint.",
