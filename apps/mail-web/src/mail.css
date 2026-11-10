@@ -65,10 +65,6 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-/* Visibly apart from the message; sent mail shows it like any other text. */
-.mail-editor [data-signature] {
-  color: var(--muted-foreground);
-}
 /* Signature lines sit together, here and in the signature settings. */
 .mail-editor [data-signature] > * + *,
 .mail-editor.is-signature .ProseMirror > * + * {
