@@ -204,7 +204,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
           onCloseCompose={closeCompose}
         />
       </main>
-      <MailSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <MailSettings open={settingsOpen} onOpenChange={setSettingsOpen} user={user} />
       <ShortcutsSpotlight
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}

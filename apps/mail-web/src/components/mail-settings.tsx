@@ -6,6 +6,7 @@ import {
   SecurityCheckIcon,
   SignatureIcon,
   SparklesIcon,
+  UserCircleIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
@@ -18,7 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@evido/ui/components/select"
-import { SettingsDialog, SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
+import {
+  SettingsDialog,
+  SettingsRow,
+  SettingsSection,
+  type SettingsPage,
+} from "@evido/ui/components/settings-dialog"
 import { Switch } from "@evido/ui/components/switch"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import { useI18n } from "@/i18n"
@@ -35,6 +41,7 @@ import {
   useNotifyNewMail,
   useSummaries,
 } from "@/lib/preferences"
+import { AccountSettings } from "@/components/account-settings"
 import { SignatureSettings } from "@/components/signature-settings"
 import { AccountsPage } from "@/pages/accounts"
 
@@ -141,35 +148,28 @@ function AiSettings() {
   )
 }
 
+/** The page a link back into the app asks for, such as after confirming a new email. */
+function linkedPage() {
+  return new URLSearchParams(window.location.search).get("settings") === "account" ? "account" : "mailboxes"
+}
+
 export function MailSettings({
   open,
   onOpenChange,
+  user,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  user: { name: string; email: string }
 }) {
   const t = useI18n().t.shell
-  const [page, setPage] = useState("mailboxes")
-  const pages = [
+  const [page, setPage] = useState(linkedPage)
+  // As in Even doen: the account first, then what belongs to this app.
+  const pages: SettingsPage[] = [
     {
-      id: "mailboxes",
-      label: t.mailboxes,
-      icon: <HugeiconsIcon icon={Mail01Icon} strokeWidth={1.75} aria-hidden="true" />,
-    },
-    {
-      id: "signatures",
-      label: t.signatures,
-      icon: <HugeiconsIcon icon={SignatureIcon} strokeWidth={1.75} aria-hidden="true" />,
-    },
-    {
-      id: "notifications",
-      label: t.notifications,
-      icon: <HugeiconsIcon icon={Notification03Icon} strokeWidth={1.75} aria-hidden="true" />,
-    },
-    {
-      id: "ai",
-      label: t.ai,
-      icon: <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />,
+      id: "account",
+      label: t.accountPage,
+      icon: <HugeiconsIcon icon={UserCircleIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
       id: "appearance",
@@ -177,8 +177,33 @@ export function MailSettings({
       icon: <HugeiconsIcon icon={PaintBoardIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
+      id: "mailboxes",
+      label: t.mailboxes,
+      group: t.mailGroup,
+      icon: <HugeiconsIcon icon={Mail01Icon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
+      id: "signatures",
+      label: t.signatures,
+      group: t.mailGroup,
+      icon: <HugeiconsIcon icon={SignatureIcon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
+      id: "notifications",
+      label: t.notifications,
+      group: t.mailGroup,
+      icon: <HugeiconsIcon icon={Notification03Icon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
+      id: "ai",
+      label: t.ai,
+      group: t.mailGroup,
+      icon: <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
       id: "privacy",
       label: t.privacy,
+      group: t.mailGroup,
       icon: <HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
   ]
@@ -197,6 +222,7 @@ export function MailSettings({
         close: t.close,
       }}
     >
+      {page === "account" && <AccountSettings user={user} />}
       {page === "mailboxes" && <AccountsPage />}
       {page === "signatures" && <SignatureSettings />}
       {page === "notifications" && <NotificationSettings />}
