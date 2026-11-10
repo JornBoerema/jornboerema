@@ -63,11 +63,16 @@ function EmailFrame({ html, allowImages, title }: { html: string; allowImages: b
   function onLoad() {
     const inner = frame.current?.contentDocument
     if (!inner?.body) return
-    const update = () => setHeight(inner.documentElement.scrollHeight)
+    const content = inner.getElementById("evido-mail") ?? inner.body
+    // The content's own height plus the body's padding; the frame then never scrolls.
+    const update = () => {
+      const padding = inner.body.offsetHeight - inner.body.clientHeight + 24
+      setHeight(Math.ceil(content.getBoundingClientRect().height + padding))
+    }
     update()
     observer.current?.disconnect()
     observer.current = new ResizeObserver(update)
-    observer.current.observe(inner.body)
+    observer.current.observe(content)
     // Shortcuts keep working after a click inside the message.
     inner.addEventListener("keydown", (event) => {
       document.dispatchEvent(new KeyboardEvent("keydown", event))
@@ -80,6 +85,7 @@ function EmailFrame({ html, allowImages, title }: { html: string; allowImages: b
       title={title}
       srcDoc={source}
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      scrolling="no"
       onLoad={onLoad}
       style={{ height }}
       className="w-full rounded-md border-0 bg-white"

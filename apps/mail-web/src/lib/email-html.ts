@@ -26,6 +26,19 @@ export const hasRemoteImages = (sanitizedHtml: string) =>
  * second line of defence: it still blocks scripts and remote loading if a
  * sanitizer bug ever lets something through.
  */
+/**
+ * The frame grows to its content and never scrolls itself, so scrolling always
+ * moves the conversation. Mail often sets html and body to 100% high, which
+ * would pin them to the frame; important keeps them sized by their content.
+ * Mail wider than the pane scrolls sideways inside its own wrapper.
+ */
+const FRAME_STYLE = [
+  "html,body{margin:0;background:#fff;color:#111;height:auto!important;min-height:0!important;overflow:hidden!important}",
+  "body{padding:12px;font:14px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}",
+  "#evido-mail{overflow-x:auto;overflow-y:hidden}",
+  "img{max-width:100%;height:auto}",
+].join("")
+
 export function buildEmailDocument(sanitizedHtml: string, allowImages: boolean) {
   const policy = [
     "default-src 'none'",
@@ -35,5 +48,5 @@ export function buildEmailDocument(sanitizedHtml: string, allowImages: boolean) 
     "form-action 'none'",
     "base-uri 'none'",
   ].join("; ")
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>html,body{margin:0;background:#fff;color:#111}body{padding:12px;font:14px/1.5 system-ui,sans-serif;overflow-wrap:anywhere;overflow-x:auto}img{max-width:100%;height:auto}</style></head><body>${sanitizedHtml}</body></html>`
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${FRAME_STYLE}</style></head><body><div id="evido-mail">${sanitizedHtml}</div></body></html>`
 }
