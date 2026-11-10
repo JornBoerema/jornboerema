@@ -14,6 +14,7 @@ import {
   firstFreeColor,
   type InboxSummary,
   type MailAccountView,
+  type MailSignature,
   type MailProviderId,
 } from "@evido/mail-core/types"
 import { defer } from "../lib/defer"
@@ -62,6 +63,11 @@ function toView(account: MailAccount): MailAccountView {
     displayName: account.displayName,
     status: account.status,
     color: account.color,
+    signature: {
+      html: account.signatureHtml,
+      forNew: account.signatureForNew,
+      forReplies: account.signatureForReplies,
+    },
     createdAt: account.createdAt.toISOString(),
   }
 }
@@ -208,9 +214,22 @@ export async function ownedAccount(userId: string, id: string) {
   return account
 }
 
-export async function setAccountColor(userId: string, id: string, color: number) {
+export type AccountSettings = {
+  color?: number
+  signature?: Partial<MailSignature>
+}
+
+export async function updateAccountSettings(userId: string, id: string, { color, signature }: AccountSettings) {
   const account = await ownedAccount(userId, id)
-  await getDb().mailAccount.update({ where: { id: account.id }, data: { color } })
+  await getDb().mailAccount.update({
+    where: { id: account.id },
+    data: {
+      color,
+      signatureHtml: signature?.html,
+      signatureForNew: signature?.forNew,
+      signatureForReplies: signature?.forReplies,
+    },
+  })
 }
 
 export async function readInboxSummary(userId: string, id: string): Promise<InboxSummary> {

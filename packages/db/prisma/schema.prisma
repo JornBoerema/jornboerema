@@ -411,6 +411,10 @@ model MailAccount {
   status               MailAccountStatus @default(active)
   /// Index into the client's palette; tells mailboxes apart in a shared list.
   color                Int               @default(0)
+  /// Added below what the user writes. HTML from the app's own editor; empty means none.
+  signatureHtml        String            @default("") @map("signature_html")
+  signatureForNew      Boolean           @default(true) @map("signature_for_new")
+  signatureForReplies  Boolean           @default(true) @map("signature_for_replies")
   /// Opaque provider position (Gmail history id, Graph delta link). Null until the first sync.
   syncCursor           String?           @map("sync_cursor")
   /// Oldest mail this account keeps. Fixed when a full sync starts.

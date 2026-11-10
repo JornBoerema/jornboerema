@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Mail01Icon, PaintBoardIcon, SecurityCheckIcon } from "@hugeicons/core-free-icons"
+import { Mail01Icon, PaintBoardIcon, SecurityCheckIcon, SignatureIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
 import type { LanguagePreference } from "@evido/i18n/react"
@@ -16,6 +16,7 @@ import { Switch } from "@evido/ui/components/switch"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import { useI18n } from "@/i18n"
 import { setAlwaysShowImages, useAlwaysShowImages } from "@/lib/preferences"
+import { SignatureSettings } from "@/components/signature-settings"
 import { AccountsPage } from "@/pages/accounts"
 
 function AppearanceSettings() {
@@ -87,6 +88,11 @@ export function MailSettings({
       icon: <HugeiconsIcon icon={Mail01Icon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
+      id: "signatures",
+      label: t.signatures,
+      icon: <HugeiconsIcon icon={SignatureIcon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
       id: "appearance",
       label: t.appearance,
       icon: <HugeiconsIcon icon={PaintBoardIcon} strokeWidth={1.75} aria-hidden="true" />,
@@ -113,6 +119,7 @@ export function MailSettings({
       }}
     >
       {page === "mailboxes" && <AccountsPage />}
+      {page === "signatures" && <SignatureSettings />}
       {page === "appearance" && <AppearanceSettings />}
       {page === "privacy" && <PrivacySettings />}
     </SettingsDialog>

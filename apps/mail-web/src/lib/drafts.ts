@@ -78,10 +78,13 @@ export function useDraftAutosave({
   content,
   initial,
   ready,
+  written,
   onSaved,
 }: {
   accountId: string
   content: MailDraftContent
+  /** The text holds more than a signature. */
+  written: boolean
   /** The draft this message was opened from. */
   initial: DraftRef | null
   /** False until the content is complete; an opened draft isn't saved again unchanged. */
@@ -90,8 +93,8 @@ export function useDraftAutosave({
 }) {
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<DraftStatus>("idle")
-  const latest = useRef({ accountId, content })
-  latest.current = { accountId, content }
+  const latest = useRef({ accountId, content, written })
+  latest.current = { accountId, content, written }
   const saved = useRef(initial)
   const savedKey = useRef<string | null>(
     initial ? null : keyOf(accountId, content)
@@ -115,13 +118,14 @@ export function useDraftAutosave({
 
   const run = useCallback(async () => {
     if (paused.current || !isDirty()) return
-    const { accountId: account, content: current } = latest.current
+    const { accountId: account, content: current, written: hasText } = latest.current
     const key = keyOf(account, current)
     const files = current.attachments
     const previous = saved.current
     setStatus("saving")
     try {
-      if (!isDraftWorthKeeping(current)) {
+      // A signature alone doesn't make a message worth keeping.
+      if (!isDraftWorthKeeping({ subject: current.subject, text: hasText ? current.text : "" })) {
         if (previous) await deleteDraft(previous)
         saved.current = null
         setStatus("idle")

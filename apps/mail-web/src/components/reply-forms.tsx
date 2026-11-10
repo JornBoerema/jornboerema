@@ -39,18 +39,21 @@ export function ReplyForm({
   threadId,
   message,
   selfEmail,
+  signature,
   all,
   onClose,
 }: {
   threadId: string
   message: MailThreadMessage
   selfEmail: string
+  /** Empty for none. */
+  signature: string
   all: boolean
   onClose: () => void
 }) {
   const t = useI18n().t.conversation
   const queryClient = useQueryClient()
-  const [body, setBody] = useState({ text: "", html: "" })
+  const [body, setBody] = useState({ text: "", html: "", written: false })
   const [files, setFiles] = useState<MailAttachmentUpload[]>([])
   const { to, cc } = replyRecipients(message, selfEmail, all)
   const send = useMutation({
@@ -74,7 +77,7 @@ export function ReplyForm({
     },
     onError: (error) => toast.error(errorText(error)),
   })
-  const canSend = !send.isPending && Boolean(body.text) && to.length > 0
+  const canSend = !send.isPending && body.written && to.length > 0
 
   return (
     <form
@@ -95,6 +98,7 @@ export function ReplyForm({
           label={t.replyPlaceholder}
           placeholder={t.replyPlaceholder}
           className="min-h-32 flex-1"
+          signature={signature}
           onChange={setBody}
         />
       </Suspense>
@@ -109,16 +113,18 @@ export function ReplyForm({
 export function ForwardForm({
   threadId,
   message,
+  signature,
   onClose,
 }: {
   threadId: string
   message: MailThreadMessage
+  signature: string
   onClose: () => void
 }) {
   const { t: strings } = useI18n()
   const t = strings.conversation
   const [to, setTo] = useState("")
-  const [body, setBody] = useState({ text: "", html: "" })
+  const [body, setBody] = useState({ text: "", html: "", written: false })
   const send = useMutation({
     mutationFn: (recipients: MailAddress[]) =>
       api(`/api/mail/threads/${encodeURIComponent(threadId)}/forward`, {
@@ -162,6 +168,7 @@ export function ForwardForm({
           label={t.forwardPlaceholder}
           placeholder={t.forwardPlaceholder}
           className="min-h-24 flex-1"
+          signature={signature}
           onChange={setBody}
         />
       </Suspense>

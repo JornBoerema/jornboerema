@@ -8,6 +8,7 @@ import {
   MAX_UPLOAD_BYTES,
   type ConnectErrorCode,
   MAIL_ACCOUNT_COLORS,
+  MAX_SIGNATURE_LENGTH,
   isDraftWorthKeeping,
 } from "@evido/mail-core/types"
 import { env } from "../env"
@@ -23,7 +24,7 @@ import {
   MailAccountNotFoundError,
   MailNotConfiguredError,
   readInboxSummary,
-  setAccountColor,
+  updateAccountSettings,
   startConnect,
 } from "./accounts-server"
 import { deleteDraft, listDrafts, readDraft, saveDraft, sendDraft } from "./drafts-server"
@@ -63,7 +64,18 @@ const attachments = z
   .max(20)
   .refine((files) => files.reduce((sum, file) => sum + file.data.length, 0) * 0.75 <= MAX_UPLOAD_BYTES)
   .default([])
-const colorBody = z.object({ color: z.number().int().min(0).lt(MAIL_ACCOUNT_COLORS) })
+const accountBody = z
+  .object({
+    color: z.number().int().min(0).lt(MAIL_ACCOUNT_COLORS).optional(),
+    signature: z
+      .object({
+        html: z.string().max(MAX_SIGNATURE_LENGTH).optional(),
+        forNew: z.boolean().optional(),
+        forReplies: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .refine((body) => body.color !== undefined || body.signature !== undefined)
 const actionBody = z.object({ action: z.enum(MAIL_THREAD_ACTIONS) })
 const sendBody = z.object({
   to: recipients,
@@ -353,10 +365,10 @@ mailRoutes.get("/cron/watches", async (c) => {
 })
 
 mailRoutes.patch("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {
-  const body = await readBody(c, colorBody)
+  const body = await readBody(c, accountBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    await setAccountColor(c.get("session").user.id, c.req.param("id"), body.color)
+    await updateAccountSettings(c.get("session").user.id, c.req.param("id"), body)
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)

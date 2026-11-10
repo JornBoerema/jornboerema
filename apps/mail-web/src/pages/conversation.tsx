@@ -322,6 +322,7 @@ export function ConversationPage({
 }) {
   const t = useI18n().t.conversation
   const id = summary.id
+  const replySignature = account?.signature.forReplies ? account.signature.html : ""
   const alwaysShowImages = useAlwaysShowImages()
   const [showImagesOnce, setShowImagesOnce] = useState(false)
   const allowImages = alwaysShowImages || showImagesOnce
@@ -415,13 +416,14 @@ export function ConversationPage({
           {last && (
             <div className="@container sticky bottom-4 z-10 mt-auto mb-4 pt-4">
               {replyMode === "forward" ? (
-                <ForwardForm threadId={id} message={last} onClose={() => setReplyMode(null)} />
+                <ForwardForm threadId={id} message={last} signature={replySignature} onClose={() => setReplyMode(null)} />
               ) : replyMode ? (
                 <ReplyForm
                   key={replyMode}
                   threadId={id}
                   message={last}
                   selfEmail={account?.email ?? ""}
+                  signature={replySignature}
                   all={replyMode === "all"}
                   onClose={() => setReplyMode(null)}
                 />

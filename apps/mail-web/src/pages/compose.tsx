@@ -153,6 +153,7 @@ function ComposeForm({
   const [body, setBody] = useState({
     text: initial?.text ?? "",
     html: initial?.html ?? "",
+    written: Boolean(initial?.text.trim() || initial?.html),
   })
   const [files, setFiles] = useState<MailAttachmentUpload[]>(
     initial?.attachments ?? []
@@ -162,8 +163,10 @@ function ComposeForm({
     () => initial && (initial.html ?? textToEditorHtml(initial.text))
   )
   const reply = initial?.reply
+  const sender = usable.find((account) => account.id === accountId)?.signature
+  const signature = sender && (reply ? sender.forReplies : sender.forNew) ? sender.html : ""
   const hasDraft = Boolean(
-    to || cc || bcc || subject || body.text || files.length
+    to || cc || bcc || subject || body.written || files.length
   )
 
   const content: MailDraftContent = {
@@ -181,6 +184,7 @@ function ComposeForm({
     content,
     initial: draft,
     ready: !draft || editorReady,
+    written: body.written,
     onSaved: (ref) => onDraftChange(ref?.id ?? null),
   })
 
@@ -353,6 +357,7 @@ function ComposeForm({
                 placeholder={t.body}
                 className="min-h-40 flex-1"
                 initialHtml={initialHtml ?? undefined}
+                signature={signature}
                 onChange={(value) => {
                   setBody(value)
                   setEditorReady(true)

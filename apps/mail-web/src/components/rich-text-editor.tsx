@@ -11,7 +11,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import Placeholder from "@tiptap/extension-placeholder"
-import { EditorContent, useEditor, type Editor } from "@tiptap/react"
+import { EditorContent, mergeAttributes, Node, useEditor, type Editor } from "@tiptap/react"
 import { BubbleMenu, type BubbleMenuProps } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import { Button } from "@evido/ui/components/button"
@@ -22,7 +22,42 @@ import { toEmailHtml } from "@/lib/email-compose"
 // A new object here would make the menu update the editor on every render, without end.
 const MENU_OPTIONS = { placement: "top", offset: 8 } as const
 
-export type RichTextValue = { text: string; html: string }
+export type RichTextValue = {
+  text: string
+  html: string
+  /** Something besides the signature has been written. */
+  written: boolean
+}
+
+/** The signature as one block, so switching mailboxes can swap it whole. */
+const Signature = Node.create({
+  name: "signature",
+  group: "block",
+  content: "block+",
+  defining: true,
+  parseHTML: () => [{ tag: "div[data-signature]" }],
+  renderHTML: ({ HTMLAttributes }) => ["div", mergeAttributes(HTMLAttributes, { "data-signature": "" }), 0],
+})
+
+const signatureBlock = (html: string) => `<div data-signature>${html}</div>`
+
+/** Puts `html` in place of the current signature; empty removes it. Not an undo step. */
+function replaceSignature(editor: Editor, html: string) {
+  let found: { from: number; to: number } | null = null
+  editor.state.doc.forEach((node, offset) => {
+    if (node.type.name === "signature") found = { from: offset, to: offset + node.nodeSize }
+  })
+  const range = found as { from: number; to: number } | null
+  const chain = editor.chain().setMeta("addToHistory", false)
+  const options = { updateSelection: false }
+  if (range) {
+    if (html) chain.insertContentAt(range, signatureBlock(html), options).run()
+    else chain.deleteRange(range).run()
+  } else if (html) {
+    // A blank line keeps the signature apart from what is written above it.
+    chain.insertContentAt(editor.state.doc.content.size, `<p></p>${signatureBlock(html)}`, options).run()
+  }
+}
 export type RichTextHandle = { focus: () => void }
 
 function FormatButton({
@@ -155,6 +190,7 @@ export default function RichTextEditor({
   autoFocus,
   className,
   initialHtml,
+  signature,
   onChange,
 }: {
   ref?: Ref<RichTextHandle>
@@ -164,19 +200,29 @@ export default function RichTextEditor({
   className?: string
   /** Content to start from, such as an opened draft. */
   initialHtml?: string
+  /**
+   * The signature to keep at the end. Starting content is assumed to have the
+   * right one already; a later change swaps it.
+   */
+  signature?: string
   /** Also called once the editor is ready, with the starting content as it reads it. */
   onChange: (value: RichTextValue) => void
 }) {
   const [linkOpen, setLinkOpen] = useState(false)
   const emit = ({ editor: current }: { editor: Editor }) => {
     const text = current.getText({ blockSeparator: "\n\n" }).replace(/\n{3,}/g, "\n\n").trim()
-    onChange({ text, html: text ? toEmailHtml(current.getHTML()) : "" })
+    let written = false
+    current.state.doc.forEach((node) => {
+      if (node.type.name !== "signature" && node.textContent.trim()) written = true
+    })
+    onChange({ text, html: text ? toEmailHtml(current.getHTML()) : "", written })
   }
 
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: true,
-    autofocus: autoFocus ? "end" : false,
+    // The start, so typing goes above a signature.
+    autofocus: autoFocus ? "start" : false,
     extensions: [
       StarterKit.configure({
         heading: false,
@@ -185,6 +231,7 @@ export default function RichTextEditor({
         link: { openOnClick: false, defaultProtocol: "https" },
       }),
       Placeholder.configure({ placeholder }),
+      Signature,
     ],
     editorProps: {
       attributes: { role: "textbox", "aria-label": label, "aria-multiline": "true" },
@@ -204,7 +251,15 @@ export default function RichTextEditor({
     onUpdate: emit,
   })
 
-  useImperativeHandle(ref, () => ({ focus: () => editor?.commands.focus("end") }), [editor])
+  const appliedSignature = useRef(initialHtml === undefined ? undefined : signature)
+  useEffect(() => {
+    if (!editor || signature === undefined || signature === appliedSignature.current) return
+    appliedSignature.current = signature
+    replaceSignature(editor, signature)
+  }, [editor, signature])
+
+  // Back where the cursor was, which is never inside the signature unless put there.
+  useImperativeHandle(ref, () => ({ focus: () => editor?.commands.focus() }), [editor])
 
   return (
     <div className={cn("mail-editor", className)}>

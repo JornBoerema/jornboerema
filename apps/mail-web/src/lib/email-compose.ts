@@ -21,6 +21,10 @@ export function toEmailHtml(html: string) {
     if (style) element.setAttribute("style", style)
     if (element.tagName === "P" && !element.hasChildNodes()) element.append(document.createElement("br"))
   })
+  // Signature lines sit together, like a letterhead.
+  template.content.querySelectorAll("[data-signature] p").forEach((paragraph) => {
+    paragraph.setAttribute("style", "margin:0")
+  })
   const container = document.createElement("div")
   container.setAttribute("style", "font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5")
   container.append(template.content)

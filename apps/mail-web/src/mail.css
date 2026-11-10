@@ -49,7 +49,17 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.mail-editor p.is-editor-empty:first-child::before {
+/* Visibly apart from the message; sent mail shows it like any other text. */
+.mail-editor [data-signature] {
+  color: var(--muted-foreground);
+}
+/* Signature lines sit together, here and in the signature settings. */
+.mail-editor [data-signature] > * + *,
+.mail-editor.is-signature .ProseMirror > * + * {
+  margin-top: 0;
+}
+/* Also once a signature follows the empty first line. */
+.mail-editor .ProseMirror > p.is-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   height: 0;
