@@ -228,9 +228,7 @@ export type MailFolder = (typeof MAIL_FOLDERS)[number]
 export const isMailFolder = (value: unknown): value is MailFolder => MAIL_FOLDERS.includes(value as MailFolder)
 /** Spam and trash are hidden from normal reading, so opening one has to ask for them. */
 export const HIDDEN_FOLDERS: readonly MailFolder[] = ["spam", "trash"]
-export const FOLDER_PAGE_SIZE = 20
 
-export type MailFolderPage = { hits: MailSearchHit[]; nextCursor: string | null; failedAccounts: string[] }
 
 /** Each mailbox returns at most this many conversations per search. */
 export const MAX_SEARCH_HITS = 15

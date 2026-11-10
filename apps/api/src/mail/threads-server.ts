@@ -4,7 +4,7 @@ import {
   rankSearchHits,
   searchWords,
   type MailFolder,
-  type MailFolderPage,
+  type MailAddress,
   type MailForward,
   type MailOutgoing,
   type MailReply,
@@ -14,6 +14,7 @@ import {
   type MailThreadsPage,
   type MailThreadView,
 } from "@evido/mail-core/types"
+import type { MailMessageFolder } from "@evido/mail-core/provider"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 
 export class InvalidThreadCursorError extends Error {}
@@ -30,15 +31,34 @@ function parseCursor(cursor: string) {
   return { receivedAt, id }
 }
 
-type ThreadRow = Omit<MailThreadView, "receivedAt"> & { receivedAt: Date }
+type ThreadRow = Omit<MailThreadView, "receivedAt" | "to"> & { receivedAt: Date; to: MailAddress[] }
 
 /** Conversations newest first, across every mailbox or the one in `accountId`. */
 export async function listThreads(
   userId: string,
-  { accountId, cursor, unreadOnly, limit = PAGE_SIZE }: { accountId?: string; cursor?: string; unreadOnly?: boolean; limit?: number }
+  {
+    accountId,
+    cursor,
+    folder = "inbox",
+    unreadOnly,
+    limit = PAGE_SIZE,
+  }: {
+    accountId?: string
+    cursor?: string
+    /** The inbox, another synced folder, or starred mail from any of them but spam and trash. */
+    folder?: "inbox" | MailFolder
+    unreadOnly?: boolean
+    limit?: number
+  }
 ): Promise<MailThreadsPage> {
   const position = cursor ? parseCursor(cursor) : null
   const accountFilter = accountId ? Prisma.sql`AND account_id = ${accountId}` : Prisma.empty
+  // A conversation is grouped within the folder, so a line describes what is there.
+  const folderFilter =
+    folder === "starred"
+      ? Prisma.sql`AND folder NOT IN ('spam', 'trash')`
+      : Prisma.sql`AND folder = ${folder}::mail_message_folder`
+  const starredOnly = folder === "starred" ? Prisma.sql`AND any_starred` : Prisma.empty
   const after = position
     ? Prisma.sql`AND (received_at < ${position.receivedAt} OR (received_at = ${position.receivedAt} AND id < ${position.id}))`
     : Prisma.empty
@@ -54,7 +74,8 @@ export async function listThreads(
       all_read AS "isRead",
       any_starred AS "isStarred",
       any_attachment AS "hasAttachments",
-      message_count::int AS "messageCount"
+      message_count::int AS "messageCount",
+      to_addresses AS "to"
     FROM (
       SELECT *,
         row_number() OVER (conversation ORDER BY received_at DESC, id DESC) AS position,
@@ -63,17 +84,22 @@ export async function listThreads(
         bool_or(is_starred) OVER conversation AS any_starred,
         bool_or(has_attachments) OVER conversation AS any_attachment
       FROM mail_messages
-      WHERE user_id = ${userId} ${accountFilter}
+      WHERE user_id = ${userId} ${accountFilter} ${folderFilter}
       WINDOW conversation AS (PARTITION BY account_id, coalesce(thread_id, id))
     ) grouped
-    WHERE position = 1 ${after} ${unreadOnly ? Prisma.sql`AND NOT all_read` : Prisma.empty}
+    WHERE position = 1 ${after} ${starredOnly} ${unreadOnly ? Prisma.sql`AND NOT all_read` : Prisma.empty}
     ORDER BY received_at DESC, id DESC
     LIMIT ${limit + 1}
   `
   const page = rows.slice(0, limit)
   const last = page.at(-1)
   return {
-    threads: page.map((row) => ({ ...row, receivedAt: row.receivedAt.toISOString() })),
+    // Recipients only matter where lines name them instead of the sender.
+    threads: page.map(({ to, ...row }) => ({
+      ...row,
+      receivedAt: row.receivedAt.toISOString(),
+      ...(folder === "sent" && { to }),
+    })),
     nextCursor: rows.length > limit && last ? `${last.receivedAt.toISOString()}|${last.id}` : null,
   }
 }
@@ -83,7 +109,7 @@ export async function unreadSummary(userId: string) {
   const [count] = await getDb().$queryRaw<{ count: number }[]>`
     SELECT count(*)::int AS count FROM (
       SELECT 1 FROM mail_messages
-      WHERE user_id = ${userId}
+      WHERE user_id = ${userId} AND folder = 'inbox'
       GROUP BY account_id, coalesce(thread_id, id)
       HAVING NOT bool_and(is_read)
     ) unread
@@ -92,7 +118,8 @@ export async function unreadSummary(userId: string) {
   return { count: count?.count ?? 0, latest: threads }
 }
 
-type Conversation = { account: MailAccount; threadId: string }
+/** `hidden` when it was found in spam or trash, which normal reading leaves out. */
+type Conversation = { account: MailAccount; threadId: string; hidden?: boolean }
 
 async function ownedMessage(userId: string, messageId: string): Promise<Conversation> {
   const message = await getDb().mailMessage.findFirst({
@@ -100,7 +127,11 @@ async function ownedMessage(userId: string, messageId: string): Promise<Conversa
     include: { account: true },
   })
   if (!message?.threadId) throw new MailMessageNotFoundError()
-  return { account: message.account, threadId: message.threadId }
+  return {
+    account: message.account,
+    threadId: message.threadId,
+    hidden: message.folder === "spam" || message.folder === "trash",
+  }
 }
 
 /** A conversation by its provider id, such as one search found outside the synced inbox. */
@@ -118,24 +149,43 @@ export async function readConversation(
 }
 
 /** Changes the mailbox first; the list only follows once the provider has accepted it. */
+/** Which of a conversation's synced messages an action is about. */
+const AFFECTS: Partial<Record<MailThreadAction, MailMessageFolder[]>> = {
+  archive: ["inbox"],
+  inbox: ["archive", "spam", "trash"],
+}
+
+/**
+ * Changes the mailbox first; the list only follows once the provider has accepted
+ * it. The next sync then confirms where everything ended up.
+ */
 export async function actOnConversation({ account, threadId }: Conversation, action: MailThreadAction) {
   const db = getDb()
-  const where = { accountId: account.id, threadId }
+  const where = {
+    accountId: account.id,
+    threadId,
+    ...(AFFECTS[action] && { folder: { in: AFFECTS[action] } }),
+  }
   const rows = await db.mailMessage.findMany({ where, select: { providerMessageId: true } })
   await withAccessToken(account, async (provider, token) => {
-    // Not in the synced inbox, like an older or sent conversation: ask the provider.
+    // Not synced, like mail older than the window: ask the provider.
     const messageIds =
       rows.length > 0
         ? rows.map((row) => row.providerMessageId)
         : (await provider.getThread(token, threadId, { includeHidden: true })).map((message) => message.id)
     await provider.applyThreadAction(token, { threadId, messageIds, action })
   })
-  // Back in the inbox arrives through the next sync, with fresh metadata.
-  if (action === "archive" || action === "trash") await db.mailMessage.deleteMany({ where })
-  else if (action === "star" || action === "unstar")
-    await db.mailMessage.updateMany({ where, data: { isStarred: action === "star" } })
-  else if (action === "read" || action === "unread")
-    await db.mailMessage.updateMany({ where, data: { isRead: action === "read" } })
+  const data =
+    action === "archive"
+      ? { folder: "archive" as const }
+      : action === "trash"
+        ? { folder: "trash" as const }
+        : action === "inbox"
+          ? { folder: "inbox" as const }
+          : action === "star" || action === "unstar"
+            ? { isStarred: action === "star" }
+            : { isRead: action === "read" }
+  await db.mailMessage.updateMany({ where, data })
 }
 
 const sender = (account: { email: string; displayName: string | null }) => ({
@@ -162,8 +212,10 @@ export async function attachmentInConversation(
   return withAccessToken(account, (provider, token) => provider.getAttachment(token, input))
 }
 
-export const readThread = async (userId: string, messageId: string) =>
-  readConversation(await ownedMessage(userId, messageId))
+export async function readThread(userId: string, messageId: string) {
+  const conversation = await ownedMessage(userId, messageId)
+  return readConversation(conversation, { includeHidden: conversation.hidden })
+}
 
 export const actOnThread = async (userId: string, messageId: string, action: MailThreadAction) =>
   actOnConversation(await ownedMessage(userId, messageId), action)
@@ -206,60 +258,6 @@ async function withSyncedIds(userId: string, hits: MailSearchHit[]) {
   })
 }
 
-export class InvalidFolderCursorError extends Error {}
-
-/** Per mailbox where its next page starts; null once it has no more. */
-type FolderCursor = Record<string, string | null>
-
-function readFolderCursor(cursor: string | undefined): FolderCursor | null {
-  if (!cursor) return null
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as FolderCursor
-  } catch {
-    // Handled below.
-  }
-  throw new InvalidFolderCursorError()
-}
-
-/**
- * One page of a folder across every mailbox, newest first. Each mailbox pages on
- * its own, so the cursor remembers where each one is.
- */
-export async function listFolder(userId: string, folder: MailFolder, cursor?: string): Promise<MailFolderPage> {
-  const positions = readFolderCursor(cursor)
-  const accounts = (await getDb().mailAccount.findMany({ where: { userId, status: "active" } })).filter(
-    (account) => !positions || typeof positions[account.id] === "string"
-  )
-  const results = await Promise.allSettled(
-    accounts.map((account) =>
-      withAccessToken(account, (provider, token) =>
-        provider.listFolder(token, { folder, pageToken: positions?.[account.id] ?? null })
-      )
-    )
-  )
-  const next: FolderCursor = {}
-  const hits: MailSearchHit[] = []
-  const failedAccounts: string[] = []
-  results.forEach((result, index) => {
-    const account = accounts[index]
-    if (!account) return
-    if (result.status === "rejected") {
-      failedAccounts.push(account.id)
-      console.error("Folder list failed", result.reason instanceof Error ? result.reason.message : "unknown")
-      return
-    }
-    hits.push(...result.value.hits.map((hit) => ({ ...hit, accountId: account.id })))
-    if (result.value.nextPageToken) next[account.id] = result.value.nextPageToken
-  })
-  hits.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
-  return {
-    hits: await withSyncedIds(userId, hits),
-    nextCursor: Object.keys(next).length > 0 ? Buffer.from(JSON.stringify(next)).toString("base64url") : null,
-    failedAccounts,
-  }
-}
-
 /** Searches every active mailbox live. A mailbox that fails is reported, not fatal. */
 export async function searchMail(userId: string, query: string) {
   const accounts = await getDb().mailAccount.findMany({ where: { userId, status: "active" } })
@@ -296,6 +294,7 @@ export async function quickSearch(userId: string, query: string): Promise<MailSe
   const rows = await getDb().mailMessage.findMany({
     where: {
       userId,
+      folder: { notIn: ["spam", "trash"] },
       AND: words.map((word) => ({
         OR: [{ subject: contains(word) }, { fromName: contains(word) }, { fromEmail: contains(word) }],
       })),
@@ -339,20 +338,30 @@ export async function suggestContacts(userId: string, query: string): Promise<Ma
   const anywhere = `%${likeEscape(term)}%`
   const start = `${likeEscape(term)}%`
   const word = `% ${likeEscape(term)}%`
+  // People who wrote, and people this user wrote to; not the user's own mailboxes.
   return getDb().$queryRaw<MailContact[]>`
+    WITH people AS (
+      SELECT lower(from_email) AS email, from_name AS name, received_at
+      FROM mail_messages
+      WHERE user_id = ${userId} AND folder NOT IN ('sent', 'spam') AND from_email IS NOT NULL
+      UNION ALL
+      SELECT lower(recipient->>'email'), recipient->>'name', received_at
+      FROM mail_messages, jsonb_array_elements(to_addresses) AS recipient
+      WHERE user_id = ${userId} AND folder = 'sent'
+    )
     SELECT email, name FROM (
-      SELECT lower(from_email) AS email,
-        (array_agg(from_name ORDER BY received_at DESC) FILTER (WHERE from_name IS NOT NULL AND from_name <> ''))[1] AS name,
+      SELECT email,
+        (array_agg(name ORDER BY received_at DESC) FILTER (WHERE name IS NOT NULL AND name <> ''))[1] AS name,
         count(*) AS uses,
         max(received_at) AS last_seen
-      FROM mail_messages
-      WHERE user_id = ${userId}
-        AND from_email IS NOT NULL
-        AND from_email NOT ILIKE '%noreply%'
-        AND from_email NOT ILIKE '%no-reply%'
-        AND from_email NOT ILIKE '%donotreply%'
-        AND (from_email ILIKE ${anywhere} OR from_name ILIKE ${anywhere})
-      GROUP BY lower(from_email)
+      FROM people
+      WHERE email IS NOT NULL
+        AND email NOT ILIKE '%noreply%'
+        AND email NOT ILIKE '%no-reply%'
+        AND email NOT ILIKE '%donotreply%'
+        AND email NOT IN (SELECT lower(email) FROM mail_accounts WHERE user_id = ${userId})
+        AND (email ILIKE ${anywhere} OR name ILIKE ${anywhere})
+      GROUP BY email
     ) contacts
     ORDER BY (email ILIKE ${start} OR name ILIKE ${start} OR name ILIKE ${word}) DESC, uses DESC, last_seen DESC
     LIMIT 8

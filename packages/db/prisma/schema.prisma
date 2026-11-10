@@ -466,7 +466,17 @@ model MailOauthState {
   @@map("mail_oauth_states")
 }
 
-/// Inbox list metadata only. Bodies and attachments stay at the provider.
+enum MailMessageFolder {
+  inbox
+  sent
+  archive
+  spam
+  trash
+
+  @@map("mail_message_folder")
+}
+
+/// List metadata of every synced folder. Bodies and attachments stay at the provider.
 model MailMessage {
   /// Derived from account and provider id, so re-syncing keeps the same id.
   id                String      @id
@@ -476,6 +486,10 @@ model MailMessage {
   account           MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   providerMessageId String      @map("provider_message_id")
   threadId          String?     @map("thread_id")
+  /// Where it sits; Gmail labels are mapped onto these.
+  folder            MailMessageFolder @default(inbox)
+  /// Name and address pairs, for naming who sent mail went to.
+  toAddresses       Json        @default("[]") @map("to_addresses")
   subject           String
   snippet           String
   fromName          String?     @map("from_name")
@@ -488,5 +502,6 @@ model MailMessage {
   @@unique([accountId, providerMessageId], map: "mail_messages_account_provider_unique")
   @@index([userId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_received_idx")
   @@index([accountId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_account_received_idx")
+  @@index([userId, folder, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_folder_received_idx")
   @@map("mail_messages")
 }

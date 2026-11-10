@@ -9,7 +9,8 @@ import {
 import type { MailSyncResult } from "@evido/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 
-const WINDOW_MS = 90 * 24 * 60 * 60 * 1000
+/** How far back mail is kept: a year, for every synced folder. */
+const WINDOW_MS = 365 * 24 * 60 * 60 * 1000
 /** Stops starting new pages in time to answer within the 30s function limit. */
 const BUDGET_MS = 20 * 1000
 /** Outlives a function killed at its limit, so a crash cannot block sync for long. */
@@ -20,9 +21,10 @@ const messageId = (accountId: string, providerMessageId: string) =>
 
 const windowStart = () => new Date(Date.now() - WINDOW_MS)
 
-function toRow(account: MailAccount, data: MailMessageData) {
+function toRow(account: MailAccount, { to, ...data }: MailMessageData) {
   return {
     ...data,
+    toAddresses: to,
     id: messageId(account.id, data.providerMessageId),
     userId: account.userId,
     accountId: account.id,
@@ -34,12 +36,13 @@ async function applyPage(account: MailAccount, page: SyncPage, since: Date) {
   const db = getDb()
   // Graph reports read-state changes on older mail too; those stay outside the window.
   const rows = page.upserts.filter((item) => item.receivedAt >= since).map((item) => toRow(account, item))
-  const stale = [
-    ...rows.map((row) => row.id),
-    ...page.removals.map((id) => messageId(account.id, id)),
-  ]
+  const removed = page.removals.map((id) => messageId(account.id, id))
   await db.$transaction([
-    db.mailMessage.deleteMany({ where: { id: { in: stale } } }),
+    db.mailMessage.deleteMany({ where: { id: { in: rows.map((row) => row.id) } } }),
+    // Left one folder can mean moved to another, whose sync may have run first.
+    db.mailMessage.deleteMany({
+      where: { id: { in: removed }, ...(page.removalFolder && { folder: page.removalFolder }) },
+    }),
     db.mailMessage.createMany({ data: rows }),
     db.mailAccount.update({
       where: { id: account.id },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { MailDraftView } from "@evido/mail-core/types"
@@ -14,6 +14,7 @@ import { MailSpotlight } from "@/components/mail-spotlight"
 import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
 import { I18nProvider, useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
+import { persistMailCache } from "@/lib/cache"
 import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
 import { useAccounts, useMailRealtime, useMailSync, useUnread } from "@/lib/mail"
 import { useNewMailNotifications, useUnreadTitle } from "@/lib/notifications"
@@ -25,6 +26,18 @@ import { AuthLayout } from "@/pages/auth-layout"
 
 /** A provider redirect lands here with its result, which the settings report. */
 const returnedFromProvider = () => Boolean(window.location.search)
+
+/** Puts the lists kept in this browser back before the app shows anything. */
+function WithCachedMail({ userId, children }: { userId: string; children: ReactNode }) {
+  const queryClient = useQueryClient()
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    const { unsubscribe, restored } = persistMailCache(queryClient, userId)
+    void restored.finally(() => setReady(true))
+    return unsubscribe
+  }, [queryClient, userId])
+  return ready ? children : null
+}
 
 function MailApp({ user }: { user: { id: string; name: string; email: string } }) {
   const sidebar = useCollapsibleSidebar()
@@ -198,7 +211,12 @@ function Root() {
   const { data, isPending } = authClient.useSession()
   const location = useLocation()
   if (isPending) return null
-  if (data) return <MailApp user={data.user} />
+  if (data)
+    return (
+      <WithCachedMail userId={data.user.id}>
+        <MailApp user={data.user} />
+      </WithCachedMail>
+    )
   // Better Auth reports a failed verification link here; "session" is a mailbox connect error.
   const error = new URLSearchParams(location.search).get("error")
   const verificationFailed = error && error !== "session"

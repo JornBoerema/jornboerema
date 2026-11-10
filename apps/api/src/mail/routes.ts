@@ -55,8 +55,6 @@ import {
   ownedConversation,
   readConversation,
   replyInConversation,
-  InvalidFolderCursorError,
-  listFolder,
   quickSearch,
   suggestContacts,
   unreadSummary,
@@ -247,9 +245,12 @@ mailRoutes.post("/accounts/:id/sync", requireTrustedOrigin, requireSession, asyn
 
 mailRoutes.get("/threads", requireSession, async (c) => {
   try {
+    const folder = c.req.query("folder")
+    if (folder !== undefined && !isMailFolder(folder)) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const page = await listThreads(c.get("session").user.id, {
       accountId: c.req.query("account"),
       cursor: c.req.query("cursor"),
+      folder,
     })
     return c.json(page, 200, noStore)
   } catch (error) {
@@ -410,17 +411,6 @@ mailRoutes.delete("/signatures/:id", requireTrustedOrigin, requireSession, async
     await deleteSignature(c.get("session").user.id, c.req.param("id"))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
-    return failure(c, error)
-  }
-})
-
-mailRoutes.get("/folders/:folder", requireSession, async (c) => {
-  const folder = c.req.param("folder")
-  if (!isMailFolder(folder)) return c.json({ error: msg(c, "invalidRequest") }, 400)
-  try {
-    return c.json(await listFolder(c.get("session").user.id, folder, c.req.query("cursor")), 200, noStore)
-  } catch (error) {
-    if (error instanceof InvalidFolderCursorError) return c.json({ error: msg(c, "invalidRequest") }, 400)
     return failure(c, error)
   }
 })

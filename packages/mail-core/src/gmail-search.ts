@@ -2,13 +2,13 @@ import { headerOf, toAddresses, type GmailFullMessage } from "./gmail-read"
 import { decodeEntities, GMAIL_API, parseAddress } from "./gmail-sync"
 import { cleanText, getJson, mapInChunks } from "./http"
 import { ProviderError } from "./provider"
-import { FOLDER_PAGE_SIZE, MAX_SEARCH_HITS, type MailFolder, type MailSearchHit } from "./types"
+import { MAX_SEARCH_HITS, type MailSearchHit } from "./types"
 
 // A thread read costs 10 of the 250 quota units a user gets per second.
 const READ_CONCURRENCY = 3
 
 type Thread = { id: string; messages?: (GmailFullMessage & { snippet?: string })[] }
-type ThreadList = { threads?: { id: string }[]; nextPageToken?: string }
+type ThreadList = { threads?: { id: string }[] }
 
 /** One line per conversation, described by its newest message. Drafts don't count. */
 async function describeThreads(accessToken: string, ids: string[]): Promise<Omit<MailSearchHit, "accountId">[]> {
@@ -50,26 +50,4 @@ export async function searchGmail(accessToken: string, query: string): Promise<O
   const params = new URLSearchParams({ q: `${query} -in:draft`, maxResults: String(MAX_SEARCH_HITS) })
   const list = await getJson<ThreadList>(`${GMAIL_API}/threads?${params}`, accessToken)
   return describeThreads(accessToken, (list.threads ?? []).map((thread) => thread.id))
-}
-
-/** Gmail has labels, not folders. Archived mail is whatever left the inbox without a place to go. */
-const FOLDER_QUERY: Record<MailFolder, Record<string, string>> = {
-  starred: { labelIds: "STARRED" },
-  sent: { labelIds: "SENT" },
-  archive: { q: "-in:inbox -in:sent -in:draft -in:spam -in:trash -in:chats" },
-  spam: { labelIds: "SPAM", includeSpamTrash: "true" },
-  trash: { labelIds: "TRASH", includeSpamTrash: "true" },
-}
-
-export async function listGmailFolder(
-  accessToken: string,
-  { folder, pageToken }: { folder: MailFolder; pageToken: string | null }
-) {
-  const params = new URLSearchParams({ ...FOLDER_QUERY[folder], maxResults: String(FOLDER_PAGE_SIZE) })
-  if (pageToken) params.set("pageToken", pageToken)
-  const list = await getJson<ThreadList>(`${GMAIL_API}/threads?${params}`, accessToken)
-  return {
-    hits: await describeThreads(accessToken, (list.threads ?? []).map((thread) => thread.id)),
-    nextPageToken: list.nextPageToken ?? null,
-  }
 }

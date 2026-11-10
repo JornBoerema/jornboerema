@@ -438,12 +438,12 @@ describe("change notifications", () => {
     await expect(gmail.watch("t", { ...input, gmailTopic: null })).rejects.toBeInstanceOf(ProviderError)
   })
 
-  it("outlook creates an inbox subscription with the client state", async () => {
+  it("outlook creates a subscription for all mail, with the client state", async () => {
     const sent = stub(() => [201, { id: "sub" }])
     const watch = await outlook.watch("t", input)
     expect(sent[0]?.method).toBe("POST")
     expect(sent[0]?.body).toMatchObject({
-      resource: "me/mailFolders('inbox')/messages",
+      resource: "me/messages",
       notificationUrl: "https://api/hook",
       clientState: "st",
       changeType: "created,updated,deleted",

@@ -29,7 +29,6 @@ import { cn } from "@evido/ui/lib/utils"
 import {
   isMailFolder,
   type MailFolder,
-  type MailFolderPage,
   type MailAccountView,
   type MailDraftView,
   type MailThreadAction,
@@ -48,11 +47,9 @@ import type { DraftRef, useDrafts } from "@/lib/drafts"
 import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
 import {
-  folderKey,
   leavesList,
-  MESSAGES_KEY,
+  listKey,
   moveActions,
-  searchHitAsThread,
   STARRED,
   useThreadAction,
   type SyncStatus,
@@ -376,11 +373,6 @@ function SelectionBar({
   )
 }
 
-/** Pages of different mailboxes can repeat a conversation. */
-function uniqueById(threads: MailThreadView[]) {
-  const seen = new Set<string>()
-  return threads.filter((thread) => !seen.has(thread.id) && seen.add(thread.id))
-}
 
 function ListSkeleton() {
   return (
@@ -465,34 +457,21 @@ export function InboxPage({
   const draftRows = drafts.data?.drafts ?? []
   const { accounts, accountId, onCompose, onSettings } = navigation
   const { mutate: runAction } = useThreadAction()
-  const messages = useInfiniteQuery({
-    queryKey: [...MESSAGES_KEY, accountId],
+  const folder = isMailFolder(navigation.view) ? navigation.view : null
+  // Every folder is synced, so each list is one query on our own database.
+  const list = useInfiniteQuery({
+    queryKey: listKey(accountId, folder),
     initialPageParam: "",
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams()
       if (accountId) params.set("account", accountId)
+      if (folder) params.set("folder", folder)
       if (pageParam) params.set("cursor", pageParam)
       return api<MailThreadsPage>(`/api/mail/threads?${params}`)
     },
     getNextPageParam: (page) => page.nextCursor,
   })
-  const folder = isMailFolder(navigation.view) ? navigation.view : null
-  const folderPages = useInfiniteQuery({
-    queryKey: folderKey(folder ?? "starred"),
-    enabled: folder !== null,
-    initialPageParam: "",
-    queryFn: ({ pageParam }) =>
-      api<MailFolderPage>(
-        `/api/mail/folders/${folder}${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ""}`
-      ),
-    getNextPageParam: (page) => page.nextCursor,
-  })
-  const list = folder ? folderPages : messages
-  const rows = folder
-    ? uniqueById(
-        (folderPages.data?.pages ?? []).flatMap((page) => page.hits.map((hit) => searchHitAsThread(hit, folder)))
-      )
-    : (messages.data?.pages.flatMap((page) => page.threads) ?? [])
+  const rows = list.data?.pages.flatMap((page) => page.threads) ?? []
   const position = open ? rows.findIndex((thread) => thread.id === open.id) : -1
   const selectedAccount = accounts.find((account) => account.id === accountId)
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
@@ -732,9 +711,6 @@ export function InboxPage({
                       {folder ? strings.folders.loadFailed : t.loadFailed}
                     </p>
                   )}
-                  {folder && !!folderPages.data?.pages.at(-1)?.failedAccounts.length && (
-                    <p className="px-4 pb-2 text-xs text-muted-foreground">{strings.folders.someFailed}</p>
-                  )}
                   {list.isSuccess &&
                     !loadingAccounts &&
                     rows.length === 0 && (
@@ -752,7 +728,7 @@ export function InboxPage({
                         key={thread.id}
                         thread={thread}
                         mailbox={
-                          (folder || !accountId) && accounts.length > 1
+                          !accountId && accounts.length > 1
                             ? accountOf.get(thread.accountId)
                             : undefined
                         }

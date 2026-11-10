@@ -9,9 +9,8 @@ import { Realtime } from "ably"
 import { toast } from "sonner"
 import {
   HIDDEN_FOLDERS,
-  MAIL_FOLDERS,
+  isMailFolder,
   type MailFolder,
-  type MailFolderPage,
   type MailAccountView,
   type MailSearchHit,
   type MailSyncResult,
@@ -68,12 +67,12 @@ export function searchHitAsThread(hit: MailSearchHit, folder?: MailFolder): Mail
   }
 }
 
-const FOLDERS_KEY = ["mail-folder"]
-export const folderKey = (folder: MailFolder) => [...FOLDERS_KEY, folder]
+/** Lists are keyed by mailbox ("" for all) and folder ("inbox" for the inbox). */
+export const listKey = (accountId: string, folder: MailFolder | null) => [...MESSAGES_KEY, accountId, folder ?? "inbox"]
 
 /** What leaves a folder's list when it happens; the rest only changes the line. */
 const LEAVES: Record<MailFolder, MailThreadAction[]> = {
-  starred: ["unstar"],
+  starred: ["unstar", "trash"],
   sent: ["trash"],
   archive: ["trash", "inbox"],
   spam: ["trash", "inbox"],
@@ -108,30 +107,11 @@ export function useAccounts() {
   })
 }
 
-function applyAction(threads: MailThreadView[], id: string, action: MailThreadAction) {
-  if (action === "archive" || action === "trash") return threads.filter((thread) => thread.id !== id)
+function applyAction(threads: MailThreadView[], folder: MailFolder | null, id: string, action: MailThreadAction) {
+  if (leavesList(folder, action)) return threads.filter((thread) => thread.id !== id)
   return threads.map((thread) => (thread.id === id ? changeLine(thread, action) : thread))
 }
 
-/** Folder pages hold hits; a hit matches by the id its line opens with. */
-function applyToFolder(page: MailFolderPage, folder: MailFolder, id: string, action: MailThreadAction) {
-  const matches = (hit: MailSearchHit) => searchHitAsThread(hit, folder).id === id
-  if (LEAVES[folder].includes(action)) return { ...page, hits: page.hits.filter((hit) => !matches(hit)) }
-  return {
-    ...page,
-    hits: page.hits.map((hit) =>
-      matches(hit)
-        ? {
-            ...hit,
-            ...(action === "read" || action === "unread" ? { isRead: action === "read" } : {}),
-            ...(action === "star" || action === "unstar" ? { isStarred: action === "star" } : {}),
-          }
-        : hit
-    ),
-  }
-}
-
-/** Updates the list at once; a refusal from the provider puts the real state back. */
 /** One conversation, or several at once from a selection. */
 type ActionInput = { action: MailThreadAction } & ({ id: string; ids?: never } | { ids: string[]; id?: never })
 const idsOf = (input: ActionInput) => input.ids ?? [input.id]
@@ -168,21 +148,18 @@ export function useThreadAction() {
       const { action } = input
       const ids = idsOf(input)
       await queryClient.cancelQueries({ queryKey: MESSAGES_KEY })
-      await queryClient.cancelQueries({ queryKey: FOLDERS_KEY })
-      for (const id of ids) {
-        for (const folder of MAIL_FOLDERS)
-          queryClient.setQueryData<InfiniteData<MailFolderPage>>(
-            folderKey(folder),
-            (data) => data && { ...data, pages: data.pages.map((page) => applyToFolder(page, folder, id, action)) }
-          )
-        queryClient.setQueriesData<InfiniteData<MailThreadsPage>>(
-          { queryKey: MESSAGES_KEY },
-          (data) =>
-            data && {
-              ...data,
-              pages: data.pages.map((page) => ({ ...page, threads: applyAction(page.threads, id, action) })),
-            }
-        )
+      // Each list knows its folder, which decides whether the conversation leaves it.
+      for (const [key, data] of queryClient.getQueriesData<InfiniteData<MailThreadsPage>>({ queryKey: MESSAGES_KEY })) {
+        if (!data?.pages) continue
+        const name = key[2]
+        const folder = typeof name === "string" && isMailFolder(name) ? name : null
+        queryClient.setQueryData<InfiniteData<MailThreadsPage>>(key, {
+          ...data,
+          pages: data.pages.map((page) => ({
+            ...page,
+            threads: ids.reduce((threads, id) => applyAction(threads, folder, id, action), page.threads),
+          })),
+        })
       }
     },
     // Undone: the list comes back from the server below, as nothing changed there.
@@ -194,7 +171,6 @@ export function useThreadAction() {
       if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 1) {
         void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
         void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
-        void queryClient.invalidateQueries({ queryKey: FOLDERS_KEY })
       }
     },
   })

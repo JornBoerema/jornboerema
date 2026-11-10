@@ -3,16 +3,19 @@ import {
   ProviderError,
   SyncCursorExpiredError,
   type MailMessageData,
+  type MailMessageFolder,
   type SyncPage,
 } from "./provider"
 
 export const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 const PAGE_SIZE = 100
-// Each read costs 5 of the 250 quota units a user gets per second, and answers can
-// take well under 100ms, so more parallel reads than this can exceed the limit.
-const READ_CONCURRENCY = 2
+// Each read costs 5 of the 250 quota units a user gets per second. Four at a time
+// stays near half of that, since an answer takes 100 to 200ms.
+const READ_CONCURRENCY = 4
+/** Cursors from before every folder was synced lack this, which starts a full sync. */
+const CURSOR_VERSION = 2
 
-type GmailCursor = { historyId: string; pageToken?: string; backfill: boolean }
+type GmailCursor = { v: number; historyId: string; pageToken?: string; backfill: boolean }
 
 type GmailMessage = {
   id: string
@@ -33,7 +36,7 @@ type HistoryRecord = {
 function parseCursor(cursor: string): GmailCursor {
   try {
     const parsed = JSON.parse(cursor) as GmailCursor
-    if (typeof parsed.historyId === "string") return parsed
+    if (typeof parsed.historyId === "string" && parsed.v === CURSOR_VERSION) return parsed
   } catch {
     // Handled below: an unreadable position means starting over.
   }
@@ -58,14 +61,53 @@ export function parseAddress(value: string | undefined) {
     : { name: null, email: value.trim() || null }
 }
 
-function toData(message: GmailMessage): MailMessageData {
+/**
+ * Gmail labels as one folder. Trash and spam win; a message that is both in the
+ * inbox and sent (mail to yourself) is inbox. Without either it was archived.
+ * Drafts and chats aren't mail to list, so they have none.
+ */
+export function folderOf(labels: string[]): MailMessageFolder | null {
+  if (labels.includes("DRAFT") || labels.includes("CHAT")) return null
+  if (labels.includes("TRASH")) return "trash"
+  if (labels.includes("SPAM")) return "spam"
+  if (labels.includes("INBOX")) return "inbox"
+  if (labels.includes("SENT")) return "sent"
+  return "archive"
+}
+
+/** Splits on the commas between addresses, not those inside "Last, First". */
+function splitAddresses(value: string) {
+  const items: string[] = []
+  let current = ""
+  let quoted = false
+  for (const char of value) {
+    if (char === '"') quoted = !quoted
+    if (char === "," && !quoted) {
+      items.push(current)
+      current = ""
+    } else current += char
+  }
+  items.push(current)
+  return items
+}
+
+/** At most this many recipients are kept: enough to name who a sent mail went to. */
+const MAX_RECIPIENTS = 20
+
+function toData(message: GmailMessage, folder: MailMessageFolder): MailMessageData {
   const header = (name: string) =>
     message.payload?.headers?.find((item) => item.name?.toLowerCase() === name)?.value
   const from = parseAddress(header("from"))
   const labels = message.labelIds ?? []
+  const to = splitAddresses(header("to") ?? "")
+    .map((item) => parseAddress(item))
+    .flatMap(({ name, email }) => (email ? [{ name: name && cleanText(name), email: cleanText(email) }] : []))
+    .slice(0, MAX_RECIPIENTS)
   return {
     providerMessageId: message.id,
     threadId: message.threadId ?? null,
+    folder,
+    to,
     subject: cleanText(header("subject") ?? ""),
     snippet: cleanText(decodeEntities(message.snippet ?? "")),
     fromName: from.name && cleanText(from.name),
@@ -80,7 +122,7 @@ function toData(message: GmailMessage): MailMessageData {
 
 /** Reads one message. Null means it no longer exists. */
 async function readMessage(accessToken: string, id: string) {
-  const params = "format=metadata&metadataHeaders=From&metadataHeaders=Subject"
+  const params = "format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=To"
   try {
     return await getJson<GmailMessage>(
       `${GMAIL_API}/messages/${encodeURIComponent(id)}?${params}`,
@@ -92,13 +134,22 @@ async function readMessage(accessToken: string, id: string) {
   }
 }
 
+/** Messages as rows, leaving out what has no folder (drafts, chats). */
+function described(messages: (GmailMessage | null)[]) {
+  return messages.flatMap((message) => {
+    const folder = message && folderOf(message.labelIds ?? [])
+    return message && folder ? [toData(message, folder)] : []
+  })
+}
+
 async function backfillPage(
   accessToken: string,
   state: GmailCursor,
   since: Date
 ): Promise<SyncPage> {
+  // Every folder, spam and trash included; drafts and chats are dropped below.
   const params = new URLSearchParams({
-    labelIds: "INBOX",
+    includeSpamTrash: "true",
     maxResults: String(PAGE_SIZE),
     q: `after:${Math.floor(since.getTime() / 1000)}`,
   })
@@ -110,12 +161,11 @@ async function backfillPage(
   const read = await mapInChunks(list.messages ?? [], READ_CONCURRENCY, ({ id }) =>
     readMessage(accessToken, id)
   )
-  const inInbox = read.filter((item) => item?.labelIds?.includes("INBOX")) as GmailMessage[]
   const next: GmailCursor = list.nextPageToken
-    ? { historyId: state.historyId, pageToken: list.nextPageToken, backfill: true }
-    : { historyId: state.historyId, backfill: false }
+    ? { v: CURSOR_VERSION, historyId: state.historyId, pageToken: list.nextPageToken, backfill: true }
+    : { v: CURSOR_VERSION, historyId: state.historyId, backfill: false }
   // Not done after the last page: changes made during the backfill are still in history.
-  return { upserts: inInbox.map(toData), removals: [], cursor: JSON.stringify(next), done: false }
+  return { upserts: described(read), removals: [], cursor: JSON.stringify(next), done: false }
 }
 
 async function historyPage(accessToken: string, state: GmailCursor): Promise<SyncPage> {
@@ -151,17 +201,18 @@ async function historyPage(accessToken: string, state: GmailCursor): Promise<Syn
     message: await readMessage(accessToken, id),
   }))
 
-  // History says something changed; the current labels say what the inbox should show.
+  // History says something changed; the current labels say where the message now is.
   const upserts: MailMessageData[] = []
   const removals = [...deleted]
   for (const { id, message } of read) {
-    if (message?.labelIds?.includes("INBOX")) upserts.push(toData(message))
+    const folder = message && folderOf(message.labelIds ?? [])
+    if (message && folder) upserts.push(toData(message, folder))
     else removals.push(id)
   }
 
   const next: GmailCursor = history.nextPageToken
-    ? { historyId: state.historyId, pageToken: history.nextPageToken, backfill: false }
-    : { historyId: history.historyId ?? state.historyId, backfill: false }
+    ? { v: CURSOR_VERSION, historyId: state.historyId, pageToken: history.nextPageToken, backfill: false }
+    : { v: CURSOR_VERSION, historyId: history.historyId ?? state.historyId, backfill: false }
   return { upserts, removals, cursor: JSON.stringify(next), done: !history.nextPageToken }
 }
 
@@ -178,5 +229,5 @@ export async function syncGmailPage(
   // Taken before listing, so anything that changes during the backfill is replayed after it.
   const profile = await getJson<{ historyId?: string }>(`${GMAIL_API}/profile`, accessToken)
   if (!profile.historyId) throw new ProviderError("Gmail profile has no history id")
-  return backfillPage(accessToken, { historyId: profile.historyId, backfill: true }, since)
+  return backfillPage(accessToken, { v: CURSOR_VERSION, historyId: profile.historyId, backfill: true }, since)
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { readGmailThread } from "../src/gmail-read"
-import { syncGmailPage } from "../src/gmail-sync"
+import { folderOf, syncGmailPage } from "../src/gmail-sync"
 import { readOutlookThread } from "../src/outlook-read"
 import { GRAPH_BASE, syncOutlookPage } from "../src/outlook-sync"
 import { isRateLimited, ProviderError, SyncCursorExpiredError } from "../src/provider"
@@ -37,28 +37,51 @@ function gmailMessage(id: string, labelIds = ["INBOX", "UNREAD"]) {
       mimeType: "multipart/mixed",
       headers: [
         { name: "From", value: '"Doe, Jo" <jo@example.com>' },
+        { name: "To", value: '"Doe, Al" <al@example.com>, bo@example.com' },
         { name: "Subject", value: "Hi\u0000 there" },
       ],
     },
   }
 }
 
+const v2 = (cursor: object) => JSON.stringify({ v: 2, ...cursor })
+
+describe("gmail folders", () => {
+  it("maps labels to one folder", () => {
+    expect(folderOf(["INBOX", "UNREAD"])).toBe("inbox")
+    expect(folderOf(["SENT"])).toBe("sent")
+    expect(folderOf(["INBOX", "SENT"])).toBe("inbox")
+    expect(folderOf(["CATEGORY_UPDATES"])).toBe("archive")
+    expect(folderOf(["SPAM", "INBOX"])).toBe("spam")
+    expect(folderOf(["TRASH", "SENT"])).toBe("trash")
+    expect(folderOf(["DRAFT"])).toBeNull()
+    expect(folderOf(["CHAT"])).toBeNull()
+  })
+})
+
 describe("gmail sync", () => {
-  it("takes the history id before listing and maps metadata", async () => {
+  it("takes the history id before listing every folder, and maps metadata", async () => {
     const requests = stubRoutes([
       [/\/profile$/, 200, { historyId: "50" }],
-      [/\/messages\?/, 200, { messages: [{ id: "a" }], nextPageToken: "next" }],
+      [/\/messages\?/, 200, { messages: [{ id: "a" }, { id: "d" }], nextPageToken: "next" }],
       [/\/messages\/a\?/, 200, gmailMessage("a")],
+      [/\/messages\/d\?/, 200, gmailMessage("d", ["DRAFT"])],
     ])
     const page = await syncGmailPage("t", { cursor: null, since })
 
     expect(requests[0]?.url).toMatch(/\/profile$/)
-    expect(new URL(requests[1]?.url ?? "").searchParams.get("q")).toBe(`after:${since.getTime() / 1000}`)
+    const list = new URL(requests[1]?.url ?? "").searchParams
+    expect(list.get("q")).toBe(`after:${since.getTime() / 1000}`)
+    expect(list.get("includeSpamTrash")).toBe("true")
+    expect(list.get("labelIds")).toBeNull()
     expect(page.done).toBe(false)
-    expect(JSON.parse(page.cursor)).toEqual({ historyId: "50", pageToken: "next", backfill: true })
+    expect(JSON.parse(page.cursor)).toEqual({ v: 2, historyId: "50", pageToken: "next", backfill: true })
+    expect(page.upserts).toHaveLength(1)
     expect(page.upserts[0]).toMatchObject({
       providerMessageId: "a",
       threadId: "t-a",
+      folder: "inbox",
+      to: [{ name: "Doe, Al", email: "al@example.com" }, { name: null, email: "bo@example.com" }],
       subject: "Hi there",
       snippet: "Tom & Jerry's",
       fromName: "Doe, Jo",
@@ -71,13 +94,12 @@ describe("gmail sync", () => {
 
   it("switches to history after the last backfill page, without claiming done", async () => {
     stubRoutes([[/\/messages\?/, 200, {}]])
-    const cursor = JSON.stringify({ historyId: "50", pageToken: "p", backfill: true })
-    const page = await syncGmailPage("t", { cursor, since })
+    const page = await syncGmailPage("t", { cursor: v2({ historyId: "50", pageToken: "p", backfill: true }), since })
     expect(page.done).toBe(false)
-    expect(JSON.parse(page.cursor)).toEqual({ historyId: "50", backfill: false })
+    expect(JSON.parse(page.cursor)).toEqual({ v: 2, historyId: "50", backfill: false })
   })
 
-  it("derives upserts and removals from history and current labels", async () => {
+  it("keeps messages that left the inbox, in their new folder", async () => {
     stubRoutes([
       [
         /\/history\?/,
@@ -86,7 +108,7 @@ describe("gmail sync", () => {
           historyId: "60",
           history: [
             {
-              messagesAdded: [{ message: { id: "new" } }],
+              messagesAdded: [{ message: { id: "new" } }, { message: { id: "draft" } }],
               labelsRemoved: [{ message: { id: "archived" } }],
               labelsAdded: [{ message: { id: "gone" } }, { message: { id: "deleted" } }],
               messagesDeleted: [{ message: { id: "deleted" } }],
@@ -95,30 +117,33 @@ describe("gmail sync", () => {
         },
       ],
       [/\/messages\/new\?/, 200, gmailMessage("new")],
+      [/\/messages\/draft\?/, 200, gmailMessage("draft", ["DRAFT"])],
       [/\/messages\/archived\?/, 200, gmailMessage("archived", ["CATEGORY_UPDATES"])],
       [/\/messages\/gone\?/, 404, {}],
     ])
-    const page = await syncGmailPage("t", {
-      cursor: JSON.stringify({ historyId: "50", backfill: false }),
-      since,
-    })
+    const page = await syncGmailPage("t", { cursor: v2({ historyId: "50", backfill: false }), since })
     expect(page.done).toBe(true)
-    expect(page.upserts.map((item) => item.providerMessageId)).toEqual(["new"])
-    expect(page.removals.sort()).toEqual(["archived", "deleted", "gone"])
+    expect(page.upserts.map((item) => [item.providerMessageId, item.folder])).toEqual([
+      ["new", "inbox"],
+      ["archived", "archive"],
+    ])
+    expect(page.removals.sort()).toEqual(["deleted", "draft", "gone"])
     expect(JSON.parse(page.cursor).historyId).toBe("60")
   })
 
-  it("reports expired history and unreadable cursors", async () => {
+  it("starts over from expired history, unreadable cursors and cursors from before folders", async () => {
     stubRoutes([[/\/history\?/, 404, {}]])
-    const cursor = JSON.stringify({ historyId: "1", backfill: false })
-    await expect(syncGmailPage("t", { cursor, since })).rejects.toBeInstanceOf(SyncCursorExpiredError)
-    await expect(syncGmailPage("t", { cursor: "nonsense", since })).rejects.toBeInstanceOf(
+    await expect(syncGmailPage("t", { cursor: v2({ historyId: "1", backfill: false }), since })).rejects.toBeInstanceOf(
       SyncCursorExpiredError
     )
+    await expect(syncGmailPage("t", { cursor: "nonsense", since })).rejects.toBeInstanceOf(SyncCursorExpiredError)
+    await expect(
+      syncGmailPage("t", { cursor: JSON.stringify({ historyId: "1", backfill: false }), since })
+    ).rejects.toBeInstanceOf(SyncCursorExpiredError)
   })
 
   it("recognizes throttling from the reason Google sends", async () => {
-    const cursor = JSON.stringify({ historyId: "1", backfill: false })
+    const cursor = v2({ historyId: "1", backfill: false })
     stubRoutes([[/\/history\?/, 403, { error: { code: 403, errors: [{ reason: "rateLimitExceeded" }] } }]])
     expect(isRateLimited(await syncGmailPage("t", { cursor, since }).catch((e: unknown) => e))).toBe(true)
     stubRoutes([[/\/history\?/, 403, { error: { code: 403, errors: [{ reason: "insufficientPermissions" }] } }]])
@@ -127,8 +152,9 @@ describe("gmail sync", () => {
 
   it("does not treat other failures as an expired cursor", async () => {
     stubRoutes([[/\/history\?/, 503, {}]])
-    const cursor = JSON.stringify({ historyId: "1", backfill: false })
-    await expect(syncGmailPage("t", { cursor, since })).rejects.toBeInstanceOf(ProviderError)
+    await expect(syncGmailPage("t", { cursor: v2({ historyId: "1", backfill: false }), since })).rejects.toBeInstanceOf(
+      ProviderError
+    )
   })
 })
 
@@ -138,37 +164,46 @@ const graphMessage = (id: string) => ({
   subject: "Hello",
   bodyPreview: "Preview",
   from: { emailAddress: { name: "Jo", address: "jo@example.com" } },
+  toRecipients: [{ emailAddress: { name: "Al", address: "al@example.com" } }],
   receivedDateTime: "2026-10-01T10:00:00Z",
   isRead: true,
   flag: { flagStatus: "flagged" },
   hasAttachments: false,
 })
 
-const NEXT = `${GRAPH_BASE}/me/mailFolders/inbox/messages/delta?$skiptoken=x`
-const DELTA = `${GRAPH_BASE}/me/mailFolders/inbox/messages/delta?$deltatoken=y`
+const FOLDER_NAMES = ["inbox", "sentitems", "archive", "junkemail", "deleteditems"]
+const next = (folder: string) => `${GRAPH_BASE}/me/mailFolders/${folder}/messages/delta?$skiptoken=x`
+const delta = (folder: string) => `${GRAPH_BASE}/me/mailFolders/${folder}/messages/delta?$deltatoken=y`
+const cursorOf = (links: Record<string, string>, pending: string[]) => JSON.stringify({ v: 2, links, pending })
 
 describe("outlook sync", () => {
-  it("starts from the window with immutable ids and keeps paging", async () => {
-    const requests = stubRoutes([
-      [/\/delta/, 200, { value: [graphMessage("a")], "@odata.nextLink": NEXT }],
-    ])
+  it("starts with the inbox, from the window, with immutable ids", async () => {
+    const requests = stubRoutes([[/\/delta/, 200, { value: [graphMessage("a")], "@odata.nextLink": next("inbox") }]])
     const page = await syncOutlookPage("t", { cursor: null, since })
 
     const first = decodeURIComponent(requests[0]?.url ?? "")
+    expect(first).toContain("/mailFolders/inbox/messages/delta")
     expect(first).toContain(`receivedDateTime ge ${since.toISOString()}`)
     expect(first).toContain("receivedDateTime desc")
     expect(requests[0]?.headers.Prefer).toContain('IdType="ImmutableId"')
-    expect(page).toMatchObject({ cursor: NEXT, done: false, removals: [] })
-    expect(page.upserts[0]).toMatchObject({ threadId: "c-a", isRead: true, isStarred: true })
+    expect(JSON.parse(page.cursor)).toEqual({ v: 2, links: { inbox: next("inbox") }, pending: FOLDER_NAMES })
+    expect(page).toMatchObject({ done: false, removals: [], removalFolder: "inbox" })
+    expect(page.upserts[0]).toMatchObject({
+      threadId: "c-a",
+      folder: "inbox",
+      to: [{ name: "Al", email: "al@example.com" }],
+      isRead: true,
+      isStarred: true,
+    })
   })
 
-  it("finishes on a delta link, handles removals and completes partial updates", async () => {
+  it("moves to the next folder once one reaches its delta link", async () => {
     const requests = stubRoutes([
       [
         /\/delta/,
         200,
         {
-          "@odata.deltaLink": DELTA,
+          "@odata.deltaLink": delta("inbox"),
           value: [
             { id: "removed", "@removed": { reason: "deleted" } },
             { id: "partial", isRead: true },
@@ -179,45 +214,56 @@ describe("outlook sync", () => {
       [/\/messages\/partial\?/, 200, graphMessage("partial")],
       [/\/messages\/vanished\?/, 404, {}],
     ])
-    const page = await syncOutlookPage("t", { cursor: NEXT, since })
+    const page = await syncOutlookPage("t", { cursor: cursorOf({ inbox: next("inbox") }, FOLDER_NAMES), since })
 
-    expect(requests[0]?.url).toBe(NEXT)
-    expect(page).toMatchObject({ cursor: DELTA, done: true })
+    expect(requests[0]?.url).toBe(next("inbox"))
+    expect(JSON.parse(page.cursor)).toEqual({ v: 2, links: { inbox: delta("inbox") }, pending: FOLDER_NAMES.slice(1) })
+    expect(page.done).toBe(false)
     expect(page.upserts.map((item) => item.providerMessageId)).toEqual(["partial"])
     expect(page.removals.sort()).toEqual(["removed", "vanished"])
   })
 
+  it("syncs a later folder into its own folder, and is done after the last one", async () => {
+    stubRoutes([[/\/delta/, 200, { value: [graphMessage("t")], "@odata.deltaLink": delta("deleteditems") }]])
+    const page = await syncOutlookPage("t", { cursor: cursorOf({ inbox: delta("inbox") }, ["deleteditems"]), since })
+    expect(page).toMatchObject({ done: true, removalFolder: "trash" })
+    expect(page.upserts[0]?.folder).toBe("trash")
+
+    // The next round catches every folder up again, from its stored link.
+    const requests = stubRoutes([[/\/delta/, 200, { value: [], "@odata.deltaLink": delta("inbox") }]])
+    await syncOutlookPage("t", { cursor: page.cursor, since })
+    expect(requests[0]?.url).toBe(delta("inbox"))
+  })
+
+  it("treats a missing archive folder as caught up", async () => {
+    stubRoutes([[/\/delta/, 404, {}]])
+    const page = await syncOutlookPage("t", { cursor: cursorOf({}, ["archive", "junkemail"]), since })
+    expect(JSON.parse(page.cursor).pending).toEqual(["junkemail"])
+    expect(page.upserts).toEqual([])
+  })
+
   it("keeps only the last state when an id appears twice", async () => {
     stubRoutes([
-      [
-        /\/delta/,
-        200,
-        {
-          "@odata.deltaLink": DELTA,
-          value: [graphMessage("a"), { id: "a", "@removed": { reason: "deleted" } }],
-        },
-      ],
+      [/\/delta/, 200, { "@odata.deltaLink": delta("inbox"), value: [graphMessage("a"), { id: "a", "@removed": { reason: "deleted" } }] }],
     ])
-    const page = await syncOutlookPage("t", { cursor: NEXT, since })
+    const page = await syncOutlookPage("t", { cursor: cursorOf({}, FOLDER_NAMES), since })
     expect(page.upserts).toEqual([])
     expect(page.removals).toEqual(["a"])
   })
 
   it("reports expired delta links", async () => {
+    const cursor = cursorOf({ inbox: delta("inbox") }, FOLDER_NAMES)
     stubRoutes([[/\/delta/, 410, {}]])
-    await expect(syncOutlookPage("t", { cursor: DELTA, since })).rejects.toBeInstanceOf(
-      SyncCursorExpiredError
-    )
+    await expect(syncOutlookPage("t", { cursor, since })).rejects.toBeInstanceOf(SyncCursorExpiredError)
     stubRoutes([[/\/delta/, 400, { error: { code: "SyncStateNotFound" } }]])
-    await expect(syncOutlookPage("t", { cursor: DELTA, since })).rejects.toBeInstanceOf(
-      SyncCursorExpiredError
-    )
+    await expect(syncOutlookPage("t", { cursor, since })).rejects.toBeInstanceOf(SyncCursorExpiredError)
   })
 
-  it("never sends the token to a cursor outside Graph", async () => {
+  it("starts over from a cursor from before folders, and never sends the token outside Graph", async () => {
     const requests = stubRoutes([])
+    await expect(syncOutlookPage("t", { cursor: delta("inbox"), since })).rejects.toBeInstanceOf(SyncCursorExpiredError)
     await expect(
-      syncOutlookPage("t", { cursor: "https://evil.example/steal", since })
+      syncOutlookPage("t", { cursor: cursorOf({ inbox: "https://evil.example/steal" }, FOLDER_NAMES), since })
     ).rejects.toBeInstanceOf(SyncCursorExpiredError)
     expect(requests).toEqual([])
   })

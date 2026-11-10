@@ -34,7 +34,7 @@ import { MAIL_FOLDERS, type MailAccountView, type MailFolder } from "@evido/mail
 import { AccountDot } from "@/components/account-dot"
 import { Brand } from "@/components/brand"
 import { useI18n } from "@/i18n"
-import { authClient } from "@/lib/auth-client"
+import { signOut } from "@/lib/auth-client"
 
 export type MailView = "inbox" | "drafts" | MailFolder
 
@@ -232,7 +232,7 @@ export function Sidebar({
               {t.shell.settings}
               <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void authClient.signOut()}>
+            <DropdownMenuItem onSelect={() => void signOut()}>
               <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
               {t.shell.signOut}
             </DropdownMenuItem>
@@ -329,7 +329,7 @@ export function MailMenu({
           <HugeiconsIcon icon={Settings01Icon} strokeWidth={1.75} aria-hidden="true" />
           {t.shell.settings}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => void authClient.signOut()}>
+        <DropdownMenuItem onSelect={() => void signOut()}>
           <HugeiconsIcon icon={Logout01Icon} strokeWidth={1.75} aria-hidden="true" />
           {t.shell.signOut}
         </DropdownMenuItem>

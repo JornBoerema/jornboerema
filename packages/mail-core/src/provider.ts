@@ -11,7 +11,6 @@ import type {
   MailThreadMessage,
   MailDraftView,
   MailSearchHit,
-  MailFolder,
 } from "./types"
 
 export type ProviderCredentials = { clientId: string; clientSecret: string }
@@ -31,10 +30,15 @@ export type MailIdentity = {
   displayName: string | null
 }
 
+/** Where a message sits. Gmail labels are mapped onto these; custom folders aren't synced. */
+export type MailMessageFolder = "inbox" | "sent" | "archive" | "spam" | "trash"
+
 /** The list metadata kept for one message. Bodies are never part of this. */
 export type MailMessageData = {
   providerMessageId: string
   threadId: string | null
+  folder: MailMessageFolder
+  to: MailAddress[]
   subject: string
   snippet: string
   fromName: string | null
@@ -47,8 +51,13 @@ export type MailMessageData = {
 
 export type SyncPage = {
   upserts: MailMessageData[]
-  /** Messages that were deleted or left the inbox. */
+  /** Messages that were deleted or are no longer synced. */
   removals: string[]
+  /**
+   * Set when the removals only mean "left this folder", as with a Graph folder
+   * delta. A message that already arrived in another folder then stays.
+   */
+  removalFolder?: MailMessageFolder
   /** Where the next call continues. Store it together with this page's changes. */
   cursor: string
   /** True when the mailbox is caught up for now. */
@@ -81,11 +90,6 @@ export interface MailProvider {
    * are left out too, unless the conversation is being read from those folders.
    */
   getThread(accessToken: string, threadId: string, options?: { includeHidden?: boolean }): Promise<MailThreadMessage[]>
-  /** One page of a folder, newest first, one line per conversation. */
-  listFolder(
-    accessToken: string,
-    input: { folder: MailFolder; pageToken: string | null }
-  ): Promise<{ hits: Omit<MailSearchHit, "accountId">[]; nextPageToken: string | null }>
   /** `messageIds` are the conversation's messages currently in the inbox. */
   applyThreadAction(
     accessToken: string,

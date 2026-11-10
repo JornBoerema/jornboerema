@@ -1,4 +1,4 @@
-import { listOutlookFolder, searchOutlook } from "./outlook-search"
+import { searchOutlook } from "./outlook-search"
 import { deleteOutlookDraft, getOutlookDraft, listOutlookDrafts, saveOutlookDraft, sendOutlookDraft } from "./outlook-drafts"
 import { getJson, requestTokens, sendJson } from "./http"
 import { readOutlookAttachment, readOutlookThread } from "./outlook-read"
@@ -96,8 +96,6 @@ export function createOutlookProvider({
 
     search: searchOutlook,
 
-    listFolder: listOutlookFolder,
-
     listDrafts: listOutlookDrafts,
 
     getDraft: getOutlookDraft,
@@ -130,7 +128,8 @@ export function createOutlookProvider({
       const response = await sendJson("POST", `${GRAPH_BASE}/subscriptions`, accessToken, {
         changeType: "created,updated,deleted",
         notificationUrl: webhookUrl,
-        resource: "me/mailFolders('inbox')/messages",
+        // Every folder is synced, so every folder's changes matter.
+        resource: "me/messages",
         expirationDateTime,
         clientState,
       })
