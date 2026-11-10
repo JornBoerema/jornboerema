@@ -42,3 +42,28 @@ export const textToEditorHtml = (text: string) =>
     .split(/\r?\n\s*\r?\n/)
     .map((block) => `<p>${escapeHtml(block).replace(/\r?\n/g, "<br>")}</p>`)
     .join("")
+
+const BLOCKS = new Set(["P", "DIV", "LI", "BLOCKQUOTE", "H1", "H2", "H3", "H4", "H5", "H6"])
+
+/**
+ * Drops the `<br>` that ends a block. Browsers and mail clients don't show it as a
+ * line, but the editor would: an empty line saved as `<p><br></p>` came back as two.
+ * Gmail writes blank lines as `<div><br></div>`, so pasted signatures had the same.
+ */
+export function withoutTrailingBreaks(html: string) {
+  if (!html.includes("<br")) return html
+  const template = document.createElement("template")
+  template.innerHTML = html
+  template.content.querySelectorAll("br").forEach((br) => {
+    if (!br.parentElement || !BLOCKS.has(br.parentElement.tagName)) return
+    let next = br.nextSibling
+    while (next && next.nodeType === Node.TEXT_NODE && !next.textContent?.trim()) next = next.nextSibling
+    if (next) return
+    const block = br.parentElement
+    br.remove()
+    // An empty div would vanish in the editor; the blank line is a paragraph there.
+    if (block.tagName === "DIV" && !block.textContent?.trim() && !block.querySelector("img"))
+      block.replaceWith(document.createElement("p"))
+  })
+  return template.innerHTML
+}

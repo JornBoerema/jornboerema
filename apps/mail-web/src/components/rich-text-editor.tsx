@@ -23,7 +23,7 @@ import { cn } from "@evido/ui/lib/utils"
 import { useI18n } from "@/i18n"
 import { toast } from "sonner"
 import type { MailInlineUpload } from "@evido/mail-core/types"
-import { toEmailHtml } from "@/lib/email-compose"
+import { toEmailHtml, withoutTrailingBreaks } from "@/lib/email-compose"
 import { prepareImage, toInlineImages } from "@/lib/inline-images"
 
 // A new object here would make the menu update the editor on every render, without end.
@@ -60,7 +60,7 @@ const Signature = Node.create({
   renderHTML: ({ HTMLAttributes }) => ["div", mergeAttributes(HTMLAttributes, { "data-signature": "" }), 0],
 })
 
-const signatureBlock = (html: string) => `<div data-signature>${html}</div>`
+const signatureBlock = (html: string) => `<div data-signature>${withoutTrailingBreaks(html)}</div>`
 
 /** Puts `html` in place of the current signature; empty removes it. Not an undo step. */
 function replaceSignature(editor: Editor, html: string) {
@@ -336,6 +336,7 @@ export default function RichTextEditor({
     ],
     editorProps: {
       attributes: { role: "textbox", "aria-label": label, "aria-multiline": "true" },
+      transformPastedHTML: withoutTrailingBreaks,
       handleKeyDown: (view, event) => {
         if (!(event.metaKey || event.ctrlKey)) return false
         // Sends the message through the form instead of adding a line break.
@@ -347,7 +348,7 @@ export default function RichTextEditor({
         return false
       },
     },
-    content: initialHtml,
+    content: initialHtml && withoutTrailingBreaks(initialHtml),
     onCreate: emit,
     onUpdate: emit,
   })

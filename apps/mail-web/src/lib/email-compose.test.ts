@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest"
-import { textToEditorHtml, toEmailHtml } from "./email-compose"
+import { textToEditorHtml, toEmailHtml, withoutTrailingBreaks } from "./email-compose"
 
 const body = (html: string) => new DOMParser().parseFromString(toEmailHtml(html), "text/html").body
 
@@ -45,5 +45,20 @@ describe("text sizes", () => {
   it("keep their inline size in the sent html", () => {
     const html = toEmailHtml('<p>Hi <span style="font-size: 24px">big</span></p>')
     expect(html).toContain('<span style="font-size: 24px">big</span>')
+  })
+})
+
+describe("withoutTrailingBreaks", () => {
+  it("turns saved and pasted blank lines into one empty line each", () => {
+    expect(withoutTrailingBreaks('<p style="margin:0">Hi</p><p style="margin:0"><br></p><p>Bye</p>')).toBe(
+      '<p style="margin:0">Hi</p><p style="margin:0"></p><p>Bye</p>'
+    )
+    expect(withoutTrailingBreaks("<div>Hi</div><div><br></div><div>Bye</div>")).toBe(
+      "<div>Hi</div><p></p><div>Bye</div>"
+    )
+  })
+
+  it("keeps breaks inside a line", () => {
+    expect(withoutTrailingBreaks("<p>one<br>two</p><p>end<br> </p>")).toBe("<p>one<br>two</p><p>end </p>")
   })
 })
