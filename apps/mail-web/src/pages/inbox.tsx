@@ -601,7 +601,11 @@ export function InboxPage({
         )}
       >
         <header
-          className="flex h-14 shrink-0 items-center gap-1.5 pr-2 pl-2 lg:pl-4.5"
+          className={cn(
+            "flex h-14 shrink-0 items-center gap-1.5 pr-2 pl-2",
+            // The title lines up with the senders; the select-all box with the rows' boxes.
+            selecting ? "lg:pl-4.5" : "lg:pl-10"
+          )}
         >
           <MailMenu {...navigation} />
           {selecting ? (
