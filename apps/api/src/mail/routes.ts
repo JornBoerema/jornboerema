@@ -58,6 +58,7 @@ import {
   InvalidFolderCursorError,
   listFolder,
   quickSearch,
+  suggestContacts,
   searchMail,
   actOnThread,
   forwardThread,
@@ -421,6 +422,12 @@ mailRoutes.get("/folders/:folder", requireSession, async (c) => {
     if (error instanceof InvalidFolderCursorError) return c.json({ error: msg(c, "invalidRequest") }, 400)
     return failure(c, error)
   }
+})
+
+mailRoutes.get("/contacts", requireSession, async (c) => {
+  const query = c.req.query("q") ?? ""
+  if (query.length > 200) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  return c.json({ contacts: await suggestContacts(c.get("session").user.id, query) }, 200, noStore)
 })
 
 mailRoutes.get("/search/quick", requireSession, async (c) => {

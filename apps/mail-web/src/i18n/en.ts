@@ -128,6 +128,7 @@ export const en = {
     count: (count: number) => (count === 1 ? "1 draft" : `${count} drafts`),
   },
   compose: {
+    suggestions: "Suggestions",
     sending: "Sending…",
     undo: "Undo",
     imageFailed: "That image couldn't be added.",

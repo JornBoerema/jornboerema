@@ -34,6 +34,7 @@ import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { shortDate } from "@/lib/dates"
 import { searchHitAsThread } from "@/lib/mail"
+import { useDebounced } from "@/lib/use-debounced"
 
 /** Searching goes to every mailbox, so it waits for a pause in typing. */
 const SEARCH_DELAY_MS = 300
@@ -44,14 +45,6 @@ const MIN_QUERY = 2
 const normalize = (value: string) =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase()
 
-function useDebounced(value: string, delay: number) {
-  const [settled, setSettled] = useState(value)
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSettled(value), delay)
-    return () => window.clearTimeout(timer)
-  }, [value, delay])
-  return settled
-}
 
 type SpotlightCommand = { id: string; label: string; icon?: IconSvgElement; account?: MailAccountView; run: () => void }
 

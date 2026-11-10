@@ -129,6 +129,7 @@ export const nl: typeof en = {
     count: (count: number) => (count === 1 ? "1 concept" : `${count} concepten`),
   },
   compose: {
+    suggestions: "Suggesties",
     sending: "Bericht wordt verzonden…",
     undo: "Ongedaan maken",
     imageFailed: "Die afbeelding kon niet worden toegevoegd.",

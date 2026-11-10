@@ -309,3 +309,38 @@ export async function quickSearch(userId: string, query: string): Promise<MailSe
   )
   return rankSearchHits(query, hits).slice(0, MAX_SEARCH_HITS)
 }
+
+export type MailContact = { name: string | null; email: string }
+
+const likeEscape = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`)
+
+/**
+ * People who wrote to this user, for completing an address. Most frequent and
+ * most recent first; a name or address that starts with what's typed beats one
+ * that only contains it. Automated senders are left out.
+ */
+export async function suggestContacts(userId: string, query: string): Promise<MailContact[]> {
+  const term = query.trim().toLocaleLowerCase()
+  if (!term) return []
+  const anywhere = `%${likeEscape(term)}%`
+  const start = `${likeEscape(term)}%`
+  const word = `% ${likeEscape(term)}%`
+  return getDb().$queryRaw<MailContact[]>`
+    SELECT email, name FROM (
+      SELECT lower(from_email) AS email,
+        (array_agg(from_name ORDER BY received_at DESC) FILTER (WHERE from_name IS NOT NULL AND from_name <> ''))[1] AS name,
+        count(*) AS uses,
+        max(received_at) AS last_seen
+      FROM mail_messages
+      WHERE user_id = ${userId}
+        AND from_email IS NOT NULL
+        AND from_email NOT ILIKE '%noreply%'
+        AND from_email NOT ILIKE '%no-reply%'
+        AND from_email NOT ILIKE '%donotreply%'
+        AND (from_email ILIKE ${anywhere} OR from_name ILIKE ${anywhere})
+      GROUP BY lower(from_email)
+    ) contacts
+    ORDER BY (email ILIKE ${start} OR name ILIKE ${start} OR name ILIKE ${word}) DESC, uses DESC, last_seen DESC
+    LIMIT 8
+  `
+}
