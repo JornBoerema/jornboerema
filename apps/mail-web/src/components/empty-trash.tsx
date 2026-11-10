@@ -19,6 +19,7 @@ import { canDeleteForever, type MailAccountView } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { MESSAGES_KEY } from "@/lib/mail"
+import { IconTip } from "@/components/icon-tip"
 
 /** Empties the trash for good, in the mailboxes that allow it. Gmail empties its own. */
 export function EmptyTrashButton({
@@ -57,13 +58,13 @@ export function EmptyTrashButton({
   if (deletable.length === 0) return null
   return (
     <AlertDialog>
+      <IconTip label={t.emptyTrash}>
       <AlertDialogTrigger asChild>
         <Button
           variant="ghost"
           size="icon-sm"
           className="hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
           aria-label={t.emptyTrash}
-          title={t.emptyTrash}
           disabled={empty.isPending}
         >
           {empty.isPending ? (
@@ -77,6 +78,7 @@ export function EmptyTrashButton({
           )}
         </Button>
       </AlertDialogTrigger>
+      </IconTip>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t.emptyTrashTitle}</AlertDialogTitle>

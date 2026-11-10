@@ -38,6 +38,7 @@ import { useHotkeys } from "@/lib/hotkeys"
 import { canReportSpam, conversationUrl, moveActions, STARRED, threadQuery, useThreadAction } from "@/lib/mail"
 import { DANGER, isDestructive, MOVE_ICONS, MOVE_KEYS, moveLabel } from "@/lib/thread-actions"
 import { useAlwaysShowImages } from "@/lib/preferences"
+import { IconTip } from "@/components/icon-tip"
 
 /** Long enough that walking past a mail with j/k leaves it unread. */
 const MARK_READ_DELAY_MS = 1200
@@ -317,17 +318,11 @@ function ToolbarAction({
   onClick: () => void
 }) {
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={text}
-      aria-pressed={pressed}
-      title={shortcut ? `${text} (${shortcut})` : text}
-      className={className}
-      onClick={onClick}
-    >
-      <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" />
-    </Button>
+    <IconTip label={text} shortcut={shortcut}>
+      <Button variant="ghost" size="icon-sm" aria-label={text} aria-pressed={pressed} className={className} onClick={onClick}>
+        <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" />
+      </Button>
+    </IconTip>
   )
 }
 
@@ -503,15 +498,12 @@ export function ConversationPage({
                   </p>
                   <div className="ml-auto flex shrink-0 items-center gap-1">
                     {replyActions.map(({ mode, text, icon, shortcut }) => (
-                      <Button
-                        key={mode}
-                        variant={mode === "reply" ? "outline" : "ghost"}
-                        title={shortcut ? `${text} (${shortcut})` : text}
-                        onClick={() => setReplyMode(mode)}
-                      >
-                        <HugeiconsIcon icon={icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
-                        <span className={cn(mode !== "reply" && "sr-only @lg:not-sr-only")}>{text}</span>
-                      </Button>
+                      <IconTip key={mode} label={text} shortcut={shortcut}>
+                        <Button variant={mode === "reply" ? "outline" : "ghost"} onClick={() => setReplyMode(mode)}>
+                          <HugeiconsIcon icon={icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
+                          <span className={cn(mode !== "reply" && "sr-only @lg:not-sr-only")}>{text}</span>
+                        </Button>
+                      </IconTip>
                     ))}
                   </div>
                 </div>

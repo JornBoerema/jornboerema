@@ -8,6 +8,7 @@ import { MAX_ATTACHMENTS_BYTES } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { errorText } from "@/lib/api"
 import { deleteUpload, uploadFile, type ComposerFile } from "@/lib/uploads"
+import { IconTip } from "@/components/icon-tip"
 
 const LIMIT_LABEL = `${MAX_ATTACHMENTS_BYTES / (1024 * 1024)} MB`
 
@@ -83,13 +84,14 @@ export function AttachmentPicker({
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs">
+      <IconTip label={`${t.attach} (max ${LIMIT_LABEL})`}>
       <Button
         asChild
         variant="ghost"
         size="icon-sm"
         className="has-focus-visible:ring-3 has-focus-visible:ring-ring/30"
       >
-        <label title={`${t.attach} (max ${LIMIT_LABEL})`}>
+        <label>
           <HugeiconsIcon icon={Attachment01Icon} strokeWidth={1.75} aria-hidden="true" />
           <span className="sr-only">
             {t.attach} (max {LIMIT_LABEL})
@@ -105,6 +107,7 @@ export function AttachmentPicker({
           />
         </label>
       </Button>
+      </IconTip>
       {files.map((file) => {
         const uploading = !file.failed && file.progress < 1
         return (

@@ -31,7 +31,6 @@ export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
           type="button"
           variant="ghost"
           size="sm"
-          title={t.pick}
           className={cn(
             "h-7 max-w-40 min-w-0 gap-1.5 rounded-lg px-2 text-xs font-normal text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground",
             !current && "text-muted-foreground/70"

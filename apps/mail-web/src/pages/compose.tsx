@@ -55,6 +55,7 @@ import { syncSoon } from "@/lib/mail"
 import { UndoneError, waitForUndo } from "@/lib/undo"
 import { useSignatureChoice } from "@/lib/signatures"
 import { SignaturePicker } from "@/components/signature-picker"
+import { IconTip } from "@/components/icon-tip"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
@@ -460,22 +461,23 @@ function ComposeForm({
                   {status}
                 </span>
                 {(hasDraft || draft) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
-                    aria-label={t.discard}
-                    title={t.discard}
-                    disabled={discard.isPending || send.isPending}
-                    onClick={() => discard.mutate()}
-                  >
-                    <HugeiconsIcon
-                      icon={Delete02Icon}
-                      strokeWidth={1.75}
-                      aria-hidden="true"
-                    />
-                  </Button>
+                  <IconTip label={t.discard}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
+                      aria-label={t.discard}
+                      disabled={discard.isPending || send.isPending}
+                      onClick={() => discard.mutate()}
+                    >
+                      <HugeiconsIcon
+                        icon={Delete02Icon}
+                        strokeWidth={1.75}
+                        aria-hidden="true"
+                      />
+                    </Button>
+                  </IconTip>
                 )}
                 <SendButton label={t.send} disabled={send.isPending || !accountId} />
               </div>

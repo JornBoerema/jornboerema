@@ -11,6 +11,7 @@ import { useI18n } from "@/i18n"
 import { API_URL, ApiError, errorText } from "@/lib/api"
 import { textToEditorHtml } from "@/lib/email-compose"
 import { useAiWriting } from "@/lib/preferences"
+import { IconTip } from "@/components/icon-tip"
 
 /**
  * Has a language model write the message, or rewrite what is there, from one
@@ -163,19 +164,20 @@ export function AiWriteButton({ writer }: { writer: AiWriter }) {
   const t = useI18n().t.compose
   if (!writer.enabled) return null
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      aria-label={t.aiWrite}
-      aria-expanded={writer.open}
-      aria-keyshortcuts="Meta+J Control+J"
-      title={`${t.aiWrite} (⌘J)`}
-      className={cn(writer.open && "bg-accent text-foreground")}
-      onClick={writer.toggle}
-    >
-      <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />
-    </Button>
+    <IconTip label={t.aiWrite} shortcut="⌘J">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t.aiWrite}
+        aria-expanded={writer.open}
+        aria-keyshortcuts="Meta+J Control+J"
+        className={cn(writer.open && "bg-accent text-foreground")}
+        onClick={writer.toggle}
+      >
+        <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />
+      </Button>
+    </IconTip>
   )
 }
 
@@ -232,26 +234,27 @@ export function AiPrompt({ writer, className }: { writer: AiWriter; className?: 
             </span>
           )}
           {/* One round control: write, or stop while writing. Closing is the sparkle button or Escape. */}
-          <button
-            type="button"
-            aria-label={writer.pending ? t.aiStop : t.aiSubmit}
-            title={writer.pending ? t.aiStop : t.aiSubmit}
-            disabled={!writer.pending && !writer.instruction.trim()}
-            onClick={writer.pending ? writer.close : writer.submit}
-            className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-              writer.pending || writer.instruction.trim()
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            <HugeiconsIcon
-              icon={writer.pending ? StopIcon : ArrowUp02Icon}
-              strokeWidth={2.25}
-              aria-hidden="true"
-              className={writer.pending ? "size-3.5 fill-current" : "size-4"}
-            />
-          </button>
+          <IconTip label={writer.pending ? t.aiStop : t.aiSubmit} shortcut={writer.pending ? undefined : "↵"}>
+            <button
+              type="button"
+              aria-label={writer.pending ? t.aiStop : t.aiSubmit}
+              disabled={!writer.pending && !writer.instruction.trim()}
+              onClick={writer.pending ? writer.close : writer.submit}
+              className={cn(
+                "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                writer.pending || writer.instruction.trim()
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              <HugeiconsIcon
+                icon={writer.pending ? StopIcon : ArrowUp02Icon}
+                strokeWidth={2.25}
+                aria-hidden="true"
+                className={writer.pending ? "size-3.5 fill-current" : "size-4"}
+              />
+            </button>
+          </IconTip>
         </div>
       </div>
     </div>

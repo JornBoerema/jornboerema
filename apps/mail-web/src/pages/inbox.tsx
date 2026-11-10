@@ -61,6 +61,7 @@ import { EmptyTrashButton } from "@/components/empty-trash"
 import { isDestructive, MOVE_ICONS, moveLabel } from "@/lib/thread-actions"
 import { ComposePage } from "@/pages/compose"
 import { ConversationPage } from "@/pages/conversation"
+import { IconTip } from "@/components/icon-tip"
 
 
 /**
@@ -75,22 +76,22 @@ function RowActions({
   return (
     <span className="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
       {actions.map((action) => (
-        <Button
-          key={action.label}
-          variant="ghost"
-          size="icon-xs"
-          // Only the icon reacts; the row already shows what is hovered.
-          className={cn(
-            "text-muted-foreground hover:bg-transparent! dark:hover:bg-transparent!",
-            action.destructive ? "hover:text-destructive" : "hover:text-foreground",
-            action.className
-          )}
-          aria-label={action.label}
-          title={action.label}
-          onClick={action.run}
-        >
-          <HugeiconsIcon icon={action.icon} strokeWidth={1.75} aria-hidden="true" />
-        </Button>
+        <IconTip key={action.label} label={action.label}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            // Only the icon reacts; the row already shows what is hovered.
+            className={cn(
+              "text-muted-foreground hover:bg-transparent! dark:hover:bg-transparent!",
+              action.destructive ? "hover:text-destructive" : "hover:text-foreground",
+              action.className
+            )}
+            aria-label={action.label}
+            onClick={action.run}
+          >
+            <HugeiconsIcon icon={action.icon} strokeWidth={1.75} aria-hidden="true" />
+          </Button>
+        </IconTip>
       ))}
     </span>
   )
@@ -349,9 +350,11 @@ function SelectionBar({
   const t = strings.selection
   const c = strings.conversation
   const button = (icon: IconSvgElement, label: string, run: () => void, className?: string) => (
-    <Button key={label} variant="ghost" size="icon-sm" aria-label={label} title={label} className={className} onClick={run}>
-      <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" />
-    </Button>
+    <IconTip key={label} label={label}>
+      <Button variant="ghost" size="icon-sm" aria-label={label} className={className} onClick={run}>
+        <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" />
+      </Button>
+    </IconTip>
   )
   return (
     // No padding: the header's own puts this checkbox right above the rows' checkboxes.
@@ -635,34 +638,39 @@ export function InboxPage({
             className="flex items-center text-muted-foreground"
           >
             {syncStatus === "syncing" && (
-              <span title={t.syncing}>
-                <Spinner />
-                <span className="sr-only">{t.syncing}</span>
-              </span>
+              <IconTip label={t.syncing}>
+                <span className="flex">
+                  <Spinner />
+                  <span className="sr-only">{t.syncing}</span>
+                </span>
+              </IconTip>
             )}
             {syncStatus === "failed" && (
-              <span title={t.syncFailed}>
-                <HugeiconsIcon
-                  icon={CloudAlertIcon}
-                  strokeWidth={1.75}
-                  aria-hidden="true"
-                  className="size-4"
-                />
-                <span className="sr-only">{t.syncFailed}</span>
-              </span>
+              <IconTip label={t.syncFailed}>
+                <span className="flex">
+                  <HugeiconsIcon
+                    icon={CloudAlertIcon}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                    className="size-4"
+                  />
+                  <span className="sr-only">{t.syncFailed}</span>
+                </span>
+              </IconTip>
             )}
           </span>
           {folder === "trash" && <EmptyTrashButton accounts={accounts} />}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={strings.spotlight.search}
-            title={`${strings.spotlight.search} (⌘K)`}
-            aria-keyshortcuts="Meta+K Control+K /"
-            onClick={navigation.onSearch}
-          >
-            <HugeiconsIcon icon={Search01Icon} strokeWidth={1.75} aria-hidden="true" />
-          </Button>
+          <IconTip label={strings.spotlight.search} shortcut="⌘K">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={strings.spotlight.search}
+              aria-keyshortcuts="Meta+K Control+K /"
+              onClick={navigation.onSearch}
+            >
+              <HugeiconsIcon icon={Search01Icon} strokeWidth={1.75} aria-hidden="true" />
+            </Button>
+          </IconTip>
           <Button
             variant="ghost"
             size="icon-sm"

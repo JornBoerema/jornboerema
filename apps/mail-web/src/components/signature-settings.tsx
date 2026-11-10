@@ -31,6 +31,7 @@ import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { ACCOUNTS_KEY, useAccounts } from "@/lib/mail"
 import { previewOf, SIGNATURES_KEY, useSignatures } from "@/lib/signatures"
+import { IconTip } from "@/components/icon-tip"
 
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
@@ -120,18 +121,19 @@ function SignatureEditor({ signature, onBack }: { signature: MailSignature; onBa
           {t.back}
         </Button>
         <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="ml-auto text-muted-foreground hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
-              aria-label={t.delete}
-              title={t.delete}
-              disabled={remove.isPending}
-            >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.75} aria-hidden="true" />
-            </Button>
-          </AlertDialogTrigger>
+          <IconTip label={t.delete}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="ml-auto text-muted-foreground hover:bg-transparent! hover:text-destructive! dark:hover:bg-transparent!"
+                aria-label={t.delete}
+                disabled={remove.isPending}
+              >
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.75} aria-hidden="true" />
+              </Button>
+            </AlertDialogTrigger>
+          </IconTip>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>{t.deleteTitle(label)}</AlertDialogTitle>

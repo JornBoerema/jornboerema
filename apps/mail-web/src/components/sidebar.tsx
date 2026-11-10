@@ -31,7 +31,6 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@evido/ui/components/dropdown-menu"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@evido/ui/components/tooltip"
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
 import { MAIL_FOLDERS, type MailAccountView, type MailFolder } from "@evido/mail-core/types"
@@ -40,6 +39,7 @@ import { Brand } from "@/components/brand"
 import { useI18n } from "@/i18n"
 import { signOut } from "@/lib/auth-client"
 import { useUnread } from "@/lib/mail"
+import { IconTip } from "@/components/icon-tip"
 
 export type MailView = "inbox" | "drafts" | MailFolder
 
@@ -176,19 +176,20 @@ export function Sidebar({
     <aside id="list-sidebar" className="list-sidebar max-lg:hidden!" aria-label={t.shell.sidebar}>
       <div className="mail-brand-row">
         <Brand />
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="mail-collapse"
-          aria-label={t.shell.collapse}
-          title={t.shell.collapseTitle}
-          aria-keyshortcuts="Meta+B Control+B"
-          aria-expanded={true}
-          aria-controls="list-sidebar"
-          onClick={sidebar.toggle}
-        >
-          <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" />
-        </Button>
+        <IconTip label={t.shell.collapse} shortcut="⌘B">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="mail-collapse"
+            aria-label={t.shell.collapse}
+            aria-keyshortcuts="Meta+B Control+B"
+            aria-expanded={true}
+            aria-controls="list-sidebar"
+            onClick={sidebar.toggle}
+          >
+            <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" />
+          </Button>
+        </IconTip>
       </div>
       <div className="list-navigation sidebar-sections">
         <div className="sidebar-top">
@@ -239,16 +240,17 @@ export function Sidebar({
         <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
           <div className="sidebar-heading">
             <h2 id="sidebar-mailboxes">{t.shell.mailboxes}</h2>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="sidebar-add"
-              aria-label={t.inbox.connect}
-              title={t.inbox.connect}
-              onClick={onSettings}
-            >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
-            </Button>
+            <IconTip label={t.inbox.connect}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="sidebar-add"
+                aria-label={t.inbox.connect}
+                onClick={onSettings}
+              >
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
+              </Button>
+            </IconTip>
           </div>
           <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
             {accounts.map((account) => {
@@ -371,13 +373,9 @@ function RailLink({
 /** The name of a rail icon, beside it on the right. */
 function RailTip({ label, shortcut, children }: { label: string; shortcut?: string; children: ReactNode }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="right" sideOffset={10}>
-        {label}
-        {shortcut && <kbd className="rail-tip-kbd">{shortcut}</kbd>}
-      </TooltipContent>
-    </Tooltip>
+    <IconTip label={label} shortcut={shortcut} side="right">
+      {children}
+    </IconTip>
   )
 }
 
