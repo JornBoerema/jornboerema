@@ -156,7 +156,7 @@ function SignatureEditor({ signature, onBack }: { signature: MailSignature; onBa
       {/* The name is the page's title, edited in place; the editor is the only surface. */}
       <input
         aria-label={t.name}
-        className="-mx-1 rounded-md bg-transparent px-1 text-lg font-semibold tracking-tight outline-none placeholder:text-muted-foreground hover:bg-muted/40 focus-visible:bg-muted/40"
+        className="-mx-1 rounded-md bg-transparent px-1 text-lg font-semibold tracking-tight outline-none placeholder:text-muted-foreground"
         value={name}
         maxLength={100}
         placeholder={t.name}
