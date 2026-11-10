@@ -143,6 +143,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     draftCount: drafts.data?.drafts.length ?? 0,
     // An empty composer closes as soon as it is out of view, so this is always a real draft.
     draftWaiting: compose !== null && (composeHidden || open !== null),
+    composing: compose !== null && !composeHidden && open === null,
     onSelectAccount: (id) => {
       setFilter(id)
       setView("inbox")

@@ -58,6 +58,8 @@ export type MailNavigation = {
   draftCount: number
   /** A started message is out of view, ready to pick up again. */
   draftWaiting: boolean
+  /** The composer fills the reading pane; New message is then the current place. */
+  composing: boolean
   onSelectAccount: (id: string) => void
   onSelectDrafts: () => void
   onSelectFolder: (folder: MailFolder) => void
@@ -80,7 +82,7 @@ function readMoreOpen() {
   }
 }
 
-function MoreFolders({ view, onSelect }: { view: MailView; onSelect: (folder: MailFolder) => void }) {
+function MoreFolders({ view, onSelect }: { view: MailView | null; onSelect: (folder: MailFolder) => void }) {
   const t = useI18n().t.shell
   const [chosen, setChosen] = useState(readMoreOpen)
   // Being in one of them keeps the group open, so the current folder stays in sight.
@@ -117,7 +119,7 @@ function FolderLink({
   onSelect,
 }: {
   folder: MailFolder
-  view: MailView
+  view: MailView | null
   onSelect: (folder: MailFolder) => void
 }) {
   const t = useI18n().t.folders
@@ -144,6 +146,7 @@ export function Sidebar({
   view,
   draftCount,
   draftWaiting,
+  composing,
   onSelectAccount,
   onSelectDrafts,
   onSelectFolder,
@@ -152,8 +155,10 @@ export function Sidebar({
 }: MailNavigation) {
   const { t, locale } = useI18n()
   const unread = useUnread(true).data?.count
-  const allSelected = view === "inbox" && accountId === ""
-  const draftsSelected = view === "drafts"
+  // While writing, only New message is current; closing it gives the selection back.
+  const allSelected = !composing && view === "inbox" && accountId === ""
+  const draftsSelected = !composing && view === "drafts"
+  const shownView: MailView | null = composing ? null : view
   return (
     <aside
       id="list-sidebar"
@@ -166,7 +171,13 @@ export function Sidebar({
       <div className="list-navigation sidebar-sections">
         <div className="sidebar-top">
           {/* Apart from the folders: writing is an action, not a place. */}
-          <button type="button" className="list-link mb-3" aria-keyshortcuts="C" onClick={onCompose}>
+          <button
+            type="button"
+            className={cn("list-link mb-3", composing && "is-selected")}
+            aria-current={composing ? "page" : undefined}
+            aria-keyshortcuts="C"
+            onClick={onCompose}
+          >
             <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
             <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
             <kbd className="nav-kbd">C</kbd>
@@ -185,7 +196,7 @@ export function Sidebar({
               </span>
             )}
           </button>
-          <FolderLink folder="starred" view={view} onSelect={onSelectFolder} />
+          <FolderLink folder="starred" view={shownView} onSelect={onSelectFolder} />
           <button
             type="button"
             className={cn("list-link", draftsSelected && "is-selected")}
@@ -200,8 +211,8 @@ export function Sidebar({
               </span>
             )}
           </button>
-          <FolderLink folder="sent" view={view} onSelect={onSelectFolder} />
-          <MoreFolders view={view} onSelect={onSelectFolder} />
+          <FolderLink folder="sent" view={shownView} onSelect={onSelectFolder} />
+          <MoreFolders view={shownView} onSelect={onSelectFolder} />
         </div>
         <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
           <div className="sidebar-heading">
@@ -219,7 +230,7 @@ export function Sidebar({
           </div>
           <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
             {accounts.map((account) => {
-              const selected = view === "inbox" && account.id === accountId
+              const selected = !composing && view === "inbox" && account.id === accountId
               const active = account.status === "active"
               return (
                 <button
