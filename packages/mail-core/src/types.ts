@@ -266,3 +266,10 @@ export function rankSearchHits(query: string, hits: MailSearchHit[]) {
     .sort((a, b) => b.score - a.score || b.hit.receivedAt.localeCompare(a.hit.receivedAt))
     .map(({ hit }) => hit)
 }
+
+/** What the reading pane shows above a conversation. */
+export type MailSummary =
+  | { kind: "code"; code: string }
+  | { kind: "summary"; summary: string }
+  /** Too short to be worth summing up, or no summary service. */
+  | { kind: "none" }

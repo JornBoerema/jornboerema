@@ -29,6 +29,7 @@ import type {
   MailThreadView,
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
+import { MailSummaryCard } from "@/components/mail-summary"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { useSignatureFor } from "@/lib/signatures"
 import { useI18n } from "@/i18n"
@@ -437,6 +438,7 @@ export function ConversationPage({
           <h2 className="mb-2 text-lg font-semibold tracking-tight break-words">
             {messages[0]?.subject || summary.subject}
           </h2>
+          <MailSummaryCard threadId={id} />
           {thread.isPending && (
             <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
               <Spinner />

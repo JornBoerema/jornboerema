@@ -69,6 +69,9 @@ export const en = {
     automatic: "Automatic",
   },
   privacy: {
+    summaries: "Summaries",
+    summariesToggle: "Sum up conversations",
+    summariesHelp: "Sends the conversation to a language model through OpenRouter, only to providers that don't keep or train on it. Sign-in codes are found without it.",
     images: "Images in email",
     deviceOnly: "Saved on this device.",
     alwaysShow: "Always show images",
@@ -187,6 +190,11 @@ export const en = {
     readFailed: "That file couldn't be read.",
   },
   conversation: {
+    summary: "Summary",
+    code: "Verification code",
+    copyCode: "Copy code",
+    codeCopied: "Code copied",
+    copyFailed: "Copying didn't work. Select the code instead.",
     archived: (count: number) => (count === 1 ? "Archived" : `${count} conversations archived`),
     trashed: (count: number) => (count === 1 ? "Moved to trash" : `${count} conversations moved to trash`),
     movedToInbox: (count: number) => (count === 1 ? "Moved to inbox" : `${count} conversations moved to inbox`),

@@ -15,7 +15,7 @@ import {
   isDraftWorthKeeping,
 } from "@evido/mail-core/types"
 import { env } from "../env"
-import { msg } from "../i18n"
+import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
 import { getRealtime, mailChannel } from "../lib/realtime"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
@@ -39,6 +39,7 @@ import {
   TooManySignaturesError,
   updateSignature,
 } from "./signatures-server"
+import { summarize, SummaryFailedError } from "./summary-server"
 import { syncAccount } from "./sync-server"
 import {
   authorizeCron,
@@ -263,6 +264,17 @@ mailRoutes.get("/threads", requireSession, async (c) => {
 })
 
 // Mail bodies pass through on request and are never written anywhere.
+// Read live, summed up, and not kept: the summary goes to the reader only.
+mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
+  try {
+    const { messages } = await readThread(c.get("session").user.id, c.req.param("id"))
+    return c.json(await summarize(messages, languageOf(c), { useModel: c.req.query("ai") !== "0" }), 200, noStore)
+  } catch (error) {
+    if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
+    return failure(c, error)
+  }
+})
+
 mailRoutes.get("/threads/:id", requireSession, async (c) => {
   try {
     return c.json(await readThread(c.get("session").user.id, c.req.param("id")), 200, noStore)
@@ -456,6 +468,18 @@ mailRoutes.get("/accounts/:id/conversation", requireSession, async (c) => {
     const includeHidden = c.req.query("hidden") === "1"
     return c.json(await readConversation(conversation, { includeHidden }), 200, noStore)
   } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/accounts/:id/conversation/summary", requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    const { messages } = await readConversation(conversation, { includeHidden: c.req.query("hidden") === "1" })
+    return c.json(await summarize(messages, languageOf(c), { useModel: c.req.query("ai") !== "0" }), 200, noStore)
+  } catch (error) {
+    if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)
   }
 })

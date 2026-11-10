@@ -223,7 +223,7 @@ export async function sendGmail(accessToken: string, input: MailOutgoing & { fro
 }
 
 /** Only used to quote the original in a plain-text reply, so nothing here is rendered. */
-function htmlToText(html: string) {
+export function htmlToText(html: string) {
   return decodeEntities(
     html
       .slice(0, MAX_QUOTED_HTML)

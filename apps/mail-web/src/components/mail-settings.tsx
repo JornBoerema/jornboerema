@@ -22,7 +22,14 @@ import { Switch } from "@evido/ui/components/switch"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import { useI18n } from "@/i18n"
 import { notificationsSupported } from "@/lib/notifications"
-import { setAlwaysShowImages, setNotifyNewMail, useAlwaysShowImages, useNotifyNewMail } from "@/lib/preferences"
+import {
+  setAlwaysShowImages,
+  setNotifyNewMail,
+  setSummaries,
+  useAlwaysShowImages,
+  useNotifyNewMail,
+  useSummaries,
+} from "@/lib/preferences"
 import { SignatureSettings } from "@/components/signature-settings"
 import { AccountsPage } from "@/pages/accounts"
 
@@ -100,12 +107,20 @@ function NotificationSettings() {
 function PrivacySettings() {
   const t = useI18n().t.privacy
   const alwaysShow = useAlwaysShowImages()
+  const summaries = useSummaries()
   return (
-    <SettingsSection title={t.images} description={t.deviceOnly}>
-      <SettingsRow title={t.alwaysShow} htmlFor="always-show-images" description={t.alwaysShowHelp}>
-        <Switch id="always-show-images" checked={alwaysShow} onCheckedChange={setAlwaysShowImages} />
-      </SettingsRow>
-    </SettingsSection>
+    <div className="flex flex-col gap-8">
+      <SettingsSection title={t.images} description={t.deviceOnly}>
+        <SettingsRow title={t.alwaysShow} htmlFor="always-show-images" description={t.alwaysShowHelp}>
+          <Switch id="always-show-images" checked={alwaysShow} onCheckedChange={setAlwaysShowImages} />
+        </SettingsRow>
+      </SettingsSection>
+      <SettingsSection title={t.summaries} description={t.deviceOnly}>
+        <SettingsRow title={t.summariesToggle} htmlFor="mail-summaries" description={t.summariesHelp}>
+          <Switch id="mail-summaries" checked={summaries} onCheckedChange={setSummaries} />
+        </SettingsRow>
+      </SettingsSection>
+    </div>
   )
 }
 

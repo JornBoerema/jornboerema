@@ -59,3 +59,28 @@ export function setNotifyNewMail(enabled: boolean) {
 export function useNotifyNewMail() {
   return useSyncExternalStore(subscribe, readNotify)
 }
+
+const SUMMARIES_KEY = "evido.mail.summaries"
+
+function readSummaries() {
+  try {
+    return localStorage.getItem(SUMMARIES_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setSummaries(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(SUMMARIES_KEY)
+    else localStorage.setItem(SUMMARIES_KEY, "off")
+  } catch {
+    // Storage can be blocked; summaries then stay on.
+  }
+  listeners.forEach((listener) => listener())
+}
+
+/** On unless turned off: the conversation is sent to a language model to sum it up. */
+export function useSummaries() {
+  return useSyncExternalStore(subscribe, readSummaries)
+}

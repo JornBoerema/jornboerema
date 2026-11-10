@@ -70,6 +70,9 @@ export const nl: typeof en = {
     automatic: "Automatisch",
   },
   privacy: {
+    summaries: "Samenvattingen",
+    summariesToggle: "Gesprekken samenvatten",
+    summariesHelp: "Stuurt het gesprek via OpenRouter naar een taalmodel, alleen naar providers die het niet bewaren of erop trainen. Inlogcodes worden ook zonder herkend.",
     images: "Afbeeldingen in e-mails",
     deviceOnly: "Opgeslagen op dit apparaat.",
     alwaysShow: "Afbeeldingen altijd tonen",
@@ -188,6 +191,11 @@ export const nl: typeof en = {
     readFailed: "Dat bestand kon niet worden gelezen.",
   },
   conversation: {
+    summary: "Samenvatting",
+    code: "Verificatiecode",
+    copyCode: "Code kopiëren",
+    codeCopied: "Code gekopieerd",
+    copyFailed: "Kopiëren lukte niet. Selecteer de code zelf.",
     archived: (count: number) => (count === 1 ? "Gearchiveerd" : `${count} gesprekken gearchiveerd`),
     trashed: (count: number) => (count === 1 ? "Naar prullenbak verplaatst" : `${count} gesprekken naar prullenbak`),
     movedToInbox: (count: number) => (count === 1 ? "Terug in inbox" : `${count} gesprekken terug in inbox`),
