@@ -35,7 +35,12 @@ export function useNewMailNotifications(
     if (Notification.permission !== "granted") return
 
     const show = (title: string, body: string, thread?: MailThreadView) => {
-      const notification = new Notification(title, { body, tag: thread?.id ?? "evido-mail" })
+      const notification = new Notification(title, {
+        body,
+        tag: thread?.id ?? "evido-mail",
+        // A bitmap, since not every system shows SVG in notifications.
+        icon: "/apple-touch-icon.png",
+      })
       notification.onclick = () => {
         window.focus()
         if (thread) open.current(thread)
