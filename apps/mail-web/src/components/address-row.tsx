@@ -170,7 +170,14 @@ export function AddressRow({
           <MessageInput
             id={id}
             autoFocus={autoFocus}
+            type="text"
+            name={`recipients-${id}`}
+            // Recipients, not a login: password managers leave it alone; the app suggests addresses itself.
             autoComplete="off"
+            data-1p-ignore=""
+            data-lpignore="true"
+            data-bwignore="true"
+            data-form-type="other"
             spellCheck={false}
             placeholder={entries.length === 0 ? placeholder : undefined}
             className="h-7 min-w-32"
