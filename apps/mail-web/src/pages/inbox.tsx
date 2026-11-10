@@ -39,7 +39,6 @@ import {
 import { AccountDot } from "@/components/account-dot"
 import {
   MailMenu,
-  SidebarExpand,
   type MailNavigation,
 } from "@/components/sidebar"
 import { useI18n } from "@/i18n"
@@ -602,13 +601,9 @@ export function InboxPage({
         )}
       >
         <header
-          className={cn(
-            "flex h-14 shrink-0 items-center gap-1.5 pr-2 pl-2",
-            !navigation.sidebar.collapsed && "lg:pl-4.5"
-          )}
+          className="flex h-14 shrink-0 items-center gap-1.5 pr-2 pl-2 lg:pl-4.5"
         >
           <MailMenu {...navigation} />
-          <SidebarExpand sidebar={navigation.sidebar} />
           {selecting ? (
             <SelectionBar
               count={selection.length}

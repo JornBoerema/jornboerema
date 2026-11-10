@@ -80,3 +80,130 @@
     font-size: 16px;
   }
 }
+
+/* The brand row: the collapse control only shows when the sidebar is pointed at. */
+.mail-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 22px 10px;
+}
+.list-sidebar > .mail-brand-row .brand {
+  padding: 0;
+}
+.mail-collapse {
+  color: var(--muted-foreground);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.list-sidebar:hover .mail-collapse,
+.mail-collapse:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .mail-collapse {
+    opacity: 1;
+  }
+}
+
+/* Collapsed: a narrow strip of icons instead of nothing. */
+.workspace-shell.mail-shell.sidebar-collapsed {
+  grid-template-columns: 60px minmax(0, 1fr);
+}
+.mail-shell.sidebar-collapsed .list-sidebar.mail-rail {
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+  width: 44px;
+  padding: 16px 0 12px;
+  align-items: center;
+  gap: 4px;
+  animation: rail-in 180ms ease;
+}
+@keyframes rail-in {
+  from {
+    opacity: 0;
+  }
+}
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.rail-gap {
+  height: 10px;
+}
+.rail-mailboxes {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.rail-link,
+.rail-brand,
+.rail-account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  color: var(--muted-foreground);
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.rail-link:hover,
+.rail-brand:hover,
+.rail-account:hover,
+.rail-account[data-state="open"] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.rail-link.is-selected {
+  background: var(--sidebar-accent);
+}
+.rail-link.is-selected > svg {
+  color: var(--primary);
+}
+.rail-link:focus-visible,
+.rail-brand:focus-visible,
+.rail-account:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
+}
+.rail-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+/* The logo turns into the expand control when pointed at. */
+.rail-brand {
+  margin-bottom: 14px;
+}
+.rail-logo {
+  color: var(--primary);
+}
+.rail-expand {
+  display: none;
+}
+.rail-brand:hover .rail-logo,
+.rail-brand:focus-visible .rail-logo {
+  display: none;
+}
+.rail-brand:hover .rail-expand,
+.rail-brand:focus-visible .rail-expand {
+  display: block;
+}
+.rail-footer {
+  margin-top: auto;
+  padding-top: 12px;
+}

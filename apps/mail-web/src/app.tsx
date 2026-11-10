@@ -182,7 +182,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   }
 
   return (
-    <div className={cn("workspace-shell max-lg:grid-cols-[minmax(0,1fr)]!", sidebar.collapsed && "sidebar-collapsed")}>
+    <div className={cn("workspace-shell mail-shell max-lg:grid-cols-[minmax(0,1fr)]!", sidebar.collapsed && "sidebar-collapsed")}>
       <Sidebar {...navigation} />
       <main className="flex min-h-0 min-w-0">
         <InboxPage

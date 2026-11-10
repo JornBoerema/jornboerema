@@ -51,6 +51,8 @@ export const en = {
     noConnection: "There is no connection. Please try again.",
     sidebar: "Navigation",
     account: (email: string) => `Account menu for ${email}`,
+    collapse: "Collapse sidebar",
+    collapseTitle: "Collapse sidebar (⌘/Ctrl+B)",
     expand: "Expand sidebar",
     expandTitle: "Expand sidebar (⌘/Ctrl+B)",
     settings: "Settings",

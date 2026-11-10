@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import {
   Add01Icon,
   Alert02Icon,
@@ -11,6 +11,7 @@ import {
   File01Icon,
   InboxIcon,
   KeyboardIcon,
+  Mail01Icon,
   Logout01Icon,
   Menu01Icon,
   PencilEdit02Icon,
@@ -162,15 +163,32 @@ export function Sidebar({
   const allSelected = !composing && view === "inbox" && accountId === ""
   const draftsSelected = !composing && view === "drafts"
   const shownView: MailView | null = composing ? null : view
+  if (sidebar.collapsed)
+    return (
+      <SidebarRail
+        {...{ accounts, accountId, user, sidebar, view, draftCount, draftWaiting, composing }}
+        {...{ onSelectAccount, onSelectDrafts, onSelectFolder, onCompose, onSettings, onShortcuts }}
+        unread={unread}
+      />
+    )
   return (
-    <aside
-      id="list-sidebar"
-      className="list-sidebar max-lg:hidden!"
-      aria-label={t.shell.sidebar}
-      inert={sidebar.collapsed}
-      aria-hidden={sidebar.collapsed}
-    >
-      <Brand />
+    <aside id="list-sidebar" className="list-sidebar max-lg:hidden!" aria-label={t.shell.sidebar}>
+      <div className="mail-brand-row">
+        <Brand />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="mail-collapse"
+          aria-label={t.shell.collapse}
+          title={t.shell.collapseTitle}
+          aria-keyshortcuts="Meta+B Control+B"
+          aria-expanded={true}
+          aria-controls="list-sidebar"
+          onClick={sidebar.toggle}
+        >
+          <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" />
+        </Button>
+      </div>
       <div className="list-navigation sidebar-sections">
         <div className="sidebar-top">
           {/* Apart from the folders: writing is an action, not a place. */}
@@ -263,7 +281,7 @@ export function Sidebar({
           <DropdownMenuTrigger asChild>
             <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
               <span className="workspace-avatar" aria-hidden="true">
-                {(user.name || user.email).trim().charAt(0).toUpperCase()}
+                {initialOf(user)}
               </span>
               <span className="flex min-w-0 flex-1 flex-col text-left">
                 <span className="truncate">{user.name || user.email}</span>
@@ -277,53 +295,179 @@ export function Sidebar({
               />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="top"
-            align="start"
-            sideOffset={6}
-            collisionPadding={12}
-            className="min-w-(--radix-dropdown-menu-trigger-width)"
-          >
-            <DropdownMenuItem onSelect={onSettings}>
-              <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} aria-hidden="true" />
-              {t.shell.settings}
-              <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onShortcuts}>
-              <HugeiconsIcon icon={KeyboardIcon} strokeWidth={2} aria-hidden="true" />
-              {t.shortcuts.title}
-              <DropdownMenuShortcut>?</DropdownMenuShortcut>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void signOut()}>
-              <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
-              {t.shell.signOut}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+          <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} />
         </DropdownMenu>
       </div>
     </aside>
   )
 }
 
-/** Brings the collapsed sidebar back. Only takes up room while it is collapsed. */
-export function SidebarExpand({ sidebar }: Pick<MailNavigation, "sidebar">) {
-  const t = useI18n().t.shell
-  if (!sidebar.collapsed) return null
+const initialOf = (user: { name: string; email: string }) => (user.name || user.email).trim().charAt(0).toUpperCase()
+
+function AccountMenuContent({ onSettings, onShortcuts, side = "top" }: { onSettings: () => void; onShortcuts: () => void; side?: "top" | "right" }) {
+  const t = useI18n().t
   return (
-    <Button
-      ref={sidebar.expandButton}
-      variant="ghost"
-      size="icon-sm"
-      className="max-lg:hidden"
-      aria-label={t.expand}
-      title={t.expandTitle}
-      aria-keyshortcuts="Meta+B Control+B"
-      aria-expanded={false}
-      aria-controls="list-sidebar"
-      onClick={sidebar.toggle}
+    <DropdownMenuContent
+      side={side}
+      align={side === "right" ? "end" : "start"}
+      sideOffset={6}
+      collisionPadding={12}
+      className={side === "right" ? "min-w-52" : "min-w-(--radix-dropdown-menu-trigger-width)"}
     >
-      <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" />
-    </Button>
+      <DropdownMenuItem onSelect={onSettings}>
+        <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} aria-hidden="true" />
+        {t.shell.settings}
+        <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={onShortcuts}>
+        <HugeiconsIcon icon={KeyboardIcon} strokeWidth={2} aria-hidden="true" />
+        {t.shortcuts.title}
+        <DropdownMenuShortcut>?</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => void signOut()}>
+        <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
+        {t.shell.signOut}
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  )
+}
+
+function RailLink({
+  icon,
+  label,
+  selected,
+  badge,
+  shortcut,
+  onClick,
+  children,
+}: {
+  icon?: IconSvgElement
+  label: string
+  selected?: boolean
+  /** A small dot, for unread mail. */
+  badge?: boolean
+  shortcut?: string
+  onClick: () => void
+  children?: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={cn("rail-link", selected && "is-selected")}
+      aria-current={selected ? "page" : undefined}
+      aria-label={label}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      aria-keyshortcuts={shortcut}
+      onClick={onClick}
+    >
+      {icon ? <HugeiconsIcon icon={icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" /> : children}
+      {badge && <span className="rail-badge" aria-hidden="true" />}
+    </button>
+  )
+}
+
+/**
+ * The collapsed sidebar: the same places as icons in a narrow strip, so
+ * nothing is more than a click away. The logo brings the full sidebar back.
+ */
+function SidebarRail({
+  accounts,
+  accountId,
+  user,
+  sidebar,
+  view,
+  draftCount,
+  draftWaiting,
+  composing,
+  unread,
+  onSelectAccount,
+  onSelectDrafts,
+  onSelectFolder,
+  onCompose,
+  onSettings,
+  onShortcuts,
+}: Omit<MailNavigation, "onSearch"> & { unread: number | undefined }) {
+  const { t } = useI18n()
+  const shownView: MailView | null = composing ? null : view
+  return (
+    <aside id="list-sidebar" className="list-sidebar mail-rail max-lg:hidden!" aria-label={t.shell.sidebar}>
+      <button
+        ref={sidebar.expandButton}
+        type="button"
+        className="rail-brand"
+        aria-label={t.shell.expand}
+        title={t.shell.expandTitle}
+        aria-keyshortcuts="Meta+B Control+B"
+        aria-expanded={false}
+        aria-controls="list-sidebar"
+        onClick={sidebar.toggle}
+      >
+        <HugeiconsIcon icon={Mail01Icon} strokeWidth={2.5} aria-hidden="true" className="rail-logo size-5" />
+        <HugeiconsIcon icon={SidebarLeft01Icon} strokeWidth={2} aria-hidden="true" className="rail-expand size-4" />
+      </button>
+      <nav className="rail-group" aria-label={t.shell.sidebar}>
+        <RailLink
+          icon={PencilEdit02Icon}
+          label={draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}
+          selected={composing}
+          shortcut="C"
+          onClick={onCompose}
+        />
+        <span className="rail-gap" aria-hidden="true" />
+        <RailLink
+          icon={InboxIcon}
+          label={unread ? `${t.inbox.allMailboxes} · ${t.emptyPane.unread(String(unread))}` : t.inbox.allMailboxes}
+          selected={!composing && view === "inbox" && accountId === ""}
+          badge={!!unread}
+          onClick={() => onSelectAccount("")}
+        />
+        <RailLink icon={StarIcon} label={t.folders.starred} selected={shownView === "starred"} onClick={() => onSelectFolder("starred")} />
+        <RailLink
+          icon={File01Icon}
+          label={draftCount > 0 ? `${t.drafts.title} · ${t.drafts.count(draftCount)}` : t.drafts.title}
+          selected={!composing && view === "drafts"}
+          onClick={onSelectDrafts}
+        />
+        <RailLink icon={SentIcon} label={t.folders.sent} selected={shownView === "sent"} onClick={() => onSelectFolder("sent")} />
+        {MORE.map((folder) => (
+          <RailLink
+            key={folder}
+            icon={FOLDER_ICONS[folder]}
+            label={t.folders[folder]}
+            selected={shownView === folder}
+            onClick={() => onSelectFolder(folder)}
+          />
+        ))}
+      </nav>
+      <nav className="rail-group rail-mailboxes" aria-label={t.shell.mailboxes}>
+        {accounts.map((account) => (
+          <RailLink
+            key={account.id}
+            label={account.status === "active" ? account.email : `${account.email} · ${t.inbox.reconnectNeeded}`}
+            selected={!composing && view === "inbox" && account.id === accountId}
+            onClick={() => onSelectAccount(account.id)}
+          >
+            {account.status === "active" ? (
+              <AccountDot color={account.color} className="size-2.5" />
+            ) : (
+              <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+            )}
+          </RailLink>
+        ))}
+      </nav>
+      <div className="rail-footer">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="rail-account" aria-label={t.shell.account(user.email)} title={user.email}>
+              <span className="workspace-avatar" aria-hidden="true">
+                {initialOf(user)}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} side="right" />
+        </DropdownMenu>
+      </div>
+    </aside>
   )
 }
 
