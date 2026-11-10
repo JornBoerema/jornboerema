@@ -1,4 +1,3 @@
-import { useMemo } from "react"
 import { PenTool03Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -13,20 +12,16 @@ import {
 } from "@evido/ui/components/dropdown-menu"
 import { cn } from "@evido/ui/lib/utils"
 import { useI18n } from "@/i18n"
-import { previewOf, type SignatureChoice } from "@/lib/signatures"
+import type { SignatureChoice } from "@/lib/signatures"
 
 const NONE = "none"
 
 /**
  * Swaps the signature of the message being written. As quiet as the
- * attachment button beside it; the menu shows what each one says.
+ * attachment button beside it.
  */
 export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
   const t = useI18n().t.signatures
-  const previews = useMemo(
-    () => new Map(choice.signatures.map((signature) => [signature.id, previewOf(signature.html)])),
-    [choice.signatures]
-  )
   if (choice.signatures.length === 0) return null
   const current = choice.signatures.find((signature) => signature.id === choice.value)
   return (
@@ -49,20 +44,15 @@ export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-72">
+      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-56">
         <DropdownMenuLabel>{t.pick}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={choice.value ?? NONE}
           onValueChange={(next) => choice.choose(next === NONE ? null : next)}
         >
           {choice.signatures.map((signature) => (
-            <DropdownMenuRadioItem key={signature.id} value={signature.id} className="items-start">
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate">{signature.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {previews.get(signature.id) || t.emptyPreview}
-                </span>
-              </span>
+            <DropdownMenuRadioItem key={signature.id} value={signature.id}>
+              <span className="truncate">{signature.name}</span>
             </DropdownMenuRadioItem>
           ))}
           <DropdownMenuSeparator />
