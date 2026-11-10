@@ -792,7 +792,7 @@ export function InboxPage({
 
       <section
         className={cn(
-          "floating-panel min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:rounded-none! max-md:shadow-none! md:m-2 md:ml-0",
+          "floating-panel min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:rounded-none! max-md:shadow-none! md:m-2",
           showingDetail ? "flex" : "hidden md:flex"
         )}
       >
