@@ -359,6 +359,7 @@ export async function suggestContacts(userId: string, query: string): Promise<Ma
         AND email NOT ILIKE '%noreply%'
         AND email NOT ILIKE '%no-reply%'
         AND email NOT ILIKE '%donotreply%'
+        AND email !~* '^(notifications?|alerts?|mailer-daemon|postmaster|bounces?|automated|updates?|news|newsletter)[@+]'
         AND email NOT IN (SELECT lower(email) FROM mail_accounts WHERE user_id = ${userId})
         AND (email ILIKE ${anywhere} OR name ILIKE ${anywhere})
       GROUP BY email

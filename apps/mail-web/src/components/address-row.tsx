@@ -9,6 +9,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Badge } from "@evido/ui/components/badge"
+import { ContactAvatar } from "@/components/contact-avatar"
 import { MessageInput, MessageRow } from "@/components/message-field"
 import { useI18n } from "@/i18n"
 import {
@@ -205,7 +206,7 @@ export function AddressRow({
               role="option"
               aria-selected={index === active}
               className={cn(
-                "flex cursor-pointer flex-col rounded-lg px-2.5 py-1.5 text-sm",
+                "flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm",
                 index === active && "bg-accent text-accent-foreground"
               )}
               // Keeps focus in the field, so the click doesn't first finish the typed text.
@@ -213,12 +214,13 @@ export function AddressRow({
               onMouseEnter={() => setActive(index)}
               onClick={() => choose(contact)}
             >
-              <span className="truncate">{contact.name ?? contact.email}</span>
-              {contact.name && (
-                <span className="truncate text-xs text-muted-foreground">
-                  {contact.email}
-                </span>
-              )}
+              <ContactAvatar name={contact.name} email={contact.email} />
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate">{contact.name ?? contact.email}</span>
+                {contact.name && (
+                  <span className="truncate text-xs text-muted-foreground">{contact.email}</span>
+                )}
+              </span>
             </li>
           ))}
         </ul>

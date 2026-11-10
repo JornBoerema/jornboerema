@@ -345,7 +345,8 @@ function SelectionBar({
     </Button>
   )
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1 pl-2.5">
+    // No padding: the header's own puts this checkbox right above the rows' checkboxes.
+    <div className="flex min-w-0 flex-1 items-center gap-1">
       <Checkbox
         checked={count === total ? true : "indeterminate"}
         aria-label={t.selectAll}
