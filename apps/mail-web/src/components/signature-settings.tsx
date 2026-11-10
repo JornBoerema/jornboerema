@@ -15,7 +15,6 @@ import {
   AlertDialogTrigger,
 } from "@evido/ui/components/alert-dialog"
 import { Button } from "@evido/ui/components/button"
-import { Input } from "@evido/ui/components/input"
 import {
   Select,
   SelectContent,
@@ -154,44 +153,37 @@ function SignatureEditor({ signature, onBack }: { signature: MailSignature; onBa
           </AlertDialogContent>
         </AlertDialog>
       </div>
-      <SettingsSection title={t.edit}>
-        <div className="flex flex-col gap-4 px-5 py-4">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor={`signature-name-${signature.id}`} className="text-xs text-muted-foreground">
-              {t.name}
-            </label>
-            <Input
-              id={`signature-name-${signature.id}`}
-              className="max-w-80"
-              value={name}
-              maxLength={100}
-              onChange={(event) => {
-                setName(event.target.value)
-                if (event.target.value.trim()) saveName(event.target.value.trim())
-              }}
-            />
-          </div>
-          <div className="rounded-lg border">
-            <Suspense fallback={<div className="min-h-40" />}>
-              <RichTextEditor
-                autoFocus
-                label={t.content(label)}
-                placeholder={t.placeholder}
-                className="is-signature min-h-40"
-                initialHtml={initialHtml}
-                imagesAsFiles={false}
-                onChange={(value) => {
-                  if (!started.current) {
-                    started.current = true
-                    return
-                  }
-                  saveHtml(value.html)
-                }}
-              />
-            </Suspense>
-          </div>
-        </div>
-      </SettingsSection>
+      {/* The name is the page's title, edited in place; the editor is the only surface. */}
+      <input
+        aria-label={t.name}
+        className="-mx-1 rounded-md bg-transparent px-1 text-lg font-semibold tracking-tight outline-none placeholder:text-muted-foreground hover:bg-muted/40 focus-visible:bg-muted/40"
+        value={name}
+        maxLength={100}
+        placeholder={t.name}
+        onChange={(event) => {
+          setName(event.target.value)
+          if (event.target.value.trim()) saveName(event.target.value.trim())
+        }}
+      />
+      <div className="rounded-2xl bg-card ring-1 ring-border">
+        <Suspense fallback={<div className="min-h-48" />}>
+          <RichTextEditor
+            autoFocus
+            label={t.content(label)}
+            placeholder={t.placeholder}
+            className="is-signature min-h-48"
+            initialHtml={initialHtml}
+            imagesAsFiles={false}
+            onChange={(value) => {
+              if (!started.current) {
+                started.current = true
+                return
+              }
+              saveHtml(value.html)
+            }}
+          />
+        </Suspense>
+      </div>
     </div>
   )
 }
