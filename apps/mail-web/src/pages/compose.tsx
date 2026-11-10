@@ -443,8 +443,8 @@ function ComposeForm({
               <div className="flex min-h-10 items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-1">
                 <AttachmentPicker files={files} onChange={setFiles} />
-                <SignaturePicker choice={signatureChoice} />
                 <AiWriteButton writer={writer} />
+                <SignaturePicker choice={signatureChoice} />
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <span

@@ -142,8 +142,8 @@ export function ReplyForm({
       <div className="flex items-center justify-between gap-3 p-2">
         <div className="flex min-w-0 items-center gap-1">
           <AttachmentPicker files={files} onChange={setFiles} />
-          <SignaturePicker choice={signatureChoice} />
           <AiWriteButton writer={writer} />
+          <SignaturePicker choice={signatureChoice} />
         </div>
         <Actions
           canSend={canSend}
@@ -248,8 +248,8 @@ export function ForwardForm({
       <AiPrompt writer={writer} className="mx-2 border-t px-2 pt-2.5 pb-1" />
       <div className="flex items-center justify-between gap-3 p-2">
         <div className="flex min-w-0 items-center gap-1">
-          <SignaturePicker choice={signatureChoice} />
           <AiWriteButton writer={writer} />
+          <SignaturePicker choice={signatureChoice} />
           <p className="truncate px-2 text-xs text-muted-foreground">
             {message.attachments.length > 0 && t.forwardAttachments(message.attachments.length)}
           </p>
