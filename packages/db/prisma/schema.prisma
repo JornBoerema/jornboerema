@@ -39,6 +39,7 @@ model User {
   mailOauthStates      MailOauthState[]
   appAccess            AppAccess[]
   appAccessRequests    AppAccessRequest[]
+  mailPreferences      MailPreferences?
 
   @@map("user")
 }
@@ -596,4 +597,17 @@ model AppAccessRequest {
   @@unique([app, userId])
   @@index([app])
   @@map("app_access_requests")
+}
+
+/// Mail settings that follow the account to every device. Notifications stay per browser.
+model MailPreferences {
+  userId       String   @id @map("user_id")
+  summaries    Boolean  @default(true)
+  codes        Boolean  @default(true)
+  aiWriting    Boolean  @default(true) @map("ai_writing")
+  remoteImages Boolean  @default(false) @map("remote_images")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mail_preferences")
 }

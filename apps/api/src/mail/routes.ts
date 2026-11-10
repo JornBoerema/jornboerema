@@ -54,6 +54,7 @@ import {
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
+import { readPreferences, savePreferences } from "./preferences-server"
 import { syncAccount } from "./sync-server"
 import {
   createUpload,
@@ -222,6 +223,22 @@ function failure(c: Context, error: unknown) {
 }
 
 export const mailRoutes = new Hono<AppEnv>()
+
+const preferencesBody = z
+  .object({ summaries: z.boolean(), codes: z.boolean(), aiWriting: z.boolean(), remoteImages: z.boolean() })
+  .partial()
+  .refine((change) => Object.keys(change).length > 0)
+
+// Settings that follow the account to every device.
+mailRoutes.get("/preferences", requireSession, async (c) =>
+  c.json({ preferences: await readPreferences(c.get("session").user.id) }, 200, noStore)
+)
+
+mailRoutes.patch("/preferences", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, preferencesBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  return c.json({ preferences: await savePreferences(c.get("session").user.id, body) }, 200, noStore)
+})
 
 mailRoutes.get("/accounts", requireSession, async (c) =>
   c.json({ accounts: await listAccounts(c.get("session").user.id) }, 200, noStore)

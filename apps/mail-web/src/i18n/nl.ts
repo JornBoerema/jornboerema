@@ -114,7 +114,7 @@ export const nl: typeof en = {
     writing: "Schrijven met AI",
     writingHelp: "Een knop in het opstelscherm die je bericht schrijft of herschrijft vanuit een korte omschrijving. Wat je schreef, en bij een antwoord het gesprek, gaat via OpenRouter naar een taalmodel, alleen als je erom vraagt.",
     title: "Slimme functies",
-    deviceOnly: "Geldt alleen voor deze browser.",
+    saved: "Opgeslagen op je account, op al je apparaten.",
     summaries: "Samenvattingen",
     summariesHelp: "Drie regels over wat er in een gesprek staat. Het gesprek gaat via OpenRouter naar een taalmodel, alleen naar providers die het niet bewaren of erop trainen.",
     codes: "Inlogcodes",
@@ -134,7 +134,7 @@ export const nl: typeof en = {
   },
   privacy: {
     images: "Afbeeldingen in e-mails",
-    deviceOnly: "Opgeslagen op dit apparaat.",
+    saved: "Opgeslagen op je account, op al je apparaten.",
     alwaysShow: "Afbeeldingen altijd tonen",
     alwaysShowHelp: "Afzenders kunnen dan zien wanneer je een mail opent, en je IP-adres.",
   },

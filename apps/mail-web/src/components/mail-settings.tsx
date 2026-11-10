@@ -120,7 +120,7 @@ function PrivacySettings() {
   const t = useI18n().t.privacy
   const alwaysShow = useAlwaysShowImages()
   return (
-    <SettingsSection title={t.images} description={t.deviceOnly}>
+    <SettingsSection title={t.images} description={t.saved}>
       <SettingsRow title={t.alwaysShow} htmlFor="always-show-images" description={t.alwaysShowHelp}>
         <Switch id="always-show-images" checked={alwaysShow} onCheckedChange={setAlwaysShowImages} />
       </SettingsRow>
@@ -134,7 +134,7 @@ function AiSettings() {
   const codes = useFindCodes()
   const writing = useAiWriting()
   return (
-    <SettingsSection title={t.title} description={t.deviceOnly}>
+    <SettingsSection title={t.title} description={t.saved}>
       <SettingsRow title={t.summaries} htmlFor="mail-summaries" description={t.summariesHelp}>
         <Switch id="mail-summaries" checked={summaries} onCheckedChange={setSummaries} />
       </SettingsRow>

@@ -1,4 +1,7 @@
-import { useSyncExternalStore } from "react"
+import { useEffect, useSyncExternalStore } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { api, errorText } from "@/lib/api"
 
 const REMOTE_IMAGES_KEY = "evido.mail.remote-images"
 const listeners = new Set<() => void>()
@@ -28,6 +31,7 @@ export function setAlwaysShowImages(enabled: boolean) {
     // Storage can be blocked; the safe default of hiding images then stays.
   }
   listeners.forEach((listener) => listener())
+  pushPreference({ remoteImages: enabled })
 }
 
 /** Off unless chosen, because loading a remote image tells the sender you opened the mail. */
@@ -78,6 +82,7 @@ export function setSummaries(enabled: boolean) {
     // Storage can be blocked; summaries then stay on.
   }
   listeners.forEach((listener) => listener())
+  pushPreference({ summaries: enabled })
 }
 
 /** On unless turned off: the conversation is sent to a language model to sum it up. */
@@ -103,6 +108,7 @@ export function setFindCodes(enabled: boolean) {
     // Storage can be blocked; codes then keep showing.
   }
   listeners.forEach((listener) => listener())
+  pushPreference({ codes: enabled })
 }
 
 /** On unless turned off: sign-in codes shown ready to copy. */
@@ -128,9 +134,66 @@ export function setAiWriting(enabled: boolean) {
     // Storage can be blocked; the button then stays.
   }
   listeners.forEach((listener) => listener())
+  pushPreference({ aiWriting: enabled })
 }
 
 /** On unless turned off: a button that has a language model write the message. */
 export function useAiWriting() {
   return useSyncExternalStore(subscribe, readWriting)
+}
+
+/** The settings that follow the account; notifications stay per browser. */
+type AccountPreferences = { summaries: boolean; codes: boolean; aiWriting: boolean; remoteImages: boolean }
+
+const PREFERENCES_URL = "/api/mail/preferences"
+
+function localPreferences(): AccountPreferences {
+  return { summaries: readSummaries(), codes: readCodes(), aiWriting: readWriting(), remoteImages: readRemoteImages() }
+}
+
+/** Mirrors the account's choice in this browser, which keeps the app quick to start. */
+function applyLocally(preferences: AccountPreferences) {
+  const set = (key: string, value: string | null) => {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+  }
+  try {
+    set(SUMMARIES_KEY, preferences.summaries ? null : "off")
+    set(CODES_KEY, preferences.codes ? null : "off")
+    set(WRITING_KEY, preferences.aiWriting ? null : "off")
+    set(REMOTE_IMAGES_KEY, preferences.remoteImages ? "always" : null)
+  } catch {
+    // Blocked storage: the account still has them; this browser uses the defaults.
+  }
+  listeners.forEach((listener) => listener())
+}
+
+function pushPreference(change: Partial<AccountPreferences>) {
+  void api(PREFERENCES_URL, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(change),
+  }).catch((error: unknown) => toast.error(errorText(error)))
+}
+
+/**
+ * Loads the account's settings, and again when the tab comes back into view,
+ * so a change on another device shows here too. An account without saved
+ * settings takes this browser's.
+ */
+export function usePreferencesSync() {
+  const remote = useQuery({
+    queryKey: ["mail-preferences"],
+    queryFn: () => api<{ preferences: AccountPreferences | null }>(PREFERENCES_URL),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  })
+  const preferences = remote.data?.preferences
+  // Every answer counts, even one equal to the last: a change made here since may differ from it.
+  const fetchedAt = remote.dataUpdatedAt
+  useEffect(() => {
+    if (!fetchedAt) return
+    if (preferences) applyLocally(preferences)
+    else pushPreference(localPreferences())
+  }, [fetchedAt])
 }

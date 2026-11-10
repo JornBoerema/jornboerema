@@ -88,6 +88,12 @@ function SettingsDialog({
     >
       <DialogContent
         showCloseButton={false}
+        // Focus the dialog itself, not the search field: on a tablet that would pop up the keyboard.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          const content = event.currentTarget as HTMLElement | null
+          content?.focus({ preventScroll: true })
+        }}
         className="flex h-[min(760px,calc(100dvh-2rem))] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl md:flex-row"
       >
         <DialogDescription className="sr-only">

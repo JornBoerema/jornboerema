@@ -113,7 +113,7 @@ export const en = {
     writing: "Write with AI",
     writingHelp: "A button in the composer that writes or rewrites your message from a short description. What you wrote, and for a reply the conversation, is sent to a language model through OpenRouter, only when you ask.",
     title: "Smart features",
-    deviceOnly: "Applies to this browser only.",
+    saved: "Saved to your account, on every device.",
     summaries: "Summaries",
     summariesHelp: "Three lines on what a conversation says. It is sent to a language model through OpenRouter, only to providers that don't keep or train on it.",
     codes: "Sign-in codes",
@@ -133,7 +133,7 @@ export const en = {
   },
   privacy: {
     images: "Images in email",
-    deviceOnly: "Saved on this device.",
+    saved: "Saved to your account, on every device.",
     alwaysShow: "Always show images",
     alwaysShowHelp: "Senders can then see when you open a mail, and your IP address.",
   },

@@ -10,6 +10,7 @@ import { cn } from "@evido/ui/lib/utils"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { MailSettings } from "@/components/mail-settings"
+import { usePreferencesSync } from "@/lib/preferences"
 import { MailSpotlight } from "@/components/mail-spotlight"
 import { ShortcutsSpotlight } from "@/components/shortcuts-spotlight"
 import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
@@ -47,6 +48,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const accounts = useAccounts()
   const list = accounts.data?.accounts ?? []
   const syncStatus = useMailSync(accounts.data?.accounts)
+  usePreferencesSync()
   useMailRealtime(user.id)
   const [filter, setFilter] = useState("")
   const [view, setView] = useState<MailView>("inbox")
