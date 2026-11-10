@@ -209,6 +209,14 @@ export function AiPrompt({ writer, className }: { writer: AiWriter; className?: 
           />
           <input
             ref={input}
+            type="text"
+            name="ai-instruction"
+            // An instruction, not a login: password managers leave it alone.
+            autoComplete="off"
+            data-1p-ignore=""
+            data-lpignore="true"
+            data-bwignore="true"
+            data-form-type="other"
             aria-label={t.aiWrite}
             value={writer.instruction}
             readOnly={writer.pending}
