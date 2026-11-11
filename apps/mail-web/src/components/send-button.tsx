@@ -1,12 +1,19 @@
-import { AlarmClockIcon, SentIcon } from "@hugeicons/core-free-icons"
+import { AlarmClockIcon, ArrowDown01Icon, SentIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
+import { ButtonGroup, ButtonGroupSeparator } from "@evido/ui/components/button-group"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@evido/ui/components/dropdown-menu"
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 
 /**
- * Sends the form it sits in: a round icon, its name and shortcut in a tooltip.
- * With `onLater`, a clock beside it picks a later moment to send.
+ * Sends the form it sits in: an icon, its name and shortcut in a tooltip.
+ * With `onLater`, a split button: the arrow on its right opens "Send later".
  */
 export function SendButton({
   label,
@@ -18,35 +25,38 @@ export function SendButton({
   onLater?: () => void
 }) {
   const t = useI18n().t.later
+  const send = (
+    <IconTip label={label} shortcut="⌘↵">
+      <Button
+        type="submit"
+        size="icon"
+        className={onLater ? undefined : "rounded-full"}
+        disabled={disabled}
+        aria-label={label}
+        aria-keyshortcuts="Meta+Enter Control+Enter"
+      >
+        <HugeiconsIcon icon={SentIcon} strokeWidth={2} aria-hidden="true" />
+      </Button>
+    </IconTip>
+  )
+  if (!onLater) return send
   return (
-    <span className="flex items-center gap-0.5">
-      {onLater && (
-        <IconTip label={t.sendLater}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="rounded-full text-muted-foreground"
-            disabled={disabled}
-            aria-label={t.sendLater}
-            onClick={onLater}
-          >
-            <HugeiconsIcon icon={AlarmClockIcon} strokeWidth={1.75} aria-hidden="true" />
+    <ButtonGroup>
+      {send}
+      <ButtonGroupSeparator className="my-0! bg-primary-foreground/20" />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" size="icon" disabled={disabled} aria-label={t.sendLater}>
+            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} aria-hidden="true" />
           </Button>
-        </IconTip>
-      )}
-      <IconTip label={label} shortcut="⌘↵">
-        <Button
-          type="submit"
-          size="icon"
-          className="rounded-full"
-          disabled={disabled}
-          aria-label={label}
-          aria-keyshortcuts="Meta+Enter Control+Enter"
-        >
-          <HugeiconsIcon icon={SentIcon} strokeWidth={2} aria-hidden="true" />
-        </Button>
-      </IconTip>
-    </span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" side="top" sideOffset={6} className="min-w-44 rounded-xl p-1">
+          <DropdownMenuItem className="gap-2.5 rounded-lg px-2 py-1.5 text-[13px]" onSelect={onLater}>
+            <HugeiconsIcon icon={AlarmClockIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
+            {t.sendLater}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ButtonGroup>
   )
 }
