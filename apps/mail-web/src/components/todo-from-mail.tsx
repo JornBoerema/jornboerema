@@ -175,7 +175,7 @@ export function TodoDialog({
           {picked && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="min-w-0 max-w-[60%] text-muted-foreground" aria-label={`${t.list}: ${picked.name}`}>
+                <Button variant="ghost" className="min-w-0 max-w-[60%] text-muted-foreground" aria-label={`${t.list}: ${picked.name}`}>
                   <HugeiconsIcon icon={LeftToRightListBulletIcon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
                   <span className="truncate font-medium text-foreground">{picked.name}</span>
                   {groups.length > 1 && <span className="truncate font-normal">· {picked.workspaceName}</span>}
@@ -211,7 +211,7 @@ export function TodoDialog({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button size="sm" className="ml-auto" disabled={!ready} onClick={submit}>
+          <Button className="ml-auto" disabled={!ready} onClick={submit}>
             {create.isPending ? <Spinner /> : t.create}
           </Button>
         </div>
