@@ -81,16 +81,7 @@
   }
 }
 
-/* The brand row: the collapse control only shows when the sidebar is pointed at. */
-.mail-brand-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0 22px 10px;
-}
-.mail-brand-row .brand {
-  padding: 0;
-}
+/* The brand row (.sidebar-brand-row): the collapse control only shows when the sidebar is pointed at. */
 .mail-collapse {
   color: var(--muted-foreground);
   opacity: 0;

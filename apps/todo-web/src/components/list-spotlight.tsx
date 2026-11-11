@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@evido/ui/components/dialog";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@evido/ui/components/command";
-import { Note, Home, ListTodo, Search } from "@/components/icons";
+import { Note, Home, ListTodo } from "@/components/icons";
 import type { TodoList } from "@evido/todo-core/workspace";
 import { useI18n } from "@/i18n";
 
@@ -30,17 +30,7 @@ export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
     setOpen(false);
     if (id) onSelect(id); else onOverview();
   }
-  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   return <>
-  {/* Visible entry point for the ⌘K / Ctrl+K quick switcher. */}
-  <button type="button" className="list-link" aria-keyshortcuts="Meta+K Control+K" onClick={() => {
-    previousFocus.current = document.activeElement as HTMLElement;
-    setOpen(true);
-  }}>
-    <Search className="size-4 shrink-0" aria-hidden="true" />
-    <span>{t.trigger}</span>
-    <kbd className="nav-kbd">{isMac ? "⌘K" : "Ctrl K"}</kbd>
-  </button>
   <Dialog open={open} onOpenChange={(value) => {
     if (value) previousFocus.current = document.activeElement as HTMLElement;
     setOpen(value);

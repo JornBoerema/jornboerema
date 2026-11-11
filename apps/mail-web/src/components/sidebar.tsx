@@ -176,7 +176,7 @@ export function Sidebar({
       aria-label={t.shell.sidebar}
     >
       <div className="sidebar-full" inert={sidebar.collapsed}>
-        <div className="mail-brand-row">
+        <div className="sidebar-brand-row">
           <AppSwitcher>
             <Brand />
           </AppSwitcher>

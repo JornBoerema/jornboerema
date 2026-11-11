@@ -168,7 +168,7 @@
     padding: 16px;
     gap: 12px;
   }
-  .list-sidebar > .brand {
+  .list-sidebar > .sidebar-brand-row {
     padding: 0;
   }
   .sidebar-heading {

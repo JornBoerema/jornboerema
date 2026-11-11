@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react"
-import { ArrowReloadHorizontalIcon, InformationCircleIcon } from "@hugeicons/core-free-icons"
+import { InformationCircleIcon, RefreshIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { SettingsRow, SettingsSection, type SettingsPage } from "@evido/ui/components/settings-dialog"
@@ -74,7 +74,7 @@ export function UpdateButton() {
   if (!desktop?.ready) return null
   return (
     <button type="button" className="update-button" disabled={restarting} onClick={install}>
-      <HugeiconsIcon icon={ArrowReloadHorizontalIcon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
+      <HugeiconsIcon icon={RefreshIcon} strokeWidth={2} aria-hidden="true" className="size-3.5 shrink-0" />
       <span className="flex-1 truncate text-left">{restarting ? desktop.texts.restarting : desktop.texts.restart}</span>
       <span className="update-version">{desktop.ready}</span>
     </button>

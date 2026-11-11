@@ -151,7 +151,6 @@ export const workspace: typeof en = {
 
 
   spotlight: {
-    trigger: "Zoeken",
     title: "Ga naar een lijst",
     description: "Zoek een lijst. Gebruik de pijltjestoetsen om te kiezen en Enter om te openen.",
     search: "Zoek een lijst",

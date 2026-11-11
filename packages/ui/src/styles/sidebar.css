@@ -38,8 +38,15 @@
 .list-sidebar > :not(.list-navigation) {
   flex-shrink: 0;
 }
-.list-sidebar > .brand {
-  padding: 0 10px 22px;
+/* The app's brand at the top of the sidebar, the same in every app. */
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 22px 10px;
+}
+.sidebar-brand-row .brand {
+  padding: 0;
 }
 .sidebar-heading {
   padding: 0 4px 2px 10px;
@@ -180,14 +187,15 @@
 .update-button {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
+  height: 30px;
   margin-top: auto;
-  padding: 8px 10px;
+  padding: 0 10px;
   border-radius: var(--radius-md);
   background: color-mix(in oklch, var(--primary) 12%, transparent);
   color: var(--primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   transition: background-color 120ms ease;
 }
@@ -202,7 +210,7 @@
   outline-offset: 2px;
 }
 .update-version {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 400;
   opacity: 0.75;
 }

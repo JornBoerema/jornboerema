@@ -207,7 +207,7 @@ export function WorkspaceApp({
         {t.skipToList}
       </a>
       {!shareToken && <aside id="list-sidebar" className="list-sidebar" aria-label={t.sidebar.label} inert={sidebarCollapsed} aria-hidden={sidebarCollapsed}>
-        <AppSwitcher><Brand /></AppSwitcher>
+        <div className="sidebar-brand-row"><AppSwitcher><Brand /></AppSwitcher></div>
         <div className="list-navigation sidebar-sections">
           <div className="sidebar-top">
             <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />

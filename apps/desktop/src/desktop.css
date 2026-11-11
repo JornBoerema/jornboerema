@@ -21,13 +21,14 @@ body {
 .mac .mail-sidebar .sidebar-rail {
   padding-top: 40px;
 }
-/* The collapsed mail rail is wide enough for the three buttons. */
+/* The collapsed mail rail holds the three buttons whole, with as much room
+   on either side as above them. */
 .mac .workspace-shell.mail-shell.sidebar-collapsed {
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 96px minmax(0, 1fr);
 }
 .mac .mail-shell.sidebar-collapsed .list-sidebar.mail-sidebar,
 .mac .mail-sidebar .sidebar-rail {
-  width: 60px;
+  width: 80px;
 }
 /* Even doen's collapsed brand moves out from under the buttons. */
 .mac .collapsed-brand {

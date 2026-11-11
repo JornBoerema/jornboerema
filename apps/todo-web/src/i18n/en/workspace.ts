@@ -150,7 +150,6 @@ export const workspace = {
 
 
   spotlight: {
-    trigger: "Search",
     title: "Go to a list",
     description: "Search for a list. Use the arrow keys to choose and Enter to open.",
     search: "Search for a list",
