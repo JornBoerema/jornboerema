@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@evido/ui/components/dropdown-menu"
@@ -19,10 +20,17 @@ const AppSwitcherContext = createContext<AppSwitcherState | null>(null)
 export const AppSwitcherProvider = AppSwitcherContext.Provider
 
 /**
- * An app's brand. Inside the desktop app it opens a menu to switch to another
- * app; on the web, where each app has its own address, it stays plain.
+ * Inside the desktop app, where the brand's menu also holds what the account
+ * menu at the bottom of the sidebar does on the web.
  */
-export function AppSwitcher({ children }: { children: ReactNode }) {
+export const useInDesktop = () => useContext(AppSwitcherContext) !== null
+
+/**
+ * An app's brand. Inside the desktop app it opens a menu to switch to another
+ * app, followed by the app's own `menu` items (its account menu on the web);
+ * on the web, where each app has its own address, it stays plain.
+ */
+export function AppSwitcher({ children, menu }: { children: ReactNode; menu?: ReactNode }) {
   const switcher = useContext(AppSwitcherContext)
   if (!switcher) return children
   const active = switcher.apps.find((app) => app.id === switcher.active)
@@ -46,6 +54,12 @@ export function AppSwitcher({ children }: { children: ReactNode }) {
             )}
           </DropdownMenuItem>
         ))}
+        {menu && (
+          <>
+            <DropdownMenuSeparator />
+            {menu}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -30,27 +30,31 @@ import {
   DropdownMenuTrigger,
 } from "@evido/ui/components/dropdown-menu"
 
-/** Sidebar footer menu: switch workspace, open settings, sign out. */
-export function WorkspaceSwitcher({
-  user,
-  workspaces,
-  active,
-  onSelect,
-}: {
+type WorkspaceMenuProps = {
   user: { id: string; name: string; email: string }
   workspaces: WorkspaceSummary[]
   active: WorkspaceSummary
   onSelect: (id: string) => void
-}) {
+}
+
+/**
+ * Switch workspace, open settings, sign out: the items, and the dialog for a
+ * new workspace. The dialog lives outside the menu, which closes before it opens.
+ */
+export function useWorkspaceMenu(props: WorkspaceMenuProps | null) {
   const navigate = useNavigate()
   const client = useQueryClient()
   const settings = useSettings()
   const { t: { workspace: { switcher: t } } } = useI18n()
-  const command = useWorkspaceCommand(user.id)
+  const command = useWorkspaceCommand(props?.user.id ?? "")
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState("")
   const [pending, setPending] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+
+  // A shared list has no workspace of the viewer's own.
+  if (!props) return { items: null, dialog: null }
+  const { workspaces, active, onSelect } = props
 
   async function create(event: React.FormEvent) {
     event.preventDefault()
@@ -83,96 +87,117 @@ export function WorkspaceSwitcher({
     }
   }
 
-  return (
+  const items = (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button type="button" className="workspace-switcher" aria-label={t.triggerLabel(active.name)}>
-            <span className="workspace-avatar" aria-hidden="true">
-              {active.name.trim().charAt(0).toUpperCase()}
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>{t.workspaces}</DropdownMenuLabel>
+        {workspaces.map((workspace) => (
+          <DropdownMenuItem key={workspace.id} onSelect={() => onSelect(workspace.id)}>
+            <span className="workspace-avatar is-small" aria-hidden="true">
+              {workspace.name.trim().charAt(0).toUpperCase()}
             </span>
-            <span className="flex min-w-0 flex-1 flex-col text-left">
-              <span className="truncate">{active.name}</span>
-              <span className="truncate text-xs font-normal text-muted-foreground">{user.name}</span>
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          side="top"
-          align="start"
-          sideOffset={6}
-          collisionPadding={12}
-          className="min-w-(--radix-dropdown-menu-trigger-width)"
-        >
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>{t.workspaces}</DropdownMenuLabel>
-            {workspaces.map((workspace) => (
-              <DropdownMenuItem key={workspace.id} onSelect={() => onSelect(workspace.id)}>
-                <span className="workspace-avatar is-small" aria-hidden="true">
-                  {workspace.name.trim().charAt(0).toUpperCase()}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
-                {workspace.memberCount > 1 && (
-                  <span className="text-xs text-muted-foreground">{t.members(workspace.memberCount)}</span>
-                )}
-                {workspace.id === active.id && <Check aria-label={t.active} />}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuItem onSelect={() => setCreating(true)}>
-              <Plus aria-hidden="true" />
-              {t.newWorkspace}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={() => settings.open("account")}>
-              <Settings aria-hidden="true" />
-              {t.settings}
-              <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()}>
-              <LogOut aria-hidden="true" />
-              {signingOut ? t.signingOut : t.signOut}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <Dialog open={creating} onOpenChange={(open) => !pending && setCreating(open)}>
-        <DialogContent>
-          <form onSubmit={create} className="flex flex-col gap-6">
-            <DialogHeader>
-              <DialogTitle>{t.newWorkspace}</DialogTitle>
-              <DialogDescription>
-                {t.dialogDescription}
-              </DialogDescription>
-            </DialogHeader>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="workspace-name">{t.name}</FieldLabel>
-                <Input
-                  id="workspace-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t.namePlaceholder}
-                  maxLength={60}
-                  required
-                  autoFocus
-                  disabled={pending}
-                />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
-              <Button type="button" variant="outline" disabled={pending} onClick={() => setCreating(false)}>
-                {t.cancel}
-              </Button>
-              <Button type="submit" disabled={pending || !name.trim()}>
-                {pending ? t.creating : t.create}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+            {workspace.memberCount > 1 && (
+              <span className="text-xs text-muted-foreground">{t.members(workspace.memberCount)}</span>
+            )}
+            {workspace.id === active.id && <Check aria-label={t.active} />}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuItem onSelect={() => setCreating(true)}>
+          <Plus aria-hidden="true" />
+          {t.newWorkspace}
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuItem onSelect={() => settings.open("account")}>
+          <Settings aria-hidden="true" />
+          {t.settings}
+          <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()}>
+          <LogOut aria-hidden="true" />
+          {signingOut ? t.signingOut : t.signOut}
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
     </>
+  )
+
+  const dialog = (
+    <Dialog open={creating} onOpenChange={(open) => !pending && setCreating(open)}>
+      <DialogContent>
+        <form onSubmit={create} className="flex flex-col gap-6">
+          <DialogHeader>
+            <DialogTitle>{t.newWorkspace}</DialogTitle>
+            <DialogDescription>
+              {t.dialogDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="workspace-name">{t.name}</FieldLabel>
+              <Input
+                id="workspace-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t.namePlaceholder}
+                maxLength={60}
+                required
+                autoFocus
+                disabled={pending}
+              />
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={pending} onClick={() => setCreating(false)}>
+              {t.cancel}
+            </Button>
+            <Button type="submit" disabled={pending || !name.trim()}>
+              {pending ? t.creating : t.create}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+
+  return { items, dialog }
+}
+
+/** Sidebar footer menu on the web: switch workspace, open settings, sign out. */
+export function WorkspaceSwitcher({
+  user,
+  active,
+  items,
+}: {
+  user: { name: string }
+  active: WorkspaceSummary
+  items: React.ReactNode
+}) {
+  const { t: { workspace: { switcher: t } } } = useI18n()
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="workspace-switcher" aria-label={t.triggerLabel(active.name)}>
+          <span className="workspace-avatar" aria-hidden="true">
+            {active.name.trim().charAt(0).toUpperCase()}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col text-left">
+            <span className="truncate">{active.name}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">{user.name}</span>
+          </span>
+          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="top"
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        className="min-w-(--radix-dropdown-menu-trigger-width)"
+      >
+        {items}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

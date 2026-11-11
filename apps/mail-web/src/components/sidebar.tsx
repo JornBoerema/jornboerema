@@ -1,4 +1,4 @@
-import { AppSwitcher } from "@evido/ui/components/app-switcher"
+import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
 import {
@@ -163,6 +163,7 @@ export function Sidebar({
   onShortcuts,
 }: MailNavigation) {
   const { t, locale } = useI18n()
+  const desktop = useInDesktop()
   const unread = useUnread(true).data?.count
   // While writing, only New message is current; closing it gives the selection back.
   const allSelected = !composing && view === "inbox" && accountId === ""
@@ -177,7 +178,7 @@ export function Sidebar({
     >
       <div className="sidebar-full" inert={sidebar.collapsed}>
         <div className="sidebar-brand-row">
-          <AppSwitcher>
+          <AppSwitcher menu={<AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />}>
             <Brand />
           </AppSwitcher>
           <IconTip label={t.shell.collapse} shortcut="⌘B">
@@ -284,28 +285,31 @@ export function Sidebar({
           </section>
         </div>
         <UpdateButton />
-        <div className="sidebar-footer">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
-                <span className="workspace-avatar" aria-hidden="true">
-                  {initialOf(user)}
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col text-left">
-                  <span className="truncate">{user.name || user.email}</span>
-                  <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
-                </span>
-                <HugeiconsIcon
-                  icon={UnfoldMoreIcon}
-                  strokeWidth={2}
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              </button>
-            </DropdownMenuTrigger>
-            <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} />
-          </DropdownMenu>
-        </div>
+        {/* In the desktop app these sit in the brand's menu. */}
+        {!desktop && (
+          <div className="sidebar-footer">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
+                  <span className="workspace-avatar" aria-hidden="true">
+                    {initialOf(user)}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col text-left">
+                    <span className="truncate">{user.name || user.email}</span>
+                    <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+                  </span>
+                  <HugeiconsIcon
+                    icon={UnfoldMoreIcon}
+                    strokeWidth={2}
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} />
+            </DropdownMenu>
+          </div>
+        )}
       </div>
       <SidebarRail
         {...{ accounts, accountId, user, sidebar, view, draftCount, draftWaiting, composing }}
@@ -318,8 +322,15 @@ export function Sidebar({
 
 const initialOf = (user: { name: string; email: string }) => (user.name || user.email).trim().charAt(0).toUpperCase()
 
-function AccountMenuContent({ onSettings, onShortcuts, side = "top" }: { onSettings: () => void; onShortcuts: () => void; side?: "top" | "right" }) {
-  const t = useI18n().t
+function AccountMenuContent({
+  onSettings,
+  onShortcuts,
+  side = "top",
+}: {
+  onSettings: () => void
+  onShortcuts: () => void
+  side?: "top" | "right"
+}) {
   return (
     <DropdownMenuContent
       side={side}
@@ -328,6 +339,16 @@ function AccountMenuContent({ onSettings, onShortcuts, side = "top" }: { onSetti
       collisionPadding={12}
       className={side === "right" ? "min-w-52" : "min-w-(--radix-dropdown-menu-trigger-width)"}
     >
+      <AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />
+    </DropdownMenuContent>
+  )
+}
+
+/** Settings, shortcuts and sign-out: the account menu on the web, the brand's menu in the desktop app. */
+function AccountMenuItems({ onSettings, onShortcuts }: { onSettings: () => void; onShortcuts: () => void }) {
+  const t = useI18n().t
+  return (
+    <>
       <DropdownMenuItem onSelect={onSettings}>
         <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} aria-hidden="true" />
         {t.shell.settings}
@@ -342,7 +363,7 @@ function AccountMenuContent({ onSettings, onShortcuts, side = "top" }: { onSetti
         <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
         {t.shell.signOut}
       </DropdownMenuItem>
-    </DropdownMenuContent>
+    </>
   )
 }
 
@@ -412,6 +433,7 @@ function SidebarRail({
   onShortcuts,
 }: Omit<MailNavigation, "onSearch"> & { unread: number | undefined }) {
   const { t } = useI18n()
+  const desktop = useInDesktop()
   const shownView: MailView | null = composing ? null : view
   return (
     <div className="sidebar-rail" inert={!sidebar.collapsed}>
@@ -446,14 +468,24 @@ function SidebarRail({
           badge={!!unread}
           onClick={() => onSelectAccount("")}
         />
-        <RailLink icon={StarIcon} label={t.folders.starred} selected={shownView === "starred"} onClick={() => onSelectFolder("starred")} />
+        <RailLink
+          icon={StarIcon}
+          label={t.folders.starred}
+          selected={shownView === "starred"}
+          onClick={() => onSelectFolder("starred")}
+        />
         <RailLink
           icon={File01Icon}
           label={draftCount > 0 ? `${t.drafts.title} · ${t.drafts.count(draftCount)}` : t.drafts.title}
           selected={!composing && view === "drafts"}
           onClick={onSelectDrafts}
         />
-        <RailLink icon={SentIcon} label={t.folders.sent} selected={shownView === "sent"} onClick={() => onSelectFolder("sent")} />
+        <RailLink
+          icon={SentIcon}
+          label={t.folders.sent}
+          selected={shownView === "sent"}
+          onClick={() => onSelectFolder("sent")}
+        />
         {MORE.map((folder) => (
           <RailLink
             key={folder}
@@ -480,18 +512,20 @@ function SidebarRail({
           </RailLink>
         ))}
       </nav>
-      <div className="rail-footer">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className="rail-account" aria-label={t.shell.account(user.email)}>
-              <span className="workspace-avatar" aria-hidden="true">
-                {initialOf(user)}
-              </span>
-            </button>
-          </DropdownMenuTrigger>
-          <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} side="right" />
-        </DropdownMenu>
-      </div>
+      {!desktop && (
+        <div className="rail-footer">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="rail-account" aria-label={t.shell.account(user.email)}>
+                <span className="workspace-avatar" aria-hidden="true">
+                  {initialOf(user)}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} side="right" />
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   )
 }
