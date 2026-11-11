@@ -312,7 +312,6 @@ export const nl: typeof en = {
     cancel: "Annuleren",
     create: "Taak maken",
     linkedTo: (from: string) => `Gekoppeld aan de mail van ${from}`,
-    otherList: "andere lijst",
     created: (list: string) => `Taak toegevoegd aan ${list}`,
     open: "Openen",
     linked: "Taken van deze mail",

@@ -375,17 +375,6 @@
   font-size: 12px;
   color: var(--muted-foreground);
 }
-/* A key inside a button, such as Enter beside "Make task". */
-.button-kbd {
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-right: -4px;
-  border-radius: 5px;
-  background: color-mix(in oklch, currentColor 16%, transparent);
-}
-
 /* Where the task goes: one quiet button, the lists in its menu. */
 .todo-capture-list {
   display: inline-flex;

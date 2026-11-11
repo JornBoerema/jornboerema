@@ -311,7 +311,6 @@ export const en = {
     cancel: "Cancel",
     create: "Make task",
     linkedTo: (from: string) => `Linked to the mail from ${from}`,
-    otherList: "other list",
     created: (list: string) => `Task added to ${list}`,
     open: "Open",
     linked: "Tasks from this mail",
