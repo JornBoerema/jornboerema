@@ -1,7 +1,10 @@
 import { AlarmClockIcon, ArrowDown01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
-import { ButtonGroup } from "@evido/ui/components/button-group"
+import {
+  ButtonGroup,
+  ButtonGroupSeparator,
+} from "@evido/ui/components/button-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,15 +13,6 @@ import {
 } from "@evido/ui/components/dropdown-menu"
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
-
-/**
- * Buttons keep a transparent border outside their fill; between the two halves
- * it would show as a dark slit. Send drops its right one, and the arrow draws
- * the divider inside its own fill, so it dims with it when disabled.
- */
-const JOINED = "border-r-0"
-const DIVIDED =
-  "relative before:absolute before:inset-y-2 before:left-0 before:w-px before:bg-primary-foreground/30"
 
 /**
  * Sends the form it sits in: its name, the shortcut in a tooltip.
@@ -38,7 +32,6 @@ export function SendButton({
     <IconTip label={label} shortcut="⌘↵">
       <Button
         type="submit"
-        className={onLater ? JOINED : undefined}
         disabled={disabled}
         aria-keyshortcuts="Meta+Enter Control+Enter"
       >
@@ -50,12 +43,12 @@ export function SendButton({
   return (
     <ButtonGroup>
       {send}
+      <ButtonGroupSeparator />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
             size="icon"
-            className={DIVIDED}
             disabled={disabled}
             aria-label={t.sendLater}
           >
