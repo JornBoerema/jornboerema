@@ -20,6 +20,8 @@ app.use(
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization", "Accept-Language"],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    // The desktop app reads its session token from here after signing in.
+    exposeHeaders: ["set-auth-token"],
     maxAge: 600,
   })
 )

@@ -16,7 +16,8 @@
     "db:deploy": "pnpm --filter @evido/db db:deploy",
     "db:deploy:prod": "pnpm --filter @evido/db db:deploy:prod",
     "db:studio": "pnpm --filter @evido/db db:studio",
-    "dev:capture": "pnpm --filter @evido/capture-desktop app"
+    "dev:capture": "pnpm --filter @evido/capture-desktop app",
+    "dev:desktop": "pnpm --filter @evido/desktop app"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

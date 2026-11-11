@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth"
-import { jwt } from "better-auth/plugins"
+import { bearer, jwt } from "better-auth/plugins"
 import { mcp } from "@better-auth/mcp"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
 import { getDb, Prisma } from "@evido/db"
@@ -56,10 +56,14 @@ function required(name: string) {
   return value
 }
 
+/** Where the Even desktop app runs: tauri://localhost on macOS, tauri.localhost on Windows. */
+const DESKTOP_ORIGINS = ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"]
+
 /** Web origins (all Evido front-ends) that may call the API with credentials. */
 export function trustedOrigins() {
   const origins = [
     ...(process.env.TRUSTED_ORIGINS ?? "").split(","),
+    ...DESKTOP_ORIGINS,
     process.env.MAIL_WEB_URL ?? "",
     process.env.ADMIN_WEB_URL ?? "",
   ]
@@ -86,6 +90,8 @@ function createAuth() {
       : undefined,
     plugins: [
       jwt(),
+      // The desktop app can't keep a cookie for the API, so it sends the session as a bearer token.
+      bearer(),
       mcp({
         loginPage: `${authUiUrl}/login`,
         consentPage: `${authUiUrl}/connect`,

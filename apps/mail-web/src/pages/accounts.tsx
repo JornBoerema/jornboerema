@@ -1,3 +1,4 @@
+import { isDesktop, webUrl } from "@evido/auth/client"
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -49,9 +50,14 @@ function useConnectResult() {
 
 function useConnect() {
   return useMutation({
-    mutationFn: (provider: MailProviderId) =>
-      api<{ url: string }>(`/api/mail/connect/${provider}`, { method: "POST" }),
-    onSuccess: ({ url }) => window.location.assign(url),
+    mutationFn: async (provider: MailProviderId) => {
+      // The provider sends the browser back with a cookie session, which the
+      // desktop app doesn't have, so mailboxes are connected on the web.
+      if (isDesktop()) return { url: webUrl("/?settings=mailboxes", "mail"), external: true }
+      return api<{ url: string }>(`/api/mail/connect/${provider}`, { method: "POST" })
+    },
+    onSuccess: ({ url, external }: { url: string; external?: boolean }) =>
+      external ? window.open(url, "_blank") : window.location.assign(url),
     onError: (error) => toast.error(errorText(error)),
   })
 }

@@ -7,7 +7,7 @@ import {
   Mail01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import type { EvidoAuthClient } from "@evido/auth/client"
+import { webUrl, type EvidoAuthClient } from "@evido/auth/client"
 import { Alert, AlertDescription, AlertTitle } from "@evido/ui/components/alert"
 import { Button } from "@evido/ui/components/button"
 import { Checkbox } from "@evido/ui/components/checkbox"
@@ -53,8 +53,6 @@ export type AuthTexts = Record<AuthMode, FormCopy> & {
     backToSignIn: string;
   };
 };
-
-const webUrl = (path: string) => new URL(path, window.location.origin).toString();
 
 const ICON = { strokeWidth: 2, "aria-hidden": true } as const;
 

@@ -1,3 +1,4 @@
+import { authHeaders } from "@evido/auth/client"
 import { useEffect, useRef, useState, type RefObject } from "react"
 import { currentLanguage } from "@evido/i18n/react"
 import { parseWritten } from "@evido/mail-core/write"
@@ -66,7 +67,11 @@ export function useAiWriter({
       }
     }
     try {
-      const headers = new Headers({ "Content-Type": "application/json", "Accept-Language": currentLanguage() })
+      const headers = new Headers({
+        "Content-Type": "application/json",
+        "Accept-Language": currentLanguage(),
+        ...authHeaders(),
+      })
       const response = await fetch(`${API_URL}${url}`, {
         method: "POST",
         credentials: "include",

@@ -230,7 +230,8 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   )
 }
 
-function Root() {
+/** The signed-in app, or a redirect to sign in. Also used by the desktop app. */
+export function Root() {
   const { data, isPending } = authClient.useSession()
   const location = useLocation()
   if (isPending) return null

@@ -1,3 +1,4 @@
+import { webUrl } from "@evido/auth/client"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { Delete02Icon, Mail01Icon } from "@hugeicons/core-free-icons"
@@ -20,7 +21,6 @@ import { useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { clearMailCache } from "@/lib/cache"
 
-const webUrl = (path: string) => new URL(path, window.location.origin).toString()
 
 const MailIcon = () => <HugeiconsIcon icon={Mail01Icon} strokeWidth={1.75} aria-hidden="true" />
 
@@ -117,7 +117,7 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
               void perform("email", async () => {
                 const result = await authClient.changeEmail({
                   newEmail: nextEmail,
-                  callbackURL: webUrl("/?settings=account"),
+                  callbackURL: webUrl("/?settings=account", "mail"),
                 })
                 if (result.error) throw new Error()
                 setEmailSent(nextEmail)
@@ -165,7 +165,7 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
               void perform("reset", async () => {
                 const result = await authClient.requestPasswordReset({
                   email: user.email,
-                  redirectTo: webUrl("/reset-password"),
+                  redirectTo: webUrl("/reset-password", "mail"),
                 })
                 if (result.error) throw new Error()
                 setResetSent(true)
