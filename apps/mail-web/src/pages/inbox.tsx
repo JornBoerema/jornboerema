@@ -9,6 +9,7 @@ import {
   Attachment01Icon,
   Delete02Icon,
   CloudAlertIcon,
+  MoreHorizontalIcon,
   PencilEdit02Icon,
   Search01Icon,
   StarIcon,
@@ -23,6 +24,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@evido/ui/components/empty"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@evido/ui/components/dropdown-menu"
 import { Skeleton } from "@evido/ui/components/skeleton"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
@@ -326,10 +328,39 @@ function DraftRow({
 }
 
 /** The list header while conversations are selected: what can be done to all of them. */
+/** One line in the selection's ⋯ menu: compact, to sit with the small buttons beside it. */
+function MenuAction({
+  icon,
+  label,
+  destructive,
+  onSelect,
+}: {
+  icon: IconSvgElement
+  label: string
+  destructive?: boolean
+  onSelect: () => void
+}) {
+  return (
+    <DropdownMenuItem
+      variant={destructive ? "destructive" : "default"}
+      className="min-h-7 gap-2.5 rounded-lg px-2 py-1 text-[13px]"
+      onSelect={onSelect}
+    >
+      <HugeiconsIcon icon={icon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
+      <span className="flex-1">{label}</span>
+    </DropdownMenuItem>
+  )
+}
+
+/**
+ * What to do with the selected conversations: the moves for this folder and
+ * read or unread as buttons, the rest (star, spam, a third move) in ⋯.
+ */
 function SelectionBar({
   count,
   total,
   allStarred,
+  allRead,
   folder,
   canDelete,
   onSelectAll,
@@ -339,6 +370,8 @@ function SelectionBar({
   count: number
   total: number
   allStarred: boolean
+  /** Every selected conversation is read, so the button marks them unread. */
+  allRead: boolean
   folder: MailFolder | null
   /** Every selected conversation is in a mailbox that can delete for good. */
   canDelete: boolean
@@ -356,6 +389,9 @@ function SelectionBar({
       </Button>
     </IconTip>
   )
+  const moves = moveActions(folder, canDelete)
+  const shown = moves.slice(0, 2)
+  const more = moves.slice(2)
   return (
     // No padding: the header's own puts this checkbox right above the rows' checkboxes.
     <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -370,9 +406,7 @@ function SelectionBar({
       <span role="status" className="mr-auto min-w-0 truncate pl-2 text-sm font-medium">
         {t.selected(count)}
       </span>
-      {button(StarIcon, allStarred ? c.unstar : c.star, () => onAction(allStarred ? "unstar" : "star"), cn(allStarred && STARRED))}
-      {canReportSpam(folder) && button(SpamIcon, c.reportSpam, () => onAction("spam"))}
-      {moveActions(folder, canDelete).map((action) =>
+      {shown.map((action) =>
         button(
           MOVE_ICONS[action] ?? ArchiveIcon,
           moveLabel(action, folder, c),
@@ -380,8 +414,42 @@ function SelectionBar({
           isDestructive(action) ? "hover:text-destructive" : undefined
         )
       )}
-      {button(MailOpen01Icon, t.markRead, () => onAction("read"))}
-      {button(Mail01Icon, c.markUnread, () => onAction("unread"))}
+      {allRead
+        ? button(Mail01Icon, c.markUnread, () => onAction("unread"))
+        : button(MailOpen01Icon, t.markRead, () => onAction("read"))}
+      <DropdownMenu>
+        <IconTip label={t.more}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label={t.more}>
+              <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.75} aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+        </IconTip>
+        <DropdownMenuContent align="end" sideOffset={6} className="min-w-48 rounded-xl p-1">
+          <MenuAction
+            icon={StarIcon}
+            label={allStarred ? c.unstar : c.star}
+            onSelect={() => onAction(allStarred ? "unstar" : "star")}
+          />
+          {allRead ? (
+            <MenuAction icon={MailOpen01Icon} label={t.markRead} onSelect={() => onAction("read")} />
+          ) : (
+            <MenuAction icon={Mail01Icon} label={c.markUnread} onSelect={() => onAction("unread")} />
+          )}
+          {canReportSpam(folder) && (
+            <MenuAction icon={SpamIcon} label={c.reportSpam} onSelect={() => onAction("spam")} />
+          )}
+          {more.map((action) => (
+            <MenuAction
+              key={action}
+              icon={MOVE_ICONS[action] ?? ArchiveIcon}
+              label={moveLabel(action, folder, c)}
+              destructive={isDestructive(action)}
+              onSelect={() => onAction(action)}
+            />
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       {button(Cancel01Icon, t.clear, onClear)}
     </div>
   )
@@ -616,6 +684,7 @@ export function InboxPage({
               count={selection.length}
               total={rows.length}
               allStarred={selection.every((thread) => thread.isStarred)}
+              allRead={selection.every((thread) => thread.isRead)}
               folder={folder}
               canDelete={selection.every((thread) => canDeleteForever(accountOf.get(thread.accountId)?.provider ?? "gmail"))}
               onSelectAll={() =>

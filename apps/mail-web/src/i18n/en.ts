@@ -191,6 +191,7 @@ export const en = {
     select: (subject: string) => `Select ${subject}`,
     clear: "Clear selection",
     markRead: "Mark as read",
+    more: "More actions",
   },
   folders: {
     starred: "Starred",

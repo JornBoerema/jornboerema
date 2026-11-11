@@ -192,6 +192,7 @@ export const nl: typeof en = {
     select: (subject: string) => `${subject} selecteren`,
     clear: "Selectie wissen",
     markRead: "Markeren als gelezen",
+    more: "Meer acties",
   },
   folders: {
     starred: "Met ster",
