@@ -45,7 +45,7 @@ export function SendButton({
           <DropdownMenuContent align="end" side="top" sideOffset={6} className="min-w-44 rounded-xl p-1">
             <DropdownMenuItem className="gap-2.5 rounded-lg px-2 py-1.5 text-[13px]" onSelect={onLater}>
               <HugeiconsIcon icon={AlarmClockIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
-              {t.sendLater}…
+              {t.sendLater}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

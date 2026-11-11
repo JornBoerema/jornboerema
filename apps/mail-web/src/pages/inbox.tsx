@@ -716,7 +716,7 @@ function SelectionBar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" sideOffset={6} className="min-w-48 rounded-xl p-1">
-          <MenuAction icon={AlarmClockIcon} label={`${strings.later.snooze}…`} onSelect={() => setPicking(true)} />
+          <MenuAction icon={AlarmClockIcon} label={strings.later.snooze} onSelect={() => setPicking(true)} />
           {!allRead && <MenuAction icon={MailOpen01Icon} label={t.markRead} onSelect={() => onAction("read")} />}
           {!allUnread && <MenuAction icon={Mail01Icon} label={c.markUnread} onSelect={() => onAction("unread")} />}
           <MenuAction
