@@ -301,17 +301,27 @@ function MorePlaces({ places, onCustomize }: { places: Place[]; onCustomize: () 
         />
         <span>{t.more}</span>
       </button>
-      {open && (
-        <>
-          {places.map((place) => (
-            <PlaceLink key={place.label} place={place} />
-          ))}
-          <button type="button" className="list-link is-ghost" onClick={onCustomize}>
-            <HugeiconsIcon icon={DragDropVerticalIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-            <span>{t.customizeSidebar}</span>
-          </button>
-        </>
-      )}
+      {/* Unfolds by growing its row from nothing, and folds back the same way.
+          The negative margin cancels the column gap while it is folded. */}
+      <div
+        inert={!open}
+        className={cn(
+          "-mt-0.5 grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex flex-col gap-0.5 pt-0.5">
+            {places.map((place) => (
+              <PlaceLink key={place.label} place={place} />
+            ))}
+            <button type="button" className="list-link is-ghost" onClick={onCustomize}>
+              <HugeiconsIcon icon={DragDropVerticalIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+              <span>{t.customizeSidebar}</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </>
   )
 }
