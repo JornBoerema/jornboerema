@@ -302,6 +302,7 @@ export const nl: typeof en = {
     amountUnknown: "Bedrag in de bijlage",
   },
   mailboxFilter: {
+    showFrom: "Mail tonen van",
     label: "Mailbox",
     all: "Alle mailboxen",
   },

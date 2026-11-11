@@ -301,6 +301,7 @@ export const en = {
     amountUnknown: "Amount in the attachment",
   },
   mailboxFilter: {
+    showFrom: "Show mail from",
     label: "Mailbox",
     all: "All mailboxes",
   },
