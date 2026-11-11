@@ -164,6 +164,8 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     }
   }, [])
 
+  // Going somewhere from the sidebar puts the composer away: an empty one
+  // closes, one with something in it waits as a draft to resume.
   const navigation: MailNavigation = {
     accounts: list,
     // A disconnected mailbox can't stay selected.
@@ -176,6 +178,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     draftWaiting: compose !== null && (composeHidden || open !== null),
     composing: compose !== null && !composeHidden && open === null,
     onSelectAccount: (id) => {
+      setComposeHidden(true)
       setFilter(id)
       setView("inbox")
     },
@@ -184,35 +187,42 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       setOpen(null)
     },
     onSelectDrafts: () => {
+      setComposeHidden(true)
       setFilter("")
       setView("drafts")
     },
     onSelectParcels: () => {
+      setComposeHidden(true)
       setFilter("")
       setOpen(null)
       setView("parcels")
     },
     onSelectInvoices: () => {
+      setComposeHidden(true)
       setFilter("")
       setOpen(null)
       setView("invoices")
     },
     onSelectSnoozed: () => {
+      setComposeHidden(true)
       setFilter("")
       setOpen(null)
       setView("snoozed")
     },
     onSelectScheduled: () => {
+      setComposeHidden(true)
       setFilter("")
       setOpen(null)
       setView("scheduled")
     },
     // Tidy up keeps the chosen mailbox: tidying one at a time is common.
     onSelectSenders: () => {
+      setComposeHidden(true)
       setOpen(null)
       setView("senders")
     },
     onSelectFolder: (folder) => {
+      setComposeHidden(true)
       setFilter("")
       setOpen(null)
       setView(folder)
