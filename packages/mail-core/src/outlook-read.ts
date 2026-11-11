@@ -1,10 +1,11 @@
+import { parseListUnsubscribe } from "./unsubscribe"
 import { getJson, SLOW_READ_TIMEOUT_MS } from "./http"
 import { GRAPH_BASE } from "./outlook-sync"
 import { ProviderError } from "./provider"
 import type { MailAddress, MailThreadMessage } from "./types"
 
 const SELECT =
-  "id,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,body,isDraft,parentFolderId"
+  "id,subject,from,replyTo,toRecipients,ccRecipients,receivedDateTime,body,isDraft,parentFolderId,internetMessageHeaders"
 const EXPAND =
   "attachments($select=id,name,size,contentType,isInline,microsoft.graph.fileAttachment/contentId)"
 const ID_HEADER = { Prefer: 'IdType="ImmutableId"' }
@@ -24,6 +25,8 @@ type GraphMessage = {
   body?: { contentType?: string; content?: string } | null
   isDraft?: boolean
   parentFolderId?: string
+  /** Only the headers a message arrived with; sent and draft mail has none. */
+  internetMessageHeaders?: { name?: string; value?: string }[]
   attachments?: {
     id: string
     name?: string
@@ -44,6 +47,9 @@ function toAddress(recipient: Recipient | null | undefined): MailAddress | null 
 const toAddresses = (recipients: Recipient[] | undefined) =>
   (recipients ?? []).flatMap((recipient) => toAddress(recipient) ?? [])
 
+const header = (message: GraphMessage, name: string) =>
+  message.internetMessageHeaders?.find((item) => item.name?.toLowerCase() === name)?.value
+
 function toMessage(message: GraphMessage): MailThreadMessage {
   const isHtml = message.body?.contentType?.toLowerCase() === "html"
   const content = message.body?.content || null
@@ -55,6 +61,7 @@ function toMessage(message: GraphMessage): MailThreadMessage {
     to: toAddresses(message.toRecipients),
     cc: toAddresses(message.ccRecipients),
     receivedAt: new Date(message.receivedDateTime as string).toISOString(),
+    unsubscribe: parseListUnsubscribe(header(message, "list-unsubscribe"), header(message, "list-unsubscribe-post")),
     html: isHtml ? content : null,
     text: isHtml ? null : content,
     attachments: (message.attachments ?? [])

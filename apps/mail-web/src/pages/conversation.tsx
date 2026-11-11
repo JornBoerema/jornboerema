@@ -30,6 +30,7 @@ import {
 import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
 import { ShipmentCard } from "@/components/parcels"
+import { UnsubscribeButton } from "@/components/unsubscribe-button"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
@@ -255,11 +256,14 @@ function Message({
   message,
   allowImages,
   latest,
+  account,
 }: {
   threadId: string
   message: SanitizedMessage
   allowImages: boolean
   latest: boolean
+  /** The mailbox it came to: an unsubscribe message goes out from there. */
+  account: MailAccountView | undefined
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.conversation
@@ -294,11 +298,16 @@ function Message({
       </button>
       {expanded && (
         <>
-          {message.to.length + message.cc.length > 0 && (
-            <p className="-mt-3 truncate text-xs text-muted-foreground">
-              {message.to.length > 0 && `${t.to}: ${message.to.map(label).join(", ")}`}
-              {message.cc.length > 0 && ` · ${t.cc}: ${message.cc.map(label).join(", ")}`}
-            </p>
+          {(message.to.length + message.cc.length > 0 || message.unsubscribe) && (
+            <div className="-mt-3 flex items-baseline gap-3">
+              <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                {message.to.length > 0 && `${t.to}: ${message.to.map(label).join(", ")}`}
+                {message.cc.length > 0 && ` · ${t.cc}: ${message.cc.map(label).join(", ")}`}
+              </p>
+              {message.unsubscribe && (
+                <UnsubscribeButton unsubscribe={message.unsubscribe} sender={sender} account={account} />
+              )}
+            </div>
           )}
           <MessageBody threadId={threadId} message={message} sender={sender} allowImages={allowImages} />
         </>
@@ -474,6 +483,7 @@ export function ConversationPage({
               message={message}
               allowImages={allowImages}
               latest={message === last}
+              account={account}
             />
           ))}
           {last && (

@@ -1,5 +1,6 @@
 // Safe to import from browsers: no Node APIs here.
 import type { Carrier, ShipmentStatus } from "./shipments"
+import type { MailUnsubscribe } from "./unsubscribe"
 
 export const MAIL_PROVIDERS = ["gmail", "outlook"] as const
 export type MailProviderId = (typeof MAIL_PROVIDERS)[number]
@@ -109,6 +110,8 @@ export type MailThreadMessage = {
   text: string | null
   attachments: MailAttachmentInfo[]
   inline: MailInlineImage[]
+  /** How to leave the mailing list this came from, when it says. */
+  unsubscribe?: MailUnsubscribe | null
 }
 
 export type MailThreadDetail = { messages: MailThreadMessage[] }

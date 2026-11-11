@@ -6,9 +6,17 @@ export type MailPreferences = {
   aiWriting: boolean
   remoteImages: boolean
   parcels: boolean
+  unsubscribe: boolean
 }
 
-const select = { summaries: true, codes: true, aiWriting: true, remoteImages: true, parcels: true } as const
+const select = {
+  summaries: true,
+  codes: true,
+  aiWriting: true,
+  remoteImages: true,
+  parcels: true,
+  unsubscribe: true,
+} as const
 
 /** Null until first saved, so the first device can bring along what it had chosen. */
 export async function readPreferences(userId: string): Promise<MailPreferences | null> {

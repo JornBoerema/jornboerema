@@ -232,6 +232,7 @@ const preferencesBody = z
     aiWriting: z.boolean(),
     remoteImages: z.boolean(),
     parcels: z.boolean(),
+    unsubscribe: z.boolean(),
   })
   .partial()
   .refine((change) => Object.keys(change).length > 0)

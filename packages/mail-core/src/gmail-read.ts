@@ -1,3 +1,4 @@
+import { parseListUnsubscribe } from "./unsubscribe"
 import { GMAIL_API, parseAddress } from "./gmail-sync"
 import { getJson, SLOW_READ_TIMEOUT_MS } from "./http"
 import { ProviderError } from "./provider"
@@ -122,6 +123,7 @@ export async function readGmailThread(
         to: toAddresses(headerOf(headers, "to")),
         cc: toAddresses(headerOf(headers, "cc")),
         receivedAt: new Date(Number(message.internalDate ?? 0)).toISOString(),
+        unsubscribe: parseListUnsubscribe(headerOf(headers, "list-unsubscribe"), headerOf(headers, "list-unsubscribe-post")),
         ...content,
       }
     })

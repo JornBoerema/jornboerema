@@ -168,6 +168,32 @@ export function useParcels() {
   return useSyncExternalStore(subscribe, readParcels)
 }
 
+const UNSUBSCRIBE_KEY = "evido.mail.unsubscribe"
+
+function readUnsubscribe() {
+  try {
+    return localStorage.getItem(UNSUBSCRIBE_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setUnsubscribe(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(UNSUBSCRIBE_KEY)
+    else localStorage.setItem(UNSUBSCRIBE_KEY, "off")
+  } catch {
+    // Storage can be blocked; the account still keeps the choice.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ unsubscribe: enabled })
+}
+
+/** On unless turned off: an Unsubscribe button beside mail from a mailing list. */
+export function useUnsubscribe() {
+  return useSyncExternalStore(subscribe, readUnsubscribe)
+}
+
 const DELIVERED_KEY = "evido.mail.parcels-delivered"
 
 function readShowDelivered() {
@@ -200,6 +226,7 @@ type AccountPreferences = {
   aiWriting: boolean
   remoteImages: boolean
   parcels: boolean
+  unsubscribe: boolean
 }
 
 const PREFERENCES_URL = "/api/mail/preferences"
@@ -211,6 +238,7 @@ function localPreferences(): AccountPreferences {
     aiWriting: readWriting(),
     remoteImages: readRemoteImages(),
     parcels: readParcels(),
+    unsubscribe: readUnsubscribe(),
   }
 }
 
@@ -227,6 +255,7 @@ function applyLocally(preferences: AccountPreferences) {
     set(REMOTE_IMAGES_KEY, preferences.remoteImages ? "always" : null)
     // Older accounts saved before this setting existed have it on.
     set(PARCELS_KEY, preferences.parcels === false ? "off" : null)
+    set(UNSUBSCRIBE_KEY, preferences.unsubscribe === false ? "off" : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.
   }
