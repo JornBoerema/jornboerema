@@ -107,6 +107,11 @@ export const en = {
     toggleHelp: "A system notification when mail arrives while this tab is in the background.",
     blocked: "This browser blocks notifications for this site. Allow them in the site settings first.",
     unsupported: "This browser doesn't support notifications.",
+    desktop: {
+      deviceOnly: "Applies to this computer only.",
+      toggleHelp: "A system notification when mail arrives, unless you're looking at your inbox.",
+      blocked: "Notifications for Even are off. Turn them on in your system’s notification settings.",
+    },
     newMail: (count: number) => `${count} new messages`,
   },
   ai: {

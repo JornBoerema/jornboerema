@@ -43,7 +43,7 @@ function Apps() {
   const [active, setActive] = useState(storedApp)
   // An app mounts the first time it is opened and then stays, hidden, so it
   // keeps its place; while hidden its effects (shortcuts, live updates) stop.
-  const [opened, setOpened] = useState<AppId[]>(() => [active])
+  const [opened, setOpened] = useState<AppId[]>(() => [active, "mail"])
 
   const select = (app: string) => {
     if (!isAppId(app)) return
@@ -71,11 +71,8 @@ function Apps() {
   return (
     <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select }}>
       <div className={cn("desktop-app", isMac && "mac")}>
-        {opened.includes("mail") && (
-          <Activity mode={active === "mail" ? "visible" : "hidden"}>
-            <MailEmbed />
-          </Activity>
-        )}
+        {/* Mail stays mounted from the start, so new mail notifies from any app. */}
+        <MailEmbed active={active === "mail"} />
         {opened.includes("todo") && (
           <Activity mode={active === "todo" ? "visible" : "hidden"}>
             <TodoEmbed />

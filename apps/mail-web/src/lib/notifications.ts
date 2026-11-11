@@ -10,11 +10,14 @@ export const notificationsSupported = () => typeof window !== "undefined" && "No
 /**
  * A system notification for each conversation that newly turns up unread, while
  * the tab isn't being looked at. What was unread when the page opened is known.
+ * `always` also notifies while the window has focus: in the desktop app while
+ * another app than mail is open.
  */
 export function useNewMailNotifications(
   latest: MailThreadView[] | undefined,
   texts: { newMail: (count: number) => string; unknownSender: string; noSubject: string },
-  onOpen: (thread: MailThreadView) => void
+  onOpen: (thread: MailThreadView) => void,
+  { always = false }: { always?: boolean } = {}
 ) {
   const enabled = useNotifyNewMail()
   const known = useRef<Set<string> | null>(null)
@@ -30,7 +33,7 @@ export function useNewMailNotifications(
     const seen = known.current
     const fresh = latest.filter((thread) => !seen.has(thread.id))
     for (const thread of latest) seen.add(thread.id)
-    const watching = document.visibilityState === "visible" && document.hasFocus()
+    const watching = !always && document.visibilityState === "visible" && document.hasFocus()
     if (!enabled || watching || fresh.length === 0 || !notificationsSupported()) return
     if (Notification.permission !== "granted") return
 
@@ -51,7 +54,7 @@ export function useNewMailNotifications(
     else
       for (const thread of fresh)
         show(thread.fromName ?? thread.fromEmail ?? texts.unknownSender, thread.subject || texts.noSubject, thread)
-  }, [latest, enabled, texts])
+  }, [latest, enabled, texts, always])
 }
 
 /** The unread count in the tab, like "(3) Even mailen". */

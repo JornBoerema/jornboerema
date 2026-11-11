@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { isDesktop } from "@evido/auth/client"
 import {
   Mail01Icon,
   Notification03Icon,
@@ -91,13 +92,22 @@ function NotificationSettings() {
   const enabled = useNotifyNewMail()
   const supported = notificationsSupported()
   const [permission, setPermission] = useState(() => (supported ? Notification.permission : "denied"))
+  // The desktop app asks the system for its permission, which takes a moment.
+  useEffect(() => {
+    if (!supported || !isDesktop()) return
+    const timer = window.setTimeout(() => setPermission(Notification.permission), 500)
+    return () => window.clearTimeout(timer)
+  }, [supported])
   const blocked = permission === "denied"
+  const desktop = isDesktop()
   return (
-    <SettingsSection title={t.title} description={t.deviceOnly}>
+    <SettingsSection title={t.title} description={desktop ? t.desktop.deviceOnly : t.deviceOnly}>
       <SettingsRow
         title={t.toggle}
         htmlFor="notify-new-mail"
-        description={!supported ? t.unsupported : blocked ? t.blocked : t.toggleHelp}
+        description={
+          !supported ? t.unsupported : blocked ? (desktop ? t.desktop.blocked : t.blocked) : desktop ? t.desktop.toggleHelp : t.toggleHelp
+        }
       >
         <Switch
           id="notify-new-mail"

@@ -108,6 +108,11 @@ export const nl: typeof en = {
     toggleHelp: "Een systeemmelding als er mail binnenkomt terwijl dit tabblad op de achtergrond staat.",
     blocked: "Deze browser blokkeert meldingen voor deze site. Sta ze eerst toe in de site-instellingen.",
     unsupported: "Deze browser ondersteunt geen meldingen.",
+    desktop: {
+      deviceOnly: "Geldt alleen voor deze computer.",
+      toggleHelp: "Een systeemmelding als er mail binnenkomt, behalve als je naar je inbox kijkt.",
+      blocked: "Meldingen voor Even staan uit. Zet ze aan in de meldingsinstellingen van je systeem.",
+    },
     newMail: (count: number) => `${count} nieuwe berichten`,
   },
   ai: {
