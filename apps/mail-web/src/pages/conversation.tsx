@@ -33,7 +33,8 @@ import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
-import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
+import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
+import { useTheme } from "@evido/ui/lib/theme"
 import { useHotkeys } from "@/lib/hotkeys"
 import { canReportSpam, conversationUrl, moveActions, STARRED, threadQuery, useThreadAction } from "@/lib/mail"
 import { DANGER, isDestructive, MOVE_ICONS, MOVE_KEYS, moveLabel } from "@/lib/thread-actions"
@@ -59,7 +60,9 @@ function EmailFrame({ html, allowImages, title }: { html: string; allowImages: b
   const frame = useRef<HTMLIFrameElement>(null)
   const observer = useRef<ResizeObserver | null>(null)
   const [height, setHeight] = useState(120)
-  const source = useMemo(() => buildEmailDocument(html, allowImages), [html, allowImages])
+  // In the dark theme plain mail goes dark too; designed mail keeps its white paper.
+  const dark = useTheme().resolvedTheme === "dark" && !hasOwnBackground(html)
+  const source = useMemo(() => buildEmailDocument(html, allowImages, dark), [html, allowImages, dark])
   useEffect(() => () => observer.current?.disconnect(), [])
 
   function onLoad() {
@@ -90,7 +93,7 @@ function EmailFrame({ html, allowImages, title }: { html: string; allowImages: b
       scrolling="no"
       onLoad={onLoad}
       style={{ height }}
-      className="w-full rounded-md border-0 bg-white"
+      className={cn("w-full rounded-md border-0", dark ? "bg-transparent" : "bg-white")}
     />
   )
 }

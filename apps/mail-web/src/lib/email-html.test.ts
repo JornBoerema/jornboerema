@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest"
-import { buildEmailDocument, hasRemoteImages, sanitizeEmail } from "./email-html"
+import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail } from "./email-html"
 
 describe("sanitizeEmail", () => {
   it.each([
@@ -57,5 +57,31 @@ describe("hasRemoteImages", () => {
     expect(hasRemoteImages(`<div style="background:url(https://t.example/p.gif)"></div>`)).toBe(true)
     expect(hasRemoteImages(`<img src="data:image/png;base64,AA">`)).toBe(false)
     expect(hasRemoteImages(`<a href="https://example.com">x</a>`)).toBe(false)
+  })
+})
+
+describe("hasOwnBackground", () => {
+  it.each([
+    ["plain text", `<p style="color:#333">Hi</p>`],
+    ["white paper", `<body style="background:#ffffff"><table bgcolor="white"><tr><td>Hi</td></tr></table></body>`],
+    ["transparent", `<div style="background-color: transparent !important">Hi</div>`],
+  ])("is false for %s", (_name, html) => {
+    expect(hasOwnBackground(html)).toBe(false)
+  })
+
+  it.each([
+    ["a coloured block", `<td style="background-color:#f07a2b">Book</td>`],
+    ["a bgcolor table", `<table bgcolor="#1a1a1a"><tr><td>Hi</td></tr></table>`],
+    ["a style block", `<style>.header{background:#0b5}</style>`],
+    ["a background image", `<div style="background-image:url(data:image/png;base64,AA)">Hi</div>`],
+  ])("is true for %s", (_name, html) => {
+    expect(hasOwnBackground(html)).toBe(true)
+  })
+})
+
+describe("dark plain mail", () => {
+  it("drops the white paper only when asked", () => {
+    expect(buildEmailDocument("<p>hi</p>", false)).not.toContain("color-scheme:dark")
+    expect(buildEmailDocument("<p>hi</p>", false, true)).toContain("color-scheme:dark")
   })
 })
