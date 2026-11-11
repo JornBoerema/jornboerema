@@ -53,7 +53,6 @@ export const workspace = {
     label: "New task",
     placeholder: "What do you want to do?",
     addLabel: "Add task",
-    add: "Add",
   },
   emptyList: {
     title: "An empty list, a fresh start",

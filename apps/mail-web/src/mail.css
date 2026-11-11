@@ -257,46 +257,6 @@
   font-size: 11px;
 }
 
-/* Rows fade as they slide under the list's header or below its end, instead
-   of being cut off; only once there is something past that edge. */
-@property --fade-top {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-@property --fade-bottom {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-.scroll-fade {
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 var(--fade-top),
-    #000 calc(100% - var(--fade-bottom)),
-    transparent 100%
-  );
-  transition:
-    --fade-top 160ms ease,
-    --fade-bottom 160ms ease;
-}
-.scroll-fade[data-fade-top] {
-  --fade-top: 32px;
-}
-.scroll-fade[data-fade-bottom] {
-  --fade-bottom: 32px;
-}
-/* Where something sticks to the bottom inside the scroller, only the top fades. */
-.scroll-fade.fade-top-only[data-fade-bottom] {
-  --fade-bottom: 0px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .scroll-fade {
-    transition: none;
-  }
-}
-
 /* When to snooze or send: a small spotlight that reads plain words. */
 .when-picker {
   max-width: 440px;

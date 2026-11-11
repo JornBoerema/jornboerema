@@ -54,7 +54,6 @@ export const workspace: typeof en = {
     label: "Nieuwe taak",
     placeholder: "Wat wil je doen?",
     addLabel: "Taak toevoegen",
-    add: "Toevoegen",
   },
   emptyList: {
     title: "Een lege lijst, een frisse start",

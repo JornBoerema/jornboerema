@@ -38,6 +38,7 @@ import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/i18n";
 import { cn } from "@evido/ui/lib/utils";
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar";
+import { useScrollFade } from "@evido/ui/hooks/use-scroll-fade";
 import { Brand } from "@/components/brand";
 import { Button } from "@evido/ui/components/button";
 import { Checkbox } from "@evido/ui/components/checkbox";
@@ -130,6 +131,8 @@ export function WorkspaceApp({
   const [sharingList, setSharingList] = useState<TodoList | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar, expandButton: sidebarExpand } = useCollapsibleSidebar({ enabled: !shareToken });
+  const listScroller = useScrollFade<HTMLDivElement>();
+  const pageScroller = useScrollFade<HTMLDivElement>();
   const taskInput = useRef<HTMLInputElement>(null);
   const noteDownload = useRef<(() => void) | null>(null);
   const noteSave = useRef<(() => Promise<boolean>) | null>(null);
@@ -287,7 +290,7 @@ export function WorkspaceApp({
             )}
             <span role="status">{connectionText}</span>
           </button>
-        <div className={cn("task-content", showDashboard && "dashboard-content", selected?.kind === "note" && "note-content")}>
+        <div ref={pageScroller} className={cn("task-content", showDashboard && "dashboard-content scroll-fade", selected?.kind === "note" && "note-content")}>
           {(!online || error) && (
             <Alert>
               <AlertTitle>
@@ -388,12 +391,12 @@ export function WorkspaceApp({
                           <InputGroupButton
                             type="submit"
                             variant="default"
-                            size="sm"
+                            size="icon-sm"
                             aria-label={t.composer.addLabel}
+                            title={t.composer.addLabel}
                             disabled={disabled || !taskTitle.trim()}
                           >
-                            <Plus data-icon="inline-start" />
-                            <span>{t.composer.add}</span>
+                            <Plus />
                           </InputGroupButton>
                         </InputGroupAddon>
                       </InputGroup>
@@ -415,7 +418,8 @@ export function WorkspaceApp({
                 </Empty>
               ) : (
                 <motion.div
-                  className="todo-list"
+                  ref={listScroller}
+                  className="todo-list scroll-fade"
                   layoutScroll
                   tabIndex={0}
                   role="list"
