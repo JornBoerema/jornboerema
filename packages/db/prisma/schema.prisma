@@ -23,27 +23,27 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
-  sessions             Session[]
-  accounts             Account[]
-  oauthClients         OauthClient[]
-  oauthRefreshTokens   OauthRefreshToken[]
-  oauthAccessTokens    OauthAccessToken[]
-  oauthConsents        OauthConsent[]
-  lists                List[]
-  workspaceMemberships WorkspaceMember[]
-  workspaceInvitations WorkspaceInvitation[]
-  mailAccounts         MailAccount[]
-  mailMessages         MailMessage[]
-  mailSignatures       MailSignature[]
-  mailUploads          MailUpload[]
-  mailOauthStates      MailOauthState[]
-  appAccess            AppAccess[]
-  appAccessRequests    AppAccessRequest[]
-  mailPreferences      MailPreferences?
-  mailShipments        MailShipment[]
-  mailSnoozes          MailSnooze[]
-  mailScheduledSends   MailScheduledSend[]
-  mailInvoices         MailInvoice[]
+  sessions               Session[]
+  accounts               Account[]
+  oauthClients           OauthClient[]
+  oauthRefreshTokens     OauthRefreshToken[]
+  oauthAccessTokens      OauthAccessToken[]
+  oauthConsents          OauthConsent[]
+  lists                  List[]
+  workspaceMemberships   WorkspaceMember[]
+  workspaceInvitations   WorkspaceInvitation[]
+  mailAccounts           MailAccount[]
+  mailMessages           MailMessage[]
+  mailSignatures         MailSignature[]
+  mailUploads            MailUpload[]
+  mailOauthStates        MailOauthState[]
+  appAccess              AppAccess[]
+  appAccessRequests      AppAccessRequest[]
+  mailPreferences        MailPreferences?
+  mailShipments          MailShipment[]
+  mailSnoozes            MailSnooze[]
+  mailScheduledSends     MailScheduledSend[]
+  mailInvoices           MailInvoice[]
   mailRecognitionReports MailRecognitionReport[]
 
   @@map("user")
@@ -368,14 +368,14 @@ model List {
 }
 
 model Todo {
-  id         String   @id
-  listId     String   @map("list_id")
-  list       List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  id         String    @id
+  listId     String    @map("list_id")
+  list       List      @relation(fields: [listId], references: [id], onDelete: Cascade)
   title      String
-  completed  Boolean  @default(false)
-  inProgress Boolean  @default(false) @map("in_progress")
-  position   Int      @default(0)
-  createdAt  DateTime @default(now()) @map("created_at")
+  completed  Boolean   @default(false)
+  inProgress Boolean   @default(false) @map("in_progress")
+  position   Int       @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at")
   mail       TodoMail?
 
   @@index([listId], map: "todos_list_idx")
@@ -439,38 +439,38 @@ enum MailAccountStatus {
 
 /// A connected mailbox. Separate from `account`, which is for signing in to Evido.
 model MailAccount {
-  id                   String            @id
-  userId               String            @map("user_id")
-  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String              @id
+  userId               String              @map("user_id")
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider             MailProvider
-  providerAccountId    String            @map("provider_account_id")
+  providerAccountId    String              @map("provider_account_id")
   email                String
-  displayName          String?           @map("display_name")
+  displayName          String?             @map("display_name")
   /// Sealed with MAIL_TOKEN_KEY (see @evido/mail-core/secrets). Never plaintext.
-  accessToken          String            @map("access_token_sealed")
-  refreshToken         String            @map("refresh_token_sealed")
-  accessTokenExpiresAt DateTime          @map("access_token_expires_at")
+  accessToken          String              @map("access_token_sealed")
+  refreshToken         String              @map("refresh_token_sealed")
+  accessTokenExpiresAt DateTime            @map("access_token_expires_at")
   scope                String
-  status               MailAccountStatus @default(active)
+  status               MailAccountStatus   @default(active)
   /// Index into the client's palette; tells mailboxes apart in a shared list.
-  color                Int               @default(0)
+  color                Int                 @default(0)
   /// Signature for new messages from this mailbox. Null means none.
-  signatureNewId       String?           @map("signature_new_id")
-  signatureNew         MailSignature?    @relation("SignatureForNew", fields: [signatureNewId], references: [id], onDelete: SetNull)
+  signatureNewId       String?             @map("signature_new_id")
+  signatureNew         MailSignature?      @relation("SignatureForNew", fields: [signatureNewId], references: [id], onDelete: SetNull)
   /// Signature for replies and forwards from this mailbox. Null means none.
-  signatureReplyId     String?           @map("signature_reply_id")
-  signatureReply       MailSignature?    @relation("SignatureForReply", fields: [signatureReplyId], references: [id], onDelete: SetNull)
+  signatureReplyId     String?             @map("signature_reply_id")
+  signatureReply       MailSignature?      @relation("SignatureForReply", fields: [signatureReplyId], references: [id], onDelete: SetNull)
   /// Opaque provider position (Gmail history id, Graph delta link). Null until the first sync.
-  syncCursor           String?           @map("sync_cursor")
+  syncCursor           String?             @map("sync_cursor")
   /// Oldest mail this account keeps. Fixed when a full sync starts.
-  syncSince            DateTime?         @map("sync_since")
+  syncSince            DateTime?           @map("sync_since")
   /// Lease so two tabs or functions cannot advance the same cursor at once.
-  syncLockedUntil      DateTime?         @map("sync_locked_until")
+  syncLockedUntil      DateTime?           @map("sync_locked_until")
   /// Graph subscription id. Gmail watches have no id and are found by mailbox address.
-  watchId              String?           @map("watch_id")
-  watchExpiresAt       DateTime?         @map("watch_expires_at")
-  createdAt            DateTime          @default(now()) @map("created_at")
-  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
+  watchId              String?             @map("watch_id")
+  watchExpiresAt       DateTime?           @map("watch_expires_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @default(now()) @updatedAt @map("updated_at")
   messages             MailMessage[]
   summaries            MailSummary[]
   shipments            MailShipment[]
@@ -486,16 +486,16 @@ model MailAccount {
 
 /// A signature the user wrote; mailboxes pick which one they use.
 model MailSignature {
-  id          String        @id
-  userId      String        @map("user_id")
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
+  id         String        @id
+  userId     String        @map("user_id")
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
   /// HTML from the app's own editor.
-  html        String
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
-  forNew      MailAccount[] @relation("SignatureForNew")
-  forReplies  MailAccount[] @relation("SignatureForReply")
+  html       String
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at")
+  forNew     MailAccount[] @relation("SignatureForNew")
+  forReplies MailAccount[] @relation("SignatureForReply")
 
   @@index([userId, createdAt], map: "mail_signatures_user_created_idx")
   @@map("mail_signatures")
@@ -515,6 +515,8 @@ model MailSummary {
   code      String?
   /// Null until a model was asked; then the summary, or empty when it had none.
   summary   String?
+  /// Null until a model was asked; then up to three reply suggestions, empty when it needs none.
+  replies   Json?
   createdAt DateTime    @default(now()) @map("created_at")
 
   @@unique([accountId, threadId, messageId, language], map: "mail_summaries_key")
@@ -547,7 +549,7 @@ model MailShipment {
   subject      String
   receivedAt   DateTime    @map("received_at")
   /// Reported as recognised wrongly: out of the list, and not read again.
-  dismissed     Boolean     @default(false)
+  dismissed    Boolean     @default(false)
   updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
 
   @@unique([accountId, threadId], map: "mail_shipments_thread_key")
@@ -631,20 +633,20 @@ model MailSnooze {
 /// A draft at the provider to be sent at `sendAt`. What it says lives in the
 /// draft; only what the Scheduled list shows is kept here.
 model MailScheduledSend {
-  id        String      @id
-  userId    String      @map("user_id")
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId String      @map("account_id")
-  account   MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  draftId   String      @map("draft_id")
-  sendAt    DateTime    @map("send_at")
-  subject   String
+  id          String      @id
+  userId      String      @map("user_id")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String      @map("account_id")
+  account     MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  draftId     String      @map("draft_id")
+  sendAt      DateTime    @map("send_at")
+  subject     String
   /// Name and address pairs, for the list line.
-  toAddresses Json      @default("[]") @map("to_addresses")
+  toAddresses Json        @default("[]") @map("to_addresses")
   /// Set when sending failed, with the reason, so the list can say so.
-  failedAt  DateTime?   @map("failed_at")
-  error     String?
-  createdAt DateTime    @default(now()) @map("created_at")
+  failedAt    DateTime?   @map("failed_at")
+  error       String?
+  createdAt   DateTime    @default(now()) @map("created_at")
 
   @@unique([accountId, draftId], map: "mail_scheduled_sends_draft_key")
   @@index([sendAt], map: "mail_scheduled_sends_send_at_idx")
@@ -704,25 +706,25 @@ enum MailMessageFolder {
 /// List metadata of every synced folder. Bodies and attachments stay at the provider.
 model MailMessage {
   /// Derived from account and provider id, so re-syncing keeps the same id.
-  id                String      @id
-  userId            String      @map("user_id")
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId         String      @map("account_id")
-  account           MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  providerMessageId String      @map("provider_message_id")
-  threadId          String?     @map("thread_id")
+  id                String            @id
+  userId            String            @map("user_id")
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId         String            @map("account_id")
+  account           MailAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  providerMessageId String            @map("provider_message_id")
+  threadId          String?           @map("thread_id")
   /// Where it sits; Gmail labels are mapped onto these.
   folder            MailMessageFolder @default(inbox)
   /// Name and address pairs, for naming who sent mail went to.
-  toAddresses       Json        @default("[]") @map("to_addresses")
+  toAddresses       Json              @default("[]") @map("to_addresses")
   subject           String
   snippet           String
-  fromName          String?     @map("from_name")
-  fromEmail         String?     @map("from_email")
-  receivedAt        DateTime    @map("received_at")
-  isRead            Boolean     @map("is_read")
-  isStarred         Boolean     @map("is_starred")
-  hasAttachments    Boolean     @map("has_attachments")
+  fromName          String?           @map("from_name")
+  fromEmail         String?           @map("from_email")
+  receivedAt        DateTime          @map("received_at")
+  isRead            Boolean           @map("is_read")
+  isStarred         Boolean           @map("is_starred")
+  hasAttachments    Boolean           @map("has_attachments")
 
   @@unique([accountId, providerMessageId], map: "mail_messages_account_provider_unique")
   @@index([userId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_received_idx")
@@ -775,27 +777,29 @@ model AppAccessRequest {
 
 /// Mail settings that follow the account to every device. Notifications stay per browser.
 model MailPreferences {
-  userId       String   @id @map("user_id")
-  summaries    Boolean  @default(true)
-  codes        Boolean  @default(true)
-  aiWriting    Boolean  @default(true) @map("ai_writing")
-  remoteImages Boolean  @default(false) @map("remote_images")
+  userId           String   @id @map("user_id")
+  summaries        Boolean  @default(true)
+  codes            Boolean  @default(true)
+  aiWriting        Boolean  @default(true) @map("ai_writing")
+  remoteImages     Boolean  @default(false) @map("remote_images")
   /// Parcels from shipping mail; off reads no shipping mail and keeps none of it.
-  parcels      Boolean  @default(true)
+  parcels          Boolean  @default(true)
   /// The Unsubscribe button beside mail from a mailing list.
-  unsubscribe  Boolean  @default(true)
+  unsubscribe      Boolean  @default(true)
   /// Tidy up: the inbox per sender, to archive, mark read or unsubscribe at once.
-  senders      Boolean  @default(true)
+  senders          Boolean  @default(true)
   /// Invoices and payments from mail; off reads none of it and keeps none of it.
-  invoices     Boolean  @default(true)
+  invoices         Boolean  @default(true)
   /// "Make a task" on a mail, for Even doen, and the tasks made from it above the mail.
-  todos        Boolean  @default(true)
+  todos            Boolean  @default(true)
   /// Pinning conversations to the top of the inbox.
-  pins         Boolean  @default(true)
+  pins             Boolean  @default(true)
+  /// Three replies written by a model, under mail that asks for an answer.
+  replySuggestions Boolean  @default(true) @map("reply_suggestions")
   /// The sidebar as arranged: { main, more, hidden }, each a list of places; null is the default.
-  sidebar      Json?
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sidebar          Json?
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("mail_preferences")
 }

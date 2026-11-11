@@ -281,6 +281,7 @@ export default function RichTextEditor({
   autoFocus,
   className,
   initialHtml,
+  initialBody,
   signature,
   imagesAsFiles = true,
   onChange,
@@ -292,6 +293,8 @@ export default function RichTextEditor({
   className?: string
   /** Content to start from, such as an opened draft. */
   initialHtml?: string
+  /** Text to start from above the signature, which is then added as usual. */
+  initialBody?: string
   /**
    * The signature to keep at the end. Starting content is assumed to have the
    * right one already; a later change swaps it.
@@ -386,7 +389,7 @@ export default function RichTextEditor({
         return false
       },
     },
-    content: initialHtml && withoutTrailingBreaks(initialHtml),
+    content: initialHtml ? withoutTrailingBreaks(initialHtml) : initialBody,
     onCreate: emit,
     onUpdate: emit,
   })

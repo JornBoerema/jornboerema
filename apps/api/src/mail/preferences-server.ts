@@ -12,6 +12,7 @@ export type MailPreferences = {
   invoices: boolean
   todos: boolean
   pins: boolean
+  replySuggestions: boolean
   sidebar: SidebarLayout | null
 }
 
@@ -26,6 +27,7 @@ const select = {
   invoices: true,
   todos: true,
   pins: true,
+  replySuggestions: true,
   sidebar: true,
 } as const
 
@@ -48,6 +50,11 @@ export async function invoicesEnabled(userId: string) {
 /** Whether pinning is on: it is unless turned off. */
 export async function pinsEnabled(userId: string) {
   return (await readPreferences(userId))?.pins ?? true
+}
+
+/** Whether reply suggestions are on: they are unless turned off. */
+export async function replySuggestionsEnabled(userId: string) {
+  return (await readPreferences(userId))?.replySuggestions ?? true
 }
 
 export async function savePreferences(userId: string, input: Partial<MailPreferences>): Promise<MailPreferences> {

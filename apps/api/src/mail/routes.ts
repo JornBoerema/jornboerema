@@ -54,6 +54,7 @@ import {
   updateSignature,
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
+import { repliesFor, RepliesFailedError } from "./replies-server"
 import { listShipments, scanShipments, shipmentForConversation } from "./shipments-server"
 import { NothingToUnsubscribeError, unsubscribeFrom } from "./unsubscribe-server"
 import {
@@ -71,7 +72,7 @@ import { secretsMatch } from "@evido/mail-core/secrets"
 import { NAV_ITEMS } from "@evido/mail-core/sidebar"
 import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
-import { invoicesEnabled, parcelsEnabled, pinsEnabled, readPreferences, savePreferences } from "./preferences-server"
+import { invoicesEnabled, parcelsEnabled, pinsEnabled, readPreferences, replySuggestionsEnabled, savePreferences } from "./preferences-server"
 import { invoiceForConversation, listInvoices, scanInvoices } from "./invoices-server"
 import { listPins, pin } from "./pins-server"
 import { createTodoFromMail, TodoListGoneError, todoLists, todosForConversation } from "./todo-server"
@@ -258,6 +259,7 @@ const preferencesBody = z
     invoices: z.boolean(),
     todos: z.boolean(),
     pins: z.boolean(),
+    replySuggestions: z.boolean(),
     sidebar: z
       .object({ main: z.array(z.enum(NAV_ITEMS)).max(20), more: z.array(z.enum(NAV_ITEMS)).max(20), hidden: z.array(z.enum(NAV_ITEMS)).max(20) })
       .nullable(),
@@ -412,6 +414,36 @@ mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
     return c.json(await summaryFor(conversation, languageOf(c), summaryOptions(c)), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
+    return failure(c, error)
+  }
+})
+
+/** Three replies under mail that asks for one, none otherwise; made once per newest message and kept. */
+async function repliesAnswer(c: Context<AppEnv>, conversation: Conversation) {
+  const user = c.get("session").user
+  try {
+    if (!(await replySuggestionsEnabled(user.id))) return c.json({ replies: [] }, 200, noStore)
+    return c.json({ replies: await repliesFor(conversation, languageOf(c), user.name ?? "") }, 200, noStore)
+  } catch (error) {
+    if (error instanceof RepliesFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
+    return failure(c, error)
+  }
+}
+
+mailRoutes.get("/threads/:id/replies", requireSession, async (c) => {
+  try {
+    return await repliesAnswer(c, await ownedMessage(c.get("session").user.id, c.req.param("id")))
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/accounts/:id/conversation/replies", requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return await repliesAnswer(c, { ...conversation, hidden: c.req.query("hidden") === "1" })
+  } catch (error) {
     return failure(c, error)
   }
 })

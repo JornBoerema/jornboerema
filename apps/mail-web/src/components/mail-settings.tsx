@@ -40,6 +40,8 @@ import {
   setAiWriting,
   setFindCodes,
   setSummaries,
+  setReplySuggestions,
+  useReplySuggestions,
   useAlwaysShowImages,
   useAiWriting,
   useFindCodes,
@@ -192,10 +194,14 @@ function AiSettings() {
   const summaries = useSummaries()
   const codes = useFindCodes()
   const writing = useAiWriting()
+  const replies = useReplySuggestions()
   return (
     <SettingsSection title={t.title} description={t.saved}>
       <SettingsRow title={t.summaries} htmlFor="mail-summaries" description={t.summariesHelp}>
         <Switch id="mail-summaries" checked={summaries} onCheckedChange={setSummaries} />
+      </SettingsRow>
+      <SettingsRow title={t.replies} htmlFor="mail-reply-suggestions" description={t.repliesHelp}>
+        <Switch id="mail-reply-suggestions" checked={replies} onCheckedChange={setReplySuggestions} />
       </SettingsRow>
       <SettingsRow title={t.writing} htmlFor="mail-ai-writing" description={t.writingHelp}>
         <Switch id="mail-ai-writing" checked={writing} onCheckedChange={setAiWriting} />

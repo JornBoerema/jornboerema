@@ -15,6 +15,7 @@ import { useSignatureChoice } from "@/lib/signatures"
 import { isUploading, useAttachmentRefs, type ComposerFile } from "@/lib/uploads"
 import { AddressRow } from "@/components/address-row"
 import { useI18n } from "@/i18n"
+import { textToEditorHtml } from "@/lib/email-compose"
 import { parseAddresses } from "@/lib/addresses"
 import { api, errorText } from "@/lib/api"
 import { conversationUrl, syncSoon } from "@/lib/mail"
@@ -57,6 +58,7 @@ export function ReplyForm({
   account,
   all,
   initial,
+  prefill,
   onClose,
 }: {
   threadId: string
@@ -67,6 +69,8 @@ export function ReplyForm({
   all: boolean
   /** A reply started earlier on this conversation, kept in the browser. */
   initial: ReplyDraft | null
+  /** A suggested reply to start from, as plain text. */
+  prefill?: string
   onClose: () => void
 }) {
   const t = useI18n().t.conversation
@@ -135,6 +139,7 @@ export function ReplyForm({
           className="min-h-32 flex-1"
           signature={signature}
           initialHtml={initialHtml}
+          initialBody={prefill && textToEditorHtml(prefill)}
           onChange={keep}
         />
       </Suspense>

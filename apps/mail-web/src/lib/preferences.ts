@@ -299,6 +299,32 @@ export function usePins() {
   return useSyncExternalStore(subscribe, readPins)
 }
 
+const REPLY_SUGGESTIONS_KEY = "evido.mail.reply-suggestions"
+
+function readReplySuggestions() {
+  try {
+    return localStorage.getItem(REPLY_SUGGESTIONS_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setReplySuggestions(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(REPLY_SUGGESTIONS_KEY)
+    else localStorage.setItem(REPLY_SUGGESTIONS_KEY, "off")
+  } catch {
+    // Storage can be blocked; the account still keeps the choice.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ replySuggestions: enabled })
+}
+
+/** On unless turned off: a model suggests three replies under mail that asks for one. */
+export function useReplySuggestions() {
+  return useSyncExternalStore(subscribe, readReplySuggestions)
+}
+
 const SIDEBAR_KEY = "evido.mail.sidebar"
 // One parsed layout per stored text, so the store hands out the same object until it changes.
 let sidebarCache: { raw: string | null; layout: SidebarLayout } | null = null
@@ -384,6 +410,7 @@ type AccountPreferences = {
   invoices: boolean
   todos: boolean
   pins: boolean
+  replySuggestions: boolean
   sidebar: SidebarLayout | null
 }
 
@@ -401,6 +428,7 @@ function localPreferences(): AccountPreferences {
     invoices: readInvoices(),
     todos: readTodos(),
     pins: readPins(),
+    replySuggestions: readReplySuggestions(),
     sidebar: readSidebarSaved(),
   }
 }
@@ -423,6 +451,7 @@ function applyLocally(preferences: AccountPreferences) {
     set(INVOICES_KEY, preferences.invoices === false ? "off" : null)
     set(TODOS_KEY, preferences.todos === false ? "off" : null)
     set(PINS_KEY, preferences.pins === false ? "off" : null)
+    set(REPLY_SUGGESTIONS_KEY, preferences.replySuggestions === false ? "off" : null)
     set(SIDEBAR_KEY, preferences.sidebar ? JSON.stringify(preferences.sidebar) : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.

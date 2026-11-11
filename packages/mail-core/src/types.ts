@@ -348,6 +348,9 @@ export type MailScheduledView = {
   failed: boolean
 }
 
+/** A reply a model suggests: a few words to pick it by, and the reply itself. */
+export type MailReplySuggestion = { label: string; text: string }
+
 export type MailSummary =
   | { kind: "code"; code: string }
   | { kind: "summary"; summary: string }

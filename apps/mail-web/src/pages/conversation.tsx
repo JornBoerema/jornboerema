@@ -43,6 +43,7 @@ import { canPin, usePin, usePinned } from "@/lib/pins"
 import { UnsubscribeButton } from "@/components/unsubscribe-button"
 import { WhenPicker } from "@/components/when-picker"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
+import { ReplySuggestions } from "@/components/reply-suggestions"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
@@ -446,6 +447,8 @@ export function ConversationPage({
   const { mutate: setPinned } = usePin()
   const togglePin = () => setPinned({ thread: summary, pinned: !isPinned })
   const [replyMode, setReplyMode] = useState<ReplyMode | null>(savedReply?.mode ?? null)
+  // A picked suggestion, the reply starts from it.
+  const [prefill, setPrefill] = useState<string | null>(null)
   const replyDraft = savedReply?.mode === replyMode ? savedReply : null
   const { mutate: runAction } = useThreadAction()
   // Often already here: rows load their conversation when hovered. Bodies stay in
@@ -633,26 +636,40 @@ export function ConversationPage({
                   account={account}
                   all={replyMode === "all"}
                   initial={replyDraft}
-                  onClose={() => setReplyMode(null)}
+                  prefill={prefill ?? undefined}
+                  onClose={() => {
+                    setReplyMode(null)
+                    setPrefill(null)
+                  }}
                 />
               ) : (
-                <div className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
-                  <p className="hidden min-w-0 items-center gap-1.5 @2xl:flex">
-                    <span className="shrink-0 text-muted-foreground">{t.messageCount(messages.length)} ·</span>
-                    {account && <AccountDot color={account.color} />}
-                    <span className="truncate font-medium">{account?.email}</span>
-                  </p>
-                  <div className="ml-auto flex shrink-0 items-center gap-1">
-                    {replyActions.map(({ mode, text, icon, shortcut }) => (
-                      <IconTip key={mode} label={text} shortcut={shortcut}>
-                        <Button variant={mode === "reply" ? "outline" : "ghost"} onClick={() => setReplyMode(mode)}>
-                          <HugeiconsIcon icon={icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
-                          <span className={cn(mode !== "reply" && "sr-only @lg:not-sr-only")}>{text}</span>
-                        </Button>
-                      </IconTip>
-                    ))}
+                <>
+                  <ReplySuggestions
+                    threadId={id}
+                    newestId={last.id}
+                    onPick={(text) => {
+                      setPrefill(text)
+                      setReplyMode("reply")
+                    }}
+                  />
+                  <div className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
+                    <p className="hidden min-w-0 items-center gap-1.5 @2xl:flex">
+                      <span className="shrink-0 text-muted-foreground">{t.messageCount(messages.length)} ·</span>
+                      {account && <AccountDot color={account.color} />}
+                      <span className="truncate font-medium">{account?.email}</span>
+                    </p>
+                    <div className="ml-auto flex shrink-0 items-center gap-1">
+                      {replyActions.map(({ mode, text, icon, shortcut }) => (
+                        <IconTip key={mode} label={text} shortcut={shortcut}>
+                          <Button variant={mode === "reply" ? "outline" : "ghost"} onClick={() => setReplyMode(mode)}>
+                            <HugeiconsIcon icon={icon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
+                            <span className={cn(mode !== "reply" && "sr-only @lg:not-sr-only")}>{text}</span>
+                          </Button>
+                        </IconTip>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           )}
