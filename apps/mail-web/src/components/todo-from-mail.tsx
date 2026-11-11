@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import {
   ArrowUpRight01Icon,
   CheckmarkSquare02Icon,
+  CornerDownLeftIcon,
   LeftToRightListBulletIcon,
   Mail01Icon,
   SquareIcon,
@@ -218,7 +219,9 @@ export function TodoDialog({
           )}
           <Button size="sm" className="ml-auto" disabled={!ready} onClick={submit}>
             {create.isPending ? <Spinner /> : t.create}
-            <kbd className="font-sans text-[11px] opacity-70">↵</kbd>
+            <kbd className="button-kbd" aria-hidden="true">
+              <HugeiconsIcon icon={CornerDownLeftIcon} strokeWidth={2} className="size-3" />
+            </kbd>
           </Button>
         </div>
       </DialogContent>
