@@ -70,7 +70,8 @@ import {
 import { secretsMatch } from "@evido/mail-core/secrets"
 import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
-import { parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
+import { invoicesEnabled, parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
+import { invoiceForConversation, listInvoices, scanInvoices } from "./invoices-server"
 import { syncAccount } from "./sync-server"
 import {
   createUpload,
@@ -249,6 +250,7 @@ const preferencesBody = z
     parcels: z.boolean(),
     unsubscribe: z.boolean(),
     senders: z.boolean(),
+    invoices: z.boolean(),
   })
   .partial()
   .refine((change) => Object.keys(change).length > 0)
@@ -413,6 +415,40 @@ mailRoutes.get("/shipments", requireSession, async (c) => {
     if (!(await parcelsEnabled(userId))) return c.json({ shipments: [], complete: true }, 200, noStore)
     const scan = await scanShipments(userId)
     return c.json({ shipments: await listShipments(userId), complete: scan.done }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Invoices: who, how much, by when and whether paid are kept; the mail isn't.
+mailRoutes.get("/invoices", requireSession, async (c) => {
+  try {
+    const userId = c.get("session").user.id
+    if (!(await invoicesEnabled(userId))) return c.json({ invoices: [], complete: true }, 200, noStore)
+    const scan = await scanInvoices(userId)
+    return c.json({ invoices: await listInvoices(userId), complete: scan.done }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/threads/:id/invoice", requireSession, async (c) => {
+  try {
+    const userId = c.get("session").user.id
+    if (!(await invoicesEnabled(userId))) return c.json({ invoice: null }, 200, noStore)
+    return c.json({ invoice: await invoiceForConversation(await ownedMessage(userId, c.req.param("id"))) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/accounts/:id/conversation/invoice", requireSession, async (c) => {
+  try {
+    if (!(await invoicesEnabled(c.get("session").user.id))) return c.json({ invoice: null }, 200, noStore)
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    const hidden = c.req.query("hidden") === "1"
+    return c.json({ invoice: await invoiceForConversation({ ...conversation, hidden }) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

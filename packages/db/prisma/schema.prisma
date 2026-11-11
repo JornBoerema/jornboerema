@@ -43,6 +43,7 @@ model User {
   mailShipments        MailShipment[]
   mailSnoozes          MailSnooze[]
   mailScheduledSends   MailScheduledSend[]
+  mailInvoices         MailInvoice[]
 
   @@map("user")
 }
@@ -441,6 +442,7 @@ model MailAccount {
   shipments            MailShipment[]
   snoozes              MailSnooze[]
   scheduledSends       MailScheduledSend[]
+  invoices             MailInvoice[]
 
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
   @@index([watchId], map: "mail_accounts_watch_id_idx")
@@ -514,6 +516,36 @@ model MailShipment {
   @@unique([accountId, threadId], map: "mail_shipments_thread_key")
   @@index([userId, receivedAt(sort: Desc)], map: "mail_shipments_user_received_idx")
   @@map("mail_shipments")
+}
+
+/// What an invoice, receipt or payment request in a conversation says: who,
+/// how much, by when, paid or not. Never the mail itself. One row per
+/// conversation, made again when it grows or the reading improves.
+model MailInvoice {
+  id            String      @id
+  userId        String      @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId     String      @map("account_id")
+  account       MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  threadId      String      @map("thread_id")
+  messageId     String      @map("message_id")
+  readVersion   Int         @default(1) @map("read_version")
+  found         Boolean
+  vendor        String?
+  amountCents   Int?        @map("amount_cents")
+  currency      String?
+  dueDate       String?     @map("due_date")
+  invoiceNumber String?     @map("invoice_number")
+  payUrl        String?     @map("pay_url")
+  status        String?
+  overdue       Boolean     @default(false)
+  subject       String
+  receivedAt    DateTime    @map("received_at")
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([accountId, threadId], map: "mail_invoices_thread_key")
+  @@index([userId, receivedAt(sort: Desc)], map: "mail_invoices_user_received_idx")
+  @@map("mail_invoices")
 }
 
 /// A conversation put away until later: archived at the provider, and moved
@@ -693,6 +725,8 @@ model MailPreferences {
   unsubscribe  Boolean  @default(true)
   /// Tidy up: the inbox per sender, to archive, mark read or unsubscribe at once.
   senders      Boolean  @default(true)
+  /// Invoices and payments from mail; off reads none of it and keeps none of it.
+  invoices     Boolean  @default(true)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

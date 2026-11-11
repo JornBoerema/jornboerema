@@ -32,6 +32,7 @@ import {
 import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
 import { ShipmentCard } from "@/components/parcels"
+import { InvoiceCard } from "@/components/invoices"
 import { UnsubscribeButton } from "@/components/unsubscribe-button"
 import { WhenPicker } from "@/components/when-picker"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
@@ -481,6 +482,7 @@ export function ConversationPage({
             {messages[0]?.subject || summary.subject}
           </h2>
           <ShipmentCard threadId={id} thread={summary} />
+          <InvoiceCard threadId={id} thread={summary} />
           <MailSummaryCard threadId={id} />
           {thread.isPending && (
             // What the list already knows, while the message itself comes in.

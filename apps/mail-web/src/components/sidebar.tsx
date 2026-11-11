@@ -1,5 +1,5 @@
 import { useLaterCounts } from "@/lib/later"
-import { useParcels, useSenders } from "@/lib/preferences"
+import { useInvoices, useParcels, useSenders } from "@/lib/preferences"
 import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
@@ -28,6 +28,7 @@ import {
   AlarmClockIcon,
   MailSend01Icon,
   CleanIcon,
+  Invoice02Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -51,7 +52,7 @@ import { signOut } from "@/lib/auth-client"
 import { useUnread } from "@/lib/mail"
 import { IconTip } from "@/components/icon-tip"
 
-export type MailView = "inbox" | "drafts" | "parcels" | "snoozed" | "scheduled" | "senders" | MailFolder
+export type MailView = "inbox" | "drafts" | "parcels" | "invoices" | "snoozed" | "scheduled" | "senders" | MailFolder
 
 export const FOLDER_ICONS: Record<MailFolder, IconSvgElement> = {
   starred: StarIcon,
@@ -76,6 +77,7 @@ export type MailNavigation = {
   onSelectAccount: (id: string) => void
   onSelectDrafts: () => void
   onSelectParcels: () => void
+  onSelectInvoices: () => void
   onSelectSnoozed: () => void
   onSelectScheduled: () => void
   onSelectSenders: () => void
@@ -168,6 +170,7 @@ export function Sidebar({
   onSelectAccount,
   onSelectDrafts,
   onSelectParcels,
+  onSelectInvoices,
   onSelectSnoozed,
   onSelectScheduled,
   onSelectSenders,
@@ -181,6 +184,7 @@ export function Sidebar({
   const parcels = useParcels()
   const { snoozedCount, scheduledCount } = useLaterCounts()
   const tidy = useSenders()
+  const invoices = useInvoices()
   const unread = useUnread(true).data?.count
   // While writing, only New message is current; closing it gives the selection back.
   const allSelected = !composing && view === "inbox" && accountId === ""
@@ -251,6 +255,17 @@ export function Sidebar({
               >
                 <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
                 <span>{t.parcels.title}</span>
+              </button>
+            )}
+            {invoices && (
+              <button
+                type="button"
+                className={cn("list-link", shownView === "invoices" && "is-selected")}
+                aria-current={shownView === "invoices" ? "page" : undefined}
+                onClick={onSelectInvoices}
+              >
+                <HugeiconsIcon icon={Invoice02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                <span>{t.invoices.title}</span>
               </button>
             )}
             {(snoozedCount > 0 || shownView === "snoozed") && (
@@ -380,6 +395,7 @@ export function Sidebar({
           onSelectAccount,
           onSelectDrafts,
           onSelectParcels,
+          onSelectInvoices,
           onSelectSnoozed,
           onSelectScheduled,
           onSelectSenders,
@@ -503,6 +519,7 @@ function SidebarRail({
   onSelectAccount,
   onSelectDrafts,
   onSelectParcels,
+  onSelectInvoices,
   onSelectSnoozed,
   onSelectScheduled,
   onSelectSenders,
@@ -516,6 +533,7 @@ function SidebarRail({
   const parcels = useParcels()
   const { snoozedCount, scheduledCount } = useLaterCounts()
   const tidy = useSenders()
+  const invoices = useInvoices()
   const shownView: MailView | null = composing ? null : view
   return (
     <div className="sidebar-rail" inert={!sidebar.collapsed}>
@@ -562,6 +580,14 @@ function SidebarRail({
             label={t.parcels.title}
             selected={shownView === "parcels"}
             onClick={onSelectParcels}
+          />
+        )}
+        {invoices && (
+          <RailLink
+            icon={Invoice02Icon}
+            label={t.invoices.title}
+            selected={shownView === "invoices"}
+            onClick={onSelectInvoices}
           />
         )}
         {(snoozedCount > 0 || shownView === "snoozed") && (
@@ -651,6 +677,7 @@ const PARCELS_CHOICE = "parcels:"
 const SNOOZED_CHOICE = "snoozed:"
 const SCHEDULED_CHOICE = "scheduled:"
 const SENDERS_CHOICE = "senders:"
+const INVOICES_CHOICE = "invoices:"
 const FOLDER_CHOICE = "folder:"
 
 export function MailMenu({
@@ -661,6 +688,7 @@ export function MailMenu({
   onSelectAccount,
   onSelectDrafts,
   onSelectParcels,
+  onSelectInvoices,
   onSelectSnoozed,
   onSelectScheduled,
   onSelectSenders,
@@ -675,6 +703,7 @@ export function MailMenu({
   | "onSelectAccount"
   | "onSelectDrafts"
   | "onSelectParcels"
+  | "onSelectInvoices"
   | "onSelectSnoozed"
   | "onSelectScheduled"
   | "onSelectSenders"
@@ -684,6 +713,7 @@ export function MailMenu({
   const { t } = useI18n()
   const parcels = useParcels()
   const tidy = useSenders()
+  const invoices = useInvoices()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -698,6 +728,8 @@ export function MailMenu({
               ? DRAFTS_CHOICE
               : view === "parcels"
                 ? PARCELS_CHOICE
+                : view === "invoices"
+                  ? INVOICES_CHOICE
                 : view === "snoozed"
                   ? SNOOZED_CHOICE
                   : view === "scheduled"
@@ -711,6 +743,7 @@ export function MailMenu({
           onValueChange={(value) => {
             if (value === DRAFTS_CHOICE) onSelectDrafts()
             else if (value === PARCELS_CHOICE) onSelectParcels()
+            else if (value === INVOICES_CHOICE) onSelectInvoices()
             else if (value === SNOOZED_CHOICE) onSelectSnoozed()
             else if (value === SCHEDULED_CHOICE) onSelectScheduled()
             else if (value === SENDERS_CHOICE) onSelectSenders()
@@ -724,6 +757,7 @@ export function MailMenu({
             {draftCount > 0 && <span className="ml-auto text-xs text-muted-foreground tabular-nums">{draftCount}</span>}
           </DropdownMenuRadioItem>
           {parcels && <DropdownMenuRadioItem value={PARCELS_CHOICE}>{t.parcels.title}</DropdownMenuRadioItem>}
+          {invoices && <DropdownMenuRadioItem value={INVOICES_CHOICE}>{t.invoices.title}</DropdownMenuRadioItem>}
           <DropdownMenuRadioItem value={SNOOZED_CHOICE}>{t.later.snoozedTitle}</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value={SCHEDULED_CHOICE}>{t.later.scheduledTitle}</DropdownMenuRadioItem>
           {tidy && <DropdownMenuRadioItem value={SENDERS_CHOICE}>{t.senders.title}</DropdownMenuRadioItem>}

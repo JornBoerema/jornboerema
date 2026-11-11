@@ -10,7 +10,7 @@ import { cn } from "@evido/ui/lib/utils"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { MailSettings } from "@/components/mail-settings"
-import { useParcels, usePreferencesSync, useSenders } from "@/lib/preferences"
+import { useInvoices, useParcels, usePreferencesSync, useSenders } from "@/lib/preferences"
 import { MailSpotlight } from "@/components/mail-spotlight"
 import { ShortcutsSpotlight } from "@/components/shortcuts-spotlight"
 import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
@@ -55,9 +55,11 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   // Parcels turned off, here or on another device, takes its list away.
   const parcels = useParcels()
   const tidy = useSenders()
+  const invoices = useInvoices()
   useEffect(() => {
-    if ((!parcels && view === "parcels") || (!tidy && view === "senders")) setView("inbox")
-  }, [parcels, tidy, view])
+    if ((!parcels && view === "parcels") || (!tidy && view === "senders") || (!invoices && view === "invoices"))
+      setView("inbox")
+  }, [parcels, tidy, invoices, view])
   // A new key starts a fresh composer, for a new message or another draft.
   const [compose, setCompose] = useState<{ key: number; draft: DraftRef | null } | null>(null)
   const [composeDraftId, setComposeDraftId] = useState<string | null>(null)
@@ -176,6 +178,11 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       setFilter("")
       setOpen(null)
       setView("parcels")
+    },
+    onSelectInvoices: () => {
+      setFilter("")
+      setOpen(null)
+      setView("invoices")
     },
     onSelectSnoozed: () => {
       setFilter("")

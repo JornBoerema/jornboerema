@@ -220,6 +220,32 @@ export function useSenders() {
   return useSyncExternalStore(subscribe, readSenders)
 }
 
+const INVOICES_KEY = "evido.mail.invoices"
+
+function readInvoices() {
+  try {
+    return localStorage.getItem(INVOICES_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setInvoices(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(INVOICES_KEY)
+    else localStorage.setItem(INVOICES_KEY, "off")
+  } catch {
+    // Storage can be blocked; the account still keeps the choice.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ invoices: enabled })
+}
+
+/** On unless turned off: invoices and payments from mail, in their own list and above the mail. */
+export function useInvoices() {
+  return useSyncExternalStore(subscribe, readInvoices)
+}
+
 const DELIVERED_KEY = "evido.mail.parcels-delivered"
 
 function readShowDelivered() {
@@ -254,6 +280,7 @@ type AccountPreferences = {
   parcels: boolean
   unsubscribe: boolean
   senders: boolean
+  invoices: boolean
 }
 
 const PREFERENCES_URL = "/api/mail/preferences"
@@ -267,6 +294,7 @@ function localPreferences(): AccountPreferences {
     parcels: readParcels(),
     unsubscribe: readUnsubscribe(),
     senders: readSenders(),
+    invoices: readInvoices(),
   }
 }
 
@@ -285,6 +313,7 @@ function applyLocally(preferences: AccountPreferences) {
     set(PARCELS_KEY, preferences.parcels === false ? "off" : null)
     set(UNSUBSCRIBE_KEY, preferences.unsubscribe === false ? "off" : null)
     set(SENDERS_KEY, preferences.senders === false ? "off" : null)
+    set(INVOICES_KEY, preferences.invoices === false ? "off" : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.
   }

@@ -40,6 +40,7 @@ import {
   type MailFolder,
   type MailAccountView,
   type MailDraftView,
+  type MailInvoiceView,
   type MailSenderView,
   type MailShipmentView,
   type MailThreadAction,
@@ -64,6 +65,8 @@ import { toast } from "sonner"
 import { WhenPicker } from "@/components/when-picker"
 import { nameOf, useSenderList, useTidy, type SenderAction } from "@/lib/senders"
 import { SenderPane } from "@/components/sender-pane"
+import { InvoiceStatus } from "@/components/invoices"
+import { formatMoney, isOpen, useInvoiceList } from "@/lib/invoices"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -287,6 +290,52 @@ function ThreadRow({
           })),
         ]}
       />
+    </li>
+  )
+}
+
+/** An invoice, receipt or payment request, laid out as a mail line: vendor and amount, then where it stands. */
+function InvoiceRow({
+  invoice,
+  selected,
+  onOpen,
+  onHover,
+}: {
+  invoice: MailInvoiceView
+  selected: boolean
+  onOpen: (thread: MailThreadView) => void
+  onHover: (hovering: boolean) => void
+}) {
+  const { t, locale } = useI18n()
+  const payUrl = invoice.payUrl
+  return (
+    <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
+      <button
+        type="button"
+        aria-current={selected ? "true" : undefined}
+        disabled={!invoice.thread}
+        onClick={() => invoice.thread && onOpen(invoice.thread)}
+        className={cn(
+          "flex w-full flex-col gap-0.5 rounded-lg py-2 pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
+          selected ? "bg-accent" : "group-hover:bg-accent/60"
+        )}
+      >
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate font-medium">{invoice.vendor ?? invoice.subject}</span>
+          <span className={cn("shrink-0 text-sm tabular-nums", payUrl && UNDER_ACTIONS)}>
+            {invoice.amountCents !== null ? formatMoney(invoice.amountCents, invoice.currency, locale) : "—"}
+          </span>
+        </span>
+        <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+          <InvoiceStatus invoice={invoice} />
+          <span className="ml-auto shrink-0 text-xs tabular-nums">{shortDate(invoice.receivedAt, locale)}</span>
+        </span>
+      </button>
+      {payUrl && (
+        <RowActions
+          actions={[{ icon: ArrowUpRight01Icon, label: t.invoices.pay, run: () => window.open(payUrl, "_blank", "noopener,noreferrer") }]}
+        />
+      )}
     </li>
   )
 }
@@ -727,20 +776,42 @@ export function InboxPage({
   const showSnoozed = navigation.view === "snoozed"
   const showScheduled = navigation.view === "scheduled"
   const showSenders = navigation.view === "senders"
+  const showInvoices = navigation.view === "invoices"
   // These lists aren't the folder's conversations: nothing to select there.
-  const listOfOthers = showDrafts || showParcels || showSnoozed || showScheduled || showSenders
+  const listOfOthers = showDrafts || showParcels || showInvoices || showSnoozed || showScheduled || showSenders
   const snoozes = useSnoozes()
   const scheduled = useScheduled()
   const unsnooze = useUnsnooze()
   const scheduledActions = useScheduledActions()
   const snoozedIds = new Set(snoozes.data?.snoozed.map((item) => item.thread.id) ?? [])
   const shipments = useShipments(showParcels)
+  const invoiceList = useInvoiceList(showInvoices)
+  const [invoiceFilter, setInvoiceFilter] = useState<"all" | "due" | "paid">("all")
+  const allInvoices = invoiceList.data?.invoices ?? []
+  const invoiceRows = allInvoices.filter((invoice) =>
+    invoiceFilter === "all" ? true : invoiceFilter === "due" ? isOpen(invoice) : !isOpen(invoice)
+  )
+  // What is still yours to pay, per currency, for the line above the list.
+  const toPay = Object.entries(
+    allInvoices
+      .filter((invoice) => isOpen(invoice) && invoice.amountCents !== null)
+      .reduce<Record<string, number>>((sums, invoice) => {
+        const currency = invoice.currency ?? "EUR"
+        sums[currency] = (sums[currency] ?? 0) + invoice.amountCents!
+        return sums
+      }, {})
+  )
   const showDelivered = useShowDelivered()
   const allParcels = shipments.data?.shipments ?? []
   const deliveredCount = allParcels.filter((shipment) => shipment.status === "delivered").length
   // Arrived parcels stay out of the way unless the filter in the header shows them.
   const parcelRows = showDelivered ? allParcels : allParcels.filter((shipment) => shipment.status !== "delivered")
   const queryClient = useQueryClient()
+  // The list already knows each card's invoice, so opening one shows it at once.
+  useEffect(() => {
+    for (const invoice of invoiceList.data?.invoices ?? [])
+      if (invoice.thread) queryClient.setQueryData(["mail-invoice", invoice.thread.id], { invoice })
+  }, [invoiceList.data, queryClient])
   // The list already knows each card's parcel, so opening one shows it at once.
   useEffect(() => {
     for (const shipment of shipments.data?.shipments ?? [])
@@ -930,6 +1001,8 @@ export function InboxPage({
                 ? strings.drafts.title
                 : showParcels
                   ? strings.parcels.title
+                  : showInvoices
+                    ? strings.invoices.title
                   : showSnoozed
                     ? strings.later.snoozedTitle
                     : showScheduled
@@ -1014,7 +1087,54 @@ export function InboxPage({
           ref={listScroller}
           className="scroll-fade relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {showSenders ? (
+          {showInvoices ? (
+            <>
+              <div className="flex flex-col gap-2 px-4 pt-1 pb-3 pl-8">
+                <div className="invoice-filter" role="tablist" aria-label={strings.invoices.title}>
+                  {(["all", "due", "paid"] as const).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={invoiceFilter === key}
+                      onClick={() => setInvoiceFilter(key)}
+                    >
+                      {key === "all" ? strings.invoices.filterAll : key === "due" ? strings.invoices.filterDue : strings.invoices.filterPaid}
+                    </button>
+                  ))}
+                </div>
+                {invoiceList.isSuccess && (
+                  <p className="text-xs text-muted-foreground">
+                    {toPay.length
+                      ? strings.invoices.stillToPay(toPay.map(([currency, cents]) => formatMoney(cents, currency, locale)).join(" + "))
+                      : strings.invoices.nothingToPay}
+                  </p>
+                )}
+              </div>
+              {invoiceList.isPending && <ListSkeleton />}
+              {invoiceList.isError && <p className="p-4 pl-8 text-sm text-destructive">{strings.invoices.loadFailed}</p>}
+              {invoiceList.isSuccess && invoiceRows.length === 0 && (
+                <p className="p-4 pl-8 text-sm text-muted-foreground">
+                  {!invoiceList.data.complete
+                    ? strings.invoices.stillReading
+                    : allInvoices.length === 0
+                      ? strings.invoices.empty
+                      : strings.invoices.nothingHere}
+                </p>
+              )}
+              <ul className="flex flex-col gap-0.5 px-2 pb-2">
+                {invoiceRows.map((invoice, index) => (
+                  <InvoiceRow
+                    key={invoice.thread?.id ?? index}
+                    invoice={invoice}
+                    selected={!!open && invoice.thread?.id === open.id}
+                    onOpen={onOpen}
+                    onHover={(hovering) => prefetch.onHover(hovering && invoice.thread ? invoice.thread.id : null)}
+                  />
+                ))}
+              </ul>
+            </>
+          ) : showSenders ? (
             <>
               {senders.isPending && <ListSkeleton />}
               {senders.isError && <p className="p-4 pl-8 text-sm text-destructive">{strings.senders.loadFailed}</p>}

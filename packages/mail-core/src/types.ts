@@ -1,6 +1,7 @@
 // Safe to import from browsers: no Node APIs here.
 import type { Carrier, ShipmentStatus } from "./shipments"
 import type { MailUnsubscribe } from "./unsubscribe"
+import type { InvoiceStatus } from "./invoices"
 
 export const MAIL_PROVIDERS = ["gmail", "outlook"] as const
 export type MailProviderId = (typeof MAIL_PROVIDERS)[number]
@@ -295,6 +296,22 @@ export type MailShipmentView = {
   merchant: string | null
   status: ShipmentStatus | null
   /** The newest mail about it: what the list line and the card describe. */
+  subject: string
+  receivedAt: string
+  /** The conversation to open; absent above the conversation itself. */
+  thread?: MailThreadView
+}
+
+/** An invoice, receipt or payment request from mail, for the Invoices list and above its conversation. */
+export type MailInvoiceView = {
+  vendor: string | null
+  amountCents: number | null
+  currency: string | null
+  dueDate: string | null
+  invoiceNumber: string | null
+  payUrl: string | null
+  status: InvoiceStatus
+  overdue: boolean
   subject: string
   receivedAt: string
   /** The conversation to open; absent above the conversation itself. */

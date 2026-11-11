@@ -44,9 +44,11 @@ import {
   useNotifyNewMail,
   useSummaries,
   setParcels,
+  setInvoices,
   setSenders,
   setUnsubscribe,
   useParcels,
+  useInvoices,
   useSenders,
   useUnsubscribe,
 } from "@/lib/preferences"
@@ -140,10 +142,14 @@ function FeatureSettings() {
   const parcels = useParcels()
   const unsubscribe = useUnsubscribe()
   const senders = useSenders()
+  const invoices = useInvoices()
   return (
     <SettingsSection title={t.title} description={t.description}>
       <SettingsRow title={t.parcels} htmlFor="mail-parcels" description={t.parcelsHelp}>
         <Switch id="mail-parcels" checked={parcels} onCheckedChange={setParcels} />
+      </SettingsRow>
+      <SettingsRow title={t.invoices} htmlFor="mail-invoices" description={t.invoicesHelp}>
+        <Switch id="mail-invoices" checked={invoices} onCheckedChange={setInvoices} />
       </SettingsRow>
       <SettingsRow title={t.senders} htmlFor="mail-senders" description={t.sendersHelp}>
         <Switch id="mail-senders" checked={senders} onCheckedChange={setSenders} />
