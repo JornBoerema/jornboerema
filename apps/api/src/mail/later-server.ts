@@ -27,7 +27,13 @@ async function scheduleJob(job: MailJob, at: Date) {
   if (!process.env.TRIGGER_SECRET_KEY) return
   try {
     const idempotencyKey = await idempotencyKeys.create(`${job.kind}:${job.id}:${at.toISOString()}`, { scope: "global" })
-    await tasks.trigger<typeof mailJob>("mail-job", job, { delay: at, idempotencyKey, tags: [`mail-${job.kind}`] })
+    await tasks.trigger<typeof mailJob>("mail-job", job, {
+      delay: at,
+      idempotencyKey,
+      tags: [`mail-${job.kind}`],
+      // Next to the API (Vercel fra1) and the database, not in the US default.
+      region: "eu-central-1",
+    })
   } catch (error) {
     // The catch-up still does it; the user's action shouldn't fail for this.
     console.error("Scheduling a mail job failed", error)
