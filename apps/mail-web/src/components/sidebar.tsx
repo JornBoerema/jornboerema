@@ -375,6 +375,7 @@ function AccountMenuItems({ onSettings, onShortcuts }: { onSettings: () => void;
         {t.shortcuts.title}
         <DropdownMenuShortcut>?</DropdownMenuShortcut>
       </DropdownMenuItem>
+      <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => void signOut()}>
         <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
         {t.shell.signOut}
