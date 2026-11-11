@@ -1,4 +1,5 @@
-//! Updates from GitHub Releases. A new version downloads in the background;
+//! Updates from GitHub Releases, looked for at launch and every hour. A new
+//! version downloads in the background;
 //! the window then offers "Restart to update", so Even never quits by itself
 //! in the middle of a message.
 
@@ -9,7 +10,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 /// How often a running app looks for a new version.
-const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
+const CHECK_EVERY: Duration = Duration::from_secs(60 * 60);
 
 /// A downloaded update, waiting to be installed.
 #[derive(Default)]
