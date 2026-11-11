@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { isDesktop } from "@evido/auth/client"
+import { AboutSettings, useAboutPage } from "@evido/ui/components/desktop-app"
 import {
   Mail01Icon,
   Notification03Icon,
@@ -174,6 +175,7 @@ export function MailSettings({
 }) {
   const t = useI18n().t.shell
   const [page, setPage] = useState(linkedPage)
+  const about = useAboutPage()
   // As in Even doen: the account first, then what belongs to this app.
   const pages: SettingsPage[] = [
     {
@@ -216,6 +218,8 @@ export function MailSettings({
       group: t.mailGroup,
       icon: <HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
+    // Only in the desktop app: its version and updates.
+    ...(about ? [about] : []),
   ]
   return (
     <SettingsDialog
@@ -238,6 +242,7 @@ export function MailSettings({
       {page === "notifications" && <NotificationSettings />}
       {page === "ai" && <AiSettings />}
       {page === "appearance" && <AppearanceSettings />}
+      {page === "about" && <AboutSettings />}
       {page === "privacy" && <PrivacySettings />}
     </SettingsDialog>
   )

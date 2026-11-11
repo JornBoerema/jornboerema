@@ -5,11 +5,11 @@ import { MailEmbed } from "@evido/mail-web/embed"
 import { authClient, TodoEmbed, TodoSignIn } from "@evido/todo-web/embed"
 import { Toaster } from "@evido/ui/components/sonner"
 import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/app-switcher"
-import { UpdateProvider } from "@evido/ui/components/update-button"
+import { DesktopProvider } from "@evido/ui/components/desktop-app"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { cn } from "@evido/ui/lib/utils"
 import { Brand } from "./brand"
-import { useReadyUpdate } from "./updates"
+import { useDesktopApp } from "./updates"
 import { useWindowDragging } from "./window"
 
 type AppId = "mail" | "todo"
@@ -41,7 +41,7 @@ function storedApp(): AppId {
 }
 
 function Apps() {
-  const update = useReadyUpdate()
+  const desktop = useDesktopApp()
   const [active, setActive] = useState(storedApp)
   // An app mounts the first time it is opened and then stays, hidden, so it
   // keeps its place; while hidden its effects (shortcuts, live updates) stop.
@@ -71,7 +71,7 @@ function Apps() {
   }, [])
 
   return (
-    <UpdateProvider value={update}>
+    <DesktopProvider value={desktop}>
       <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select }}>
         <div className={cn("desktop-app", isMac && "mac")}>
           {/* Mail stays mounted from the start, so new mail notifies from any app. */}
@@ -83,7 +83,7 @@ function Apps() {
           )}
         </div>
       </AppSwitcherProvider>
-    </UpdateProvider>
+    </DesktopProvider>
   )
 }
 

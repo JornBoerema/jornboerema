@@ -22,19 +22,30 @@ impl UpdateState {
 }
 
 /// Checks for a new version and downloads it; the window hears when one is ready.
-async fn check(app: &AppHandle) -> Result<(), String> {
+/// Returns the version that is ready to install, if any (also one downloaded earlier).
+async fn check(app: &AppHandle) -> Result<Option<String>, String> {
     let state = app.state::<UpdateState>();
     let Some(update) = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())? else {
-        return Ok(());
+        return Ok(state.ready_version());
     };
     if state.ready_version().as_deref() == Some(update.version.as_str()) {
-        return Ok(());
+        return Ok(Some(update.version));
     }
     let bytes = update.download(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
     let version = update.version.clone();
     *state.0.lock().unwrap() = Some((update, bytes));
-    let _ = app.emit("update-ready", version);
-    Ok(())
+    let _ = app.emit("update-ready", version.clone());
+    Ok(Some(version))
+}
+
+/// "Check for updates" in the settings.
+#[tauri::command]
+pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> {
+    // A development build would "update" itself into the release.
+    if cfg!(debug_assertions) {
+        return Ok(None);
+    }
+    check(&app).await
 }
 
 /// Looks for updates shortly after launch and then every few hours.

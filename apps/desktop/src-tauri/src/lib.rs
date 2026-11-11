@@ -72,7 +72,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updates::UpdateState::default())
-        .invoke_handler(tauri::generate_handler![updates::ready_update, updates::install_update])
+        .invoke_handler(tauri::generate_handler![updates::ready_update, updates::check_for_update, updates::install_update])
         .setup(|app| {
             create_main_window(app.handle())?;
             updates::watch(app.handle());

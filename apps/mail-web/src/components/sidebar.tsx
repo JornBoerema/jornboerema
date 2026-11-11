@@ -1,5 +1,5 @@
 import { AppSwitcher } from "@evido/ui/components/app-switcher"
-import { UpdateButton } from "@evido/ui/components/update-button"
+import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
 import {
   Add01Icon,

@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useSearchParams } from "react-router"
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
 import { SettingsDialog, type SettingsPage } from "@evido/ui/components/settings-dialog"
+import { AboutSettings, useAboutPage } from "@evido/ui/components/desktop-app"
 import { Palette, Settings, Share, UserCircle, Users } from "@/components/icons"
 import { AppearanceSettings } from "./appearance-settings"
 import { useI18n } from "@/i18n"
@@ -55,6 +56,7 @@ export function WorkspaceSettings({
   const { t } = useI18n()
   const s = t.settings
   const words = (list: string) => list.split(" | ")
+  const about = useAboutPage()
   // Page ids are part of the URL (?settings=…) and stay the same in every language.
   const pages: SettingsPage[] = [
     {
@@ -89,6 +91,8 @@ export function WorkspaceSettings({
       group: s.pages.workspaceGroup,
       keywords: words(s.keywords.members),
     },
+    // Only in the desktop app: its version and updates.
+    ...(about ? [about] : []),
   ]
   const active = pages.some((p) => p.id === page) ? page! : "account"
   return (
@@ -106,6 +110,8 @@ export function WorkspaceSettings({
         <AppearanceSettings />
       ) : active === "connections" ? (
         <ConnectionsSettings />
+      ) : active === "about" ? (
+        <AboutSettings />
       ) : active === "workspace" ? (
         <WorkspaceGeneralSettings
           key={activeWorkspace.id}
