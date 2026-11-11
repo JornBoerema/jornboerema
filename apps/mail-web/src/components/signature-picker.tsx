@@ -10,15 +10,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@evido/ui/components/dropdown-menu"
-import { cn } from "@evido/ui/lib/utils"
+import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 import type { SignatureChoice } from "@/lib/signatures"
 
 const NONE = "none"
 
 /**
- * Swaps the signature of the message being written. As quiet as the
- * attachment button beside it.
+ * Swaps the signature of the message being written. An icon like the
+ * attachment and AI buttons beside it; the chosen signature shows in the
+ * message itself, and its name in the tooltip.
  */
 export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
   const t = useI18n().t.signatures
@@ -26,23 +27,19 @@ export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
   const current = choice.signatures.find((signature) => signature.id === choice.value)
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={cn(
-            "h-7 max-w-40 min-w-0 gap-1.5 rounded-lg px-2 text-xs font-normal text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground",
-            !current && "text-muted-foreground/70"
-          )}
-        >
-          <HugeiconsIcon icon={PenTool03Icon} strokeWidth={1.75} aria-hidden="true" className="size-4 shrink-0" />
-          <span className="truncate">
-            <span className="sr-only">{t.pick}: </span>
-            {current?.name ?? t.none}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
+      <IconTip label={`${t.pick}: ${current?.name ?? t.none}`}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`${t.pick}: ${current?.name ?? t.none}`}
+            className="data-[state=open]:bg-accent data-[state=open]:text-foreground"
+          >
+            <HugeiconsIcon icon={PenTool03Icon} strokeWidth={1.75} aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+      </IconTip>
       <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-56">
         <DropdownMenuLabel>{t.pick}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
