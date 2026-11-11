@@ -375,29 +375,6 @@
   font-size: 12px;
   color: var(--muted-foreground);
 }
-/* Where the task goes: one quiet button, the lists in its menu. */
-.todo-capture-list {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 60%;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--muted-foreground);
-  transition: background-color 120ms ease;
-}
-.todo-capture-list:hover,
-.todo-capture-list[data-state="open"] {
-  background: var(--accent);
-}
-.todo-capture-list:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-}
-
 /* Invoices: All, To pay, Paid, as one small segmented control. */
 .invoice-filter {
   display: inline-flex;

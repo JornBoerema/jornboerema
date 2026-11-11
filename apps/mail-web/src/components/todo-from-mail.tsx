@@ -175,12 +175,12 @@ export function TodoDialog({
           {picked && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="todo-capture-list" aria-label={`${t.list}: ${picked.name}`}>
-                  <HugeiconsIcon icon={LeftToRightListBulletIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
+                <Button variant="ghost" size="sm" className="min-w-0 max-w-[60%] text-muted-foreground" aria-label={`${t.list}: ${picked.name}`}>
+                  <HugeiconsIcon icon={LeftToRightListBulletIcon} strokeWidth={1.75} data-icon="inline-start" aria-hidden="true" />
                   <span className="truncate font-medium text-foreground">{picked.name}</span>
-                  {groups.length > 1 && <span className="truncate">· {picked.workspaceName}</span>}
-                  <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
-                </button>
+                  {groups.length > 1 && <span className="truncate font-normal">· {picked.workspaceName}</span>}
+                  <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={1.75} data-icon="inline-end" aria-hidden="true" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
@@ -211,7 +211,7 @@ export function TodoDialog({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button size="sm" className="ml-auto h-8 rounded-lg px-3 text-[13px]" disabled={!ready} onClick={submit}>
+          <Button size="sm" className="ml-auto" disabled={!ready} onClick={submit}>
             {create.isPending ? <Spinner /> : t.create}
           </Button>
         </div>
