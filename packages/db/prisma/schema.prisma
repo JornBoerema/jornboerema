@@ -493,11 +493,15 @@ model MailShipment {
   threadId     String      @map("thread_id")
   /// The newest message read, by its provider id.
   messageId    String      @map("message_id")
+  /// Which version of the reading found this; a better one reads the mail again.
+  readVersion  Int         @default(1) @map("read_version")
   found        Boolean
   carrier      String?
   trackingCode String?     @map("tracking_code")
   trackingUrl  String?     @map("tracking_url")
   merchant     String?
+  /// The shop's order number: mails about one order with different codes belong together.
+  orderNumber  String?     @map("order_number")
   status       String?
   subject      String
   receivedAt   DateTime    @map("received_at")

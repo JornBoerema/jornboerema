@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react"
-import { useInfiniteQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArchiveIcon,
   SpamIcon,
   Mail01Icon,
   MailOpen01Icon,
+  ArrowUpRight01Icon,
   Attachment01Icon,
   Delete02Icon,
   CloudAlertIcon,
@@ -34,6 +35,7 @@ import {
   type MailFolder,
   type MailAccountView,
   type MailDraftView,
+  type MailShipmentView,
   type MailThreadAction,
   type MailThreadsPage,
   type MailThreadView,
@@ -49,8 +51,8 @@ import type { DraftRef, useDrafts } from "@/lib/drafts"
 import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
 import { useScrollFade } from "@/lib/scroll-fade"
-import { useShipments } from "@/lib/shipments"
-import { ParcelRow } from "@/components/parcels"
+import { CARRIER_NAMES, useShipments } from "@/lib/shipments"
+import { carrierName, Status } from "@/components/parcels"
 import {
   leavesList,
   listKey,
@@ -252,6 +254,60 @@ function ThreadRow({
           })),
         ]}
       />
+    </li>
+  )
+}
+
+/** A delivery in the Parcels list, laid out as a mail line: opens its mail; tracking on hover. */
+function ParcelRow({
+  shipment,
+  selected,
+  onOpen,
+  onHover,
+}: {
+  shipment: MailShipmentView
+  selected: boolean
+  onOpen: (thread: MailThreadView) => void
+  onHover: (hovering: boolean) => void
+}) {
+  const { t, locale } = useI18n()
+  const p = t.parcels
+  const title = shipment.merchant ?? carrierName(shipment, p.unknownCarrier)
+  const url = shipment.trackingUrl
+  return (
+    <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
+      <button
+        type="button"
+        aria-current={selected ? "true" : undefined}
+        disabled={!shipment.thread}
+        onClick={() => shipment.thread && onOpen(shipment.thread)}
+        className={cn(
+          // The same inset as mail lines, whose gutter holds the unread dot and checkbox.
+          "flex w-full flex-col gap-0.5 rounded-lg py-2 pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
+          selected ? "bg-accent" : "group-hover:bg-accent/60"
+        )}
+      >
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
+          <time
+            className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", url && UNDER_ACTIONS)}
+            dateTime={shipment.receivedAt}
+          >
+            {shortDate(shipment.receivedAt, locale)}
+          </time>
+        </span>
+        <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+          <Status shipment={shipment} />
+          {shipment.merchant && shipment.carrier && <span className="truncate">· {CARRIER_NAMES[shipment.carrier]}</span>}
+        </span>
+      </button>
+      {url && (
+        <RowActions
+          actions={[
+            { icon: ArrowUpRight01Icon, label: p.trackParcel, run: () => window.open(url, "_blank", "noopener,noreferrer") },
+          ]}
+        />
+      )}
     </li>
   )
 }
@@ -540,6 +596,12 @@ export function InboxPage({
   // Drafts and parcels aren't conversations of this list: nothing to select there.
   const listOfOthers = showDrafts || showParcels
   const shipments = useShipments(showParcels)
+  const queryClient = useQueryClient()
+  // The list already knows each card's parcel, so opening one shows it at once.
+  useEffect(() => {
+    for (const shipment of shipments.data?.shipments ?? [])
+      if (shipment.thread) queryClient.setQueryData(["mail-shipment", shipment.thread.id], { shipment })
+  }, [shipments.data, queryClient])
   const draftRows = drafts.data?.drafts ?? []
   const { accounts, accountId, onCompose, onSettings } = navigation
   const { mutate: runAction } = useThreadAction()
@@ -784,6 +846,7 @@ export function InboxPage({
                     shipment={shipment}
                     selected={!!open && shipment.thread?.id === open.id}
                     onOpen={onOpen}
+                    onHover={(hovering) => prefetch.onHover(hovering && shipment.thread ? shipment.thread.id : null)}
                   />
                 ))}
               </ul>

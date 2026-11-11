@@ -37,6 +37,7 @@ describe("findShipment", () => {
       trackingCode: "3SCBLU1234567890",
       trackingUrl: "https://jouw.postnl.nl/track-and-trace/3SCBLU1234567890-NL-1234AB",
       merchant: "Coolblue",
+      orderNumber: null,
       status: "in_transit",
     })
   })
@@ -146,4 +147,65 @@ describe("carriers' own habits", () => {
     )
     expect(found).toMatchObject({ carrier: "amazon", trackingCode: "405-0838423-3833942", status: "out_for_delivery" })
   })
+})
+
+describe("tying a shop's mail to the carrier's", () => {
+  it("reads GoParcel's reference and spelled-out code", () => {
+    const found = findShipment(
+      mail({
+        subject: "Uw pakket is onderweg",
+        fromName: "Lotgenootje via GoParcel",
+        fromEmail: "noreply@goparcel.nl",
+        html: `<p>Uw bestelling met referentie #LOTJE175909 succesvol is verzonden. U kunt uw zending volgen met de volgende track en trace code: 420986074</p><a href="https://v2.goparcel.nl/t/abc">Volg uw pakket</a>`,
+      })
+    )
+    expect(found).toMatchObject({ merchant: "Lotgenootje", orderNumber: "LOTJE175909", trackingCode: "420986074" })
+  })
+
+  it("reads bol's order number from its structured data", () => {
+    const found = findShipment(
+      mail({
+        subject: "Je pakket is nu bij DHL",
+        fromName: "bol",
+        fromEmail: "noreply@bol.com",
+        html: `<script type="application/ld+json">{"@type":"ParcelDelivery","trackingNumber":"3SIJVT019395313","partOfOrder":{"@type":"Order","orderNumber":"C000JNHN6X"}}</script><a href="https://link.bol.com/x">Waar is mijn pakket?</a>`,
+      })
+    )
+    expect(found).toMatchObject({ orderNumber: "C000JNHN6X", trackingCode: "3SIJVT019395313" })
+  })
+
+  it("reads an order number from the subject", () => {
+    const found = findShipment(
+      mail({
+        subject: "Bestelling: [C000JNHN6X] Afgeleverd: je pakket van Plein.nl",
+        fromEmail: "noreply@edm.postnl.nl",
+        html: `<a href="https://jouw.postnl.nl/track-and-trace/3SIJVT019395313">Volg</a>`,
+      })
+    )
+    expect(found).toMatchObject({ orderNumber: "C000JNHN6X", status: "delivered" })
+  })
+})
+
+it("reads an order number from a link to the order", () => {
+  const found = findShipment(
+    mail({
+      subject: "Je pakket is bezorgd!",
+      fromName: "bol",
+      fromEmail: "noreply@bol.com",
+      html: `<a href="https://www.bol.com/nl/rnwy/account/order_details/C000JNHN6X?Referrer=x">Bestelling</a><a href="https://link.bol.com/y">Waar is mijn pakket?</a>`,
+    })
+  )
+  expect(found?.orderNumber).toBe("C000JNHN6X")
+})
+
+it("knows bol's order numbers by their shape", () => {
+  const found = findShipment(
+    mail({
+      subject: "Je pakket is bezorgd!",
+      fromName: "bol",
+      fromEmail: "noreply@bol.com",
+      html: `<div style="display:none">C000JNHN6X</div><a href="https://link.bol.com/y">Waar is mijn pakket?</a>`,
+    })
+  )
+  expect(found?.orderNumber).toBe("C000JNHN6X")
 })

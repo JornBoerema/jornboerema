@@ -23,6 +23,8 @@ export type FoundShipment = {
   trackingUrl: string | null
   /** The shop it comes from, when the mail says. */
   merchant: string | null
+  /** The shop's order number, which ties a shop's mail to the carrier's. */
+  orderNumber: string | null
   status: ShipmentStatus | null
 }
 
@@ -209,6 +211,51 @@ export function statusOf(subject: string, opening: string): ShipmentStatus | nul
   return null
 }
 
+/** Something that looks like a reference: letters and digits, with at least one digit. */
+const REFERENCE = "(?=[A-Z0-9-]*\\d)[A-Z0-9][A-Z0-9-]{4,24}"
+
+/** The order number a shop gives: "Bestelling: [C000JNHN6X]", "referentie #LOTJE175909", JSON-LD. */
+export function orderNumberIn(subject: string, raw: string): string | null {
+  const patterns = [
+    new RegExp(`"orderNumber"\\s*:\\s*"(${REFERENCE})"`, "i"),
+    // In a link to the order: bol's order_details/C000JNHN6X, ?orderId=...
+    new RegExp(`(?:order[_-]?details|orders?)/(${REFERENCE})(?=[/?"'&#]|$)`, "i"),
+    new RegExp(`[?&](?:order[_-]?(?:id|number|nr))=(${REFERENCE})\\b`, "i"),
+    new RegExp(`(?:bestel(?:ling|nummer)?|order(?:nummer|number|nr\\.?| no\\.?)?|referentie|reference|bestelnr\\.?)\\s*(?:met referentie\\s*)?[:#]?\\s*\\[?#?(${REFERENCE})\\b`, "i"),
+  ]
+  for (const text of [subject, raw]) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match) return match[1].toUpperCase()
+    }
+  }
+  return null
+}
+
+/** A tracking code a mail spells out: "track en trace code: 420986074", JSON-LD's trackingNumber. */
+function spelledOutCode(raw: string): string | null {
+  const match =
+    raw.match(new RegExp(`"trackingNumber"\\s*:\\s*"(${REFERENCE})"`, "i")) ??
+    raw.match(
+      new RegExp(
+        `(?:track(?:\\s*(?:&|en|and)\\s*trace)?|tracking|barcode|zending)[ -]?(?:code|nummer|number|nr)\\s*[:#]?\\s*(${REFERENCE})\\b`,
+        "i"
+      )
+    )
+  return match ? match[1].toUpperCase() : null
+}
+
+/** Order numbers some shops print without saying so, by their fixed shape. */
+const SHOP_ORDERS: [RegExp, RegExp][] = [[/(^|\.)bol\.com$/, /\bC0{2,}[A-Z0-9]{5,8}\b/]]
+
+function shopOrderNumber(domain: string, raw: string) {
+  for (const [shop, shape] of SHOP_ORDERS) if (shop.test(domain)) return raw.match(shape)?.[0] ?? null
+  return null
+}
+
+/** "Lotgenootje via GoParcel" is Lotgenootje's parcel, sent through GoParcel. */
+const shopName = (name: string | null) => name?.replace(/\s+via\s+.+$/i, "").trim() || null
+
 /** "Je pakket van Coolblue", "your parcel from Zalando". */
 function merchantIn(text: string) {
   const match = text.match(
@@ -241,7 +288,8 @@ export function findShipment(mail: Mail): FoundShipment | null {
   const amazonOrder = senderCarrier === "amazon" ? (`${mail.subject} ${text}`.match(/\b\d{3}-\d{7}-\d{7}\b/)?.[0] ?? null) : null
 
   const carrier = link?.carrier ?? printed?.carrier ?? senderCarrier
-  const trackingCode = linkCode ?? printed?.code ?? subjectCode ?? amazonOrder
+  const raw = `${mail.html ?? ""}\n${text}`.slice(0, 60_000)
+  const trackingCode = linkCode ?? printed?.code ?? subjectCode ?? spelledOutCode(raw) ?? amazonOrder
   const trackingUrl = link?.url.toString() ?? (carrier && trackingCode ? trackingUrlFor(carrier, trackingCode) : null)
   if (!trackingUrl && !trackingCode) return null
   // A code alone is only followable from a carrier's own mail.
@@ -250,12 +298,13 @@ export function findShipment(mail: Mail): FoundShipment | null {
   if (carrier === "amazon" && !link) return null
 
   const fromCarrier = senderCarrier !== null
-  const merchant = fromCarrier ? merchantIn(`${mail.subject}\n${text.slice(0, OPENING)}`) : mail.fromName?.trim() || null
+  const merchant = shopName(fromCarrier ? merchantIn(`${mail.subject}\n${text.slice(0, OPENING)}`) : mail.fromName)
   return {
     carrier,
     trackingCode,
     trackingUrl,
     merchant,
+    orderNumber: amazonOrder ?? orderNumberIn(mail.subject, raw) ?? shopOrderNumber(domainOf(mail.fromEmail), raw),
     status: statusOf(mail.subject, text.slice(0, OPENING)),
   }
 }
@@ -274,6 +323,7 @@ export function findShipmentInThread(messages: Mail[]): FoundShipment | null {
       trackingCode: shipment.trackingCode ?? found?.trackingCode ?? null,
       trackingUrl: shipment.trackingUrl ?? found?.trackingUrl ?? null,
       merchant: shipment.merchant ?? found?.merchant ?? null,
+      orderNumber: shipment.orderNumber ?? found?.orderNumber ?? null,
       status: shipment.status ?? found?.status ?? null,
     }
   }

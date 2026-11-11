@@ -8,6 +8,8 @@ import { readConversation, type Conversation } from "./threads-server"
 const SCAN_DAYS = 30
 /** A delivered parcel leaves the list after this long. */
 const KEEP_DELIVERED_DAYS = 14
+/** Raised when the reading improves, so shipping mail already read is read again. */
+const READ_VERSION = 4
 /** Reading mail takes a provider call each; the rest is picked up next time. */
 const SCAN_BUDGET_MS = 8_000
 
@@ -43,11 +45,13 @@ async function save(
 ) {
   const data = {
     messageId: newest.id,
+    readVersion: READ_VERSION,
     found: found !== null,
     carrier: found?.carrier ?? null,
     trackingCode: found?.trackingCode ?? null,
     trackingUrl: found?.trackingUrl ?? null,
     merchant: found?.merchant ?? null,
+    orderNumber: found?.orderNumber ?? null,
     status: found?.status ?? null,
     subject: newest.subject,
     receivedAt: newest.receivedAt,
@@ -92,10 +96,14 @@ export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
 
   const known = await db.mailShipment.findMany({
     where: { userId, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
-    select: { accountId: true, threadId: true, messageId: true },
+    select: { accountId: true, threadId: true, messageId: true, readVersion: true },
   })
-  const readUpTo = new Map(known.map((row) => [`${row.accountId}:${row.threadId}`, row.messageId]))
-  const toRead = [...newestByThread.entries()].filter(([key, message]) => readUpTo.get(key) !== message.providerMessageId)
+  const upToDate = new Set(
+    known.filter((row) => row.readVersion >= READ_VERSION).map((row) => `${row.accountId}:${row.threadId}:${row.messageId}`)
+  )
+  const toRead = [...newestByThread.entries()].filter(
+    ([key, message]) => !upToDate.has(`${key}:${message.providerMessageId}`)
+  )
   if (toRead.length === 0) return { done: true }
 
   const accounts = new Map(
@@ -116,34 +124,61 @@ export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
   return { done: true }
 }
 
+type Row = Awaited<ReturnType<ReturnType<typeof getDb>["mailShipment"]["findMany"]>>[number]
+
 /**
- * Parcels on their way, and delivered ones for two weeks, newest first. Mails
- * about one tracking code become one line: the newest says where it is, any of
- * them may hold the link, the code or the shop.
+ * Mails about one delivery, however they name it: rows that share a tracking
+ * code or an order number end up together, through any chain of them.
  */
+function deliveries(rows: Row[]): Row[][] {
+  const parent = rows.map((_, index) => index)
+  const root = (index: number): number => (parent[index] === index ? index : (parent[index] = root(parent[index])))
+  const firstWith = new Map<string, number>()
+  rows.forEach((row, index) => {
+    for (const key of [row.trackingCode && `code:${row.trackingCode}`, row.orderNumber && `order:${row.orderNumber}`]) {
+      if (!key) continue
+      const other = firstWith.get(key)
+      if (other === undefined) firstWith.set(key, index)
+      else parent[root(index)] = root(other)
+    }
+  })
+  const groups = new Map<number, Row[]>()
+  rows.forEach((row, index) => groups.set(root(index), [...(groups.get(root(index)) ?? []), row]))
+  return [...groups.values()]
+}
+
+/**
+ * One line for a delivery, from its mails newest first: the newest names the
+ * status, unless an earlier one already said it was delivered; any of them may
+ * hold the link, the code or the shop. A carrier's own link wins over a shop's.
+ */
+function asLine(mails: Row[]): Row {
+  const newest = mails[0]
+  const first = <K extends keyof Row>(key: K) => mails.find((mail) => mail[key] !== null)?.[key] ?? null
+  const delivered = mails.some((mail) => mail.status === "delivered") && newest.status !== "problem"
+  const withCarrierLink = mails.find((mail) => mail.carrier && mail.trackingUrl)
+  return {
+    ...newest,
+    carrier: first("carrier"),
+    trackingCode: first("trackingCode"),
+    trackingUrl: withCarrierLink?.trackingUrl ?? first("trackingUrl"),
+    merchant: first("merchant"),
+    orderNumber: first("orderNumber"),
+    status: delivered ? "delivered" : (newest.status ?? first("status")),
+  }
+}
+
+/** Parcels on their way, and delivered ones for two weeks, newest first, one line per delivery. */
 export async function listShipments(userId: string): Promise<MailShipmentView[]> {
   const rows = await getDb().mailShipment.findMany({
     where: { userId, found: true, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
     orderBy: { receivedAt: "desc" },
   })
-  const lines = new Map<string, (typeof rows)[number]>()
-  for (const row of rows) {
-    // The shop's mail and the carrier's name the same code; together they are one parcel.
-    const key = row.trackingCode ? `code:${row.trackingCode}` : `${row.accountId}:${row.threadId}`
-    const line = lines.get(key)
-    if (!line) {
-      lines.set(key, { ...row })
-      continue
-    }
-    line.carrier ??= row.carrier
-    line.trackingUrl ??= row.trackingUrl
-    line.merchant ??= row.merchant
-    line.status ??= row.status
-  }
-  const shown = [...lines.values()].filter(
-    (row) => !(row.status === "delivered" && row.receivedAt < daysAgo(KEEP_DELIVERED_DAYS))
-  )
-  // The conversation each line opens, as the list shows conversations.
+  const shown = deliveries(rows)
+    .map(asLine)
+    .filter((row) => !(row.status === "delivered" && row.receivedAt < daysAgo(KEEP_DELIVERED_DAYS)))
+    .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
+  // The conversation each line opens: its newest mail's.
   const threads = await threadViews(userId, shown)
   return shown.map((row) => ({ ...toView(row), thread: threads.get(`${row.accountId}:${row.threadId}`) }))
 }
@@ -194,7 +229,8 @@ export async function shipmentForConversation(conversation: Conversation): Promi
     select: { providerMessageId: true },
   })
   const kept = await db.mailShipment.findUnique({ where: { accountId_threadId: { accountId: account.id, threadId } } })
-  if (kept && newestSynced && kept.messageId === newestSynced.providerMessageId) return kept.found ? toView(kept) : null
+  if (kept && newestSynced && kept.messageId === newestSynced.providerMessageId && kept.readVersion >= READ_VERSION)
+    return kept.found ? toView(kept) : null
 
   const { messages } = await readConversation(conversation, { includeHidden: conversation.hidden })
   const newest = messages.at(-1)
