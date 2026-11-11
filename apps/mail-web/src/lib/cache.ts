@@ -5,7 +5,17 @@ import { persistQueryClient } from "@tanstack/react-query-persist-client"
 /** One entry per user, so a shared browser never shows someone else's lists. */
 const PREFIX = "evido.mail.cache."
 /** Lists and counts only. Signatures can hold large inline images and are left out. */
-const KEPT = new Set(["mail-messages", "mail-accounts", "mail-unread", "mail-drafts"])
+const KEPT = new Set([
+  "mail-messages",
+  "mail-accounts",
+  "mail-unread",
+  "mail-drafts",
+  "mail-shipments",
+  "mail-invoices",
+  "mail-senders",
+  "mail-snoozes",
+  "mail-scheduled",
+])
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 /** Raised when cached data changes shape, which drops older caches. */
 const BUSTER = "1"
@@ -31,7 +41,10 @@ export function persistMailCache(queryClient: QueryClient, userId: string) {
     maxAge: MAX_AGE_MS,
     buster: BUSTER,
     dehydrateOptions: {
-      shouldDehydrateQuery: (query) => query.state.status === "success" && KEPT.has(String(query.queryKey[0])),
+      shouldDehydrateQuery: (query) => query.state.status === "success" &&
+        KEPT.has(String(query.queryKey[0])) &&
+        // Background reading is a step, not a list: it runs again after a reload.
+        query.queryKey[1] !== "scan",
     },
   })
   return { unsubscribe, restored }

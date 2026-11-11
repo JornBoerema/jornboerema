@@ -1,19 +1,21 @@
 import { useQuery } from "@tanstack/react-query"
 import type { MailInvoiceView } from "@evido/mail-core/types"
+import { useBackgroundScan } from "@/lib/scan"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"
 
 export const INVOICES_KEY = ["mail-invoices"]
 
-/** Invoices from mail. Asking also reads mail about money not seen yet; `complete` false means more may follow. */
+/** Invoices from mail, straight from what is kept; mail about money not seen yet is read meanwhile. */
 export function useInvoiceList(enabled: boolean) {
-  return useQuery({
+  const complete = useBackgroundScan("/api/mail/invoices/scan", INVOICES_KEY, enabled)
+  const query = useQuery({
     queryKey: INVOICES_KEY,
-    queryFn: () => api<{ invoices: MailInvoiceView[]; complete: boolean }>("/api/mail/invoices"),
+    queryFn: () => api<{ invoices: MailInvoiceView[] }>("/api/mail/invoices"),
     enabled,
     staleTime: 60_000,
-    refetchInterval: (query) => (query.state.data?.complete === false ? 5_000 : false),
   })
+  return { ...query, data: query.data && { ...query.data, complete } }
 }
 
 export function useConversationInvoice(threadId: string, enabled: boolean) {

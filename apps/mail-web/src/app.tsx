@@ -170,6 +170,10 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       setFilter(id)
       setView("inbox")
     },
+    onFilterAccount: (id) => {
+      setFilter(id)
+      setOpen(null)
+    },
     onSelectDrafts: () => {
       setFilter("")
       setView("drafts")

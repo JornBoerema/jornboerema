@@ -694,6 +694,7 @@ model MailMessage {
   @@index([userId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_received_idx")
   @@index([accountId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_account_received_idx")
   @@index([userId, folder, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_folder_received_idx")
+  @@index([accountId, threadId], map: "mail_messages_account_thread_idx")
   @@map("mail_messages")
 }
 

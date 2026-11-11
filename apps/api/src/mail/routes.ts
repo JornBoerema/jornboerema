@@ -414,8 +414,7 @@ mailRoutes.get("/shipments", requireSession, async (c) => {
     const userId = c.get("session").user.id
     // Turned off: no shipping mail is read.
     if (!(await parcelsEnabled(userId))) return c.json({ shipments: [], complete: true }, 200, noStore)
-    const scan = await scanShipments(userId)
-    return c.json({ shipments: await listShipments(userId), complete: scan.done }, 200, noStore)
+    return c.json({ shipments: await listShipments(userId) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -426,8 +425,28 @@ mailRoutes.get("/invoices", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
     if (!(await invoicesEnabled(userId))) return c.json({ invoices: [], complete: true }, 200, noStore)
-    const scan = await scanInvoices(userId)
-    return c.json({ invoices: await listInvoices(userId), complete: scan.done }, 200, noStore)
+    return c.json({ invoices: await listInvoices(userId) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Reading mail not seen yet is separate from the list, so the list shows at once.
+mailRoutes.post("/shipments/scan", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    const userId = c.get("session").user.id
+    if (!(await parcelsEnabled(userId))) return c.json({ done: true, read: 0 }, 200, noStore)
+    return c.json(await scanShipments(userId), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/invoices/scan", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    const userId = c.get("session").user.id
+    if (!(await invoicesEnabled(userId))) return c.json({ done: true, read: 0 }, 200, noStore)
+    return c.json(await scanInvoices(userId), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

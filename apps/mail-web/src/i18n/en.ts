@@ -300,6 +300,10 @@ export const en = {
     pay: "Pay",
     amountUnknown: "Amount in the attachment",
   },
+  mailboxFilter: {
+    label: "Mailbox",
+    all: "All mailboxes",
+  },
   recognition: {
     report: "Not recognised well",
     title: "Not recognised well?",

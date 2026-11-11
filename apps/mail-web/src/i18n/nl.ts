@@ -301,6 +301,10 @@ export const nl: typeof en = {
     pay: "Betalen",
     amountUnknown: "Bedrag in de bijlage",
   },
+  mailboxFilter: {
+    label: "Mailbox",
+    all: "Alle mailboxen",
+  },
   recognition: {
     report: "Niet goed herkend",
     title: "Niet goed herkend?",

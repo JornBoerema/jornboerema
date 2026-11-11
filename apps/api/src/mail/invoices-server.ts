@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { getDb, type MailAccount } from "@evido/db"
 import { findInvoiceInThread, looksLikeInvoice, type FoundInvoice } from "@evido/mail-core/invoices"
 import type { MailInvoiceView, MailThreadMessage } from "@evido/mail-core/types"
+import { readInRounds } from "./scan-rounds"
 import { readConversation, threadLines, type Conversation } from "./threads-server"
 
 /** How far back mail about money is looked through. */
@@ -87,7 +88,7 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
     const key = `${message.accountId}:${message.threadId}`
     if (!newestByThread.has(key) && looksLikeInvoice(message)) newestByThread.set(key, message)
   }
-  if (newestByThread.size === 0) return { done: true }
+  if (newestByThread.size === 0) return { done: true, read: 0 }
 
   const known = await db.mailInvoice.findMany({
     where: { userId, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
@@ -98,16 +99,18 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
     known.filter((row) => row.readVersion >= READ_VERSION || row.dismissed).map((row) => `${row.accountId}:${row.threadId}:${row.messageId}`)
   )
   const toRead = [...newestByThread.entries()].filter(([key, message]) => !upToDate.has(`${key}:${message.providerMessageId}`))
-  if (toRead.length === 0) return { done: true }
+  if (toRead.length === 0) return { done: true, read: 0 }
 
   const accounts = new Map(
     (await db.mailAccount.findMany({ where: { userId, status: "active" } })).map((account) => [account.id, account])
   )
-  for (const [, message] of toRead) {
-    if (Date.now() > deadline) return { done: false }
-    const account = accounts.get(message.accountId)
-    if (!account) continue
-    try {
+  return readInRounds(
+    toRead,
+    deadline,
+    ([, message]) => message.accountId,
+    async ([, message]) => {
+      const account = accounts.get(message.accountId)
+      if (!account) return
       const { messages } = await readConversation({ account, threadId: message.threadId! })
       await save(
         account,
@@ -115,11 +118,9 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
         { id: message.providerMessageId, subject: message.subject, receivedAt: message.receivedAt },
         invoiceIn(messages)
       )
-    } catch (error) {
-      console.error("Invoice scan failed for a conversation", error)
-    }
-  }
-  return { done: true }
+    },
+    "Invoice"
+  )
 }
 
 /**

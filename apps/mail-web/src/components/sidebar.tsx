@@ -75,6 +75,8 @@ export type MailNavigation = {
   /** The composer fills the reading pane; New message is then the current place. */
   composing: boolean
   onSelectAccount: (id: string) => void
+  /** One mailbox for the list in view, or every one, without leaving it. */
+  onFilterAccount: (id: string) => void
   onSelectDrafts: () => void
   onSelectParcels: () => void
   onSelectInvoices: () => void
@@ -527,7 +529,7 @@ function SidebarRail({
   onCompose,
   onSettings,
   onShortcuts,
-}: Omit<MailNavigation, "onSearch"> & { unread: number | undefined }) {
+}: Omit<MailNavigation, "onSearch" | "onFilterAccount"> & { unread: number | undefined }) {
   const { t } = useI18n()
   const desktop = useInDesktop()
   const parcels = useParcels()

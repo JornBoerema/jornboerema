@@ -158,27 +158,36 @@ export async function finishConnect(
 }
 
 async function storeRefreshed(account: MailAccount, tokens: TokenSet, key: Buffer) {
-  await getDb().mailAccount.update({
-    where: { id: account.id },
-    data: {
-      accessToken: sealToken(tokens.accessToken, key, tokenContext(account, "access")),
-      accessTokenExpiresAt: tokens.expiresAt,
-      // Microsoft rotates refresh tokens; Google keeps the existing one valid.
-      ...(tokens.refreshToken && {
-        refreshToken: sealToken(tokens.refreshToken, key, tokenContext(account, "refresh")),
-      }),
-    },
-  })
+  const data = {
+    accessToken: sealToken(tokens.accessToken, key, tokenContext(account, "access")),
+    accessTokenExpiresAt: tokens.expiresAt,
+    // Microsoft rotates refresh tokens; Google keeps the existing one valid.
+    ...(tokens.refreshToken && {
+      refreshToken: sealToken(tokens.refreshToken, key, tokenContext(account, "refresh")),
+    }),
+  }
+  await getDb().mailAccount.update({ where: { id: account.id }, data })
+  return data
 }
+
+/** Refreshes under way, per account: calls side by side share one instead of each refreshing. */
+const refreshing = new Map<string, Promise<{ accessToken: string; stored: Partial<MailAccount> }>>()
 
 async function validAccessToken(account: MailAccount, provider: MailProvider, key: Buffer) {
   if (account.accessTokenExpiresAt.getTime() - Date.now() > EXPIRY_MARGIN_MS)
     return openToken(account.accessToken, key, tokenContext(account, "access"))
-  const tokens = await provider.refresh(
-    openToken(account.refreshToken, key, tokenContext(account, "refresh"))
-  )
-  await storeRefreshed(account, tokens, key)
-  return tokens.accessToken
+  let pending = refreshing.get(account.id)
+  if (!pending) {
+    pending = (async () => {
+      const tokens = await provider.refresh(openToken(account.refreshToken, key, tokenContext(account, "refresh")))
+      return { accessToken: tokens.accessToken, stored: await storeRefreshed(account, tokens, key) }
+    })().finally(() => refreshing.delete(account.id))
+    refreshing.set(account.id, pending)
+  }
+  const { accessToken, stored } = await pending
+  // The caller may use this account again: it then has the new token, not the spent one.
+  Object.assign(account, stored)
+  return accessToken
 }
 
 /**

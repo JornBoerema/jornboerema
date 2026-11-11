@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import type { Carrier, ShipmentStatus } from "@evido/mail-core/shipments"
 import type { MailShipmentView } from "@evido/mail-core/types"
+import { useBackgroundScan } from "@/lib/scan"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"
 
@@ -30,18 +31,18 @@ export const STATUS_TONE: Record<ShipmentStatus | "unknown", string> = {
 }
 
 /**
- * Parcels from shipping mail. Asking also reads shipping mail not seen yet,
- * so `complete` false means more may follow on the next look.
+ * Parcels from shipping mail, straight from what is kept; shipping mail not
+ * seen yet is read meanwhile, so `complete` false means more may follow.
  */
 export function useShipments(enabled = true) {
-  return useQuery({
+  const complete = useBackgroundScan("/api/mail/shipments/scan", SHIPMENTS_KEY, enabled)
+  const query = useQuery({
     queryKey: SHIPMENTS_KEY,
-    queryFn: () => api<{ shipments: MailShipmentView[]; complete: boolean }>("/api/mail/shipments"),
+    queryFn: () => api<{ shipments: MailShipmentView[] }>("/api/mail/shipments"),
     enabled,
     staleTime: 60_000,
-    // Read the rest of the shipping mail soon when the first look ran out of time.
-    refetchInterval: (query) => (query.state.data?.complete === false ? 5_000 : false),
   })
+  return { ...query, data: query.data && { ...query.data, complete } }
 }
 
 /** The parcel a conversation is about, for the card above it. */

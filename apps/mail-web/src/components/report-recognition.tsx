@@ -29,7 +29,7 @@ function useReport(kind: RecognitionKind, threadId: string) {
       }),
     onSuccess: () => {
       toast.success(t.reported)
-      void queryClient.invalidateQueries({ queryKey: kind === "parcel" ? SHIPMENTS_KEY : INVOICES_KEY })
+      void queryClient.invalidateQueries({ queryKey: kind === "parcel" ? SHIPMENTS_KEY : INVOICES_KEY, exact: true })
       void queryClient.invalidateQueries({ queryKey: [kind === "parcel" ? "mail-shipment" : "mail-invoice", threadId] })
     },
     onError: (error) => toast.error(errorText(error)),

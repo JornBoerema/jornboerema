@@ -21,6 +21,7 @@ import {
   FilterMailRemoveIcon,
   Flag02Icon,
 } from "@hugeicons/core-free-icons"
+import { MailboxFilter } from "@/components/mailbox-filter"
 import { canReport, ReportRecognitionDialog } from "@/components/report-recognition"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -800,10 +801,12 @@ export function InboxPage({
   const unsnooze = useUnsnooze()
   const scheduledActions = useScheduledActions()
   const snoozedIds = new Set(snoozes.data?.snoozed.map((item) => item.thread.id) ?? [])
+  // A list other than the inbox can show one mailbox; the inbox has the sidebar for that.
+  const inMailbox = (id: string | undefined) => !navigation.accountId || id === navigation.accountId
   const shipments = useShipments(showParcels)
   const invoiceList = useInvoiceList(showInvoices)
   const [invoiceFilter, setInvoiceFilter] = useState<"all" | "due" | "paid">("all")
-  const allInvoices = invoiceList.data?.invoices ?? []
+  const allInvoices = (invoiceList.data?.invoices ?? []).filter((invoice) => inMailbox(invoice.thread?.accountId))
   const invoiceRows = allInvoices.filter((invoice) =>
     invoiceFilter === "all" ? true : invoiceFilter === "due" ? isOpen(invoice) : !isOpen(invoice)
   )
@@ -818,7 +821,7 @@ export function InboxPage({
       }, {})
   )
   const showDelivered = useShowDelivered()
-  const allParcels = shipments.data?.shipments ?? []
+  const allParcels = (shipments.data?.shipments ?? []).filter((shipment) => inMailbox(shipment.thread?.accountId))
   const deliveredCount = allParcels.filter((shipment) => shipment.status === "delivered").length
   // Arrived parcels stay out of the way unless the filter in the header shows them.
   const parcelRows = showDelivered ? allParcels : allParcels.filter((shipment) => shipment.status !== "delivered")
@@ -833,7 +836,9 @@ export function InboxPage({
     for (const shipment of shipments.data?.shipments ?? [])
       if (shipment.thread) queryClient.setQueryData(["mail-shipment", shipment.thread.id], { shipment })
   }, [shipments.data, queryClient])
-  const draftRows = drafts.data?.drafts ?? []
+  const draftRows = (drafts.data?.drafts ?? []).filter((draft) => inMailbox(draft.accountId))
+  const snoozedRows = (snoozes.data?.snoozed ?? []).filter((item) => inMailbox(item.thread.accountId))
+  const scheduledRows = (scheduled.data?.scheduled ?? []).filter((item) => inMailbox(item.accountId))
   const { accounts, accountId, onCompose, onSettings } = navigation
   const senders = useSenderList(accountId, showSenders)
   const tidy = useTidy(accountId)
@@ -1056,6 +1061,9 @@ export function InboxPage({
               </IconTip>
             )}
           </span>
+          {!selecting && navigation.view !== "inbox" && accounts.length > 1 && (
+            <MailboxFilter accounts={accounts} accountId={accountId} onChange={navigation.onFilterAccount} />
+          )}
           {folder === "trash" && <EmptyTrashButton accounts={accounts} />}
           {showParcels && (
             <IconTip label={showDelivered ? strings.parcels.hideDelivered : strings.parcels.showDelivered}>
@@ -1132,7 +1140,7 @@ export function InboxPage({
               {invoiceList.isError && <p className="p-4 pl-8 text-sm text-destructive">{strings.invoices.loadFailed}</p>}
               {invoiceList.isSuccess && invoiceRows.length === 0 && (
                 <p className="p-4 pl-8 text-sm text-muted-foreground">
-                  {!invoiceList.data.complete
+                  {!invoiceList.data?.complete
                     ? strings.invoices.stillReading
                     : allInvoices.length === 0
                       ? strings.invoices.empty
@@ -1150,6 +1158,9 @@ export function InboxPage({
                   />
                 ))}
               </ul>
+              {invoiceList.data && !invoiceList.data.complete && invoiceRows.length > 0 && (
+                <p className="px-4 pb-3 pl-10 text-xs text-muted-foreground">{strings.invoices.stillReading}</p>
+              )}
             </>
           ) : showSenders ? (
             <>
@@ -1214,11 +1225,11 @@ export function InboxPage({
           ) : showSnoozed ? (
             <>
               {snoozes.isPending && <ListSkeleton />}
-              {snoozes.isSuccess && snoozes.data.snoozed.length === 0 && (
+              {snoozes.isSuccess && snoozedRows.length === 0 && (
                 <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.later.snoozedEmpty}</p>
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
-                {snoozes.data?.snoozed.map((item) => (
+                {snoozedRows.map((item) => (
                   <LaterRow
                     key={item.thread.id}
                     title={item.thread.fromName ?? item.thread.fromEmail ?? t.unknownSender}
@@ -1244,11 +1255,11 @@ export function InboxPage({
           ) : showScheduled ? (
             <>
               {scheduled.isPending && <ListSkeleton />}
-              {scheduled.isSuccess && scheduled.data.scheduled.length === 0 && (
+              {scheduled.isSuccess && scheduledRows.length === 0 && (
                 <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.later.scheduledEmpty}</p>
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
-                {scheduled.data?.scheduled.map((item) => {
+                {scheduledRows.map((item) => {
                   // Opening it is changing it: it goes back to the drafts, as in Gmail.
                   const edit = () =>
                     scheduledActions.cancel.mutate(item.id, {
@@ -1283,7 +1294,7 @@ export function InboxPage({
                 // Only delivered ones, hidden: say so, with the way to see them right here.
                 <div className="flex flex-col items-start gap-3 p-4 pl-8 text-sm text-muted-foreground">
                   <p>
-                    {!shipments.data.complete
+                    {!shipments.data?.complete
                       ? strings.parcels.stillReading
                       : deliveredCount > 0
                         ? strings.parcels.nothingOnTheWay
@@ -1307,7 +1318,7 @@ export function InboxPage({
                   />
                 ))}
               </ul>
-              {shipments.data && !shipments.data.complete && parcelRows.length > 0 && (
+              {shipments.data && !shipments.data?.complete && parcelRows.length > 0 && (
                 <p className="px-4 pb-3 text-xs text-muted-foreground">{strings.parcels.stillReading}</p>
               )}
             </>

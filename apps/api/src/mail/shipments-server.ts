@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { getDb, type MailAccount } from "@evido/db"
 import { findShipmentInThread, looksLikeShipment, type FoundShipment } from "@evido/mail-core/shipments"
 import type { MailShipmentView, MailThreadMessage } from "@evido/mail-core/types"
+import { readInRounds } from "./scan-rounds"
 import { readConversation, threadLines, type Conversation } from "./threads-server"
 
 /** How far back shipping mail is looked through: parcels older than this have arrived. */
@@ -92,7 +93,7 @@ export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
     const key = `${message.accountId}:${message.threadId}`
     if (!newestByThread.has(key) && looksLikeShipment(message)) newestByThread.set(key, message)
   }
-  if (newestByThread.size === 0) return { done: true }
+  if (newestByThread.size === 0) return { done: true, read: 0 }
 
   const known = await db.mailShipment.findMany({
     where: { userId, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
@@ -105,24 +106,28 @@ export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
   const toRead = [...newestByThread.entries()].filter(
     ([key, message]) => !upToDate.has(`${key}:${message.providerMessageId}`)
   )
-  if (toRead.length === 0) return { done: true }
+  if (toRead.length === 0) return { done: true, read: 0 }
 
   const accounts = new Map(
     (await db.mailAccount.findMany({ where: { userId, status: "active" } })).map((account) => [account.id, account])
   )
-  for (const [, message] of toRead) {
-    if (Date.now() > deadline) return { done: false }
-    const account = accounts.get(message.accountId)
-    if (!account) continue
-    try {
+  return readInRounds(
+    toRead,
+    deadline,
+    ([, message]) => message.accountId,
+    async ([, message]) => {
+      const account = accounts.get(message.accountId)
+      if (!account) return
       const { messages } = await readConversation({ account, threadId: message.threadId! })
-      await save(account, message.threadId!, { id: message.providerMessageId, subject: message.subject, receivedAt: message.receivedAt }, shipmentIn(messages))
-    } catch (error) {
-      // One unreadable conversation shouldn't hold up the others; it is tried again next time.
-      console.error("Shipment scan failed for a conversation", error)
-    }
-  }
-  return { done: true }
+      await save(
+        account,
+        message.threadId!,
+        { id: message.providerMessageId, subject: message.subject, receivedAt: message.receivedAt },
+        shipmentIn(messages)
+      )
+    },
+    "Shipment"
+  )
 }
 
 type Row = Awaited<ReturnType<ReturnType<typeof getDb>["mailShipment"]["findMany"]>>[number]
