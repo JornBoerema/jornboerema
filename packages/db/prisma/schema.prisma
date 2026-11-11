@@ -775,6 +775,8 @@ model MailPreferences {
   invoices     Boolean  @default(true)
   /// "Make a task" on a mail, for Even doen, and the tasks made from it above the mail.
   todos        Boolean  @default(true)
+  /// The sidebar as arranged: { main, more, hidden }, each a list of places; null is the default.
+  sidebar      Json?
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -10,6 +10,7 @@ import {
   SignatureIcon,
   SparklesIcon,
   UserCircleIcon,
+  LayoutLeftIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
@@ -31,6 +32,7 @@ import {
 import { Switch } from "@evido/ui/components/switch"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import { useI18n } from "@/i18n"
+import { SidebarSettings } from "@/components/sidebar-settings"
 import { notificationsSupported } from "@/lib/notifications"
 import {
   setAlwaysShowImages,
@@ -208,14 +210,20 @@ export function MailSettings({
   open,
   onOpenChange,
   user,
+  openAt,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: { name: string; email: string }
+  /** Asked to show this page, such as the sidebar from its own link. */
+  openAt?: { id: string } | null
 }) {
   const strings = useI18n().t
   const t = strings.shell
   const [page, setPage] = useState(linkedPage)
+  useEffect(() => {
+    if (openAt) setPage(openAt.id)
+  }, [openAt])
   const about = useAboutPage()
   // As in Even doen: the account first, then what belongs to this app.
   const pages: SettingsPage[] = [
@@ -254,6 +262,12 @@ export function MailSettings({
       icon: <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
+      id: "sidebar",
+      label: t.sidebarPage,
+      group: t.mailGroup,
+      icon: <HugeiconsIcon icon={LayoutLeftIcon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
       id: "features",
       label: strings.features.title,
       group: t.mailGroup,
@@ -289,6 +303,7 @@ export function MailSettings({
       {page === "notifications" && <NotificationSettings />}
       {page === "ai" && <AiSettings />}
       {page === "features" && <FeatureSettings />}
+      {page === "sidebar" && <SidebarSettings />}
       {page === "appearance" && <AppearanceSettings />}
       {page === "about" && <AboutSettings />}
       {page === "privacy" && <PrivacySettings />}

@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { normalizeSidebar, type SidebarLayout } from "@evido/mail-core/sidebar"
 import { api, errorText } from "@/lib/api"
 
 const REMOTE_IMAGES_KEY = "evido.mail.remote-images"
@@ -272,6 +273,54 @@ export function useTodos() {
   return useSyncExternalStore(subscribe, readTodos)
 }
 
+const SIDEBAR_KEY = "evido.mail.sidebar"
+// One parsed layout per stored text, so the store hands out the same object until it changes.
+let sidebarCache: { raw: string | null; layout: SidebarLayout } | null = null
+
+function readSidebar(): SidebarLayout {
+  let raw: string | null = null
+  try {
+    raw = localStorage.getItem(SIDEBAR_KEY)
+  } catch {
+    // Blocked storage: the default.
+  }
+  if (sidebarCache?.raw === raw) return sidebarCache.layout
+  let parsed: unknown = null
+  try {
+    parsed = raw ? JSON.parse(raw) : null
+  } catch {
+    // Unreadable: the default.
+  }
+  sidebarCache = { raw, layout: normalizeSidebar(parsed) }
+  return sidebarCache.layout
+}
+
+/** Arranges the sidebar, or with null puts the default back; follows the account to other devices. */
+export function setSidebar(layout: SidebarLayout | null) {
+  try {
+    if (layout) localStorage.setItem(SIDEBAR_KEY, JSON.stringify(layout))
+    else localStorage.removeItem(SIDEBAR_KEY)
+  } catch {
+    // Storage can be blocked; the account still keeps it.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ sidebar: layout })
+}
+
+/** The sidebar as the user arranged it: which places, in what order, under More or hidden. */
+export function useSidebarLayout() {
+  return useSyncExternalStore(subscribe, readSidebar)
+}
+
+/** What this browser has arranged, if anything, for the first device to bring along. */
+function readSidebarSaved(): SidebarLayout | null {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) ? readSidebar() : null
+  } catch {
+    return null
+  }
+}
+
 const DELIVERED_KEY = "evido.mail.parcels-delivered"
 
 function readShowDelivered() {
@@ -308,6 +357,7 @@ type AccountPreferences = {
   senders: boolean
   invoices: boolean
   todos: boolean
+  sidebar: SidebarLayout | null
 }
 
 const PREFERENCES_URL = "/api/mail/preferences"
@@ -323,6 +373,7 @@ function localPreferences(): AccountPreferences {
     senders: readSenders(),
     invoices: readInvoices(),
     todos: readTodos(),
+    sidebar: readSidebarSaved(),
   }
 }
 
@@ -343,6 +394,7 @@ function applyLocally(preferences: AccountPreferences) {
     set(SENDERS_KEY, preferences.senders === false ? "off" : null)
     set(INVOICES_KEY, preferences.invoices === false ? "off" : null)
     set(TODOS_KEY, preferences.todos === false ? "off" : null)
+    set(SIDEBAR_KEY, preferences.sidebar ? JSON.stringify(preferences.sidebar) : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.
   }

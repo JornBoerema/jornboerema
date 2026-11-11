@@ -1,4 +1,5 @@
-import { getDb } from "@evido/db"
+import { getDb, Prisma } from "@evido/db"
+import { normalizeSidebar, type SidebarLayout } from "@evido/mail-core/sidebar"
 
 export type MailPreferences = {
   summaries: boolean
@@ -10,6 +11,7 @@ export type MailPreferences = {
   senders: boolean
   invoices: boolean
   todos: boolean
+  sidebar: SidebarLayout | null
 }
 
 const select = {
@@ -22,11 +24,13 @@ const select = {
   senders: true,
   invoices: true,
   todos: true,
+  sidebar: true,
 } as const
 
 /** Null until first saved, so the first device can bring along what it had chosen. */
 export async function readPreferences(userId: string): Promise<MailPreferences | null> {
-  return getDb().mailPreferences.findUnique({ where: { userId }, select })
+  const saved = await getDb().mailPreferences.findUnique({ where: { userId }, select })
+  return saved && { ...saved, sidebar: saved.sidebar === null ? null : normalizeSidebar(saved.sidebar) }
 }
 
 /** Whether Parcels is on: it is unless turned off. */
@@ -39,13 +43,19 @@ export async function invoicesEnabled(userId: string) {
   return (await readPreferences(userId))?.invoices ?? true
 }
 
-export async function savePreferences(userId: string, change: Partial<MailPreferences>): Promise<MailPreferences> {
+export async function savePreferences(userId: string, input: Partial<MailPreferences>): Promise<MailPreferences> {
   const db = getDb()
+  const { sidebar, ...rest } = input
+  // Null puts the default back.
+  const change = {
+    ...rest,
+    ...(sidebar !== undefined && { sidebar: sidebar === null ? Prisma.DbNull : normalizeSidebar(sidebar) }),
+  }
   const [saved] = await db.$transaction([
     db.mailPreferences.upsert({ where: { userId }, create: { userId, ...change }, update: change, select }),
     // Turned off, nothing found in shipping mail stays behind.
     ...(change.parcels === false ? [db.mailShipment.deleteMany({ where: { userId } })] : []),
     ...(change.invoices === false ? [db.mailInvoice.deleteMany({ where: { userId } })] : []),
   ])
-  return saved
+  return { ...saved, sidebar: saved.sidebar === null ? null : normalizeSidebar(saved.sidebar) }
 }

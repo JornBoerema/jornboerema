@@ -68,6 +68,7 @@ import {
   unsnooze,
 } from "./later-server"
 import { secretsMatch } from "@evido/mail-core/secrets"
+import { NAV_ITEMS } from "@evido/mail-core/sidebar"
 import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { invoicesEnabled, parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
@@ -255,6 +256,9 @@ const preferencesBody = z
     senders: z.boolean(),
     invoices: z.boolean(),
     todos: z.boolean(),
+    sidebar: z
+      .object({ main: z.array(z.enum(NAV_ITEMS)).max(20), more: z.array(z.enum(NAV_ITEMS)).max(20), hidden: z.array(z.enum(NAV_ITEMS)).max(20) })
+      .nullable(),
   })
   .partial()
   .refine((change) => Object.keys(change).length > 0)

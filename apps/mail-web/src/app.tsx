@@ -83,6 +83,8 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     setComposeHidden(false)
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
+  // A page to open the settings at, such as the sidebar from its own link; a new object each time asked.
+  const [settingsPage, setSettingsPage] = useState<{ id: string } | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const hasActive = list.some((account) => account.status === "active")
@@ -224,6 +226,10 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       } else startCompose(null)
     },
     onSettings: () => setSettingsOpen(true),
+    onCustomizeSidebar: () => {
+      setSettingsPage({ id: "sidebar" })
+      setSettingsOpen(true)
+    },
     onSearch: () => setSearchOpen(true),
     onShortcuts: () => setShortcutsOpen(true),
   }
@@ -251,7 +257,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
           onCloseCompose={closeCompose}
         />
       </main>
-      <MailSettings open={settingsOpen} onOpenChange={setSettingsOpen} user={user} />
+      <MailSettings open={settingsOpen} onOpenChange={setSettingsOpen} user={user} openAt={settingsPage} />
       <ShortcutsSpotlight
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}

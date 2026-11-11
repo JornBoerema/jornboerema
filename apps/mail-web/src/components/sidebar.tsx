@@ -1,5 +1,6 @@
 import { useLaterCounts } from "@/lib/later"
-import { useInvoices, useParcels, useSenders } from "@/lib/preferences"
+import { useInvoices, useParcels, useSenders, useSidebarLayout } from "@/lib/preferences"
+import type { NavItem, SidebarLayout } from "@evido/mail-core/sidebar"
 import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
@@ -29,6 +30,7 @@ import {
   MailSend01Icon,
   CleanIcon,
   Invoice02Icon,
+  DragDropVerticalIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -44,7 +46,7 @@ import {
 } from "@evido/ui/components/dropdown-menu"
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
-import { MAIL_FOLDERS, type MailAccountView, type MailFolder } from "@evido/mail-core/types"
+import type { MailAccountView, MailFolder } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { Brand } from "@/components/brand"
 import { useI18n } from "@/i18n"
@@ -75,6 +77,8 @@ export type MailNavigation = {
   /** The composer fills the reading pane; New message is then the current place. */
   composing: boolean
   onSelectAccount: (id: string) => void
+  /** Opens the settings where the sidebar is arranged. */
+  onCustomizeSidebar: () => void
   /** One mailbox for the list in view, or every one, without leaving it. */
   onFilterAccount: (id: string) => void
   onSelectDrafts: () => void
@@ -92,8 +96,6 @@ export type MailNavigation = {
 
 const NAV_ICON = "size-4 shrink-0"
 
-/** Folders opened now and then, out of the way until asked for. */
-const MORE: MailFolder[] = ["archive", "spam", "trash"]
 const MORE_KEY = "evido.mail.sidebar.more"
 
 function readMoreOpen() {
@@ -104,11 +106,176 @@ function readMoreOpen() {
   }
 }
 
-function MoreFolders({ view, onSelect }: { view: MailView | null; onSelect: (folder: MailFolder) => void }) {
+/** Each place's icon, here and where the sidebar is arranged. */
+export const PLACE_ICONS: Record<NavItem, IconSvgElement> = {
+  inbox: InboxIcon,
+  starred: StarIcon,
+  parcels: PackageIcon,
+  invoices: Invoice02Icon,
+  snoozed: AlarmClockIcon,
+  drafts: File01Icon,
+  scheduled: MailSend01Icon,
+  sent: SentIcon,
+  senders: CleanIcon,
+  archive: ArchiveIcon,
+  spam: SpamIcon,
+  trash: Delete02Icon,
+}
+
+/** Each place's name. */
+export function usePlaceLabels(): Record<NavItem, string> {
+  const t = useI18n().t
+  return {
+    inbox: t.inbox.allMailboxes,
+    starred: t.folders.starred,
+    parcels: t.parcels.title,
+    invoices: t.invoices.title,
+    snoozed: t.later.snoozedTitle,
+    drafts: t.drafts.title,
+    scheduled: t.later.scheduledTitle,
+    sent: t.folders.sent,
+    senders: t.senders.title,
+    archive: t.folders.archive,
+    spam: t.folders.spam,
+    trash: t.folders.trash,
+  }
+}
+
+/** One place in the sidebar, however it is drawn: a link, a rail icon, a menu choice. */
+type Place = {
+  icon: IconSvgElement
+  label: string
+  selected: boolean
+  onSelect: () => void
+  /** A number beside it, with how a screen reader says it. */
+  count?: { value: string; label?: string }
+  /** A dot on the rail icon, for unread mail. */
+  badge?: boolean
+  /** Turned off as a feature, or empty where empty means nothing to show. */
+  shown: boolean
+}
+
+/** Every place the sidebar can show, by its id in the layout. */
+function usePlaces(
+  nav: Pick<
+    MailNavigation,
+    | "accountId"
+    | "view"
+    | "draftCount"
+    | "composing"
+    | "onSelectAccount"
+    | "onSelectDrafts"
+    | "onSelectParcels"
+    | "onSelectInvoices"
+    | "onSelectSnoozed"
+    | "onSelectScheduled"
+    | "onSelectSenders"
+    | "onSelectFolder"
+  >
+): Record<NavItem, Place> {
+  const { t, locale } = useI18n()
+  const parcels = useParcels()
+  const invoices = useInvoices()
+  const tidy = useSenders()
+  const { snoozedCount, scheduledCount } = useLaterCounts()
+  const unread = useUnread(true).data?.count
+  const shownView: MailView | null = nav.composing ? null : nav.view
+  const folder = (id: MailFolder): Place => ({
+    icon: FOLDER_ICONS[id],
+    label: t.folders[id],
+    selected: shownView === id,
+    onSelect: () => nav.onSelectFolder(id),
+    shown: true,
+  })
+  return {
+    inbox: {
+      icon: InboxIcon,
+      label: t.inbox.allMailboxes,
+      selected: shownView === "inbox" && nav.accountId === "",
+      onSelect: () => nav.onSelectAccount(""),
+      count: unread ? { value: unread.toLocaleString(locale), label: t.emptyPane.unread(String(unread)) } : undefined,
+      badge: !!unread,
+      shown: true,
+    },
+    starred: folder("starred"),
+    parcels: {
+      icon: PackageIcon,
+      label: t.parcels.title,
+      selected: shownView === "parcels",
+      onSelect: nav.onSelectParcels,
+      shown: parcels,
+    },
+    invoices: {
+      icon: Invoice02Icon,
+      label: t.invoices.title,
+      selected: shownView === "invoices",
+      onSelect: nav.onSelectInvoices,
+      shown: invoices,
+    },
+    // Snoozed and Scheduled only when there is something in them, or they are open.
+    snoozed: {
+      icon: AlarmClockIcon,
+      label: t.later.snoozedTitle,
+      selected: shownView === "snoozed",
+      onSelect: nav.onSelectSnoozed,
+      count: { value: String(snoozedCount) },
+      shown: snoozedCount > 0 || shownView === "snoozed",
+    },
+    drafts: {
+      icon: File01Icon,
+      label: t.drafts.title,
+      selected: shownView === "drafts",
+      onSelect: nav.onSelectDrafts,
+      count: nav.draftCount > 0 ? { value: String(nav.draftCount), label: t.drafts.count(nav.draftCount) } : undefined,
+      shown: true,
+    },
+    scheduled: {
+      icon: MailSend01Icon,
+      label: t.later.scheduledTitle,
+      selected: shownView === "scheduled",
+      onSelect: nav.onSelectScheduled,
+      count: { value: String(scheduledCount) },
+      shown: scheduledCount > 0 || shownView === "scheduled",
+    },
+    sent: folder("sent"),
+    senders: {
+      icon: CleanIcon,
+      label: t.senders.title,
+      selected: shownView === "senders",
+      onSelect: nav.onSelectSenders,
+      shown: tidy,
+    },
+    archive: folder("archive"),
+    spam: folder("spam"),
+    trash: folder("trash"),
+  }
+}
+
+function PlaceLink({ place }: { place: Place }) {
+  return (
+    <button
+      type="button"
+      className={cn("list-link", place.selected && "is-selected")}
+      aria-current={place.selected ? "page" : undefined}
+      onClick={place.onSelect}
+    >
+      <HugeiconsIcon icon={place.icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+      <span>{place.label}</span>
+      {place.count && (
+        <span className="list-count" aria-label={place.count.label}>
+          {place.count.value}
+        </span>
+      )}
+    </button>
+  )
+}
+
+/** The places tucked under More, out of the way until asked for, and the way to arrange them all. */
+function MorePlaces({ places, onCustomize }: { places: Place[]; onCustomize: () => void }) {
   const t = useI18n().t.shell
   const [chosen, setChosen] = useState(readMoreOpen)
-  // Being in one of them keeps the group open, so the current folder stays in sight.
-  const open = chosen || MORE.includes(view as MailFolder)
+  // Being in one of them keeps the group open, so the current place stays in sight.
+  const open = chosen || places.some((place) => place.selected)
   const toggle = () => {
     const next = !open
     setChosen(next)
@@ -130,32 +297,18 @@ function MoreFolders({ view, onSelect }: { view: MailView | null; onSelect: (fol
         />
         <span>{t.more}</span>
       </button>
-      {open && MORE.map((folder) => <FolderLink key={folder} folder={folder} view={view} onSelect={onSelect} />)}
+      {open && (
+        <>
+          {places.map((place) => (
+            <PlaceLink key={place.label} place={place} />
+          ))}
+          <button type="button" className="list-link is-ghost" onClick={onCustomize}>
+            <HugeiconsIcon icon={DragDropVerticalIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+            <span>{t.customizeSidebar}</span>
+          </button>
+        </>
+      )}
     </>
-  )
-}
-
-function FolderLink({
-  folder,
-  view,
-  onSelect,
-}: {
-  folder: MailFolder
-  view: MailView | null
-  onSelect: (folder: MailFolder) => void
-}) {
-  const t = useI18n().t.folders
-  const selected = view === folder
-  return (
-    <button
-      type="button"
-      className={cn("list-link", selected && "is-selected")}
-      aria-current={selected ? "page" : undefined}
-      onClick={() => onSelect(folder)}
-    >
-      <HugeiconsIcon icon={FOLDER_ICONS[folder]} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-      <span>{t[folder]}</span>
-    </button>
   )
 }
 
@@ -180,18 +333,26 @@ export function Sidebar({
   onCompose,
   onSettings,
   onShortcuts,
+  onCustomizeSidebar,
 }: MailNavigation) {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const desktop = useInDesktop()
-  const parcels = useParcels()
-  const { snoozedCount, scheduledCount } = useLaterCounts()
-  const tidy = useSenders()
-  const invoices = useInvoices()
-  const unread = useUnread(true).data?.count
+  const layout = useSidebarLayout()
   // While writing, only New message is current; closing it gives the selection back.
-  const allSelected = !composing && view === "inbox" && accountId === ""
-  const draftsSelected = !composing && view === "drafts"
-  const shownView: MailView | null = composing ? null : view
+  const places = usePlaces({
+    accountId,
+    view,
+    draftCount,
+    composing,
+    onSelectAccount,
+    onSelectDrafts,
+    onSelectParcels,
+    onSelectInvoices,
+    onSelectSnoozed,
+    onSelectScheduled,
+    onSelectSenders,
+    onSelectFolder,
+  })
   return (
     // One panel for both: its width animates, and the full sidebar and the rail fade into each other.
     <aside
@@ -233,94 +394,11 @@ export function Sidebar({
               <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
               <kbd className="nav-kbd">C</kbd>
             </button>
-            <button
-              type="button"
-              className={cn("list-link", allSelected && "is-selected")}
-              aria-current={allSelected ? "page" : undefined}
-              onClick={() => onSelectAccount("")}
-            >
-              <HugeiconsIcon icon={InboxIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-              <span>{t.inbox.allMailboxes}</span>
-              {!!unread && (
-                <span className="list-count" aria-label={t.emptyPane.unread(String(unread))}>
-                  {unread.toLocaleString(locale)}
-                </span>
-              )}
-            </button>
-            <FolderLink folder="starred" view={shownView} onSelect={onSelectFolder} />
-            {parcels && (
-              <button
-                type="button"
-                className={cn("list-link", shownView === "parcels" && "is-selected")}
-                aria-current={shownView === "parcels" ? "page" : undefined}
-                onClick={onSelectParcels}
-              >
-                <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-                <span>{t.parcels.title}</span>
-              </button>
-            )}
-            {invoices && (
-              <button
-                type="button"
-                className={cn("list-link", shownView === "invoices" && "is-selected")}
-                aria-current={shownView === "invoices" ? "page" : undefined}
-                onClick={onSelectInvoices}
-              >
-                <HugeiconsIcon icon={Invoice02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-                <span>{t.invoices.title}</span>
-              </button>
-            )}
-            {(snoozedCount > 0 || shownView === "snoozed") && (
-              <button
-                type="button"
-                className={cn("list-link", shownView === "snoozed" && "is-selected")}
-                aria-current={shownView === "snoozed" ? "page" : undefined}
-                onClick={onSelectSnoozed}
-              >
-                <HugeiconsIcon icon={AlarmClockIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-                <span>{t.later.snoozedTitle}</span>
-                <span className="list-count">{snoozedCount}</span>
-              </button>
-            )}
-            <button
-              type="button"
-              className={cn("list-link", draftsSelected && "is-selected")}
-              aria-current={draftsSelected ? "page" : undefined}
-              onClick={onSelectDrafts}
-            >
-              <HugeiconsIcon icon={File01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-              <span>{t.drafts.title}</span>
-              {draftCount > 0 && (
-                <span className="list-count" aria-label={t.drafts.count(draftCount)}>
-                  {draftCount}
-                </span>
-              )}
-            </button>
-            {(scheduledCount > 0 || shownView === "scheduled") && (
-              <button
-                type="button"
-                className={cn("list-link", shownView === "scheduled" && "is-selected")}
-                aria-current={shownView === "scheduled" ? "page" : undefined}
-                onClick={onSelectScheduled}
-              >
-                <HugeiconsIcon icon={MailSend01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-                <span>{t.later.scheduledTitle}</span>
-                <span className="list-count">{scheduledCount}</span>
-              </button>
-            )}
-            <FolderLink folder="sent" view={shownView} onSelect={onSelectFolder} />
-            {tidy && (
-              <button
-                type="button"
-                className={cn("list-link", shownView === "senders" && "is-selected")}
-                aria-current={shownView === "senders" ? "page" : undefined}
-                onClick={onSelectSenders}
-              >
-                <HugeiconsIcon icon={CleanIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-                <span>{t.senders.title}</span>
-              </button>
-            )}
-            <MoreFolders view={shownView} onSelect={onSelectFolder} />
+            {layout.main.map((id) => places[id].shown && <PlaceLink key={id} place={places[id]} />)}
+            <MorePlaces
+              places={layout.more.map((id) => places[id]).filter((place) => place.shown)}
+              onCustomize={onCustomizeSidebar}
+            />
           </div>
           <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
             <div className="sidebar-heading">
@@ -390,21 +468,10 @@ export function Sidebar({
         )}
       </div>
       <SidebarRail
-        {...{ accounts, accountId, user, sidebar, view, draftCount, draftWaiting, composing }}
-        {...{
-          onSelectAccount,
-          onSelectDrafts,
-          onSelectParcels,
-          onSelectInvoices,
-          onSelectSnoozed,
-          onSelectScheduled,
-          onSelectSenders,
-          onSelectFolder,
-          onCompose,
-          onSettings,
-          onShortcuts,
-        }}
-        unread={unread}
+        {...{ accounts, accountId, user, sidebar, view, draftWaiting, composing }}
+        {...{ onSelectAccount, onCompose, onSettings, onShortcuts }}
+        places={places}
+        layout={layout}
       />
     </aside>
   )
@@ -512,29 +579,33 @@ function SidebarRail({
   user,
   sidebar,
   view,
-  draftCount,
   draftWaiting,
   composing,
-  unread,
   onSelectAccount,
-  onSelectDrafts,
-  onSelectParcels,
-  onSelectInvoices,
-  onSelectSnoozed,
-  onSelectScheduled,
-  onSelectSenders,
-  onSelectFolder,
   onCompose,
   onSettings,
   onShortcuts,
-}: Omit<MailNavigation, "onSearch" | "onFilterAccount"> & { unread: number | undefined }) {
+  places,
+  layout,
+}: Pick<
+  MailNavigation,
+  | "accounts"
+  | "accountId"
+  | "user"
+  | "sidebar"
+  | "view"
+  | "draftWaiting"
+  | "composing"
+  | "onSelectAccount"
+  | "onCompose"
+  | "onSettings"
+  | "onShortcuts"
+> & {
+  places: Record<NavItem, Place>
+  layout: SidebarLayout
+}) {
   const { t } = useI18n()
   const desktop = useInDesktop()
-  const parcels = useParcels()
-  const { snoozedCount, scheduledCount } = useLaterCounts()
-  const tidy = useSenders()
-  const invoices = useInvoices()
-  const shownView: MailView | null = composing ? null : view
   return (
     <div className="sidebar-rail" inert={!sidebar.collapsed}>
       <RailTip label={t.shell.expand} shortcut="⌘B">
@@ -561,80 +632,20 @@ function SidebarRail({
           onClick={onCompose}
         />
         <span className="rail-gap" aria-hidden="true" />
-        <RailLink
-          icon={InboxIcon}
-          label={unread ? `${t.inbox.allMailboxes} · ${t.emptyPane.unread(String(unread))}` : t.inbox.allMailboxes}
-          selected={!composing && view === "inbox" && accountId === ""}
-          badge={!!unread}
-          onClick={() => onSelectAccount("")}
-        />
-        <RailLink
-          icon={StarIcon}
-          label={t.folders.starred}
-          selected={shownView === "starred"}
-          onClick={() => onSelectFolder("starred")}
-        />
-        {parcels && (
-          <RailLink
-            icon={PackageIcon}
-            label={t.parcels.title}
-            selected={shownView === "parcels"}
-            onClick={onSelectParcels}
-          />
-        )}
-        {invoices && (
-          <RailLink
-            icon={Invoice02Icon}
-            label={t.invoices.title}
-            selected={shownView === "invoices"}
-            onClick={onSelectInvoices}
-          />
-        )}
-        {(snoozedCount > 0 || shownView === "snoozed") && (
-          <RailLink
-            icon={AlarmClockIcon}
-            label={t.later.snoozedTitle}
-            selected={shownView === "snoozed"}
-            onClick={onSelectSnoozed}
-          />
-        )}
-        {(scheduledCount > 0 || shownView === "scheduled") && (
-          <RailLink
-            icon={MailSend01Icon}
-            label={t.later.scheduledTitle}
-            selected={shownView === "scheduled"}
-            onClick={onSelectScheduled}
-          />
-        )}
-        <RailLink
-          icon={File01Icon}
-          label={draftCount > 0 ? `${t.drafts.title} · ${t.drafts.count(draftCount)}` : t.drafts.title}
-          selected={!composing && view === "drafts"}
-          onClick={onSelectDrafts}
-        />
-        <RailLink
-          icon={SentIcon}
-          label={t.folders.sent}
-          selected={shownView === "sent"}
-          onClick={() => onSelectFolder("sent")}
-        />
-        {tidy && (
-          <RailLink
-            icon={CleanIcon}
-            label={t.senders.title}
-            selected={shownView === "senders"}
-            onClick={onSelectSenders}
-          />
-        )}
-        {MORE.map((folder) => (
-          <RailLink
-            key={folder}
-            icon={FOLDER_ICONS[folder]}
-            label={t.folders[folder]}
-            selected={shownView === folder}
-            onClick={() => onSelectFolder(folder)}
-          />
-        ))}
+        {[...layout.main, ...layout.more].map((id) => {
+          const place = places[id]
+          if (!place.shown) return null
+          return (
+            <RailLink
+              key={id}
+              icon={place.icon}
+              label={place.count?.label ? `${place.label} · ${place.count.label}` : place.label}
+              selected={place.selected}
+              badge={place.badge}
+              onClick={place.onSelect}
+            />
+          )
+        })}
       </nav>
       <nav className="rail-group rail-mailboxes" aria-label={t.shell.mailboxes}>
         {accounts.map((account) => (
@@ -680,6 +691,22 @@ const SENDERS_CHOICE = "senders:"
 const INVOICES_CHOICE = "invoices:"
 const FOLDER_CHOICE = "folder:"
 
+/** Each place as a choice in the menu: the inbox is all mailboxes, "". */
+const MENU_CHOICES: Record<NavItem, string> = {
+  inbox: "",
+  starred: `${FOLDER_CHOICE}starred`,
+  parcels: PARCELS_CHOICE,
+  invoices: INVOICES_CHOICE,
+  snoozed: SNOOZED_CHOICE,
+  drafts: DRAFTS_CHOICE,
+  scheduled: SCHEDULED_CHOICE,
+  sent: `${FOLDER_CHOICE}sent`,
+  senders: SENDERS_CHOICE,
+  archive: `${FOLDER_CHOICE}archive`,
+  spam: `${FOLDER_CHOICE}spam`,
+  trash: `${FOLDER_CHOICE}trash`,
+}
+
 export function MailMenu({
   accounts,
   accountId,
@@ -714,6 +741,8 @@ export function MailMenu({
   const parcels = useParcels()
   const tidy = useSenders()
   const invoices = useInvoices()
+  const layout = useSidebarLayout()
+  const labels = usePlaceLabels()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -751,21 +780,18 @@ export function MailMenu({
             else onSelectAccount(value)
           }}
         >
-          <DropdownMenuRadioItem value="">{t.inbox.allMailboxes}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value={DRAFTS_CHOICE}>
-            {t.drafts.title}
-            {draftCount > 0 && <span className="ml-auto text-xs text-muted-foreground tabular-nums">{draftCount}</span>}
-          </DropdownMenuRadioItem>
-          {parcels && <DropdownMenuRadioItem value={PARCELS_CHOICE}>{t.parcels.title}</DropdownMenuRadioItem>}
-          {invoices && <DropdownMenuRadioItem value={INVOICES_CHOICE}>{t.invoices.title}</DropdownMenuRadioItem>}
-          <DropdownMenuRadioItem value={SNOOZED_CHOICE}>{t.later.snoozedTitle}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value={SCHEDULED_CHOICE}>{t.later.scheduledTitle}</DropdownMenuRadioItem>
-          {tidy && <DropdownMenuRadioItem value={SENDERS_CHOICE}>{t.senders.title}</DropdownMenuRadioItem>}
-          {MAIL_FOLDERS.map((folder) => (
-            <DropdownMenuRadioItem key={folder} value={`${FOLDER_CHOICE}${folder}`}>
-              {t.folders[folder]}
-            </DropdownMenuRadioItem>
-          ))}
+          {[...layout.main, ...layout.more].map((id) => {
+            if ((id === "parcels" && !parcels) || (id === "invoices" && !invoices) || (id === "senders" && !tidy))
+              return null
+            return (
+              <DropdownMenuRadioItem key={id} value={MENU_CHOICES[id]}>
+                {labels[id]}
+                {id === "drafts" && draftCount > 0 && (
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">{draftCount}</span>
+                )}
+              </DropdownMenuRadioItem>
+            )
+          })}
           {accounts.map((account) => (
             <DropdownMenuRadioItem key={account.id} value={account.id}>
               <AccountDot color={account.color} />
