@@ -37,7 +37,7 @@ export function ReplySuggestions({
   const list = replies.data?.replies ?? []
   if (!enabled || list.length === 0) return null
   return (
-    <ul aria-label={t.replySuggestions} className="mb-2 flex flex-wrap justify-end gap-1.5">
+    <ul aria-label={t.replySuggestions} className="mb-2 flex flex-wrap justify-center gap-1.5">
       {list.map((reply) => (
         <li key={reply.label} className="min-w-0">
           <Button
