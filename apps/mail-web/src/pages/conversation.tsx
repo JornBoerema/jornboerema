@@ -13,6 +13,7 @@ import {
   MailSend01Icon,
   AlarmClockIcon,
   AlarmClockOffIcon,
+  TaskAdd01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -33,6 +34,8 @@ import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
 import { ShipmentCard } from "@/components/parcels"
 import { InvoiceCard } from "@/components/invoices"
+import { LinkedTodos, TodoDialog } from "@/components/todo-from-mail"
+import { useTodos } from "@/lib/preferences"
 import { UnsubscribeButton } from "@/components/unsubscribe-button"
 import { WhenPicker } from "@/components/when-picker"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
@@ -374,8 +377,9 @@ export function ConversationPage({
   snoozed?: boolean
   onUnsnooze?: () => void
 }) {
-  const t = useI18n().t.conversation
-  const later = useI18n().t.later
+  const strings = useI18n().t
+  const t = strings.conversation
+  const later = strings.later
   const scroller = useScrollFade<HTMLDivElement>()
   const moves = moveActions(folder, account ? canDeleteForever(account.provider) : false)
   const spam = canReportSpam(folder)
@@ -391,6 +395,8 @@ export function ConversationPage({
   // A reply left half written here comes back open, as it was.
   const [savedReply] = useState(() => readReplyDraft(summary.id))
   const [picking, setPicking] = useState(false)
+  const todos = useTodos()
+  const [makingTodo, setMakingTodo] = useState(false)
   const [replyMode, setReplyMode] = useState<ReplyMode | null>(savedReply?.mode ?? null)
   const replyDraft = savedReply?.mode === replyMode ? savedReply : null
   const { mutate: runAction } = useThreadAction()
@@ -417,6 +423,7 @@ export function ConversationPage({
     r: () => setReplyMode("reply"),
     a: () => setReplyMode("all"),
     f: () => setReplyMode("forward"),
+    ...(todos && { t: () => setMakingTodo(true) }),
   })
 
   const messages = useMemo<SanitizedMessage[]>(
@@ -470,8 +477,19 @@ export function ConversationPage({
             <ToolbarAction icon={AlarmClockIcon} label={later.snooze} shortcut="B" onClick={() => setPicking(true)} />
           )}
           <ToolbarAction icon={MailOpen01Icon} label={t.markUnread} shortcut="U" onClick={() => onLeave("unread")} />
+          {todos && (
+            <ToolbarAction icon={TaskAdd01Icon} label={strings.todos.make} shortcut="T" onClick={() => setMakingTodo(true)} />
+          )}
         </div>
         <WhenPicker open={picking} onOpenChange={setPicking} purpose="snooze" onPick={onSnooze} />
+        {todos && (
+          <TodoDialog
+            threadId={id}
+            subject={messages[0]?.subject || summary.subject}
+            open={makingTodo}
+            onOpenChange={setMakingTodo}
+          />
+        )}
       </header>
 
       {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
@@ -483,6 +501,7 @@ export function ConversationPage({
           </h2>
           <ShipmentCard threadId={id} thread={summary} />
           <InvoiceCard threadId={id} thread={summary} />
+          <LinkedTodos threadId={id} />
           <MailSummaryCard threadId={id} />
           {thread.isPending && (
             // What the list already knows, while the message itself comes in.

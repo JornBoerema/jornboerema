@@ -60,6 +60,7 @@ const en = {
   mailCantDeleteForever: "Gmail doesn't let this app delete mail for good. It empties its trash after 30 days.",
   mailTooManySignatures: "You've reached the maximum number of signatures.",
   mailMessageGone: "This message no longer exists.",
+  todoListGone: "That list no longer exists.",
   mailReconnect: "Access to this mailbox has ended. Connect it again.",
   mailProviderFailed: "The mail provider didn't respond. Please try again in a minute.",
 }
@@ -118,6 +119,7 @@ const nl: Record<MessageKey, string> = {
   mailCantDeleteForever: "Gmail laat deze app geen mail definitief verwijderen. Gmail leegt de prullenbak zelf na 30 dagen.",
   mailTooManySignatures: "Je hebt het maximum aantal handtekeningen bereikt.",
   mailMessageGone: "Dit bericht bestaat niet meer.",
+  todoListGone: "Die lijst bestaat niet meer.",
   mailReconnect: "De toegang tot deze mailbox is verlopen. Koppel hem opnieuw.",
   mailProviderFailed: "De mailprovider reageert niet. Probeer het over een minuut opnieuw.",
 }

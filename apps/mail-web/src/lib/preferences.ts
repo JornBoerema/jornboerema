@@ -246,6 +246,32 @@ export function useInvoices() {
   return useSyncExternalStore(subscribe, readInvoices)
 }
 
+const TODOS_KEY = "evido.mail.todos"
+
+function readTodos() {
+  try {
+    return localStorage.getItem(TODOS_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setTodos(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(TODOS_KEY)
+    else localStorage.setItem(TODOS_KEY, "off")
+  } catch {
+    // Storage can be blocked; the account still keeps the choice.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ todos: enabled })
+}
+
+/** On unless turned off: make a task in Even doen from a mail. */
+export function useTodos() {
+  return useSyncExternalStore(subscribe, readTodos)
+}
+
 const DELIVERED_KEY = "evido.mail.parcels-delivered"
 
 function readShowDelivered() {
@@ -281,6 +307,7 @@ type AccountPreferences = {
   unsubscribe: boolean
   senders: boolean
   invoices: boolean
+  todos: boolean
 }
 
 const PREFERENCES_URL = "/api/mail/preferences"
@@ -295,6 +322,7 @@ function localPreferences(): AccountPreferences {
     unsubscribe: readUnsubscribe(),
     senders: readSenders(),
     invoices: readInvoices(),
+    todos: readTodos(),
   }
 }
 
@@ -314,6 +342,7 @@ function applyLocally(preferences: AccountPreferences) {
     set(UNSUBSCRIBE_KEY, preferences.unsubscribe === false ? "off" : null)
     set(SENDERS_KEY, preferences.senders === false ? "off" : null)
     set(INVOICES_KEY, preferences.invoices === false ? "off" : null)
+    set(TODOS_KEY, preferences.todos === false ? "off" : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.
   }

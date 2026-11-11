@@ -9,6 +9,7 @@ export type MailPreferences = {
   unsubscribe: boolean
   senders: boolean
   invoices: boolean
+  todos: boolean
 }
 
 const select = {
@@ -20,6 +21,7 @@ const select = {
   unsubscribe: true,
   senders: true,
   invoices: true,
+  todos: true,
 } as const
 
 /** Null until first saved, so the first device can bring along what it had chosen. */

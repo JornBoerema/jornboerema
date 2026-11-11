@@ -361,3 +361,16 @@ export type WithAttachmentRefs<T extends { attachments: unknown }> = Omit<T, "at
 export type MailDraftRequest = WithAttachmentRefs<MailDraftContent>
 /** An opened draft, its files already copied into uploads. */
 export type MailDraftOpened = WithAttachmentRefs<MailDraft>
+
+/** A task list in Even doen that a task from mail can go to. */
+export type MailTodoList = { id: string; name: string; workspaceId: string; workspaceName: string }
+
+/** A task in Even doen made from a conversation, and where it opens. */
+export type MailTodoView = {
+  id: string
+  title: string
+  completed: boolean
+  inProgress: boolean
+  listName: string
+  url: string
+}

@@ -50,6 +50,30 @@ export function conversationUrl(id: string, suffix = "") {
   return `/api/mail/accounts/${encodeURIComponent(accountId)}/conversation${suffix}?thread=${encodeURIComponent(thread.join(":"))}${hidden}`
 }
 
+/**
+ * A conversation linked from elsewhere, such as a task in Even doen:
+ * `?conversation=<mailbox>:<provider thread id>&subject=…`. Opened by its
+ * provider id, so it works whatever folder it is in now.
+ */
+export function linkedThread(search: string): MailThreadView | null {
+  const params = new URLSearchParams(search)
+  const [accountId, ...thread] = (params.get("conversation") ?? "").split(":")
+  if (!accountId || !thread.length) return null
+  return {
+    id: `${REMOTE}${accountId}:-:${thread.join(":")}`,
+    accountId,
+    subject: params.get("subject") ?? "",
+    snippet: "",
+    fromName: null,
+    fromEmail: null,
+    receivedAt: new Date().toISOString(),
+    isRead: true,
+    isStarred: false,
+    hasAttachments: false,
+    messageCount: 1,
+  }
+}
+
 /** A search or folder hit as a list line, so the reading pane can open it like any other. */
 export function searchHitAsThread(hit: MailSearchHit, folder?: MailFolder): MailThreadView {
   const hidden = folder !== undefined && HIDDEN_FOLDERS.includes(folder)

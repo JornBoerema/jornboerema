@@ -376,9 +376,28 @@ model Todo {
   inProgress Boolean  @default(false) @map("in_progress")
   position   Int      @default(0)
   createdAt  DateTime @default(now()) @map("created_at")
+  mail       TodoMail?
 
   @@index([listId], map: "todos_list_idx")
   @@map("todos")
+}
+
+/// The mail a task was made from. Only its owner can open it; others see where it came from.
+model TodoMail {
+  todoId    String   @id @map("todo_id")
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  /// Whose mailbox it is in.
+  userId    String   @map("user_id")
+  accountId String   @map("account_id")
+  /// The provider's conversation id, which outlives our synced rows.
+  threadId  String   @map("thread_id")
+  subject   String
+  fromName  String?  @map("from_name")
+  fromEmail String?  @map("from_email")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([accountId, threadId], map: "todo_mails_thread_idx")
+  @@map("todo_mails")
 }
 
 /// A random bearer link grants access to one list, independently of accounts.
@@ -754,6 +773,8 @@ model MailPreferences {
   senders      Boolean  @default(true)
   /// Invoices and payments from mail; off reads none of it and keeps none of it.
   invoices     Boolean  @default(true)
+  /// "Make a task" on a mail, for Even doen, and the tasks made from it above the mail.
+  todos        Boolean  @default(true)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

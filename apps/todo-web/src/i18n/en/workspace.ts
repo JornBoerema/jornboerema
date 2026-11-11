@@ -104,6 +104,8 @@ export const workspace = {
     optionsFor: (title: string) => `Options for ${title}`,
     edit: "Edit",
     delete: "Delete",
+    openMail: (subject: string) => `Open the mail “${subject}” in Even mailen`,
+    mailNoSubject: "(no subject)",
   },
   inlineName: {
     tooLong: (max: number) => `Use at most ${max} characters.`,

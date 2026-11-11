@@ -72,6 +72,7 @@ import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { invoicesEnabled, parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
 import { invoiceForConversation, listInvoices, scanInvoices } from "./invoices-server"
+import { createTodoFromMail, TodoListGoneError, todoLists, todosForConversation } from "./todo-server"
 import { RECOGNITION_KINDS, REPORT_REASONS, reportRecognition } from "./recognition-server"
 import { syncAccount } from "./sync-server"
 import {
@@ -217,6 +218,7 @@ async function readBody<T extends z.ZodType>(c: Context, schema: T): Promise<z.o
 function failure(c: Context, error: unknown) {
   if (error instanceof MailAccountNotFoundError)
     return c.json({ error: msg(c, "mailAccountGone") }, 404)
+  if (error instanceof TodoListGoneError) return c.json({ error: msg(c, "todoListGone") }, 404)
   if (error instanceof MailSignatureNotFoundError)
     return c.json({ error: msg(c, "mailSignatureGone") }, 404)
   if (error instanceof TooManySignaturesError)
@@ -252,6 +254,7 @@ const preferencesBody = z
     unsubscribe: z.boolean(),
     senders: z.boolean(),
     invoices: z.boolean(),
+    todos: z.boolean(),
   })
   .partial()
   .refine((change) => Object.keys(change).length > 0)
@@ -525,6 +528,55 @@ mailRoutes.post("/accounts/:id/conversation/unsubscribe", requireTrustedOrigin, 
   try {
     const conversation = await conversationOf(c)
     return await unsubscribed(c, conversation && { ...conversation, hidden: c.req.query("hidden") === "1" })
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Tasks in Even doen from mail, linked to their conversation.
+mailRoutes.get("/todo-lists", requireSession, async (c) =>
+  c.json({ lists: await todoLists(c.get("session").user.id) }, 200, noStore)
+)
+
+const todoBody = z.object({ listId: z.uuid(), title: z.string().trim().min(1).max(500) })
+
+mailRoutes.post("/threads/:id/todo", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, todoBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const userId = c.get("session").user.id
+    return c.json({ todo: await createTodoFromMail(userId, await ownedMessage(userId, c.req.param("id")), body) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/conversation/todo", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, todoBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return c.json({ todo: await createTodoFromMail(c.get("session").user.id, conversation, body) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/threads/:id/todos", requireSession, async (c) => {
+  try {
+    const userId = c.get("session").user.id
+    return c.json({ todos: await todosForConversation(userId, await ownedMessage(userId, c.req.param("id"))) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/accounts/:id/conversation/todos", requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return c.json({ todos: await todosForConversation(c.get("session").user.id, conversation) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

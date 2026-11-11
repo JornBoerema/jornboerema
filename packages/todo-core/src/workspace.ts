@@ -15,7 +15,10 @@ export type Todo = {
   inProgress?: boolean;
   position?: number;
   createdAt: string;
+  /** The mail it was made from. `url` opens it, for whoever's mailbox it is in. */
+  mail?: TodoMail;
 };
+export type TodoMail = { subject: string; from: string | null; url: string | null };
 export type WorkspaceData = { lists: TodoList[]; todos: Todo[] };
 // Validation messages are stable codes; the API translates them (apps/api/src/i18n.ts).
 const id = z.string().uuid();

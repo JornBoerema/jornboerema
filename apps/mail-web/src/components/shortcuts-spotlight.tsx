@@ -72,6 +72,7 @@ export function ShortcutsSpotlight({
         { keys: ["S"], label: t.star },
         { keys: ["B"], label: t.snooze },
         { keys: ["U"], label: t.markUnread },
+        { keys: ["T"], label: t.makeTask },
       ],
     },
     {

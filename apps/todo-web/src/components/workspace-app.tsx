@@ -12,6 +12,7 @@ import {
   CloudOff,
   CheckCheck,
   ListTodo,
+  Mail,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -34,7 +35,7 @@ import { InlineName } from "@/components/inline-name";
 import { WorkspaceDashboard } from "@/components/workspace-dashboard";
 import { Sortable } from "@/components/sortable";
 import { ShareListDialog } from "@/components/share-list-dialog";
-import type { TodoList } from "@evido/todo-core/workspace";
+import type { TodoList, TodoMail } from "@evido/todo-core/workspace";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/i18n";
 import { cn } from "@evido/ui/lib/utils";
@@ -584,6 +585,27 @@ export function WorkspaceApp({
     </div>
   );
 }
+/**
+ * The mail a task was made from in Even mailen. It opens there for whoever's
+ * mailbox it is in; others in the workspace see where it came from.
+ */
+function MailSource({ mail }: { mail: TodoMail }) {
+  const { t: { workspace: t } } = useI18n();
+  const content = (
+    <>
+      <Mail aria-hidden="true" />
+      <span className="todo-mail-subject">{mail.subject || t.task.mailNoSubject}</span>
+      {mail.from && <span className="todo-mail-from">· {mail.from}</span>}
+    </>
+  );
+  return mail.url ? (
+    <a className="todo-mail" href={mail.url} target="_blank" rel="noopener noreferrer" aria-label={t.task.openMail(mail.subject)}>
+      {content}
+    </a>
+  ) : (
+    <span className="todo-mail">{content}</span>
+  );
+}
 function TodoRow({
   todo,
   onRename,
@@ -609,8 +631,11 @@ function TodoRow({
         disabled={disabled}
         aria-label={t.task.checkboxLabel(todo.title, todo.completed ? "done" : todo.inProgress ? "busy" : "open")}
       />
-      <InlineName value={todo.title} label={t.task.renameLabel} maxLength={500} disabled={disabled}
-        className="todo-title" onSave={onRename} />
+      <div className="todo-body">
+        <InlineName value={todo.title} label={t.task.renameLabel} maxLength={500} disabled={disabled}
+          className="todo-title" onSave={onRename} />
+        {todo.mail && <MailSource mail={todo.mail} />}
+      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

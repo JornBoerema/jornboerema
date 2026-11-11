@@ -1,4 +1,5 @@
 import { getDb, Prisma, type Tx } from "@evido/db"
+import { env } from "../env"
 import { KeyedError } from "../i18n"
 import {
   moveTodo,
@@ -26,8 +27,33 @@ type TodoRow = {
   position: number
   createdAt: Date
 }
-function toTodo(todo: TodoRow): Todo {
-  return { ...todo, createdAt: todo.createdAt.toISOString() }
+type MailRow = {
+  userId: string
+  accountId: string
+  threadId: string
+  subject: string
+  fromName: string | null
+  fromEmail: string | null
+}
+
+/** Where a mail opens in Even mailen: by mailbox and the provider's conversation id. */
+export const mailLink = (accountId: string, threadId: string, subject: string) =>
+  `${env.mailWebUrl}/?${new URLSearchParams({ conversation: `${accountId}:${threadId}`, subject })}`
+
+function toTodo({ mail, ...todo }: TodoRow & { mail?: MailRow | null }, viewer?: string): Todo {
+  return {
+    ...todo,
+    createdAt: todo.createdAt.toISOString(),
+    // Workspace members see where a task came from; only its owner can open the mail.
+    ...(mail &&
+      viewer && {
+        mail: {
+          subject: mail.subject,
+          from: mail.fromName ?? mail.fromEmail,
+          url: mail.userId === viewer ? mailLink(mail.accountId, mail.threadId, mail.subject) : null,
+        },
+      }),
+  }
 }
 
 export async function readLinkedWorkspace(token: string): Promise<WorkspaceData> {
@@ -53,7 +79,7 @@ export async function readLinkedWorkspace(token: string): Promise<WorkspaceData>
             createdAt: list.createdAt.toISOString(),
           },
         ],
-        todos: list.todos.map(toTodo),
+        todos: list.todos.map((todo) => toTodo(todo)),
       }
     },
     { isolationLevel: "RepeatableRead" }
@@ -77,7 +103,7 @@ export async function readWorkspace(userId: string, workspaceId: string): Promis
       const lists = await tx.list.findMany({
         where: { workspaceId },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-        include: { todos: true },
+        include: { todos: { include: { mail: true } } },
       })
       return {
         lists: lists.map((l) => ({
@@ -90,7 +116,7 @@ export async function readWorkspace(userId: string, workspaceId: string): Promis
           createdAt: l.createdAt.toISOString(),
           role: "owner" as const,
         })),
-        todos: lists.flatMap((l) => l.todos.map(toTodo)),
+        todos: lists.flatMap((l) => l.todos.map((todo) => toTodo(todo, userId))),
       }
     },
     { isolationLevel: "RepeatableRead" }
@@ -223,7 +249,7 @@ export async function executeCommand(
         break
       }
       case "move-todo": {
-        const current = (await tx.todo.findMany({ where: { listId } })).map(toTodo)
+        const current = (await tx.todo.findMany({ where: { listId } })).map((todo) => toTodo(todo))
         const moving = current.find((t) => t.id === command.id)
         const target = current.find((t) => t.id === command.targetId)
         if (!moving || !target || taskStatus(moving) !== taskStatus(target))

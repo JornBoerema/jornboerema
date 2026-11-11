@@ -105,6 +105,8 @@ export const workspace: typeof en = {
     optionsFor: (title) => `Opties voor ${title}`,
     edit: "Bewerken",
     delete: "Verwijderen",
+    openMail: (subject) => `Open de mail “${subject}” in Even mailen`,
+    mailNoSubject: "(geen onderwerp)",
   },
   inlineName: {
     tooLong: (max) => `Gebruik maximaal ${max} tekens.`,

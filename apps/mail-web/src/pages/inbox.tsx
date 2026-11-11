@@ -883,7 +883,13 @@ export function InboxPage({
   const selectedAccount = accounts.find((account) => account.id === accountId)
   const accountOf = new Map(accounts.map((account) => [account.id, account]))
 
-  useEffect(() => onOpen(null), [accountId, onOpen])
+  // Another mailbox closes what was open; the first render keeps a conversation opened by a link.
+  const shownAccount = useRef(accountId)
+  useEffect(() => {
+    if (shownAccount.current === accountId) return
+    shownAccount.current = accountId
+    onOpen(null)
+  }, [accountId, onOpen])
 
   // Selection: ids of conversations in this list, plus where a Shift range starts.
   const [picked, setPicked] = useState<Set<string>>(() => new Set())

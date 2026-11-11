@@ -18,7 +18,7 @@ import { I18nProvider, useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { persistMailCache } from "@/lib/cache"
 import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
-import { useAccounts, useMailRealtime, useMailSync, useUnread } from "@/lib/mail"
+import { linkedThread, useAccounts, useMailRealtime, useMailSync, useUnread } from "@/lib/mail"
 import { useNewMailNotifications, useUnreadTitle } from "@/lib/notifications"
 import { useSignatures } from "@/lib/signatures"
 import { isWaiting } from "@/lib/undo"
@@ -30,7 +30,8 @@ import { TooltipProvider } from "@evido/ui/components/tooltip"
 import { TIP_DELAY_MS } from "@/components/icon-tip"
 
 /** A provider redirect lands here with its result, which the settings report. */
-const returnedFromProvider = () => Boolean(window.location.search)
+const returnedFromProvider = () =>
+  Boolean(window.location.search) && !new URLSearchParams(window.location.search).has("conversation")
 
 /** Puts the lists kept in this browser back before the app shows anything. */
 function WithCachedMail({ userId, children }: { userId: string; children: ReactNode }) {
@@ -64,7 +65,12 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   // A new key starts a fresh composer, for a new message or another draft.
   const [compose, setCompose] = useState<{ key: number; draft: DraftRef | null } | null>(null)
   const [composeDraftId, setComposeDraftId] = useState<string | null>(null)
-  const [open, setOpen] = useState<MailThreadView | null>(null)
+  // A link from Even doen opens its mail straight away; the address then goes back to plain.
+  const [open, setOpen] = useState<MailThreadView | null>(() => linkedThread(window.location.search))
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("conversation"))
+      window.history.replaceState(window.history.state, "", window.location.pathname)
+  }, [])
   const [composeHidden, setComposeHidden] = useState(false)
   const hideCompose = useCallback(() => setComposeHidden(true), [])
   const showCompose = useCallback(() => {
