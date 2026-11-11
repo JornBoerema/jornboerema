@@ -147,7 +147,7 @@ export async function executeCommand(
   }
   return getDb().$transaction(async (tx) => {
     let listId: string
-    if (command.type === "create-todo") listId = command.listId
+    if (command.type === "create-todo" || command.type === "clear-done") listId = command.listId
     else if (
       command.type === "rename-list" ||
       command.type === "delete-list" ||
@@ -264,6 +264,11 @@ export async function executeCommand(
         break
       case "delete-todo":
         changed = (await tx.todo.deleteMany({ where: { id: command.id, listId } })).count
+        break
+      case "clear-done":
+        await tx.todo.deleteMany({ where: { listId, completed: true } })
+        // The list exists and was checked above; nothing done is still a success.
+        changed = 1
         break
     }
     if (!changed) throw new NotFoundError()

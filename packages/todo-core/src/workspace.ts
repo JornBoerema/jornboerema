@@ -38,6 +38,7 @@ export const commandSchema = z.discriminatedUnion("type", [
     .refine((v) => v.title !== undefined || v.completed !== undefined || v.inProgress !== undefined)
     .refine((v) => !(v.completed && v.inProgress)),
   z.object({ type: z.literal("delete-todo"), id }),
+  z.object({ type: z.literal("clear-done"), listId: id }),
   z.object({ type: z.literal("move-todo"), id, targetId: id, placement: z.enum(["before", "after"]) }),
   z.object({ type: z.literal("move-list"), id, targetId: id, placement: z.enum(["before", "after"]) }),
 ]);
@@ -156,5 +157,7 @@ export function optimisticUpdate(data: WorkspaceData, command: Command): Workspa
       return { ...data, lists: moveList(data.lists, command) };
     case "delete-todo":
       return { ...data, todos: data.todos.filter((t) => t.id !== command.id) };
+    case "clear-done":
+      return { ...data, todos: data.todos.filter((t) => t.listId !== command.listId || !t.completed) };
   }
 }

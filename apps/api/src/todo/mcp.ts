@@ -95,7 +95,7 @@ export function handleMcp(request: Request) {
               throw error;
             }
             defer(() => notifyWorkspaceUsers(recipients));
-            return text({ ok: true, id: command.id, ...(command.type === "update-note" ? { version: command.version + 1 } : {}), ...(command.type === "create-list" && command.kind === "note" ? { version: 0 } : {}) });
+            return text({ ok: true, id: "id" in command ? command.id : command.listId, ...(command.type === "update-note" ? { version: command.version + 1 } : {}), ...(command.type === "create-list" && command.kind === "note" ? { version: 0 } : {}) });
           }
           const id = z.string().uuid();
           const name = z.string().trim().min(1).max(80);

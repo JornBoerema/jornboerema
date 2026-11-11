@@ -10,6 +10,7 @@ import {
   SidebarToggle,
   CloudCheck,
   CloudOff,
+  CheckCheck,
   ListTodo,
   MoreHorizontal,
   Pencil,
@@ -88,11 +89,9 @@ type Editor = {
   value: string;
   kind?: "todo" | "note";
 };
-type Deletion = {
-  type: "delete-list" | "delete-todo";
-  id: string;
-  title: string;
-};
+type Deletion =
+  | { type: "delete-list" | "delete-todo"; id: string; title: string }
+  | { type: "clear-done"; listId: string; count: number };
 export function WorkspaceApp({
   user,
   workspaces = [],
@@ -170,6 +169,7 @@ export function WorkspaceApp({
   const items = sortTodos(data.todos.filter((t) => t.listId === selected?.id));
   const canEditTasks = selected?.role !== "viewer";
   const remaining = items.filter((t) => !t.completed).length;
+  const doneCount = items.length - remaining;
   // Saving happens in the background; only offline (or a broken link) blocks editing.
   const disabled = !online || (!!shareToken && error);
   function addTask(event: React.FormEvent) {
@@ -335,6 +335,16 @@ export function WorkspaceApp({
                             <Share aria-hidden="true" />
                             {selected.kind === "note" ? t.list.shareNote : t.list.shareList}
                           </DropdownMenuItem>
+                        </>
+                      ) : null}
+                      {selected.kind !== "note" && canEditTasks && doneCount > 0 && (
+                        <DropdownMenuItem onSelect={() => setDeletion({ type: "clear-done", listId: selected.id, count: doneCount })}>
+                          <CheckCheck aria-hidden="true" />
+                          {t.list.clearDone}
+                        </DropdownMenuItem>
+                      )}
+                      {selected.role === "owner" ? (
+                        <>
                           <DropdownMenuItem
                             variant="destructive"
                             onSelect={() =>
@@ -540,10 +550,14 @@ export function WorkspaceApp({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {deletion?.type === "delete-list" ? t.deletion.listTitle : t.deletion.taskTitle}
+              {deletion?.type === "clear-done"
+                ? t.deletion.doneTitle
+                : deletion?.type === "delete-list" ? t.deletion.listTitle : t.deletion.taskTitle}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t.deletion.body(deletion?.title ?? "", deletion?.type === "delete-list")}
+              {deletion?.type === "clear-done"
+                ? t.deletion.doneBody(deletion.count)
+                : t.deletion.body(deletion?.title ?? "", deletion?.type === "delete-list")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -552,7 +566,8 @@ export function WorkspaceApp({
               variant="destructive"
               disabled={disabled}
               onClick={() => {
-                if (deletion) void run({ type: deletion.type, id: deletion.id });
+                if (deletion?.type === "clear-done") void run({ type: "clear-done", listId: deletion.listId });
+                else if (deletion) void run({ type: deletion.type, id: deletion.id });
               }}
             >
               {t.deletion.confirm}

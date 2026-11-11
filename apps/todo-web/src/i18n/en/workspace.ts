@@ -45,6 +45,7 @@ export const workspace = {
     shareList: "Share list",
     deleteNote: "Delete note",
     deleteList: "Delete list",
+    clearDone: "Delete done tasks",
     loadingNote: "Loading note…",
     tasksIn: (name: string) => `Tasks in ${name}`,
   },
@@ -87,6 +88,9 @@ export const workspace = {
   },
   deletion: {
     listTitle: "Delete list?",
+    doneTitle: "Delete done tasks?",
+    doneBody: (count: number) =>
+      `${count} done ${count === 1 ? "task" : "tasks"} will be deleted. This can't be undone.`,
     taskTitle: "Delete task?",
     body: (title: string, isList: boolean) =>
       `“${title}” will be deleted${isList ? ", along with all tasks in this list" : ""}. This can't be undone.`,

@@ -46,6 +46,7 @@ export const workspace: typeof en = {
     shareList: "Lijst delen",
     deleteNote: "Notitie verwijderen",
     deleteList: "Lijst verwijderen",
+    clearDone: "Klaar-taken verwijderen",
     loadingNote: "Notitie laden…",
     tasksIn: (name) => `Taken in ${name}`,
   },
@@ -88,6 +89,9 @@ export const workspace: typeof en = {
   },
   deletion: {
     listTitle: "Lijst verwijderen?",
+    doneTitle: "Klaar-taken verwijderen?",
+    doneBody: (count) =>
+      `${count} ${count === 1 ? "taak die klaar is wordt" : "taken die klaar zijn worden"} verwijderd. Dit kun je niet ongedaan maken.`,
     taskTitle: "Taak verwijderen?",
     body: (title, isList) =>
       `“${title}” wordt verwijderd${isList ? ", samen met alle taken in deze lijst" : ""}. Dit kun je niet ongedaan maken.`,

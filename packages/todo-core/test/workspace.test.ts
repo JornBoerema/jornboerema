@@ -70,6 +70,12 @@ describe("task ordering and realtime reconciliation", () => {
     expect(reopened.todos[0]).toMatchObject({ completed: false, inProgress: false });
     expect(commandSchema.safeParse({ type: "update-todo", id: ids[0], completed: true, inProgress: true }).success).toBe(false);
   });
+  it("clears only the done tasks of one list", () => {
+    const other = { ...data.todos[0], id: "00000000-0000-4000-8000-000000000003", listId: ids[1], completed: true };
+    const done = optimisticUpdate({ ...data, todos: [...data.todos, other] }, { type: "update-todo", id: ids[0], completed: true });
+    const cleared = optimisticUpdate(done, { type: "clear-done", listId: ids[0] });
+    expect(cleared.todos.map((t) => t.id)).toEqual([ids[1], other.id]);
+  });
   it("does not duplicate a created item when realtime refetch arrives before mutation settles", () => {
     expect(
       optimisticUpdate(data, {
