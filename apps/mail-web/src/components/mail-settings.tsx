@@ -208,8 +208,11 @@ function AiSettings() {
 }
 
 /** The page a link back into the app asks for, such as after confirming a new email. */
+/** The first page, unless a mailbox connect just returned here: then its result, under Mailboxes. */
 function linkedPage() {
-  return new URLSearchParams(window.location.search).get("settings") === "account" ? "account" : "mailboxes"
+  const params = new URLSearchParams(window.location.search)
+  if (params.get("settings") === "account") return "account"
+  return params.has("connected") || params.has("error") ? "mailboxes" : "account"
 }
 
 /** The sidebar is arranged in place; this only starts it. */
@@ -243,6 +246,10 @@ export function MailSettings({
   const strings = useI18n().t
   const t = strings.shell
   const [page, setPage] = useState(linkedPage)
+  // Every time the settings open, they start at the first page.
+  useEffect(() => {
+    if (open) setPage(linkedPage())
+  }, [open])
   const about = useAboutPage()
   // As in Even doen: the account first, then what belongs to this app.
   const pages: SettingsPage[] = [
