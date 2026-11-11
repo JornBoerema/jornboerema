@@ -59,10 +59,11 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
   padding: 4px 4px 0;
   margin: -4px -4px 0;
 }
+.todo-list::-webkit-scrollbar { display: none; }
 .task-content > [data-slot="alert"] {
   margin-bottom: 24px;
 }
@@ -339,7 +340,8 @@
 }
 
 /* Overview follows the same typography and open rows as the lists. */
-.dashboard-content { overflow-y: auto; padding-bottom: 48px; }
+.dashboard-content { overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
+.dashboard-content::-webkit-scrollbar { display: none; }
 .dashboard { padding-bottom: 24px; }
 /* Overview: a grid of widgets. */
 .dashboard-content { max-width: 1040px; }
