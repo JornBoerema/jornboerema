@@ -1,7 +1,7 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { setWebOrigins } from "@evido/auth/client"
-import "@evido/ui/globals.css"
+import "./tailwind.css"
 import "@evido/ui/sidebar.css"
 import "@evido/ui/auth.css"
 import "@evido/ui/spotlight.css"

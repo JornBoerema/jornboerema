@@ -4,6 +4,11 @@ version = "0.1.0"
 description = "Even: Even mailen and Even doen in one desktop app"
 edition = "2021"
 
+# The executable carries the app's name: the Dock shows it while developing.
+[[bin]]
+name = "Even"
+path = "src/main.rs"
+
 [lib]
 name = "even_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

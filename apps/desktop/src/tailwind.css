@@ -1,0 +1,4 @@
+/* Tailwind only sees the files under the app it builds; the two apps live next door. */
+@import "@evido/ui/globals.css";
+@source "../../mail-web/src";
+@source "../../todo-web/src";

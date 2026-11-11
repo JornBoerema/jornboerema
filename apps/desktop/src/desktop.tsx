@@ -1,60 +1,41 @@
 import { Activity, useEffect, useState } from "react"
 import { CheckmarkSquare02Icon, Mail01Icon } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
 import { authClient, TodoEmbed, TodoSignIn } from "@evido/todo-web/embed"
 import { Toaster } from "@evido/ui/components/sonner"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@evido/ui/components/tooltip"
+import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/app-switcher"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { cn } from "@evido/ui/lib/utils"
 import { Brand } from "./brand"
+import { useWindowDragging } from "./window"
 
 type AppId = "mail" | "todo"
 
-/** In rail order; ⌘1, ⌘2, … follow it. Even chatten and Even inloggen join later. */
-const APPS: { id: AppId; name: string; icon: IconSvgElement }[] = [
+const isMac = navigator.userAgent.includes("Mac")
+
+/** In menu order; ⌘1, ⌘2, … follow it. Even chatten and Even inloggen join later. */
+const APP_LIST: { id: AppId; name: string; icon: IconSvgElement }[] = [
   { id: "mail", name: "Even mailen", icon: Mail01Icon },
   { id: "todo", name: "Even doen", icon: CheckmarkSquare02Icon },
 ]
+const APPS: (SwitchableApp & { id: AppId })[] = APP_LIST.map((app, index) => ({
+  ...app,
+  shortcut: isMac ? `⌘${index + 1}` : `Ctrl+${index + 1}`,
+}))
 
 const APP_KEY = "even.desktop.app"
-const isMac = navigator.userAgent.includes("Mac")
+
+const isAppId = (value: unknown): value is AppId => APPS.some((app) => app.id === value)
 
 function storedApp(): AppId {
   try {
     const stored = localStorage.getItem(APP_KEY)
-    if (APPS.some((app) => app.id === stored)) return stored as AppId
+    if (isAppId(stored)) return stored
   } catch {
     // No storage: start with the first app.
   }
   return APPS[0].id
-}
-
-function Rail({ active, onSelect }: { active: AppId; onSelect: (app: AppId) => void }) {
-  return (
-    <nav className="app-rail" aria-label="Apps">
-      <div className="app-rail-drag" data-tauri-drag-region />
-      {APPS.map((app, index) => (
-        <Tooltip key={app.id}>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className={cn("app-rail-button", app.id === active && "active")}
-              aria-label={app.name}
-              aria-current={app.id === active ? "page" : undefined}
-              onClick={() => onSelect(app.id)}
-            >
-              <HugeiconsIcon icon={app.icon} strokeWidth={1.75} aria-hidden="true" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={10}>
-            {app.name}
-            <kbd className="tip-kbd">{isMac ? `⌘${index + 1}` : `Ctrl+${index + 1}`}</kbd>
-          </TooltipContent>
-        </Tooltip>
-      ))}
-    </nav>
-  )
 }
 
 function Apps() {
@@ -63,7 +44,8 @@ function Apps() {
   // keeps its place; while hidden its effects (shortcuts, live updates) stop.
   const [opened, setOpened] = useState<AppId[]>(() => [active])
 
-  const select = (app: AppId) => {
+  const select = (app: string) => {
+    if (!isAppId(app)) return
     setActive(app)
     setOpened((current) => (current.includes(app) ? current : [...current, app]))
     try {
@@ -86,11 +68,8 @@ function Apps() {
   }, [])
 
   return (
-    <div className={cn("desktop-shell", isMac && "mac")}>
-      <TooltipProvider delayDuration={150}>
-        <Rail active={active} onSelect={select} />
-      </TooltipProvider>
-      <div className="desktop-app">
+    <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select }}>
+      <div className={cn("desktop-app", isMac && "mac")}>
         {opened.includes("mail") && (
           <Activity mode={active === "mail" ? "visible" : "hidden"}>
             <MailEmbed />
@@ -102,7 +81,7 @@ function Apps() {
           </Activity>
         )}
       </div>
-    </div>
+    </AppSwitcherProvider>
   )
 }
 
@@ -119,6 +98,7 @@ function Gate() {
 }
 
 export function Desktop() {
+  useWindowDragging()
   return (
     <ThemeProvider>
       <Gate />

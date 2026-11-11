@@ -1,75 +1,38 @@
-/* The Even desktop window: an app rail on the left, the chosen app beside it. */
+/* The Even desktop window: the chosen app fills it; its brand switches apps. */
 body {
   background: var(--background);
 }
-
-.desktop-shell {
-  display: flex;
-  height: 100dvh;
-  overflow: hidden;
-}
 .desktop-app {
   position: relative;
-  flex: 1;
-  min-width: 0;
-}
-/* Each app sizes itself to the window; the rail takes its share. */
-.desktop-app .workspace-shell {
   height: 100dvh;
-}
-
-.app-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 60px;
-  flex-shrink: 0;
-  padding: 12px 0;
-}
-/* Room for the macOS window buttons, which sit over the rail. */
-.mac .app-rail {
-  width: 76px;
-  padding-top: 0;
-}
-.app-rail-drag {
-  align-self: stretch;
-  height: 0;
-}
-.mac .app-rail-drag {
-  height: 48px;
-}
-.app-rail-button {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-lg);
-  color: var(--muted-foreground);
-  transition: background-color 120ms ease, color 120ms ease;
-}
-.app-rail-button svg {
-  width: 20px;
-  height: 20px;
-}
-.app-rail-button:hover {
-  background: color-mix(in oklch, var(--foreground) 6%, transparent);
-  color: var(--foreground);
-}
-.app-rail-button.active {
-  background: var(--sidebar);
-  color: var(--foreground);
-  box-shadow: 0 0 0 1px var(--sidebar-border), 0 1px 3px color-mix(in oklch, var(--foreground) 10%, transparent);
-}
-.app-rail-button:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  overflow: hidden;
 }
 
 .desktop-loading {
   height: 100dvh;
 }
-/* The sign-in header doubles as the window's title bar. */
+
+/* macOS: the window buttons sit in the top-left corner of the sidebar, as in
+   Mail and Notes, so what was there moves down below them. */
+.mac .mail-sidebar .sidebar-full,
+.mac .workspace-shell:not(.shared-workspace) > .list-sidebar {
+  padding-top: 38px;
+}
+.mac .mail-sidebar .sidebar-rail {
+  padding-top: 40px;
+}
+/* The collapsed mail rail is wide enough for the three buttons. */
+.mac .workspace-shell.mail-shell.sidebar-collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+.mac .mail-shell.sidebar-collapsed .list-sidebar.mail-sidebar,
+.mac .mail-sidebar .sidebar-rail {
+  width: 60px;
+}
+/* Even doen's collapsed brand moves out from under the buttons. */
+.mac .collapsed-brand {
+  left: 92px;
+}
 .desktop-sign-in.mac .auth-layout > header {
   padding-top: 44px;
 }

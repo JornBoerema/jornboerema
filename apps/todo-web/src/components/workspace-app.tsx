@@ -1,3 +1,4 @@
+import { AppSwitcher } from "@evido/ui/components/app-switcher";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
@@ -205,7 +206,7 @@ export function WorkspaceApp({
         {t.skipToList}
       </a>
       {!shareToken && <aside id="list-sidebar" className="list-sidebar" aria-label={t.sidebar.label} inert={sidebarCollapsed} aria-hidden={sidebarCollapsed}>
-        <Brand />
+        <AppSwitcher><Brand /></AppSwitcher>
         <div className="list-navigation sidebar-sections">
           <div className="sidebar-top">
             <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
@@ -257,7 +258,7 @@ export function WorkspaceApp({
           <SidebarToggle className="size-5" aria-hidden="true" />
         </Button>}
         <div className="collapsed-brand" aria-hidden={!sidebarCollapsed && !shareToken}>
-          <Brand />
+          {shareToken ? <Brand /> : <AppSwitcher><Brand /></AppSwitcher>}
         </div>
           <button
             className="sync-status"

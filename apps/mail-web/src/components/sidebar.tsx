@@ -1,3 +1,4 @@
+import { AppSwitcher } from "@evido/ui/components/app-switcher"
 import { useState, type ReactNode } from "react"
 import {
   Add01Icon,
@@ -175,7 +176,9 @@ export function Sidebar({
     >
       <div className="sidebar-full" inert={sidebar.collapsed}>
         <div className="mail-brand-row">
-          <Brand />
+          <AppSwitcher>
+            <Brand />
+          </AppSwitcher>
           <IconTip label={t.shell.collapse} shortcut="⌘B">
             <Button
               variant="ghost"

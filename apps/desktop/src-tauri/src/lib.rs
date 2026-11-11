@@ -31,8 +31,9 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let opening = app.clone();
     let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("Even")
-        .inner_size(1280.0, 820.0)
-        .min_inner_size(900.0, 560.0)
+        .inner_size(1360.0, 860.0)
+        // Narrower, Even mailen hides its sidebar, which holds the window buttons.
+        .min_inner_size(1040.0, 600.0)
         .on_navigation(move |url| {
             if is_app_url(url) {
                 return true;
@@ -51,7 +52,7 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true)
-        .traffic_light_position(tauri::LogicalPosition::new(18.0, 20.0));
+        .traffic_light_position(tauri::LogicalPosition::new(18.0, 28.0));
     builder.build()
 }
 
