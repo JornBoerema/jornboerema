@@ -62,7 +62,8 @@ import { setShowDelivered, useShowDelivered } from "@/lib/preferences"
 import { formatMoment, useScheduled, useScheduledActions, useSnoozes, useUnsnooze } from "@/lib/later"
 import { toast } from "sonner"
 import { WhenPicker } from "@/components/when-picker"
-import { useSenderList, useTidy } from "@/lib/senders"
+import { nameOf, useSenderList, useTidy, type SenderAction } from "@/lib/senders"
+import { SenderPane } from "@/components/sender-pane"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -301,16 +302,15 @@ function SenderRow({
   sender: MailSenderView
   selected: boolean
   onOpen: () => void
-  onHover: (hovering: boolean) => void
+  onHover?: (hovering: boolean) => void
   actions: { icon: IconSvgElement; label: string; run: () => void; destructive?: boolean }[]
 }) {
   const t = useI18n().t.senders
   return (
-    <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
+    <li className="group relative" onMouseEnter={() => onHover?.(true)} onMouseLeave={() => onHover?.(false)}>
       <button
         type="button"
         aria-current={selected ? "true" : undefined}
-        disabled={!sender.thread}
         onClick={onOpen}
         className={cn(
           "flex w-full flex-col gap-0.5 rounded-lg py-2 pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
@@ -750,7 +750,12 @@ export function InboxPage({
   const { accounts, accountId, onCompose, onSettings } = navigation
   const senders = useSenderList(accountId, showSenders)
   const tidy = useTidy(accountId)
-  const [archiving, setArchiving] = useState<MailSenderView | null>(null)
+  // Archive and trash ask first, from the list or the sender pane.
+  const [confirming, setConfirming] = useState<{ sender: MailSenderView; action: "archive" | "trash" } | null>(null)
+  const [pickedSender, setPickedSender] = useState<string | null>(null)
+  const paneSender = showSenders ? senders.data?.senders.find((item) => item.email === pickedSender) : undefined
+  const actOnSender = (target: MailSenderView, action: SenderAction) =>
+    action === "read" ? tidy.act.mutate({ sender: target, action }) : setConfirming({ sender: target, action })
   const { mutate: runAction } = useThreadAction()
   const prefetch = usePrefetchThreads()
   const folder = isMailFolder(navigation.view) ? navigation.view : null
@@ -843,7 +848,7 @@ export function InboxPage({
   })
   const composing = compose !== null
   const composerVisible = composing && !composeHidden
-  const showingDetail = Boolean(open) || composerVisible
+  const showingDetail = Boolean(open) || composerVisible || Boolean(paneSender)
 
   function step(by: number) {
     if (listOfOthers) return
@@ -1021,36 +1026,49 @@ export function InboxPage({
                   <SenderRow
                     key={sender.email}
                     sender={sender}
-                    selected={!!open && sender.thread?.id === open.id}
-                    onOpen={() => sender.thread && onOpen(sender.thread)}
-                    onHover={(hovering) => prefetch.onHover(hovering && sender.thread ? sender.thread.id : null)}
+                    selected={!open && sender.email === pickedSender}
+                    onOpen={() => {
+                      // A sender opens their pane, not a mail; their mail opens from there.
+                      onOpen(null)
+                      setPickedSender(sender.email)
+                    }}
                     actions={[
                       { icon: FilterMailRemoveIcon, label: strings.senders.unsubscribe, run: () => tidy.unsubscribe.mutate(sender) },
                       ...(sender.unread > 0
-                        ? [{ icon: MailOpen01Icon, label: strings.senders.readAll, run: () => tidy.act.mutate({ sender, action: "read" as const }) }]
+                        ? [{ icon: MailOpen01Icon, label: strings.senders.readAll, run: () => actOnSender(sender, "read") }]
                         : []),
-                      { icon: ArchiveIcon, label: strings.senders.archiveAll, run: () => setArchiving(sender) },
+                      { icon: ArchiveIcon, label: strings.senders.archiveAll, run: () => actOnSender(sender, "archive") },
+                      { icon: Delete02Icon, label: strings.senders.trashAll, run: () => actOnSender(sender, "trash"), destructive: true },
                     ]}
                   />
                 ))}
               </ul>
-              <AlertDialog open={archiving !== null} onOpenChange={(open) => !open && setArchiving(null)}>
+              <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      {archiving && strings.senders.confirmArchive(archiving.conversations, archiving.name ?? archiving.email)}
+                      {confirming &&
+                        (confirming.action === "trash" ? strings.senders.confirmTrash : strings.senders.confirmArchive)(
+                          confirming.sender.conversations,
+                          nameOf(confirming.sender)
+                        )}
                     </AlertDialogTitle>
-                    <AlertDialogDescription>{strings.senders.confirmArchiveBody}</AlertDialogDescription>
+                    <AlertDialogDescription>
+                      {confirming?.action === "trash"
+                        ? strings.senders.confirmTrashBody
+                        : strings.senders.confirmArchiveBody}
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>{strings.senders.cancel}</AlertDialogCancel>
                     <AlertDialogAction
+                      variant={confirming?.action === "trash" ? "destructive" : "default"}
                       onClick={() => {
-                        if (archiving) tidy.act.mutate({ sender: archiving, action: "archive" })
-                        setArchiving(null)
+                        if (confirming) tidy.act.mutate(confirming)
+                        setConfirming(null)
                       }}
                     >
-                      {strings.senders.archiveAll}
+                      {confirming?.action === "trash" ? strings.senders.trashAll : strings.senders.archiveAll}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -1305,6 +1323,18 @@ export function InboxPage({
               onOpen(null)
             }}
           />
+        ) : paneSender ? (
+          <SenderPane
+            key={paneSender.email}
+            sender={paneSender}
+            accountId={accountId}
+            onBack={() => setPickedSender(null)}
+            onOpenThread={onOpen}
+            onUnsubscribe={() => tidy.unsubscribe.mutate(paneSender)}
+            onAct={(action) => actOnSender(paneSender, action)}
+          />
+        ) : showSenders && !composerVisible ? (
+          <p className="m-auto max-w-xs px-6 text-center text-sm text-muted-foreground">{strings.senders.pickOne}</p>
         ) : (
           !composerVisible && <EmptyPane />
         )}

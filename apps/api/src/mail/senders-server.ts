@@ -51,10 +51,39 @@ export async function listSenders(userId: string, accountId?: string): Promise<M
   }))
 }
 
-export type SenderAction = "archive" | "read"
+export type SenderAction = "archive" | "read" | "trash"
+
+/** How many of their conversations the sender pane lists. */
+const PANE_THREADS = 50
+
+/** Their conversations in the inbox, newest first, as list lines. */
+export async function senderConversations(userId: string, email: string, accountId?: string) {
+  const db = getDb()
+  const messages = await db.mailMessage.findMany({
+    where: {
+      userId,
+      folder: "inbox",
+      fromEmail: { equals: email, mode: "insensitive" },
+      threadId: { not: null },
+      ...(accountId && { accountId }),
+    },
+    select: { accountId: true, threadId: true },
+    orderBy: { receivedAt: "desc" },
+    take: PANE_THREADS * 3,
+  })
+  const threads = [...new Map(messages.map((row) => [`${row.accountId}:${row.threadId}`, row])).values()].slice(
+    0,
+    PANE_THREADS
+  )
+  const lines = await threadLines(
+    userId,
+    threads.map((row) => ({ accountId: row.accountId, threadId: row.threadId! }))
+  )
+  return threads.flatMap((row) => lines.get(`${row.accountId}:${row.threadId}`) ?? [])
+}
 
 /**
- * Archives, or marks read, every inbox conversation with mail from one sender,
+ * Archives, trashes, or marks read, every inbox conversation with mail from one sender,
  * a round at a time: as many as fit in the time budget, a few in parallel. The
  * database follows each one, so the next round picks up what is left.
  */

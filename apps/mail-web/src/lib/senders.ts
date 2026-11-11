@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { MailSenderView } from "@evido/mail-core/types"
+import type { MailSenderView, MailThreadView } from "@evido/mail-core/types"
 import { api, ApiError, errorText } from "@/lib/api"
 import { conversationUrl, MESSAGES_KEY, UNREAD_KEY } from "@/lib/mail"
 import { useI18n } from "@/i18n"
 
 export const SENDERS_KEY = ["mail-senders"]
+
+export type SenderAction = "archive" | "read" | "trash"
 
 /** Who fills the inbox, busiest first, for one mailbox or all. */
 export function useSenderList(accountId: string, enabled: boolean) {
@@ -18,7 +20,20 @@ export function useSenderList(accountId: string, enabled: boolean) {
   })
 }
 
-const nameOf = (sender: MailSenderView) => sender.name ?? sender.email
+export const nameOf = (sender: MailSenderView) => sender.name ?? sender.email
+
+/** Their conversations in the inbox, newest first, for the sender pane. */
+export function useSenderConversations(email: string | null, accountId: string) {
+  return useQuery({
+    queryKey: [...SENDERS_KEY, "conversations", email, accountId],
+    queryFn: () =>
+      api<{ threads: MailThreadView[] }>(
+        `/api/mail/senders/conversations?email=${encodeURIComponent(email!)}${accountId ? `&account=${encodeURIComponent(accountId)}` : ""}`
+      ),
+    enabled: email !== null,
+    staleTime: 30_000,
+  })
+}
 
 /**
  * Everything from one sender at once: archive or mark read, in rounds the API
@@ -35,11 +50,11 @@ export function useTidy(accountId: string) {
   }
 
   const act = useMutation({
-    mutationFn: async ({ sender, action }: { sender: MailSenderView; action: "archive" | "read" }) => {
-      const total = action === "archive" ? sender.conversations : sender.unread
+    mutationFn: async ({ sender, action }: { sender: MailSenderView; action: SenderAction }) => {
+      const total = action === "read" ? sender.unread : sender.conversations
       const toastId = `tidy:${sender.email}:${action}`
-      const progress = (done: number) =>
-        toast.loading(action === "archive" ? t.archiving(done, total) : t.reading(done, total), { id: toastId })
+      const counting = { archive: t.archiving, read: t.reading, trash: t.trashing }[action]
+      const progress = (done: number) => toast.loading(counting(done, total), { id: toastId })
       let done = 0
       progress(0)
       try {
@@ -55,7 +70,9 @@ export function useTidy(accountId: string) {
           if (round.handled === 0) throw new Error(t.stopped)
           progress(Math.min(done, total))
         }
-        toast.success(action === "archive" ? t.archived(done, nameOf(sender)) : t.read(nameOf(sender)), { id: toastId })
+        const name = nameOf(sender)
+        const finished = { archive: t.archived(done, name), read: t.read(name), trash: t.trashed(done, name) }[action]
+        toast.success(finished, { id: toastId })
       } catch (error) {
         toast.error(errorText(error), { id: toastId })
       }

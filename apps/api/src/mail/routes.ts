@@ -25,7 +25,7 @@ import {
 import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
-import { actOnSender, listSenders } from "./senders-server"
+import { actOnSender, listSenders, senderConversations } from "./senders-server"
 import { getRealtime, mailChannel } from "../lib/realtime"
 import { every } from "hono/combine"
 import { requireAppAccess } from "../lib/access"
@@ -465,9 +465,16 @@ mailRoutes.get("/senders", requireSession, async (c) =>
   c.json({ senders: await listSenders(c.get("session").user.id, c.req.query("account") || undefined) }, 200, noStore)
 )
 
+mailRoutes.get("/senders/conversations", requireSession, async (c) => {
+  const email = z.email().max(320).safeParse(c.req.query("email"))
+  if (!email.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  const threads = await senderConversations(c.get("session").user.id, email.data, c.req.query("account") || undefined)
+  return c.json({ threads }, 200, noStore)
+})
+
 const senderBody = z.object({
   email: z.email().max(320),
-  action: z.enum(["archive", "read"]),
+  action: z.enum(["archive", "read", "trash"]),
   account: z.string().min(1).max(100).optional(),
 })
 
