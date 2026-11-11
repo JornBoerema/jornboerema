@@ -14,6 +14,9 @@ import {
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 
+/** No focus ring on this pair: it shows each time the menu hands focus back. */
+const NO_RING = "focus-visible:border-transparent focus-visible:ring-0"
+
 /**
  * Sends the form it sits in: its name, the shortcut in a tooltip.
  * With `onLater`, a split button: the arrow on its right opens "Send later".
@@ -32,6 +35,7 @@ export function SendButton({
     <IconTip label={label} shortcut="⌘↵">
       <Button
         type="submit"
+        className={NO_RING}
         disabled={disabled}
         aria-keyshortcuts="Meta+Enter Control+Enter"
       >
@@ -49,6 +53,7 @@ export function SendButton({
           <Button
             type="button"
             size="icon"
+            className={NO_RING}
             disabled={disabled}
             aria-label={t.sendLater}
           >
