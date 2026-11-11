@@ -71,8 +71,9 @@ import { secretsMatch } from "@evido/mail-core/secrets"
 import { NAV_ITEMS } from "@evido/mail-core/sidebar"
 import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
-import { invoicesEnabled, parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
+import { invoicesEnabled, parcelsEnabled, pinsEnabled, readPreferences, savePreferences } from "./preferences-server"
 import { invoiceForConversation, listInvoices, scanInvoices } from "./invoices-server"
+import { listPins, pin } from "./pins-server"
 import { createTodoFromMail, TodoListGoneError, todoLists, todosForConversation } from "./todo-server"
 import { RECOGNITION_KINDS, REPORT_REASONS, reportRecognition } from "./recognition-server"
 import { syncAccount } from "./sync-server"
@@ -256,6 +257,7 @@ const preferencesBody = z
     senders: z.boolean(),
     invoices: z.boolean(),
     todos: z.boolean(),
+    pins: z.boolean(),
     sidebar: z
       .object({ main: z.array(z.enum(NAV_ITEMS)).max(20), more: z.array(z.enum(NAV_ITEMS)).max(20), hidden: z.array(z.enum(NAV_ITEMS)).max(20) })
       .nullable(),
@@ -532,6 +534,26 @@ mailRoutes.post("/accounts/:id/conversation/unsubscribe", requireTrustedOrigin, 
   try {
     const conversation = await conversationOf(c)
     return await unsubscribed(c, conversation && { ...conversation, hidden: c.req.query("hidden") === "1" })
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Pinned to the top of the inbox: ours alone, as neither Gmail nor Outlook pins.
+mailRoutes.get("/pins", requireSession, async (c) => {
+  const userId = c.get("session").user.id
+  if (!(await pinsEnabled(userId))) return c.json({ threads: [] }, 200, noStore)
+  return c.json({ threads: await listPins(userId, c.req.query("account") || undefined) }, 200, noStore)
+})
+
+const pinBody = z.object({ pinned: z.boolean() })
+
+mailRoutes.post("/threads/:id/pin", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, pinBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const userId = c.get("session").user.id
+    return c.json(await pin(userId, await ownedMessage(userId, c.req.param("id")), body.pinned), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

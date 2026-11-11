@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArchiveIcon,
@@ -20,8 +20,11 @@ import {
   AlarmClockIcon,
   FilterMailRemoveIcon,
   Flag02Icon,
+  PinIcon,
+  PinOffIcon,
 } from "@hugeicons/core-free-icons"
 import { MailboxFilter } from "@/components/mailbox-filter"
+import { canPin, usePin, usePinned } from "@/lib/pins"
 import { canReport, ReportRecognitionDialog } from "@/components/report-recognition"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -62,7 +65,7 @@ import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
 import { useScrollFade } from "@evido/ui/hooks/use-scroll-fade"
 import { CARRIER_NAMES, useShipments } from "@/lib/shipments"
-import { setShowDelivered, useShowDelivered } from "@/lib/preferences"
+import { setShowDelivered, usePins, useShowDelivered } from "@/lib/preferences"
 import { formatMoment, useScheduled, useScheduledActions, useSnoozes, useUnsnooze } from "@/lib/later"
 import { toast } from "sonner"
 import { WhenPicker } from "@/components/when-picker"
@@ -149,6 +152,8 @@ function ThreadRow({
   onHover,
   onAction,
   returned,
+  pinned,
+  onPin,
 }: {
   thread: MailThreadView
   /** Only set when several mailboxes share the list. */
@@ -170,6 +175,10 @@ function ThreadRow({
   onAction: (action: MailThreadAction) => void
   /** Back from snooze, which is why it sits on top. */
   returned?: boolean
+  /** Pinned to the top of the inbox. */
+  pinned?: boolean
+  /** Pins or unpins; only where pinning applies, the inbox. */
+  onPin?: (pinned: boolean) => void
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
@@ -218,6 +227,14 @@ function ThreadRow({
               </span>
             )}
           </span>
+          {pinned && (
+            <HugeiconsIcon
+              icon={PinIcon}
+              strokeWidth={1.75}
+              aria-label={strings.pins.isPinned}
+              className={cn(icon, "text-primary")}
+            />
+          )}
           {returned && (
             <HugeiconsIcon
               icon={AlarmClockIcon}
@@ -282,6 +299,13 @@ function ThreadRow({
       </span>
       <RowActions
         actions={[
+          ...(onPin
+            ? [
+                pinned
+                  ? { icon: PinOffIcon, label: strings.pins.unpin, run: () => onPin(false) }
+                  : { icon: PinIcon, label: strings.pins.pin, run: () => onPin(true) },
+              ]
+            : []),
           thread.isStarred
             ? { icon: StarIcon, label: actions.unstar, run: () => onAction("unstar"), className: STARRED }
             : { icon: StarIcon, label: actions.star, run: () => onAction("star") },
@@ -871,7 +895,16 @@ export function InboxPage({
           .filter((thread) => !accountId || thread.accountId === accountId)
       : []
   const returnedIds = new Set(returned.map((thread) => thread.id))
-  const rows = returned.length ? [...returned, ...listed.filter((thread) => !returnedIds.has(thread.id))] : listed
+  // Pinned conversations on top of the inbox, after what just came back from snooze.
+  const pinnedAll = usePinned(accountId, navigation.view === "inbox")
+  const pinned = navigation.view === "inbox" ? pinnedAll.filter((thread) => !returnedIds.has(thread.id)) : []
+  const pinnedIds = new Set(pinned.map((thread) => thread.id))
+  const onTop = [...returned, ...pinned]
+  const rows = onTop.length
+    ? [...onTop, ...listed.filter((thread) => !returnedIds.has(thread.id) && !pinnedIds.has(thread.id))]
+    : listed
+  const pinsOn = usePins()
+  const { mutate: setPinned } = usePin()
   const position = open ? rows.findIndex((thread) => thread.id === open.id) : -1
   // The neighbours of the open conversation are where J, K and archive go next.
   const before = position > 0 ? rows[position - 1]?.id : undefined
@@ -1397,7 +1430,8 @@ export function InboxPage({
                       </p>
                     )}
                   <ul className="flex flex-col gap-0.5 px-2 pb-2">
-                    {rows.map((thread) => (
+                    {rows.map((thread, index) => (
+                      <Fragment key={thread.id}>
                       <ThreadRow
                         key={thread.id}
                         thread={thread}
@@ -1412,6 +1446,12 @@ export function InboxPage({
                         checked={picked.has(thread.id)}
                         selecting={selecting}
                         returned={returnedIds.has(thread.id)}
+                        pinned={pinnedIds.has(thread.id)}
+                        onPin={
+                          pinsOn && navigation.view === "inbox" && canPin(thread)
+                            ? (pin) => setPinned({ thread, pinned: pin })
+                            : undefined
+                        }
                         onToggle={(range) => toggle(thread.id, range)}
                         onHover={(hovering) => {
                           if (hovering) hovered.current = thread.id
@@ -1425,6 +1465,11 @@ export function InboxPage({
                             : runAction({ id: thread.id, action })
                         }
                       />
+                      {/* A quiet line between what is pinned and the rest of the inbox. */}
+                      {pinned.length > 0 && index === onTop.length - 1 && index < rows.length - 1 && (
+                        <li aria-hidden="true" className="mx-2.5 my-1 border-t" />
+                      )}
+                      </Fragment>
                     ))}
                   </ul>
                   {list.hasNextPage && (

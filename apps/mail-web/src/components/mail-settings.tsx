@@ -48,11 +48,13 @@ import {
   setParcels,
   setInvoices,
   setTodos,
+  setPins,
   setSenders,
   setUnsubscribe,
   useParcels,
   useInvoices,
   useTodos,
+  usePins,
   useSenders,
   useUnsubscribe,
 } from "@/lib/preferences"
@@ -148,6 +150,7 @@ function FeatureSettings() {
   const senders = useSenders()
   const invoices = useInvoices()
   const todos = useTodos()
+  const pins = usePins()
   return (
     <SettingsSection title={t.title} description={t.description}>
       <SettingsRow title={t.parcels} htmlFor="mail-parcels" description={t.parcelsHelp}>
@@ -155,6 +158,9 @@ function FeatureSettings() {
       </SettingsRow>
       <SettingsRow title={t.invoices} htmlFor="mail-invoices" description={t.invoicesHelp}>
         <Switch id="mail-invoices" checked={invoices} onCheckedChange={setInvoices} />
+      </SettingsRow>
+      <SettingsRow title={t.pins} htmlFor="mail-pins" description={t.pinsHelp}>
+        <Switch id="mail-pins" checked={pins} onCheckedChange={setPins} />
       </SettingsRow>
       <SettingsRow title={t.todos} htmlFor="mail-todos" description={t.todosHelp}>
         <Switch id="mail-todos" checked={todos} onCheckedChange={setTodos} />

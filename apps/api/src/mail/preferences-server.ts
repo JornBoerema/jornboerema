@@ -11,6 +11,7 @@ export type MailPreferences = {
   senders: boolean
   invoices: boolean
   todos: boolean
+  pins: boolean
   sidebar: SidebarLayout | null
 }
 
@@ -24,6 +25,7 @@ const select = {
   senders: true,
   invoices: true,
   todos: true,
+  pins: true,
   sidebar: true,
 } as const
 
@@ -43,6 +45,11 @@ export async function invoicesEnabled(userId: string) {
   return (await readPreferences(userId))?.invoices ?? true
 }
 
+/** Whether pinning is on: it is unless turned off. */
+export async function pinsEnabled(userId: string) {
+  return (await readPreferences(userId))?.pins ?? true
+}
+
 export async function savePreferences(userId: string, input: Partial<MailPreferences>): Promise<MailPreferences> {
   const db = getDb()
   const { sidebar, ...rest } = input
@@ -56,6 +63,8 @@ export async function savePreferences(userId: string, input: Partial<MailPrefere
     // Turned off, nothing found in shipping mail stays behind.
     ...(change.parcels === false ? [db.mailShipment.deleteMany({ where: { userId } })] : []),
     ...(change.invoices === false ? [db.mailInvoice.deleteMany({ where: { userId } })] : []),
+    // Turned off, nothing stays pinned to come back later.
+    ...(change.pins === false ? [db.mailPin.deleteMany({ where: { userId } })] : []),
   ])
   return { ...saved, sidebar: saved.sidebar === null ? null : normalizeSidebar(saved.sidebar) }
 }

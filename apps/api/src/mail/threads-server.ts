@@ -41,6 +41,7 @@ export async function listThreads(
     cursor,
     folder = "inbox",
     unreadOnly,
+    pinnedOnly,
     limit = PAGE_SIZE,
   }: {
     accountId?: string
@@ -48,6 +49,8 @@ export async function listThreads(
     /** The inbox, another synced folder, or starred mail from any of them but spam and trash. */
     folder?: "inbox" | MailFolder
     unreadOnly?: boolean
+    /** Only the conversations pinned to the top. */
+    pinnedOnly?: boolean
     limit?: number
   }
 ): Promise<MailThreadsPage> {
@@ -59,6 +62,9 @@ export async function listThreads(
       ? Prisma.sql`AND folder NOT IN ('spam', 'trash')`
       : Prisma.sql`AND folder = ${folder}::mail_message_folder`
   const starredOnly = folder === "starred" ? Prisma.sql`AND any_starred` : Prisma.empty
+  const pinnedFilter = pinnedOnly
+    ? Prisma.sql`AND (account_id, coalesce(thread_id, id)) IN (SELECT account_id, thread_id FROM mail_pins WHERE user_id = ${userId})`
+    : Prisma.empty
   const after = position
     ? Prisma.sql`AND (received_at < ${position.receivedAt} OR (received_at = ${position.receivedAt} AND id < ${position.id}))`
     : Prisma.empty
@@ -84,7 +90,7 @@ export async function listThreads(
         bool_or(is_starred) OVER conversation AS any_starred,
         bool_or(has_attachments) OVER conversation AS any_attachment
       FROM mail_messages
-      WHERE user_id = ${userId} ${accountFilter} ${folderFilter}
+      WHERE user_id = ${userId} ${accountFilter} ${folderFilter} ${pinnedFilter}
       WINDOW conversation AS (PARTITION BY account_id, coalesce(thread_id, id))
     ) grouped
     WHERE position = 1 ${after} ${starredOnly} ${unreadOnly ? Prisma.sql`AND NOT all_read` : Prisma.empty}
@@ -196,6 +202,9 @@ export async function actOnConversation({ account, threadId }: Conversation, act
         : (await provider.getThread(token, threadId, { includeHidden: true })).map((message) => message.id)
     await provider.applyThreadAction(token, { threadId, messageIds, action })
   })
+  // Pinned means pinned in the inbox: leaving it lets go.
+  if (action === "archive" || action === "trash" || action === "spam" || action === "delete")
+    await getDb().mailPin.deleteMany({ where: { accountId: account.id, threadId } })
   if (action === "delete") {
     await db.mailMessage.deleteMany({ where })
     return

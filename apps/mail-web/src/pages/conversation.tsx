@@ -14,6 +14,8 @@ import {
   AlarmClockIcon,
   AlarmClockOffIcon,
   TaskAdd01Icon,
+  PinIcon,
+  PinOffIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -35,7 +37,8 @@ import { MailSummaryCard } from "@/components/mail-summary"
 import { ShipmentCard } from "@/components/parcels"
 import { InvoiceCard } from "@/components/invoices"
 import { LinkedTodos, TodoDialog } from "@/components/todo-from-mail"
-import { useTodos } from "@/lib/preferences"
+import { usePins, useTodos } from "@/lib/preferences"
+import { canPin, usePin, usePinned } from "@/lib/pins"
 import { UnsubscribeButton } from "@/components/unsubscribe-button"
 import { WhenPicker } from "@/components/when-picker"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
@@ -397,6 +400,12 @@ export function ConversationPage({
   const [picking, setPicking] = useState(false)
   const todos = useTodos()
   const [makingTodo, setMakingTodo] = useState(false)
+  // Pinning is for the inbox: opened from there, or from a list of what is in it.
+  const pinsOn = usePins()
+  const pinnable = pinsOn && folder === null && !snoozed && canPin(summary)
+  const isPinned = usePinned("", pinnable).some((thread) => thread.id === summary.id)
+  const { mutate: setPinned } = usePin()
+  const togglePin = () => setPinned({ thread: summary, pinned: !isPinned })
   const [replyMode, setReplyMode] = useState<ReplyMode | null>(savedReply?.mode ?? null)
   const replyDraft = savedReply?.mode === replyMode ? savedReply : null
   const { mutate: runAction } = useThreadAction()
@@ -424,6 +433,7 @@ export function ConversationPage({
     a: () => setReplyMode("all"),
     f: () => setReplyMode("forward"),
     ...(todos && { t: () => setMakingTodo(true) }),
+    ...(pinnable && { p: togglePin }),
   })
 
   const messages = useMemo<SanitizedMessage[]>(
@@ -477,6 +487,15 @@ export function ConversationPage({
             <ToolbarAction icon={AlarmClockIcon} label={later.snooze} shortcut="B" onClick={() => setPicking(true)} />
           )}
           <ToolbarAction icon={MailOpen01Icon} label={t.markUnread} shortcut="U" onClick={() => onLeave("unread")} />
+          {pinnable && (
+            <ToolbarAction
+              icon={isPinned ? PinOffIcon : PinIcon}
+              label={isPinned ? strings.pins.unpin : strings.pins.pin}
+              shortcut="P"
+              pressed={isPinned}
+              onClick={togglePin}
+            />
+          )}
           {todos && (
             <ToolbarAction icon={TaskAdd01Icon} label={strings.todos.make} shortcut="T" onClick={() => setMakingTodo(true)} />
           )}

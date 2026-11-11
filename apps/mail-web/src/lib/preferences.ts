@@ -273,6 +273,32 @@ export function useTodos() {
   return useSyncExternalStore(subscribe, readTodos)
 }
 
+const PINS_KEY = "evido.mail.pins"
+
+function readPins() {
+  try {
+    return localStorage.getItem(PINS_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setPins(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(PINS_KEY)
+    else localStorage.setItem(PINS_KEY, "off")
+  } catch {
+    // Storage can be blocked; the account still keeps the choice.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ pins: enabled })
+}
+
+/** On unless turned off: pinning conversations to the top of the inbox. */
+export function usePins() {
+  return useSyncExternalStore(subscribe, readPins)
+}
+
 const SIDEBAR_KEY = "evido.mail.sidebar"
 // One parsed layout per stored text, so the store hands out the same object until it changes.
 let sidebarCache: { raw: string | null; layout: SidebarLayout } | null = null
@@ -357,6 +383,7 @@ type AccountPreferences = {
   senders: boolean
   invoices: boolean
   todos: boolean
+  pins: boolean
   sidebar: SidebarLayout | null
 }
 
@@ -373,6 +400,7 @@ function localPreferences(): AccountPreferences {
     senders: readSenders(),
     invoices: readInvoices(),
     todos: readTodos(),
+    pins: readPins(),
     sidebar: readSidebarSaved(),
   }
 }
@@ -394,6 +422,7 @@ function applyLocally(preferences: AccountPreferences) {
     set(SENDERS_KEY, preferences.senders === false ? "off" : null)
     set(INVOICES_KEY, preferences.invoices === false ? "off" : null)
     set(TODOS_KEY, preferences.todos === false ? "off" : null)
+    set(PINS_KEY, preferences.pins === false ? "off" : null)
     set(SIDEBAR_KEY, preferences.sidebar ? JSON.stringify(preferences.sidebar) : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.

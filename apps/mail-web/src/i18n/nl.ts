@@ -339,6 +339,13 @@ export const nl: typeof en = {
     start: "Indelen",
     arrange: "Sidebar indelen",
   },
+  pins: {
+    pin: "Bovenaan vastpinnen",
+    unpin: "Losmaken",
+    pinned: "Bovenaan vastgepind",
+    unpinned: "Losgemaakt",
+    isPinned: "Vastgepind",
+  },
   mailboxFilter: {
     showFrom: "Mail tonen van",
     label: "Mailbox",
@@ -367,6 +374,8 @@ export const nl: typeof en = {
     unsubscribeHelp: "Bij mail van een mailinglijst een knop om je in één keer af te melden.",
     todos: "Taken uit mail",
     todosHelp: "Maak vanuit een mail een taak in Even doen (T), eraan gekoppeld, en zie de taken boven de mail.",
+    pins: "Vastpinnen",
+    pinsHelp: "Pin een gesprek bovenaan de inbox (P), tot je hem losmaakt, archiveert of verwijdert.",
     parcels: "Pakketjes",
     parcelsHelp:
       "Track & trace uit verzendmail, in een eigen lijst en bovenaan de mail. Uitgezet wordt verzendmail niet meer gelezen en wordt wat gevonden was verwijderd.",
@@ -448,6 +457,7 @@ export const nl: typeof en = {
     snooze: "Snoozen, of niet meer snoozen",
     markUnread: "Markeren als ongelezen",
     makeTask: "Taak maken in Even doen",
+    pin: "Vastpinnen of losmaken",
     send: "Versturen",
     bold: "Vet",
     italic: "Cursief",

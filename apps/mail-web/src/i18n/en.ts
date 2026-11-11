@@ -338,6 +338,13 @@ export const en = {
     start: "Arrange",
     arrange: "Arrange sidebar",
   },
+  pins: {
+    pin: "Pin to top",
+    unpin: "Unpin",
+    pinned: "Pinned to the top",
+    unpinned: "Unpinned",
+    isPinned: "Pinned",
+  },
   mailboxFilter: {
     showFrom: "Show mail from",
     label: "Mailbox",
@@ -366,6 +373,8 @@ export const en = {
     unsubscribeHelp: "Beside mail from a mailing list, a button to leave the list in one go.",
     todos: "Tasks from mail",
     todosHelp: "Make a task in Even doen from a mail (T), linked to it, and see its tasks above the mail.",
+    pins: "Pin to top",
+    pinsHelp: "Pin a conversation to the top of the inbox (P) until you unpin, archive or delete it.",
     parcels: "Parcels",
     parcelsHelp:
       "Track & trace from shipping mail, in a list of its own and on top of the mail. Turned off, shipping mail isn't read and what was found is removed.",
@@ -447,6 +456,7 @@ export const en = {
     snooze: "Snooze, or unsnooze",
     markUnread: "Mark as unread",
     makeTask: "Make a task in Even doen",
+    pin: "Pin or unpin",
     send: "Send",
     bold: "Bold",
     italic: "Italic",
