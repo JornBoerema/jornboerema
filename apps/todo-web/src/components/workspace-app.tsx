@@ -170,6 +170,8 @@ export function WorkspaceApp({
   const canEditTasks = selected?.role !== "viewer";
   const remaining = items.filter((t) => !t.completed).length;
   const doneCount = items.length - remaining;
+  const canClearDone = selected?.kind !== "note" && canEditTasks && doneCount > 0;
+  const hasListMenu = selected?.kind === "note" || canClearDone || selected?.role === "owner";
   // Saving happens in the background; only offline (or a broken link) blocks editing.
   const disabled = !online || (!!shareToken && error);
   function addTask(event: React.FormEvent) {
@@ -313,7 +315,20 @@ export function WorkspaceApp({
                       : t.list.tasksToDo(remaining)}</span>
                   </p>}
                 </div>
-                {!shareToken && <DropdownMenu>
+                {!shareToken && <div className="flex shrink-0 items-center gap-1">
+                {selected.role === "owner" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={selected.kind === "note" ? t.list.shareNote : t.list.shareList}
+                    title={selected.kind === "note" ? t.list.shareNote : t.list.shareList}
+                    disabled={disabled}
+                    onClick={() => setSharingList(selected)}
+                  >
+                    <Share />
+                  </Button>
+                )}
+                {hasListMenu && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
@@ -327,17 +342,7 @@ export function WorkspaceApp({
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
                       {selected.kind === "note" && <DropdownMenuItem onSelect={() => noteDownload.current?.()}><Download aria-hidden="true" />{t.list.downloadMarkdown}</DropdownMenuItem>}
-                      {selected.role === "owner" ? (
-                        <>
-                          <DropdownMenuItem
-                            onSelect={() => setSharingList(selected)}
-                          >
-                            <Share aria-hidden="true" />
-                            {selected.kind === "note" ? t.list.shareNote : t.list.shareList}
-                          </DropdownMenuItem>
-                        </>
-                      ) : null}
-                      {selected.kind !== "note" && canEditTasks && doneCount > 0 && (
+                      {canClearDone && (
                         <DropdownMenuItem onSelect={() => setDeletion({ type: "clear-done", listId: selected.id, count: doneCount })}>
                           <CheckCheck aria-hidden="true" />
                           {t.list.clearDone}
@@ -363,6 +368,7 @@ export function WorkspaceApp({
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>}
+                </div>}
               </div>
               {selected.kind === "note" ? <Suspense fallback={<p className="text-sm text-muted-foreground">{t.list.loadingNote}</p>}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense> : <>
               {canEditTasks && (
