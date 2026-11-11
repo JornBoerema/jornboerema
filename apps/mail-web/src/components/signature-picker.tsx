@@ -1,4 +1,4 @@
-import { PenTool03Icon } from "@hugeicons/core-free-icons"
+import { Pen02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import {
@@ -39,7 +39,7 @@ export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
             aria-label={`${t.pick}: ${current?.name ?? t.none}`}
             className="data-[state=open]:bg-accent data-[state=open]:text-foreground"
           >
-            <HugeiconsIcon icon={PenTool03Icon} strokeWidth={1.75} aria-hidden="true" />
+            <HugeiconsIcon icon={Pen02Icon} strokeWidth={1.75} aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
       </IconTip>
