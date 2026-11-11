@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import {
   ArchiveIcon,
-  Cancel01Icon,
   SpamIcon,
   Mail01Icon,
   MailOpen01Icon,
   Attachment01Icon,
   Delete02Icon,
   CloudAlertIcon,
+  MinusSignSquareIcon,
   MoreHorizontalIcon,
   PencilEdit02Icon,
   Search01Icon,
@@ -353,14 +353,16 @@ function MenuAction({
 }
 
 /**
- * What to do with the selected conversations: the moves for this folder and
- * read or unread as buttons, the rest (star, spam, a third move) in ⋯.
+ * What to do with the selected conversations: the folder's two moves as
+ * buttons, then clearing the selection, and the rest (read, unread, star,
+ * spam, a third move) in ⋯.
  */
 function SelectionBar({
   count,
   total,
   allStarred,
   allRead,
+  allUnread,
   folder,
   canDelete,
   onSelectAll,
@@ -370,8 +372,8 @@ function SelectionBar({
   count: number
   total: number
   allStarred: boolean
-  /** Every selected conversation is read, so the button marks them unread. */
   allRead: boolean
+  allUnread: boolean
   folder: MailFolder | null
   /** Every selected conversation is in a mailbox that can delete for good. */
   canDelete: boolean
@@ -414,9 +416,7 @@ function SelectionBar({
           isDestructive(action) ? "hover:text-destructive" : undefined
         )
       )}
-      {allRead
-        ? button(Mail01Icon, c.markUnread, () => onAction("unread"))
-        : button(MailOpen01Icon, t.markRead, () => onAction("read"))}
+      {button(MinusSignSquareIcon, t.clear, onClear)}
       <DropdownMenu>
         <IconTip label={t.more}>
           <DropdownMenuTrigger asChild>
@@ -426,16 +426,13 @@ function SelectionBar({
           </DropdownMenuTrigger>
         </IconTip>
         <DropdownMenuContent align="end" sideOffset={6} className="min-w-48 rounded-xl p-1">
+          {!allRead && <MenuAction icon={MailOpen01Icon} label={t.markRead} onSelect={() => onAction("read")} />}
+          {!allUnread && <MenuAction icon={Mail01Icon} label={c.markUnread} onSelect={() => onAction("unread")} />}
           <MenuAction
             icon={StarIcon}
             label={allStarred ? c.unstar : c.star}
             onSelect={() => onAction(allStarred ? "unstar" : "star")}
           />
-          {allRead ? (
-            <MenuAction icon={MailOpen01Icon} label={t.markRead} onSelect={() => onAction("read")} />
-          ) : (
-            <MenuAction icon={Mail01Icon} label={c.markUnread} onSelect={() => onAction("unread")} />
-          )}
           {canReportSpam(folder) && (
             <MenuAction icon={SpamIcon} label={c.reportSpam} onSelect={() => onAction("spam")} />
           )}
@@ -450,7 +447,6 @@ function SelectionBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      {button(Cancel01Icon, t.clear, onClear)}
     </div>
   )
 }
@@ -685,6 +681,7 @@ export function InboxPage({
               total={rows.length}
               allStarred={selection.every((thread) => thread.isStarred)}
               allRead={selection.every((thread) => thread.isRead)}
+              allUnread={selection.every((thread) => !thread.isRead)}
               folder={folder}
               canDelete={selection.every((thread) => canDeleteForever(accountOf.get(thread.accountId)?.provider ?? "gmail"))}
               onSelectAll={() =>
