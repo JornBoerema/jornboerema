@@ -1,27 +1,18 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { ArrowUpRight01Icon, CheckmarkSquare02Icon, SquareIcon, TaskDone01Icon } from "@hugeicons/core-free-icons"
+import {
+  ArrowUpRight01Icon,
+  CheckmarkSquare02Icon,
+  Mail01Icon,
+  SquareIcon,
+  TaskAdd01Icon,
+  TaskDone01Icon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@evido/ui/components/dialog"
-import { Input } from "@evido/ui/components/input"
-import { Label } from "@evido/ui/components/label"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@evido/ui/components/select"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog"
+import { Skeleton } from "@evido/ui/components/skeleton"
+import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
 import type { MailTodoList, MailTodoView } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
@@ -50,18 +41,20 @@ function groupByWorkspace(lists: MailTodoList[]) {
 }
 
 /**
- * A task in Even doen from this mail: its subject as the title, ready to
- * change, and the list it goes to, the last one used unless picked otherwise.
- * The task keeps a link back to the mail.
+ * A task in Even doen from this mail, as a small spotlight like the snooze
+ * picker: the task as it will look in Even doen (an empty box, its name, the
+ * mail it links to), the lists as chips, Tab to pick one, Enter to make it.
  */
 export function TodoDialog({
   threadId,
   subject,
+  from,
   open,
   onOpenChange,
 }: {
   threadId: string
   subject: string
+  from: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -70,8 +63,8 @@ export function TodoDialog({
   const create = useCreateTodo(threadId)
   const [title, setTitle] = useState(subject)
   const [listId, setListId] = useState("")
-  const input = useRef<HTMLInputElement>(null)
-  const available = lists.data?.lists ?? []
+  const field = useRef<HTMLTextAreaElement>(null)
+  const available = useMemo(() => lists.data?.lists ?? [], [lists.data])
   const groups = groupByWorkspace(available)
 
   useEffect(() => {
@@ -83,14 +76,25 @@ export function TodoDialog({
     const last = lastTodoList()
     setListId(available.find((list) => list.id === last)?.id ?? available[0].id)
   }, [available, listId])
+  // The name grows with what it says, up to a few lines.
+  useEffect(() => {
+    const element = field.current
+    if (!element) return
+    element.style.height = "auto"
+    element.style.height = `${element.scrollHeight}px`
+  }, [title, open])
 
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault()
-    const name = title.trim()
-    if (!name || !listId || create.isPending) return
+  const step = (by: number) => {
+    if (!available.length) return
+    const index = available.findIndex((list) => list.id === listId)
+    setListId(available[(index + by + available.length) % available.length].id)
+  }
+  const ready = !!title.trim() && !!listId && !create.isPending
+  const submit = () => {
+    if (!ready) return
     rememberTodoList(listId)
     create.mutate(
-      { listId, title: name },
+      { listId, title: title.trim() },
       {
         onSuccess: ({ todo }) => {
           onOpenChange(false)
@@ -104,62 +108,89 @@ export function TodoDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-md"
+        showCloseButton={false}
+        className="list-spotlight todo-capture"
+        style={{ translate: "-50% 0" }}
         onOpenAutoFocus={(event) => {
           event.preventDefault()
-          input.current?.select()
+          field.current?.focus()
+          field.current?.select()
         }}
       >
-        <form onSubmit={submit} className="flex flex-col gap-5">
-          <DialogHeader>
-            <DialogTitle>{t.title}</DialogTitle>
-            <DialogDescription>{t.description}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="todo-title">{t.task}</Label>
-            <Input
-              ref={input}
-              id="todo-title"
+        <DialogTitle className="flex items-center gap-2 px-2 pt-1 pb-2 text-xs font-medium text-muted-foreground">
+          <HugeiconsIcon icon={TaskAdd01Icon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
+          {t.title}
+        </DialogTitle>
+        <DialogDescription className="sr-only">{t.description}</DialogDescription>
+
+        <div className="todo-capture-task">
+          <span className="todo-capture-box" aria-hidden="true" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <textarea
+              ref={field}
+              rows={1}
               value={title}
               maxLength={500}
-              autoComplete="off"
+              aria-label={t.task}
+              spellCheck={false}
               data-1p-ignore
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => setTitle(event.target.value.replace(/\n/g, " "))}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  submit()
+                } else if (event.key === "Tab") {
+                  event.preventDefault()
+                  step(event.shiftKey ? -1 : 1)
+                }
+              }}
             />
+            {/* The link it keeps: where the task will open from. */}
+            <span className="todo-capture-mail">
+              <HugeiconsIcon icon={Mail01Icon} strokeWidth={1.75} aria-hidden="true" className="size-3.5 shrink-0" />
+              <span className="truncate">{subject}</span>
+              {from && <span className="shrink-0 opacity-70">· {from}</span>}
+            </span>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="todo-list">{t.list}</Label>
-            {lists.isSuccess && available.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t.noLists}</p>
-            ) : (
-              <Select value={listId} onValueChange={setListId} disabled={!lists.isSuccess}>
-                <SelectTrigger id="todo-list" className="w-full">
-                  <SelectValue placeholder={lists.isPending ? t.loadingLists : undefined} />
-                </SelectTrigger>
-                <SelectContent position="popper" align="start">
-                  {groups.map((group) => (
-                    <SelectGroup key={group.name}>
-                      {groups.length > 1 && <SelectLabel>{group.name}</SelectLabel>}
-                      {group.lists.map((list) => (
-                        <SelectItem key={list.id} value={list.id}>
-                          {list.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              {t.cancel}
-            </Button>
-            <Button type="submit" disabled={!title.trim() || !listId || create.isPending}>
-              {t.create}
-            </Button>
-          </DialogFooter>
-        </form>
+        </div>
+
+        <div className="todo-capture-lists" role="radiogroup" aria-label={t.list}>
+          {lists.isPending &&
+            Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-7 w-20 rounded-full" />)}
+          {lists.isSuccess && available.length === 0 && <p className="px-1 text-sm text-muted-foreground">{t.noLists}</p>}
+          {groups.map((group) => (
+            <div key={group.name} className="contents">
+              {groups.length > 1 && <span className="todo-capture-workspace">{group.name}</span>}
+              {group.lists.map((list) => (
+                <button
+                  key={list.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={list.id === listId}
+                  tabIndex={-1}
+                  className={cn("todo-capture-chip", list.id === listId && "is-picked")}
+                  onClick={() => {
+                    setListId(list.id)
+                    field.current?.focus()
+                  }}
+                >
+                  {list.name}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <p className="spotlight-help mr-auto">
+            <span>↵ {t.create}</span>
+            {available.length > 1 && <span>tab {t.otherList}</span>}
+            <span>esc</span>
+          </p>
+          <Button size="sm" className="mr-1 mb-1" disabled={!ready} onClick={submit}>
+            {create.isPending ? <Spinner /> : t.create}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

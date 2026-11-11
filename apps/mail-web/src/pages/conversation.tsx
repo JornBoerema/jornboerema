@@ -486,6 +486,7 @@ export function ConversationPage({
           <TodoDialog
             threadId={id}
             subject={messages[0]?.subject || summary.subject}
+            from={last?.from?.name ?? last?.from?.email ?? summary.fromName ?? summary.fromEmail}
             open={makingTodo}
             onOpenChange={setMakingTodo}
           />
