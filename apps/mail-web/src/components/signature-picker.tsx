@@ -10,11 +10,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@evido/ui/components/dropdown-menu"
+import { cn } from "@evido/ui/lib/utils"
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 import type { SignatureChoice } from "@/lib/signatures"
 
 const NONE = "none"
+/** The same compact rows as the send button's menu. */
+const ITEM = "min-h-7 rounded-lg py-1 text-[13px] [&_svg:not([class*='size-'])]:size-3.5"
 
 /**
  * Swaps the signature of the message being written. An icon like the
@@ -40,19 +43,19 @@ export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
           </Button>
         </DropdownMenuTrigger>
       </IconTip>
-      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-56">
+      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-52 rounded-xl p-1">
         <DropdownMenuLabel>{t.pick}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={choice.value ?? NONE}
           onValueChange={(next) => choice.choose(next === NONE ? null : next)}
         >
           {choice.signatures.map((signature) => (
-            <DropdownMenuRadioItem key={signature.id} value={signature.id}>
+            <DropdownMenuRadioItem key={signature.id} value={signature.id} className={ITEM}>
               <span className="truncate">{signature.name}</span>
             </DropdownMenuRadioItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuRadioItem value={NONE} className="text-muted-foreground">
+          <DropdownMenuRadioItem value={NONE} className={cn(ITEM, "text-muted-foreground")}>
             {t.none}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
