@@ -357,6 +357,9 @@ importers:
       dompurify:
         specifier: ^3.4.17
         version: 3.4.17
+      motion:
+        specifier: ^14.7.1
+        version: 14.7.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react:
         specifier: ^19.3.1
         version: 19.3.1

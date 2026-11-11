@@ -342,8 +342,6 @@ export const nl: typeof en = {
   pins: {
     pin: "Bovenaan vastpinnen",
     unpin: "Losmaken",
-    pinned: "Bovenaan vastgepind",
-    unpinned: "Losgemaakt",
     isPinned: "Vastgepind",
   },
   mailboxFilter: {

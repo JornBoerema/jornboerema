@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react"
+import { motion } from "motion/react"
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArchiveIcon,
@@ -136,6 +137,9 @@ function RowActions({
 }
 
 
+/** How a row moves to its new place: quick, settling without a bounce. */
+const ROW_MOVE = { type: "tween", ease: [0.2, 0, 0, 1], duration: 0.28 } as const
+
 /** What the quick actions cover: the date and the small icons beside it. */
 const UNDER_ACTIONS = "group-focus-within:invisible group-hover:invisible"
 
@@ -154,6 +158,7 @@ function ThreadRow({
   returned,
   pinned,
   onPin,
+  position,
 }: {
   thread: MailThreadView
   /** Only set when several mailboxes share the list. */
@@ -179,6 +184,8 @@ function ThreadRow({
   pinned?: boolean
   /** Pins or unpins; only where pinning applies, the inbox. */
   onPin?: (pinned: boolean) => void
+  /** Its place in the list: when that changes, the row glides there. */
+  position: number
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
@@ -191,7 +198,15 @@ function ThreadRow({
   const actions = strings.conversation
 
   return (
-    <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
+    <motion.li
+      // Glides to a new place, such as the top when pinned, but only when the order changes.
+      layout="position"
+      layoutDependency={position}
+      transition={ROW_MOVE}
+      className="group relative"
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+    >
       <button
         ref={row}
         type="button"
@@ -317,7 +332,7 @@ function ThreadRow({
           })),
         ]}
       />
-    </li>
+    </motion.li>
   )
 }
 
@@ -1447,6 +1462,7 @@ export function InboxPage({
                         selecting={selecting}
                         returned={returnedIds.has(thread.id)}
                         pinned={pinnedIds.has(thread.id)}
+                        position={index}
                         onPin={
                           pinsOn && navigation.view === "inbox" && canPin(thread)
                             ? (pin) => setPinned({ thread, pinned: pin })

@@ -341,8 +341,6 @@ export const en = {
   pins: {
     pin: "Pin to top",
     unpin: "Unpin",
-    pinned: "Pinned to the top",
-    unpinned: "Unpinned",
     isPinned: "Pinned",
   },
   mailboxFilter: {

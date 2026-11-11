@@ -27,6 +27,7 @@ import { AuthPage } from "@/pages/auth"
 import { AuthLayout } from "@/pages/auth-layout"
 import { AccessGate } from "@/components/access-gate"
 import { TooltipProvider } from "@evido/ui/components/tooltip"
+import { MotionConfig } from "motion/react"
 import { TIP_DELAY_MS } from "@/components/icon-tip"
 
 /** A provider redirect lands here with its result, which the settings report. */
@@ -315,6 +316,7 @@ export function App() {
     <ThemeProvider>
       <I18nProvider>
         <QueryClientProvider client={client}>
+          <MotionConfig reducedMotion="user">
           <TooltipProvider delayDuration={TIP_DELAY_MS} skipDelayDuration={400}>
             <BrowserRouter>
               <Routes>
@@ -329,6 +331,7 @@ export function App() {
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
+          </MotionConfig>
           <Toaster position="bottom-right" closeButton />
         </QueryClientProvider>
       </I18nProvider>

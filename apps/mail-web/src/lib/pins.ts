@@ -1,7 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { MailThreadsPage, MailThreadView } from "@evido/mail-core/types"
-import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { MESSAGES_KEY } from "@/lib/mail"
 import { usePins } from "@/lib/preferences"
@@ -32,7 +31,6 @@ export function usePinned(accountId: string, enabled = true) {
 /** Pins or unpins, moving the line at once in every list of pinned conversations. */
 export function usePin() {
   const queryClient = useQueryClient()
-  const t = useI18n().t.pins
   return useMutation({
     mutationFn: ({ thread, pinned }: { thread: MailThreadView; pinned: boolean }) =>
       api(`/api/mail/threads/${encodeURIComponent(thread.id)}/pin`, {
@@ -53,7 +51,6 @@ export function usePin() {
         })
       }
     },
-    onSuccess: (_, { pinned }) => toast.success(pinned ? t.pinned : t.unpinned),
     onError: (error) => toast.error(errorText(error)),
     onSettled: (_, __, { thread }) => {
       void queryClient.invalidateQueries({ queryKey: pinsKey("") })
