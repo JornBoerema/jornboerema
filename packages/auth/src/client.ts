@@ -53,6 +53,22 @@ export const webUrl = (path: string, app: WebApp = "todo") =>
   new URL(path, webOrigins[app] ?? window.location.origin).toString()
 
 /**
+ * Signing in with a callbackURL (for the verification e-mail's link) answers
+ * "redirect there", and the client follows it. That URL is the web app, so the
+ * desktop app would open it in the browser; it stays where it is instead.
+ */
+async function keepInApp(response: Response, url: string) {
+  if (!response.ok || !/\/sign-(in|up)\//.test(url)) return
+  const body = (await response.clone().json().catch(() => null)) as { redirect?: boolean } | null
+  if (!body?.redirect) return
+  return new Response(JSON.stringify({ ...body, redirect: false }), {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  })
+}
+
+/**
  * Browser auth client for every Evido React app; `baseURL` is the API origin.
  * `language` is sent as Accept-Language so auth e-mails use the user's language.
  */
@@ -68,11 +84,12 @@ export function createEvidoAuthClient(
         if (options.language) context.headers.set("Accept-Language", options.language())
         for (const [name, value] of Object.entries(authHeaders())) context.headers.set(name, value)
       },
-      onResponse: ({ response, request }) => {
+      onResponse: async ({ response, request }) => {
         if (!isDesktop()) return
         const token = response.headers.get("set-auth-token")
         if (token) localStorage.setItem(TOKEN_KEY, token)
         else if (response.ok && String(request.url).includes("/sign-out")) clearSessionToken()
+        return keepInApp(response, String(request.url))
       },
     },
     plugins: [oauthProviderClient()],
