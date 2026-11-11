@@ -56,6 +56,7 @@ export function SendButton({
               icon={ArrowDown01Icon}
               strokeWidth={2}
               aria-hidden="true"
+              className="transition-transform duration-200 ease-out group-aria-expanded/button:rotate-180 motion-reduce:transition-none"
             />
           </Button>
         </DropdownMenuTrigger>
