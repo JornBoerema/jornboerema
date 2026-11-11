@@ -60,9 +60,8 @@ const MARK_READ_DELAY_MS = 1200
 
 const label = (address: MailAddress) => address.name ?? address.email
 
-/** From this many messages a thread folds its older ones away. */
-const LONG_THREAD = 4
-const VISIBLE_IN_LONG_THREAD = 3
+/** From this many messages a thread folds away the ones in the middle. */
+const LONG_THREAD = 5
 
 function formatSize(bytes: number) {
   return bytes < 1024 * 1024
@@ -487,7 +486,18 @@ export function ConversationPage({
   const last = messages.at(-1)
   const newestFirst = useMemo(() => [...messages].reverse(), [messages])
   const [expandAll, setShowAll] = useState(false)
-  const showAll = expandAll || newestFirst.length <= LONG_THREAD
+  const showAll = expandAll || newestFirst.length < LONG_THREAD
+  const renderMessage = (message: SanitizedMessage) => (
+    <Message
+      key={message.id}
+      threadId={id}
+      message={message}
+      allowImages={allowImages}
+      latest={message === last}
+      quoted={message !== messages[0]}
+      account={account}
+    />
+  )
   const blockedImages =
     !allowImages && messages.some((message) => message.cleanHtml && hasRemoteImages(message.cleanHtml))
   const replyActions = [
@@ -586,20 +596,11 @@ export function ConversationPage({
               </Button>
             </div>
           )}
-          {/* Newest first, each apart from the next; a long thread shows its
-              latest few and keeps the rest one click away. */}
+          {/* Newest first, each apart from the next. A long thread shows the two
+              newest and the one that started it; those between wait behind a
+              count, as in Gmail. */}
           <div className="mt-1 flex flex-col divide-y divide-border/60">
-            {newestFirst.slice(0, showAll ? undefined : VISIBLE_IN_LONG_THREAD).map((message) => (
-              <Message
-                key={message.id}
-                threadId={id}
-                message={message}
-                allowImages={allowImages}
-                latest={message === last}
-                quoted={message !== messages[0]}
-                account={account}
-              />
-            ))}
+            {(showAll ? newestFirst : newestFirst.slice(0, 2)).map(renderMessage)}
             {!showAll && (
               <div className="py-2.5">
                 <button
@@ -607,10 +608,11 @@ export function ConversationPage({
                   className="-mx-2.5 w-[calc(100%+1.25rem)] rounded-lg px-2.5 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
                   onClick={() => setShowAll(true)}
                 >
-                  {t.olderMessages(newestFirst.length - VISIBLE_IN_LONG_THREAD)}
+                  {t.hiddenMessages(newestFirst.length - 3)}
                 </button>
               </div>
             )}
+            {!showAll && renderMessage(newestFirst[newestFirst.length - 1])}
           </div>
           {last && (
             <div className="@container sticky bottom-4 z-10 mt-auto mb-4 pt-4">

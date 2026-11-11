@@ -557,7 +557,7 @@ export const en = {
     back: "Back to inbox",
     showQuote: "Show quoted text",
     hideQuote: "Hide quoted text",
-    olderMessages: (count: number) => (count === 1 ? "1 older message" : `${count} older messages`),
+    hiddenMessages: (count: number) => `${count} more messages`,
     messageCount: (count: number) => (count === 1 ? "1 message" : `${count} messages`),
     loading: "Opening…",
     loadFailed: "This conversation couldn't be opened.",

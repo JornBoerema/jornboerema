@@ -558,7 +558,7 @@ export const nl: typeof en = {
     back: "Terug naar inbox",
     showQuote: "Geciteerde tekst tonen",
     hideQuote: "Geciteerde tekst verbergen",
-    olderMessages: (count: number) => (count === 1 ? "1 ouder bericht" : `${count} oudere berichten`),
+    hiddenMessages: (count: number) => `Nog ${count} berichten`,
     messageCount: (count: number) => (count === 1 ? "1 bericht" : `${count} berichten`),
     loading: "Openen…",
     loadFailed: "Dit gesprek kon niet worden geopend.",
