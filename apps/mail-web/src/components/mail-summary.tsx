@@ -10,7 +10,6 @@ import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"
 import { useFindCodes, useSummaries } from "@/lib/preferences"
-import { IconTip } from "@/components/icon-tip"
 
 const CARD = "mb-3 rounded-xl border bg-muted/40 px-4 py-3"
 
@@ -28,25 +27,23 @@ function CodeCard({ code }: { code: string }) {
         <span className="text-xs text-muted-foreground">{t.code}</span>
         <span className="font-mono text-2xl font-semibold tracking-[0.2em] select-all">{code}</span>
       </div>
-      <IconTip label={t.copyCode}>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label={t.copyCode}
-          onClick={async () => {
-            try {
-              // Spaces and dashes are for reading; sites want the bare code.
-              await navigator.clipboard.writeText(code.replace(/[\s-]/g, ""))
-              setCopied(true)
-              toast.success(t.codeCopied)
-            } catch {
-              toast.error(t.copyFailed)
-            }
-          }}
-        >
-          <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.75} aria-hidden="true" />
-        </Button>
-      </IconTip>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label={t.copyCode}
+        onClick={async () => {
+          try {
+            // Spaces and dashes are for reading; sites want the bare code.
+            await navigator.clipboard.writeText(code.replace(/[\s-]/g, ""))
+            setCopied(true)
+            toast.success(t.codeCopied)
+          } catch {
+            toast.error(t.copyFailed)
+          }
+        }}
+      >
+        <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.75} aria-hidden="true" />
+      </Button>
     </div>
   )
 }

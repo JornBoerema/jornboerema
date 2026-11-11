@@ -25,7 +25,6 @@ import { toast } from "sonner"
 import type { MailInlineUpload } from "@evido/mail-core/types"
 import { toEmailHtml, withoutTrailingBreaks } from "@/lib/email-compose"
 import { prepareImage, toInlineImages } from "@/lib/inline-images"
-import { IconTip } from "@/components/icon-tip"
 
 // A new object here would make the menu update the editor on every render, without end.
 const MENU_OPTIONS = { placement: "top", offset: 8 } as const
@@ -132,21 +131,19 @@ function FormatButton({
   onClick: () => void
 }) {
   return (
-    <IconTip label={label}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={label}
-        aria-pressed={active}
-        className={cn("rounded-lg", active && "bg-accent text-accent-foreground")}
-        // Keeps the text selected; a normal click would move focus off it.
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={onClick}
-      >
-        <HugeiconsIcon icon={icon} strokeWidth={2} aria-hidden="true" />
-      </Button>
-    </IconTip>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label={label}
+      aria-pressed={active}
+      className={cn("rounded-lg", active && "bg-accent text-accent-foreground")}
+      // Keeps the text selected; a normal click would move focus off it.
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      <HugeiconsIcon icon={icon} strokeWidth={2} aria-hidden="true" />
+    </Button>
   )
 }
 

@@ -2,8 +2,16 @@ import type { ReactNode } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@evido/ui/components/tooltip"
 
 /**
+ * How long a pointer rests on a control before its name shows: long enough that
+ * passing over buttons shows nothing, short enough for someone looking for it.
+ * Once one shows, its neighbours show at once.
+ */
+export const TIP_DELAY_MS = 600
+
+/**
  * The name of an icon-only control, and its shortcut, in the shared tooltip.
- * Every icon button in the app uses this instead of the browser's own title.
+ * Only where the icon alone doesn't say it, or to teach a shortcut; obvious
+ * icons (copy, close, bin, paperclip, bold) go without, with an aria-label.
  */
 export function IconTip({
   label,

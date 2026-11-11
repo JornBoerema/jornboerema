@@ -9,7 +9,6 @@ import type { MailInvoiceView, MailThreadView } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { formatMoney, invoiceTone, useConversationInvoice } from "@/lib/invoices"
 import { useInvoices } from "@/lib/preferences"
-import { IconTip } from "@/components/icon-tip"
 import { ReportRecognitionButton } from "@/components/report-recognition"
 
 /** "20 Nov" for a due date written as yyyy-mm-dd, read as a calendar day. */
@@ -43,24 +42,22 @@ function CopyNumber({ number }: { number: string }) {
     return () => window.clearTimeout(timer)
   }, [copied])
   return (
-    <IconTip label={t.copyNumber}>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label={t.copyNumber}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(number)
-            setCopied(true)
-            toast.success(t.numberCopied)
-          } catch {
-            toast.error(strings.conversation.copyFailed)
-          }
-        }}
-      >
-        <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.75} aria-hidden="true" />
-      </Button>
-    </IconTip>
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      aria-label={t.copyNumber}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(number)
+          setCopied(true)
+          toast.success(t.numberCopied)
+        } catch {
+          toast.error(strings.conversation.copyFailed)
+        }
+      }}
+    >
+      <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.75} aria-hidden="true" />
+    </Button>
   )
 }
 

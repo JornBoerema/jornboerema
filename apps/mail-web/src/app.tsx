@@ -27,6 +27,7 @@ import { AuthPage } from "@/pages/auth"
 import { AuthLayout } from "@/pages/auth-layout"
 import { AccessGate } from "@/components/access-gate"
 import { TooltipProvider } from "@evido/ui/components/tooltip"
+import { TIP_DELAY_MS } from "@/components/icon-tip"
 
 /** A provider redirect lands here with its result, which the settings report. */
 const returnedFromProvider = () => Boolean(window.location.search)
@@ -294,7 +295,7 @@ export function App() {
     <ThemeProvider>
       <I18nProvider>
         <QueryClientProvider client={client}>
-          <TooltipProvider delayDuration={150}>
+          <TooltipProvider delayDuration={TIP_DELAY_MS} skipDelayDuration={400}>
             <BrowserRouter>
               <Routes>
                 <Route index element={<Root />} />

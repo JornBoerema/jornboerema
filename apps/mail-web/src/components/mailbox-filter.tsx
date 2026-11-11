@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Mailbox01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -13,6 +14,10 @@ import type { MailAccountView } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
+
+/** With a mailbox picked the button names it; only the bare icon needs a name on hover. */
+const MaybeTip = ({ label, children }: { label?: string; children: ReactNode }) =>
+  label ? <IconTip label={label}>{children}</IconTip> : children
 
 /**
  * Which mailbox a list shows, beside its title. Every mailbox by default; one
@@ -32,7 +37,7 @@ export function MailboxFilter({
   const picked = accounts.find((account) => account.id === accountId)
   return (
     <DropdownMenu>
-      <IconTip label={t.label}>
+      <MaybeTip label={picked ? undefined : t.label}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -50,7 +55,7 @@ export function MailboxFilter({
             )}
           </Button>
         </DropdownMenuTrigger>
-      </IconTip>
+      </MaybeTip>
       <DropdownMenuContent align="end" sideOffset={6} className="min-w-56 rounded-xl p-1">
         <DropdownMenuRadioGroup value={accountId} onValueChange={onChange}>
           <DropdownMenuRadioItem value="">{t.all}</DropdownMenuRadioItem>

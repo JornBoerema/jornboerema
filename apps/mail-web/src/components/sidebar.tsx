@@ -325,17 +325,15 @@ export function Sidebar({
           <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
             <div className="sidebar-heading">
               <h2 id="sidebar-mailboxes">{t.shell.mailboxes}</h2>
-              <IconTip label={t.inbox.connect}>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="sidebar-add"
-                  aria-label={t.inbox.connect}
-                  onClick={onSettings}
-                >
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
-                </Button>
-              </IconTip>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="sidebar-add"
+                aria-label={t.inbox.connect}
+                onClick={onSettings}
+              >
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
+              </Button>
             </div>
             <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
               {accounts.map((account) => {

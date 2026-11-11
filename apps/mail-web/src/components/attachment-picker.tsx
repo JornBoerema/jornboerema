@@ -20,7 +20,6 @@ import { MAX_ATTACHMENTS_BYTES } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { errorText } from "@/lib/api"
 import { deleteUpload, uploadFile, type ComposerFile } from "@/lib/uploads"
-import { IconTip } from "@/components/icon-tip"
 
 const LIMIT_LABEL = `${MAX_ATTACHMENTS_BYTES / (1024 * 1024)} MB`
 
@@ -118,30 +117,28 @@ function iconFor(file: ComposerFile): IconSvgElement {
 export function AttachButton({ onAdd }: { onAdd: (files: File[]) => void }) {
   const t = useI18n().t.compose
   return (
-    <IconTip label={`${t.attach} (max ${LIMIT_LABEL})`}>
-      <Button
-        asChild
-        variant="ghost"
-        size="icon-sm"
-        className="has-focus-visible:ring-3 has-focus-visible:ring-ring/30"
-      >
-        <label>
-          <HugeiconsIcon icon={Attachment01Icon} strokeWidth={1.75} aria-hidden="true" />
-          <span className="sr-only">
-            {t.attach} (max {LIMIT_LABEL})
-          </span>
-          <input
-            type="file"
-            multiple
-            className="sr-only"
-            onChange={(event) => {
-              onAdd(Array.from(event.target.files ?? []))
-              event.target.value = ""
-            }}
-          />
-        </label>
-      </Button>
-    </IconTip>
+    <Button
+      asChild
+      variant="ghost"
+      size="icon-sm"
+      className="has-focus-visible:ring-3 has-focus-visible:ring-ring/30"
+    >
+      <label>
+        <HugeiconsIcon icon={Attachment01Icon} strokeWidth={1.75} aria-hidden="true" />
+        <span className="sr-only">
+          {t.attach} (max {LIMIT_LABEL})
+        </span>
+        <input
+          type="file"
+          multiple
+          className="sr-only"
+          onChange={(event) => {
+            onAdd(Array.from(event.target.files ?? []))
+            event.target.value = ""
+          }}
+        />
+      </label>
+    </Button>
   )
 }
 
@@ -204,18 +201,16 @@ export function AttachmentList({
                         : sizeLabel(file.size, locale)}
                   </span>
                 </span>
-                <IconTip label={t.removeFile(file.name)}>
-                  <Button
-                    type="button"
-                    size="icon-xs"
-                    variant="ghost"
-                    className="shrink-0 text-foreground/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-transparent! hover:text-foreground [@media(hover:none)]:opacity-100"
-                    aria-label={t.removeFile(file.name)}
-                    onClick={() => onRemove(file)}
-                  >
-                    <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
-                  </Button>
-                </IconTip>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  className="shrink-0 text-foreground/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-transparent! hover:text-foreground [@media(hover:none)]:opacity-100"
+                  aria-label={t.removeFile(file.name)}
+                  onClick={() => onRemove(file)}
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
+                </Button>
                 {uploading && (
                   <span
                     aria-hidden="true"

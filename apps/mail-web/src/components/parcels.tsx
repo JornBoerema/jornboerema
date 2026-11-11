@@ -10,7 +10,6 @@ import { ReportRecognitionButton } from "@/components/report-recognition"
 import { useI18n } from "@/i18n"
 import { useParcels } from "@/lib/preferences"
 import { CARRIER_NAMES, STATUS_TONE, useConversationShipment } from "@/lib/shipments"
-import { IconTip } from "@/components/icon-tip"
 
 export const carrierName = (shipment: MailShipmentView, fallback: string) =>
   shipment.carrier ? CARRIER_NAMES[shipment.carrier] : fallback
@@ -37,24 +36,22 @@ function CopyCode({ code }: { code: string }) {
     return () => window.clearTimeout(timer)
   }, [copied])
   return (
-    <IconTip label={t.copyCode}>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label={t.copyCode}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(code)
-            setCopied(true)
-            toast.success(t.codeCopied)
-          } catch {
-            toast.error(strings.conversation.copyFailed)
-          }
-        }}
-      >
-        <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.75} aria-hidden="true" />
-      </Button>
-    </IconTip>
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      aria-label={t.copyCode}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(code)
+          setCopied(true)
+          toast.success(t.codeCopied)
+        } catch {
+          toast.error(strings.conversation.copyFailed)
+        }
+      }}
+    >
+      <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.75} aria-hidden="true" />
+    </Button>
   )
 }
 

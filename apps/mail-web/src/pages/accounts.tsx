@@ -31,7 +31,6 @@ import { ACCOUNT_COLORS, AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
 import { api, ApiError, errorText } from "@/lib/api"
 import { ACCOUNTS_KEY, MESSAGES_KEY, useAccounts } from "@/lib/mail"
-import { IconTip } from "@/components/icon-tip"
 
 const PROVIDER_NAMES: Record<MailProviderId, string> = { gmail: "Gmail", outlook: "Outlook" }
 
@@ -105,13 +104,11 @@ function ColorPicker({ account }: { account: MailAccountView }) {
 
   return (
     <DropdownMenu>
-      <IconTip label={t.colorTitle}>
-        <DropdownMenuTrigger asChild>
-          <Button size="icon-sm" variant="outline" aria-label={t.color(account.email)}>
-            <AccountDot color={account.color} className="size-3" />
-          </Button>
-        </DropdownMenuTrigger>
-      </IconTip>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon-sm" variant="outline" aria-label={t.color(account.email)}>
+          <AccountDot color={account.color} className="size-3" />
+        </Button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="grid min-w-0 grid-cols-4 gap-1 p-1.5">
         {ACCOUNT_COLORS.map((_, color) => (
           <DropdownMenuItem

@@ -2,6 +2,7 @@ import { Activity, useEffect, useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter, Route, Routes } from "react-router"
 import { TooltipProvider } from "@evido/ui/components/tooltip"
+import { TIP_DELAY_MS } from "@/components/icon-tip"
 import { BackgroundNotifications } from "@/components/background-notifications"
 import { I18nProvider } from "@/i18n"
 import { Root } from "./app"
@@ -26,7 +27,7 @@ export function MailEmbed({ active }: { active: boolean }) {
   return (
     <I18nProvider>
       <QueryClientProvider client={client}>
-        <TooltipProvider delayDuration={150}>
+        <TooltipProvider delayDuration={TIP_DELAY_MS} skipDelayDuration={400}>
           <Activity mode={active ? "visible" : "hidden"}>
             <MemoryRouter>
               <Routes>
