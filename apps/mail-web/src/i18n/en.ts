@@ -310,6 +310,7 @@ export const en = {
     noLists: "You have no lists in Even doen yet.",
     cancel: "Cancel",
     create: "Make task",
+    linkedTo: (from: string) => `Linked to the mail from ${from}`,
     otherList: "other list",
     created: (list: string) => `Task added to ${list}`,
     open: "Open",

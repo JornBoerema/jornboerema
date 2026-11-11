@@ -3,14 +3,25 @@ import { toast } from "sonner"
 import {
   ArrowUpRight01Icon,
   CheckmarkSquare02Icon,
+  LeftToRightListBulletIcon,
   Mail01Icon,
   SquareIcon,
   TaskAdd01Icon,
   TaskDone01Icon,
+  UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@evido/ui/components/dropdown-menu"
 import { Skeleton } from "@evido/ui/components/skeleton"
 import { Spinner } from "@evido/ui/components/spinner"
 import { cn } from "@evido/ui/lib/utils"
@@ -25,6 +36,10 @@ import {
   useCreateTodo,
   useTodoLists,
 } from "@/lib/todos"
+
+/** Compact like the app's other menus; the tick small and quiet on the right. */
+const MENU_ITEM =
+  "min-h-7 rounded-lg py-1 pr-7 pl-2 text-[13px] [&_[data-slot=dropdown-menu-radio-item-indicator]_svg]:size-3.5 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-muted-foreground"
 
 /** Opens Even doen at the task's list, beside the mail. */
 const openTodo = (url: string) => window.open(url, "_blank", "noopener,noreferrer")
@@ -66,6 +81,7 @@ export function TodoDialog({
   const field = useRef<HTMLTextAreaElement>(null)
   const available = useMemo(() => lists.data?.lists ?? [], [lists.data])
   const groups = groupByWorkspace(available)
+  const picked = available.find((list) => list.id === listId)
 
   useEffect(() => {
     if (open) setTitle(subject)
@@ -148,47 +164,61 @@ export function TodoDialog({
             {/* The link it keeps: where the task will open from. */}
             <span className="todo-capture-mail">
               <HugeiconsIcon icon={Mail01Icon} strokeWidth={1.75} aria-hidden="true" className="size-3.5 shrink-0" />
-              <span className="truncate">{subject}</span>
-              {from && <span className="shrink-0 opacity-70">· {from}</span>}
+              <span className="truncate">{from ? t.linkedTo(from) : subject}</span>
             </span>
           </div>
         </div>
 
-        <div className="todo-capture-lists" role="radiogroup" aria-label={t.list}>
-          {lists.isPending &&
-            Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-7 w-20 rounded-full" />)}
-          {lists.isSuccess && available.length === 0 && <p className="px-1 text-sm text-muted-foreground">{t.noLists}</p>}
-          {groups.map((group) => (
-            <div key={group.name} className="contents">
-              {groups.length > 1 && <span className="todo-capture-workspace">{group.name}</span>}
-              {group.lists.map((list) => (
-                <button
-                  key={list.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={list.id === listId}
-                  tabIndex={-1}
-                  className={cn("todo-capture-chip", list.id === listId && "is-picked")}
-                  onClick={() => {
-                    setListId(list.id)
-                    field.current?.focus()
-                  }}
-                >
-                  {list.name}
+        <div className="flex items-center gap-2 px-1 pt-3 pb-1">
+          {lists.isPending && <Skeleton className="h-8 w-40 rounded-lg" />}
+          {lists.isSuccess && available.length === 0 && <p className="text-sm text-muted-foreground">{t.noLists}</p>}
+          {picked && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="todo-capture-list" aria-label={`${t.list}: ${picked.name}`}>
+                  <HugeiconsIcon icon={LeftToRightListBulletIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
+                  <span className="truncate font-medium text-foreground">{picked.name}</span>
+                  {groups.length > 1 && <span className="truncate">· {picked.workspaceName}</span>}
+                  <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
                 </button>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2 pt-1">
-          <p className="spotlight-help mr-auto">
-            <span>↵ {t.create}</span>
-            {available.length > 1 && <span>tab {t.otherList}</span>}
-            <span>esc</span>
-          </p>
-          <Button size="sm" className="mr-1 mb-1" disabled={!ready} onClick={submit}>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                sideOffset={6}
+                className="max-h-72 w-60 rounded-xl p-1"
+                onCloseAutoFocus={(event) => {
+                  event.preventDefault()
+                  field.current?.focus()
+                }}
+              >
+                <DropdownMenuRadioGroup value={listId} onValueChange={setListId}>
+                  {groups.map((group, index) => (
+                    <div key={group.name}>
+                      {index > 0 && <DropdownMenuSeparator className="mx-1 my-1" />}
+                      {groups.length > 1 && (
+                        <DropdownMenuLabel className="px-2 pt-1.5 pb-1 text-xs font-normal text-muted-foreground">
+                          {group.name}
+                        </DropdownMenuLabel>
+                      )}
+                      {group.lists.map((list) => (
+                        <DropdownMenuRadioItem key={list.id} value={list.id} className={MENU_ITEM}>
+                          <span className="truncate">{list.name}</span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </div>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {available.length > 1 && (
+            <span className="text-[11px] text-muted-foreground">
+              <kbd className="font-sans">tab</kbd> {t.otherList}
+            </span>
+          )}
+          <Button size="sm" className="ml-auto" disabled={!ready} onClick={submit}>
             {create.isPending ? <Spinner /> : t.create}
+            <kbd className="font-sans text-[11px] opacity-70">↵</kbd>
           </Button>
         </div>
       </DialogContent>
