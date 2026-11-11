@@ -1,5 +1,5 @@
 import { useLaterCounts } from "@/lib/later"
-import { useParcels } from "@/lib/preferences"
+import { useParcels, useSenders } from "@/lib/preferences"
 import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
@@ -27,6 +27,7 @@ import {
   PackageIcon,
   AlarmClockIcon,
   MailSend01Icon,
+  CleanIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -50,7 +51,7 @@ import { signOut } from "@/lib/auth-client"
 import { useUnread } from "@/lib/mail"
 import { IconTip } from "@/components/icon-tip"
 
-export type MailView = "inbox" | "drafts" | "parcels" | "snoozed" | "scheduled" | MailFolder
+export type MailView = "inbox" | "drafts" | "parcels" | "snoozed" | "scheduled" | "senders" | MailFolder
 
 export const FOLDER_ICONS: Record<MailFolder, IconSvgElement> = {
   starred: StarIcon,
@@ -77,6 +78,7 @@ export type MailNavigation = {
   onSelectParcels: () => void
   onSelectSnoozed: () => void
   onSelectScheduled: () => void
+  onSelectSenders: () => void
   onSelectFolder: (folder: MailFolder) => void
   onCompose: () => void
   onSettings: () => void
@@ -168,6 +170,7 @@ export function Sidebar({
   onSelectParcels,
   onSelectSnoozed,
   onSelectScheduled,
+  onSelectSenders,
   onSelectFolder,
   onCompose,
   onSettings,
@@ -177,6 +180,7 @@ export function Sidebar({
   const desktop = useInDesktop()
   const parcels = useParcels()
   const { snoozedCount, scheduledCount } = useLaterCounts()
+  const tidy = useSenders()
   const unread = useUnread(true).data?.count
   // While writing, only New message is current; closing it gives the selection back.
   const allSelected = !composing && view === "inbox" && accountId === ""
@@ -288,6 +292,17 @@ export function Sidebar({
               </button>
             )}
             <FolderLink folder="sent" view={shownView} onSelect={onSelectFolder} />
+            {tidy && (
+              <button
+                type="button"
+                className={cn("list-link", shownView === "senders" && "is-selected")}
+                aria-current={shownView === "senders" ? "page" : undefined}
+                onClick={onSelectSenders}
+              >
+                <HugeiconsIcon icon={CleanIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                <span>{t.senders.title}</span>
+              </button>
+            )}
             <MoreFolders view={shownView} onSelect={onSelectFolder} />
           </div>
           <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
@@ -367,6 +382,7 @@ export function Sidebar({
           onSelectParcels,
           onSelectSnoozed,
           onSelectScheduled,
+          onSelectSenders,
           onSelectFolder,
           onCompose,
           onSettings,
@@ -489,6 +505,7 @@ function SidebarRail({
   onSelectParcels,
   onSelectSnoozed,
   onSelectScheduled,
+  onSelectSenders,
   onSelectFolder,
   onCompose,
   onSettings,
@@ -498,6 +515,7 @@ function SidebarRail({
   const desktop = useInDesktop()
   const parcels = useParcels()
   const { snoozedCount, scheduledCount } = useLaterCounts()
+  const tidy = useSenders()
   const shownView: MailView | null = composing ? null : view
   return (
     <div className="sidebar-rail" inert={!sidebar.collapsed}>
@@ -574,6 +592,14 @@ function SidebarRail({
           selected={shownView === "sent"}
           onClick={() => onSelectFolder("sent")}
         />
+        {tidy && (
+          <RailLink
+            icon={CleanIcon}
+            label={t.senders.title}
+            selected={shownView === "senders"}
+            onClick={onSelectSenders}
+          />
+        )}
         {MORE.map((folder) => (
           <RailLink
             key={folder}
@@ -624,6 +650,7 @@ const DRAFTS_CHOICE = "drafts:"
 const PARCELS_CHOICE = "parcels:"
 const SNOOZED_CHOICE = "snoozed:"
 const SCHEDULED_CHOICE = "scheduled:"
+const SENDERS_CHOICE = "senders:"
 const FOLDER_CHOICE = "folder:"
 
 export function MailMenu({
@@ -636,6 +663,7 @@ export function MailMenu({
   onSelectParcels,
   onSelectSnoozed,
   onSelectScheduled,
+  onSelectSenders,
   onSelectFolder,
   onSettings,
 }: Pick<
@@ -649,11 +677,13 @@ export function MailMenu({
   | "onSelectParcels"
   | "onSelectSnoozed"
   | "onSelectScheduled"
+  | "onSelectSenders"
   | "onSelectFolder"
   | "onSettings"
 >) {
   const { t } = useI18n()
   const parcels = useParcels()
+  const tidy = useSenders()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -672,7 +702,9 @@ export function MailMenu({
                   ? SNOOZED_CHOICE
                   : view === "scheduled"
                     ? SCHEDULED_CHOICE
-                    : view === "inbox"
+                    : view === "senders"
+                      ? SENDERS_CHOICE
+                      : view === "inbox"
                   ? accountId
                   : `${FOLDER_CHOICE}${view}`
           }
@@ -681,6 +713,7 @@ export function MailMenu({
             else if (value === PARCELS_CHOICE) onSelectParcels()
             else if (value === SNOOZED_CHOICE) onSelectSnoozed()
             else if (value === SCHEDULED_CHOICE) onSelectScheduled()
+            else if (value === SENDERS_CHOICE) onSelectSenders()
             else if (value.startsWith(FOLDER_CHOICE)) onSelectFolder(value.slice(FOLDER_CHOICE.length) as MailFolder)
             else onSelectAccount(value)
           }}
@@ -693,6 +726,7 @@ export function MailMenu({
           {parcels && <DropdownMenuRadioItem value={PARCELS_CHOICE}>{t.parcels.title}</DropdownMenuRadioItem>}
           <DropdownMenuRadioItem value={SNOOZED_CHOICE}>{t.later.snoozedTitle}</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value={SCHEDULED_CHOICE}>{t.later.scheduledTitle}</DropdownMenuRadioItem>
+          {tidy && <DropdownMenuRadioItem value={SENDERS_CHOICE}>{t.senders.title}</DropdownMenuRadioItem>}
           {MAIL_FOLDERS.map((folder) => (
             <DropdownMenuRadioItem key={folder} value={`${FOLDER_CHOICE}${folder}`}>
               {t.folders[folder]}

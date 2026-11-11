@@ -25,6 +25,7 @@ import {
 import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
+import { actOnSender, listSenders } from "./senders-server"
 import { getRealtime, mailChannel } from "../lib/realtime"
 import { every } from "hono/combine"
 import { requireAppAccess } from "../lib/access"
@@ -247,6 +248,7 @@ const preferencesBody = z
     remoteImages: z.boolean(),
     parcels: z.boolean(),
     unsubscribe: z.boolean(),
+    senders: z.boolean(),
   })
   .partial()
   .refine((change) => Object.keys(change).length > 0)
@@ -453,6 +455,28 @@ mailRoutes.post("/accounts/:id/conversation/unsubscribe", requireTrustedOrigin, 
   try {
     const conversation = await conversationOf(c)
     return await unsubscribed(c, conversation && { ...conversation, hidden: c.req.query("hidden") === "1" })
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Tidying up per sender: who fills the inbox, and everything from them at once.
+mailRoutes.get("/senders", requireSession, async (c) =>
+  c.json({ senders: await listSenders(c.get("session").user.id, c.req.query("account") || undefined) }, 200, noStore)
+)
+
+const senderBody = z.object({
+  email: z.email().max(320),
+  action: z.enum(["archive", "read"]),
+  account: z.string().min(1).max(100).optional(),
+})
+
+// One round: as much as fits in the time budget. The app calls again while some remain.
+mailRoutes.post("/senders/action", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, senderBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await actOnSender(c.get("session").user.id, body.email, body.action, body.account), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

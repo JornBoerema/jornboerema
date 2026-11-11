@@ -7,6 +7,7 @@ export type MailPreferences = {
   remoteImages: boolean
   parcels: boolean
   unsubscribe: boolean
+  senders: boolean
 }
 
 const select = {
@@ -16,6 +17,7 @@ const select = {
   remoteImages: true,
   parcels: true,
   unsubscribe: true,
+  senders: true,
 } as const
 
 /** Null until first saved, so the first device can bring along what it had chosen. */

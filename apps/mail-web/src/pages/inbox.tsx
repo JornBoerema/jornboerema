@@ -18,6 +18,7 @@ import {
   InboxIcon,
   SentIcon,
   AlarmClockIcon,
+  FilterMailRemoveIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -39,6 +40,7 @@ import {
   type MailFolder,
   type MailAccountView,
   type MailDraftView,
+  type MailSenderView,
   type MailShipmentView,
   type MailThreadAction,
   type MailThreadsPage,
@@ -60,6 +62,17 @@ import { setShowDelivered, useShowDelivered } from "@/lib/preferences"
 import { formatMoment, useScheduled, useScheduledActions, useSnoozes, useUnsnooze } from "@/lib/later"
 import { toast } from "sonner"
 import { WhenPicker } from "@/components/when-picker"
+import { useSenderList, useTidy } from "@/lib/senders"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@evido/ui/components/alert-dialog"
 import { carrierName, Status } from "@/components/parcels"
 import {
   leavesList,
@@ -273,6 +286,49 @@ function ThreadRow({
           })),
         ]}
       />
+    </li>
+  )
+}
+
+/** Someone who fills the inbox: who, how much and how much unread, with tidying actions on hover. */
+function SenderRow({
+  sender,
+  selected,
+  onOpen,
+  onHover,
+  actions,
+}: {
+  sender: MailSenderView
+  selected: boolean
+  onOpen: () => void
+  onHover: (hovering: boolean) => void
+  actions: { icon: IconSvgElement; label: string; run: () => void; destructive?: boolean }[]
+}) {
+  const t = useI18n().t.senders
+  return (
+    <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
+      <button
+        type="button"
+        aria-current={selected ? "true" : undefined}
+        disabled={!sender.thread}
+        onClick={onOpen}
+        className={cn(
+          "flex w-full flex-col gap-0.5 rounded-lg py-2 pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
+          selected ? "bg-accent" : "group-hover:bg-accent/60"
+        )}
+      >
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate font-medium">{sender.name ?? sender.email}</span>
+          <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", UNDER_ACTIONS)}>
+            {t.messages(sender.messages)}
+          </span>
+        </span>
+        <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+          <span className="min-w-0 truncate">{sender.email}</span>
+          {sender.unread > 0 && <span className="shrink-0">· {t.unread(sender.unread)}</span>}
+        </span>
+      </button>
+      <RowActions actions={actions} />
     </li>
   )
 }
@@ -670,8 +726,9 @@ export function InboxPage({
   const showParcels = navigation.view === "parcels"
   const showSnoozed = navigation.view === "snoozed"
   const showScheduled = navigation.view === "scheduled"
+  const showSenders = navigation.view === "senders"
   // These lists aren't the folder's conversations: nothing to select there.
-  const listOfOthers = showDrafts || showParcels || showSnoozed || showScheduled
+  const listOfOthers = showDrafts || showParcels || showSnoozed || showScheduled || showSenders
   const snoozes = useSnoozes()
   const scheduled = useScheduled()
   const unsnooze = useUnsnooze()
@@ -691,6 +748,9 @@ export function InboxPage({
   }, [shipments.data, queryClient])
   const draftRows = drafts.data?.drafts ?? []
   const { accounts, accountId, onCompose, onSettings } = navigation
+  const senders = useSenderList(accountId, showSenders)
+  const tidy = useTidy(accountId)
+  const [archiving, setArchiving] = useState<MailSenderView | null>(null)
   const { mutate: runAction } = useThreadAction()
   const prefetch = usePrefetchThreads()
   const folder = isMailFolder(navigation.view) ? navigation.view : null
@@ -869,7 +929,9 @@ export function InboxPage({
                     ? strings.later.snoozedTitle
                     : showScheduled
                       ? strings.later.scheduledTitle
-                      : folder
+                      : showSenders
+                        ? strings.senders.title
+                        : folder
                   ? strings.folders[folder]
                   : (selectedAccount?.email ?? t.title)}
             </h1>
@@ -947,7 +1009,54 @@ export function InboxPage({
           ref={listScroller}
           className="scroll-fade relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {showSnoozed ? (
+          {showSenders ? (
+            <>
+              {senders.isPending && <ListSkeleton />}
+              {senders.isError && <p className="p-4 pl-8 text-sm text-destructive">{strings.senders.loadFailed}</p>}
+              {senders.isSuccess && senders.data.senders.length === 0 && (
+                <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.senders.empty}</p>
+              )}
+              <ul className="flex flex-col gap-0.5 px-2 pb-2">
+                {senders.data?.senders.map((sender) => (
+                  <SenderRow
+                    key={sender.email}
+                    sender={sender}
+                    selected={!!open && sender.thread?.id === open.id}
+                    onOpen={() => sender.thread && onOpen(sender.thread)}
+                    onHover={(hovering) => prefetch.onHover(hovering && sender.thread ? sender.thread.id : null)}
+                    actions={[
+                      { icon: FilterMailRemoveIcon, label: strings.senders.unsubscribe, run: () => tidy.unsubscribe.mutate(sender) },
+                      ...(sender.unread > 0
+                        ? [{ icon: MailOpen01Icon, label: strings.senders.readAll, run: () => tidy.act.mutate({ sender, action: "read" as const }) }]
+                        : []),
+                      { icon: ArchiveIcon, label: strings.senders.archiveAll, run: () => setArchiving(sender) },
+                    ]}
+                  />
+                ))}
+              </ul>
+              <AlertDialog open={archiving !== null} onOpenChange={(open) => !open && setArchiving(null)}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {archiving && strings.senders.confirmArchive(archiving.conversations, archiving.name ?? archiving.email)}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>{strings.senders.confirmArchiveBody}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{strings.senders.cancel}</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        if (archiving) tidy.act.mutate({ sender: archiving, action: "archive" })
+                        setArchiving(null)
+                      }}
+                    >
+                      {strings.senders.archiveAll}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : showSnoozed ? (
             <>
               {snoozes.isPending && <ListSkeleton />}
               {snoozes.isSuccess && snoozes.data.snoozed.length === 0 && (

@@ -194,6 +194,32 @@ export function useUnsubscribe() {
   return useSyncExternalStore(subscribe, readUnsubscribe)
 }
 
+const SENDERS_KEY = "evido.mail.senders"
+
+function readSenders() {
+  try {
+    return localStorage.getItem(SENDERS_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setSenders(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(SENDERS_KEY)
+    else localStorage.setItem(SENDERS_KEY, "off")
+  } catch {
+    // Storage can be blocked; the account still keeps the choice.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ senders: enabled })
+}
+
+/** On unless turned off: Tidy up, the inbox per sender. */
+export function useSenders() {
+  return useSyncExternalStore(subscribe, readSenders)
+}
+
 const DELIVERED_KEY = "evido.mail.parcels-delivered"
 
 function readShowDelivered() {
@@ -227,6 +253,7 @@ type AccountPreferences = {
   remoteImages: boolean
   parcels: boolean
   unsubscribe: boolean
+  senders: boolean
 }
 
 const PREFERENCES_URL = "/api/mail/preferences"
@@ -239,6 +266,7 @@ function localPreferences(): AccountPreferences {
     remoteImages: readRemoteImages(),
     parcels: readParcels(),
     unsubscribe: readUnsubscribe(),
+    senders: readSenders(),
   }
 }
 
@@ -256,6 +284,7 @@ function applyLocally(preferences: AccountPreferences) {
     // Older accounts saved before this setting existed have it on.
     set(PARCELS_KEY, preferences.parcels === false ? "off" : null)
     set(UNSUBSCRIBE_KEY, preferences.unsubscribe === false ? "off" : null)
+    set(SENDERS_KEY, preferences.senders === false ? "off" : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.
   }

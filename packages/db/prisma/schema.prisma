@@ -691,6 +691,8 @@ model MailPreferences {
   parcels      Boolean  @default(true)
   /// The Unsubscribe button beside mail from a mailing list.
   unsubscribe  Boolean  @default(true)
+  /// Tidy up: the inbox per sender, to archive, mark read or unsubscribe at once.
+  senders      Boolean  @default(true)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

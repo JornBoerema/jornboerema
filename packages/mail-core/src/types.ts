@@ -301,6 +301,21 @@ export type MailShipmentView = {
   thread?: MailThreadView
 }
 
+/** Someone who fills the inbox, for tidying up per sender. */
+export type MailSenderView = {
+  email: string
+  name: string | null
+  /** Messages from them in the inbox. */
+  messages: number
+  unread: number
+  conversations: number
+  latest: string
+  /** Their newest message: its provider id, to unsubscribe through. */
+  providerMessageId: string
+  /** The conversation it is in, to open. */
+  thread: MailThreadView | null
+}
+
 /** A snoozed conversation, as the Snoozed list and the inbox's top show it. */
 export type MailSnoozedView = { thread: MailThreadView; until: string }
 
