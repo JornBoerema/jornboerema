@@ -1,0 +1,30 @@
+# Deploys the Trigger.dev tasks in apps/api/trigger (project "Even") when they
+# change. They only knock on the API at the right moment; the work is in the API.
+#
+# Secret: TRIGGER_ACCESS_TOKEN, a personal access token from cloud.trigger.dev.
+name: Deploy Trigger.dev tasks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/trigger/**"
+      - "apps/api/trigger.config.ts"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Deploy
+        working-directory: apps/api
+        env:
+          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
+        run: pnpm exec trigger deploy --skip-update-check

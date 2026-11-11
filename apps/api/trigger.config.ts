@@ -1,9 +1,9 @@
 import { defineConfig } from "@trigger.dev/sdk"
 
 // Delayed runs that wake snoozed mail and send scheduled mail at their moment.
-// The project ref is set in .env (TRIGGER_PROJECT_REF) and in CI.
+// Project "Even" on cloud.trigger.dev.
 export default defineConfig({
-  project: process.env.TRIGGER_PROJECT_REF ?? "proj_unset",
+  project: "proj_mcjbcbpxlwywjneryfhr",
   dirs: ["./trigger"],
   maxDuration: 120,
   retries: {
