@@ -44,7 +44,6 @@ export const workspace: typeof en = {
     downloadMarkdown: "Download .md",
     shareNote: "Notitie delen",
     shareList: "Lijst delen",
-    rename: "Naam wijzigen",
     deleteNote: "Notitie verwijderen",
     deleteList: "Lijst verwijderen",
     loadingNote: "Notitie laden…",
@@ -73,7 +72,6 @@ export const workspace: typeof en = {
   editor: {
     newNote: "Nieuwe notitie",
     newList: "Nieuwe lijst",
-    rename: "Naam wijzigen",
     editTask: "Taak bewerken",
     editTaskDescription: "Pas de tekst van je taak aan.",
     noteDescription: "Geef je notitie een herkenbare titel.",

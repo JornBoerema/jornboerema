@@ -43,7 +43,6 @@ export const workspace = {
     downloadMarkdown: "Download .md",
     shareNote: "Share note",
     shareList: "Share list",
-    rename: "Rename",
     deleteNote: "Delete note",
     deleteList: "Delete list",
     loadingNote: "Loading note…",
@@ -72,7 +71,6 @@ export const workspace = {
   editor: {
     newNote: "New note",
     newList: "New list",
-    rename: "Rename",
     editTask: "Edit task",
     editTaskDescription: "Change the text of your task.",
     noteDescription: "Give your note a recognisable title.",

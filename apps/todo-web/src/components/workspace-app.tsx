@@ -83,7 +83,7 @@ import { Alert, AlertTitle, AlertDescription } from "@evido/ui/components/alert"
 const NoteEditor = lazy(() => import("@/components/note-editor"));
 
 type Editor = {
-  type: "create-list" | "rename-list" | "update-todo";
+  type: "create-list" | "update-todo";
   id?: string;
   value: string;
   kind?: "todo" | "note";
@@ -192,9 +192,7 @@ export function WorkspaceApp({
     const command: Command =
       editor.type === "update-todo"
         ? { type: editor.type, id, title: value }
-        : editor.type === "create-list"
-          ? { type: editor.type, id, workspaceId: activeWorkspace!.id, name: value, kind: editor.kind ?? "todo" }
-          : { type: editor.type, id, name: value };
+        : { type: editor.type, id, workspaceId: activeWorkspace!.id, name: value, kind: editor.kind ?? "todo" };
     void run(command);
     setEditor(null);
     if (editor.type === "create-list") void selectList(id);
@@ -338,18 +336,6 @@ export function WorkspaceApp({
                             {selected.kind === "note" ? t.list.shareNote : t.list.shareList}
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onSelect={() =>
-                              setEditor({
-                                type: "rename-list",
-                                id: selected.id,
-                                value: selected.name,
-                              })
-                            }
-                          >
-                            <Pencil />
-                            {t.list.rename}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
                             variant="destructive"
                             onSelect={() =>
                               setDeletion({
@@ -490,9 +476,7 @@ export function WorkspaceApp({
             <DialogTitle>
               {editor?.type === "create-list"
                 ? editor.kind === "note" ? t.editor.newNote : t.editor.newList
-                : editor?.type === "rename-list"
-                  ? t.editor.rename
-                  : t.editor.editTask}
+                : t.editor.editTask}
             </DialogTitle>
             <DialogDescription>
               {editor?.type === "update-todo"
