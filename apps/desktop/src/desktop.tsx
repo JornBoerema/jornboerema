@@ -5,10 +5,11 @@ import { MailEmbed } from "@evido/mail-web/embed"
 import { authClient, TodoEmbed, TodoSignIn } from "@evido/todo-web/embed"
 import { Toaster } from "@evido/ui/components/sonner"
 import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/app-switcher"
+import { UpdateProvider } from "@evido/ui/components/update-button"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { cn } from "@evido/ui/lib/utils"
 import { Brand } from "./brand"
-import { useUpdateNotice } from "./updates"
+import { useReadyUpdate } from "./updates"
 import { useWindowDragging } from "./window"
 
 type AppId = "mail" | "todo"
@@ -40,6 +41,7 @@ function storedApp(): AppId {
 }
 
 function Apps() {
+  const update = useReadyUpdate()
   const [active, setActive] = useState(storedApp)
   // An app mounts the first time it is opened and then stays, hidden, so it
   // keeps its place; while hidden its effects (shortcuts, live updates) stop.
@@ -69,17 +71,19 @@ function Apps() {
   }, [])
 
   return (
-    <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select }}>
-      <div className={cn("desktop-app", isMac && "mac")}>
-        {/* Mail stays mounted from the start, so new mail notifies from any app. */}
-        <MailEmbed active={active === "mail"} />
-        {opened.includes("todo") && (
-          <Activity mode={active === "todo" ? "visible" : "hidden"}>
-            <TodoEmbed />
-          </Activity>
-        )}
-      </div>
-    </AppSwitcherProvider>
+    <UpdateProvider value={update}>
+      <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select }}>
+        <div className={cn("desktop-app", isMac && "mac")}>
+          {/* Mail stays mounted from the start, so new mail notifies from any app. */}
+          <MailEmbed active={active === "mail"} />
+          {opened.includes("todo") && (
+            <Activity mode={active === "todo" ? "visible" : "hidden"}>
+              <TodoEmbed />
+            </Activity>
+          )}
+        </div>
+      </AppSwitcherProvider>
+    </UpdateProvider>
   )
 }
 
@@ -97,7 +101,6 @@ function Gate() {
 
 export function Desktop() {
   useWindowDragging()
-  useUpdateNotice()
   return (
     <ThemeProvider>
       <Gate />

@@ -175,3 +175,37 @@
     opacity: 1;
   }
 }
+
+/* "Restart to update" in the desktop app, just above the account menu. */
+.update-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 120ms ease;
+}
+.update-button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--primary) 18%, transparent);
+}
+.update-button:disabled {
+  opacity: 0.7;
+}
+.update-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.update-version {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.75;
+}
+.update-button + .sidebar-footer {
+  margin-top: 0;
+}

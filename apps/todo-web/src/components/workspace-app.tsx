@@ -1,4 +1,5 @@
 import { AppSwitcher } from "@evido/ui/components/app-switcher";
+import { UpdateButton } from "@evido/ui/components/update-button";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
@@ -243,6 +244,7 @@ export function WorkspaceApp({
           })}
         </div>
         {/* Workspace, settings and sign-out live in one menu at the bottom. */}
+        <UpdateButton />
         {user && activeWorkspace && onSelectWorkspace && (
           <div className="sidebar-footer">
             <WorkspaceSwitcher user={user} workspaces={workspaces} active={activeWorkspace} onSelect={onSelectWorkspace} />

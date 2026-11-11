@@ -1,4 +1,5 @@
 import { AppSwitcher } from "@evido/ui/components/app-switcher"
+import { UpdateButton } from "@evido/ui/components/update-button"
 import { useState, type ReactNode } from "react"
 import {
   Add01Icon,
@@ -282,6 +283,7 @@ export function Sidebar({
             </nav>
           </section>
         </div>
+        <UpdateButton />
         <div className="sidebar-footer">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
