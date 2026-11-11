@@ -55,7 +55,7 @@ import {
 import { summaryFor, SummaryFailedError } from "./summary-server"
 import { listShipments, scanShipments, shipmentForConversation } from "./shipments-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
-import { readPreferences, savePreferences } from "./preferences-server"
+import { parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
 import { syncAccount } from "./sync-server"
 import {
   createUpload,
@@ -226,7 +226,13 @@ function failure(c: Context, error: unknown) {
 export const mailRoutes = new Hono<AppEnv>()
 
 const preferencesBody = z
-  .object({ summaries: z.boolean(), codes: z.boolean(), aiWriting: z.boolean(), remoteImages: z.boolean() })
+  .object({
+    summaries: z.boolean(),
+    codes: z.boolean(),
+    aiWriting: z.boolean(),
+    remoteImages: z.boolean(),
+    parcels: z.boolean(),
+  })
   .partial()
   .refine((change) => Object.keys(change).length > 0)
 
@@ -383,6 +389,8 @@ mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
 mailRoutes.get("/shipments", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
+    // Turned off: no shipping mail is read.
+    if (!(await parcelsEnabled(userId))) return c.json({ shipments: [], complete: true }, 200, noStore)
     const scan = await scanShipments(userId)
     return c.json({ shipments: await listShipments(userId), complete: scan.done }, 200, noStore)
   } catch (error) {
@@ -392,7 +400,9 @@ mailRoutes.get("/shipments", requireSession, async (c) => {
 
 mailRoutes.get("/threads/:id/shipment", requireSession, async (c) => {
   try {
-    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    const userId = c.get("session").user.id
+    if (!(await parcelsEnabled(userId))) return c.json({ shipment: null }, 200, noStore)
+    const conversation = await ownedMessage(userId, c.req.param("id"))
     return c.json({ shipment: await shipmentForConversation(conversation) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -610,6 +620,7 @@ mailRoutes.get("/accounts/:id/conversation", requireSession, async (c) => {
 
 mailRoutes.get("/accounts/:id/conversation/shipment", requireSession, async (c) => {
   try {
+    if (!(await parcelsEnabled(c.get("session").user.id))) return c.json({ shipment: null }, 200, noStore)
     const conversation = await conversationOf(c)
     if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const hidden = c.req.query("hidden") === "1"

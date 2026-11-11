@@ -194,6 +194,13 @@ export const nl: typeof en = {
     markRead: "Markeren als gelezen",
     more: "Meer acties",
   },
+  features: {
+    title: "Functies",
+    description: "Extra's bovenop je mail. Opgeslagen bij je account, dus ze gelden op elk apparaat.",
+    parcels: "Pakketjes",
+    parcelsHelp:
+      "Track & trace uit verzendmail, in een eigen lijst en bovenaan de mail. Uitgezet wordt verzendmail niet meer gelezen en wordt wat gevonden was verwijderd.",
+  },
   parcels: {
     title: "Pakketjes",
     empty: "Geen pakketjes onderweg. Verzendmail met een track & trace-link komt hier te staan.",

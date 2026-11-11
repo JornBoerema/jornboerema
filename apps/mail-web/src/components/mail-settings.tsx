@@ -5,6 +5,7 @@ import {
   Mail01Icon,
   Notification03Icon,
   PaintBoardIcon,
+  PuzzleIcon,
   SecurityCheckIcon,
   SignatureIcon,
   SparklesIcon,
@@ -42,6 +43,8 @@ import {
   useFindCodes,
   useNotifyNewMail,
   useSummaries,
+  setParcels,
+  useParcels,
 } from "@/lib/preferences"
 import { AccountSettings } from "@/components/account-settings"
 import { SignatureSettings } from "@/components/signature-settings"
@@ -127,6 +130,19 @@ function NotificationSettings() {
   )
 }
 
+/** Extras that can each be turned off, like Parcels. */
+function FeatureSettings() {
+  const t = useI18n().t.features
+  const parcels = useParcels()
+  return (
+    <SettingsSection title={t.title} description={t.description}>
+      <SettingsRow title={t.parcels} htmlFor="mail-parcels" description={t.parcelsHelp}>
+        <Switch id="mail-parcels" checked={parcels} onCheckedChange={setParcels} />
+      </SettingsRow>
+    </SettingsSection>
+  )
+}
+
 function PrivacySettings() {
   const t = useI18n().t.privacy
   const alwaysShow = useAlwaysShowImages()
@@ -173,7 +189,8 @@ export function MailSettings({
   onOpenChange: (open: boolean) => void
   user: { name: string; email: string }
 }) {
-  const t = useI18n().t.shell
+  const strings = useI18n().t
+  const t = strings.shell
   const [page, setPage] = useState(linkedPage)
   const about = useAboutPage()
   // As in Even doen: the account first, then what belongs to this app.
@@ -213,6 +230,12 @@ export function MailSettings({
       icon: <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
+      id: "features",
+      label: strings.features.title,
+      group: t.mailGroup,
+      icon: <HugeiconsIcon icon={PuzzleIcon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
       id: "privacy",
       label: t.privacy,
       group: t.mailGroup,
@@ -241,6 +264,7 @@ export function MailSettings({
       {page === "signatures" && <SignatureSettings />}
       {page === "notifications" && <NotificationSettings />}
       {page === "ai" && <AiSettings />}
+      {page === "features" && <FeatureSettings />}
       {page === "appearance" && <AppearanceSettings />}
       {page === "about" && <AboutSettings />}
       {page === "privacy" && <PrivacySettings />}

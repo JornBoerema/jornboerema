@@ -142,13 +142,51 @@ export function useAiWriting() {
   return useSyncExternalStore(subscribe, readWriting)
 }
 
+const PARCELS_KEY = "evido.mail.parcels"
+
+function readParcels() {
+  try {
+    return localStorage.getItem(PARCELS_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
+
+export function setParcels(enabled: boolean) {
+  try {
+    if (enabled) localStorage.removeItem(PARCELS_KEY)
+    else localStorage.setItem(PARCELS_KEY, "off")
+  } catch {
+    // Storage can be blocked; the account still keeps the choice.
+  }
+  listeners.forEach((listener) => listener())
+  pushPreference({ parcels: enabled })
+}
+
+/** On unless turned off: parcels from shipping mail, in their own list and above the mail. */
+export function useParcels() {
+  return useSyncExternalStore(subscribe, readParcels)
+}
+
 /** The settings that follow the account; notifications stay per browser. */
-type AccountPreferences = { summaries: boolean; codes: boolean; aiWriting: boolean; remoteImages: boolean }
+type AccountPreferences = {
+  summaries: boolean
+  codes: boolean
+  aiWriting: boolean
+  remoteImages: boolean
+  parcels: boolean
+}
 
 const PREFERENCES_URL = "/api/mail/preferences"
 
 function localPreferences(): AccountPreferences {
-  return { summaries: readSummaries(), codes: readCodes(), aiWriting: readWriting(), remoteImages: readRemoteImages() }
+  return {
+    summaries: readSummaries(),
+    codes: readCodes(),
+    aiWriting: readWriting(),
+    remoteImages: readRemoteImages(),
+    parcels: readParcels(),
+  }
 }
 
 /** Mirrors the account's choice in this browser, which keeps the app quick to start. */
@@ -162,6 +200,8 @@ function applyLocally(preferences: AccountPreferences) {
     set(CODES_KEY, preferences.codes ? null : "off")
     set(WRITING_KEY, preferences.aiWriting ? null : "off")
     set(REMOTE_IMAGES_KEY, preferences.remoteImages ? "always" : null)
+    // Older accounts saved before this setting existed have it on.
+    set(PARCELS_KEY, preferences.parcels === false ? "off" : null)
   } catch {
     // Blocked storage: the account still has them; this browser uses the defaults.
   }

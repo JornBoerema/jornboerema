@@ -7,6 +7,7 @@ import { cn } from "@evido/ui/lib/utils"
 import { looksLikeShipment } from "@evido/mail-core/shipments"
 import type { MailShipmentView, MailThreadView } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
+import { useParcels } from "@/lib/preferences"
 import { CARRIER_NAMES, STATUS_TONE, useConversationShipment } from "@/lib/shipments"
 import { IconTip } from "@/components/icon-tip"
 
@@ -62,7 +63,7 @@ function CopyCode({ code }: { code: string }) {
  */
 export function ShipmentCard({ threadId, thread }: { threadId: string; thread: MailThreadView }) {
   const t = useI18n().t.parcels
-  const candidate = looksLikeShipment(thread)
+  const candidate = useParcels() && looksLikeShipment(thread)
   const { data } = useConversationShipment(threadId, candidate)
   const shipment = data?.shipment
   if (!candidate || !shipment) return null

@@ -193,6 +193,13 @@ export const en = {
     markRead: "Mark as read",
     more: "More actions",
   },
+  features: {
+    title: "Features",
+    description: "Extras on top of your mail. Saved to your account, so they apply on every device.",
+    parcels: "Parcels",
+    parcelsHelp:
+      "Track & trace from shipping mail, in a list of its own and on top of the mail. Turned off, shipping mail isn't read and what was found is removed.",
+  },
   parcels: {
     title: "Parcels",
     empty: "No parcels on their way. Shipping mail with a track & trace link shows up here.",

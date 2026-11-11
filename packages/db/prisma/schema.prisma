@@ -640,6 +640,8 @@ model MailPreferences {
   codes        Boolean  @default(true)
   aiWriting    Boolean  @default(true) @map("ai_writing")
   remoteImages Boolean  @default(false) @map("remote_images")
+  /// Parcels from shipping mail; off reads no shipping mail and keeps none of it.
+  parcels      Boolean  @default(true)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

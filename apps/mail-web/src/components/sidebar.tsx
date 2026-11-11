@@ -1,3 +1,4 @@
+import { useParcels } from "@/lib/preferences"
 import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
@@ -167,6 +168,7 @@ export function Sidebar({
 }: MailNavigation) {
   const { t, locale } = useI18n()
   const desktop = useInDesktop()
+  const parcels = useParcels()
   const unread = useUnread(true).data?.count
   // While writing, only New message is current; closing it gives the selection back.
   const allSelected = !composing && view === "inbox" && accountId === ""
@@ -228,15 +230,17 @@ export function Sidebar({
               )}
             </button>
             <FolderLink folder="starred" view={shownView} onSelect={onSelectFolder} />
-            <button
-              type="button"
-              className={cn("list-link", shownView === "parcels" && "is-selected")}
-              aria-current={shownView === "parcels" ? "page" : undefined}
-              onClick={onSelectParcels}
-            >
-              <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-              <span>{t.parcels.title}</span>
-            </button>
+            {parcels && (
+              <button
+                type="button"
+                className={cn("list-link", shownView === "parcels" && "is-selected")}
+                aria-current={shownView === "parcels" ? "page" : undefined}
+                onClick={onSelectParcels}
+              >
+                <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                <span>{t.parcels.title}</span>
+              </button>
+            )}
             <button
               type="button"
               className={cn("list-link", draftsSelected && "is-selected")}
@@ -447,6 +451,7 @@ function SidebarRail({
 }: Omit<MailNavigation, "onSearch"> & { unread: number | undefined }) {
   const { t } = useI18n()
   const desktop = useInDesktop()
+  const parcels = useParcels()
   const shownView: MailView | null = composing ? null : view
   return (
     <div className="sidebar-rail" inert={!sidebar.collapsed}>
@@ -487,12 +492,14 @@ function SidebarRail({
           selected={shownView === "starred"}
           onClick={() => onSelectFolder("starred")}
         />
-        <RailLink
-          icon={PackageIcon}
-          label={t.parcels.title}
-          selected={shownView === "parcels"}
-          onClick={onSelectParcels}
-        />
+        {parcels && (
+          <RailLink
+            icon={PackageIcon}
+            label={t.parcels.title}
+            selected={shownView === "parcels"}
+            onClick={onSelectParcels}
+          />
+        )}
         <RailLink
           icon={File01Icon}
           label={draftCount > 0 ? `${t.drafts.title} · ${t.drafts.count(draftCount)}` : t.drafts.title}
@@ -578,6 +585,7 @@ export function MailMenu({
   | "onSettings"
 >) {
   const { t } = useI18n()
+  const parcels = useParcels()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -608,7 +616,7 @@ export function MailMenu({
             {t.drafts.title}
             {draftCount > 0 && <span className="ml-auto text-xs text-muted-foreground tabular-nums">{draftCount}</span>}
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value={PARCELS_CHOICE}>{t.parcels.title}</DropdownMenuRadioItem>
+          {parcels && <DropdownMenuRadioItem value={PARCELS_CHOICE}>{t.parcels.title}</DropdownMenuRadioItem>}
           {MAIL_FOLDERS.map((folder) => (
             <DropdownMenuRadioItem key={folder} value={`${FOLDER_CHOICE}${folder}`}>
               {t.folders[folder]}
