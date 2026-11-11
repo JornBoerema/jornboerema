@@ -511,11 +511,12 @@ function SelectionBar({
 }
 
 
-function ListSkeleton() {
+/** Lines while a list loads, inset like the lines that follow: drafts flush, mail and parcels past the gutter. */
+function ListSkeleton({ inset = true }: { inset?: boolean }) {
   return (
     <div aria-hidden="true" className="px-2 pb-2">
       {Array.from({ length: 10 }, (_, index) => (
-        <div key={index} className="flex flex-col gap-2 px-2.5 py-3">
+        <div key={index} className={cn("flex flex-col gap-2 py-3 pr-2.5", inset ? "pl-8" : "pl-2.5")}>
           <Skeleton className="h-3.5 w-2/5" />
           <Skeleton className="h-3.5 w-4/5" />
         </div>
@@ -856,7 +857,7 @@ export function InboxPage({
             </>
           ) : showDrafts ? (
             <>
-              {drafts.isPending && <ListSkeleton />}
+              {drafts.isPending && <ListSkeleton inset={false} />}
               {drafts.isError && (
                 <p className="p-4 text-sm text-destructive">
                   {strings.drafts.loadFailed}
