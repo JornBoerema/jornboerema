@@ -1,6 +1,6 @@
 {
   "name": "@evido/capture-desktop",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "type": "module",
   "private": true,
   "description": "Even vastleggen: screenshot app for macOS and Windows (Tauri 2 + React).",

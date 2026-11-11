@@ -1,7 +1,7 @@
 {
   "bundle": {
     "macOS": {
-      "signingIdentity": "Even vastleggen (Jorn Boerema)"
+      "signingIdentity": "Developer ID Application: Jorn Boerema (V3BNY54367)"
     }
   }
 }
