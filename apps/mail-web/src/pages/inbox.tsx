@@ -49,6 +49,8 @@ import type { DraftRef, useDrafts } from "@/lib/drafts"
 import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
 import { useScrollFade } from "@/lib/scroll-fade"
+import { useShipments } from "@/lib/shipments"
+import { ParcelRow } from "@/components/parcels"
 import {
   leavesList,
   listKey,
@@ -534,6 +536,10 @@ export function InboxPage({
   const t = strings.inbox
   const listScroller = useScrollFade<HTMLDivElement>()
   const showDrafts = navigation.view === "drafts"
+  const showParcels = navigation.view === "parcels"
+  // Drafts and parcels aren't conversations of this list: nothing to select there.
+  const listOfOthers = showDrafts || showParcels
+  const shipments = useShipments(showParcels)
   const draftRows = drafts.data?.drafts ?? []
   const { accounts, accountId, onCompose, onSettings } = navigation
   const { mutate: runAction } = useThreadAction()
@@ -574,7 +580,7 @@ export function InboxPage({
     setPicked(new Set())
     anchor.current = null
   }, [navigation.view, accountId])
-  const selection = showDrafts ? [] : rows.filter((thread) => picked.has(thread.id))
+  const selection = listOfOthers ? [] : rows.filter((thread) => picked.has(thread.id))
   const selecting = selection.length > 0
 
   function toggle(id: string, range: boolean) {
@@ -607,7 +613,7 @@ export function InboxPage({
   // Cmd/Ctrl+A selects the list, unless focus is in a field or a dialog is open.
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "a" || showDrafts) return
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "a" || listOfOthers) return
       const target = event.target
       if (target instanceof HTMLElement && target.closest("input,textarea,select,[contenteditable]")) return
       if (document.querySelector("[role=dialog],[role=alertdialog],[role=menu],[role=listbox]")) return
@@ -622,7 +628,7 @@ export function InboxPage({
   const showingDetail = Boolean(open) || composerVisible
 
   function step(by: number) {
-    if (showDrafts) return
+    if (listOfOthers) return
     const next = rows[Math.max(0, position + by)]
     if (next) onOpen(next)
   }
@@ -650,12 +656,12 @@ export function InboxPage({
     c: onCompose,
     "/": navigation.onSearch,
     x: () => {
-      if (open && !showDrafts) toggle(open.id, false)
+      if (open && !listOfOthers) toggle(open.id, false)
     },
     // Space selects the row under the pointer, or the open one; Shift takes a range.
     " ": (event) => {
       const id = hovered.current ?? open?.id
-      if (id && !showDrafts && rows.some((thread) => thread.id === id)) toggle(id, event.shiftKey)
+      if (id && !listOfOthers && rows.some((thread) => thread.id === id)) toggle(id, event.shiftKey)
     },
     // Clearing a selection comes before closing the conversation.
     Escape: () => (selecting ? clearSelection() : onOpen(null)),
@@ -696,7 +702,9 @@ export function InboxPage({
             <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
               {showDrafts
                 ? strings.drafts.title
-                : folder
+                : showParcels
+                  ? strings.parcels.title
+                  : folder
                   ? strings.folders[folder]
                   : (selectedAccount?.email ?? t.title)}
             </h1>
@@ -760,7 +768,30 @@ export function InboxPage({
           ref={listScroller}
           className="scroll-fade relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {showDrafts ? (
+          {showParcels ? (
+            <>
+              {shipments.isPending && <ListSkeleton />}
+              {shipments.isError && <p className="p-4 text-sm text-destructive">{strings.parcels.loadFailed}</p>}
+              {shipments.isSuccess && shipments.data.shipments.length === 0 && (
+                <p className="p-4 text-sm text-muted-foreground">
+                  {shipments.data.complete ? strings.parcels.empty : strings.parcels.stillReading}
+                </p>
+              )}
+              <ul className="flex flex-col gap-0.5 px-2 pb-2">
+                {shipments.data?.shipments.map((shipment, index) => (
+                  <ParcelRow
+                    key={`${shipment.trackingCode ?? shipment.thread?.id ?? index}`}
+                    shipment={shipment}
+                    selected={!!open && shipment.thread?.id === open.id}
+                    onOpen={onOpen}
+                  />
+                ))}
+              </ul>
+              {shipments.data && !shipments.data.complete && shipments.data.shipments.length > 0 && (
+                <p className="px-4 pb-3 text-xs text-muted-foreground">{strings.parcels.stillReading}</p>
+              )}
+            </>
+          ) : showDrafts ? (
             <>
               {drafts.isPending && <ListSkeleton />}
               {drafts.isError && (

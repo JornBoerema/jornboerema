@@ -29,6 +29,7 @@ import {
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
+import { ShipmentCard } from "@/components/parcels"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
@@ -444,6 +445,7 @@ export function ConversationPage({
           <h2 className="mb-2 text-lg font-semibold tracking-tight break-words">
             {messages[0]?.subject || summary.subject}
           </h2>
+          <ShipmentCard threadId={id} thread={summary} />
           <MailSummaryCard threadId={id} />
           {thread.isPending && (
             // What the list already knows, while the message itself comes in.

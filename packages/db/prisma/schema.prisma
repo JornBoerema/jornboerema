@@ -40,6 +40,7 @@ model User {
   appAccess            AppAccess[]
   appAccessRequests    AppAccessRequest[]
   mailPreferences      MailPreferences?
+  mailShipments        MailShipment[]
 
   @@map("user")
 }
@@ -435,6 +436,7 @@ model MailAccount {
   updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
   messages             MailMessage[]
   summaries            MailSummary[]
+  shipments            MailShipment[]
 
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
   @@index([watchId], map: "mail_accounts_watch_id_idx")
@@ -476,6 +478,34 @@ model MailSummary {
 
   @@unique([accountId, threadId, messageId, language], map: "mail_summaries_key")
   @@map("mail_summaries")
+}
+
+/// The parcel a shipping conversation is about: carrier, tracking code and link,
+/// and status, as its mail says. Never the mail itself. One row per conversation,
+/// made again when a newer message arrives; `found` false marks one read for
+/// nothing, so it isn't read again.
+model MailShipment {
+  id           String      @id
+  userId       String      @map("user_id")
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId    String      @map("account_id")
+  account      MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  threadId     String      @map("thread_id")
+  /// The newest message read, by its provider id.
+  messageId    String      @map("message_id")
+  found        Boolean
+  carrier      String?
+  trackingCode String?     @map("tracking_code")
+  trackingUrl  String?     @map("tracking_url")
+  merchant     String?
+  status       String?
+  subject      String
+  receivedAt   DateTime    @map("received_at")
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([accountId, threadId], map: "mail_shipments_thread_key")
+  @@index([userId, receivedAt(sort: Desc)], map: "mail_shipments_user_received_idx")
+  @@map("mail_shipments")
 }
 
 /// A file on its way into a message, sent in chunks because one request may

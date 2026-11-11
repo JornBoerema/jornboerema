@@ -166,6 +166,11 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       setFilter("")
       setView("drafts")
     },
+    onSelectParcels: () => {
+      setFilter("")
+      setOpen(null)
+      setView("parcels")
+    },
     onSelectFolder: (folder) => {
       setFilter("")
       setOpen(null)

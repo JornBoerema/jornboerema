@@ -53,6 +53,7 @@ import {
   updateSignature,
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
+import { listShipments, scanShipments, shipmentForConversation } from "./shipments-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { readPreferences, savePreferences } from "./preferences-server"
 import { syncAccount } from "./sync-server"
@@ -377,6 +378,27 @@ mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
   }
 })
 
+// Parcels: carrier, tracking code and link, and status are kept; the mail isn't.
+// Opening the list first reads shipping mail it hasn't seen, within a time budget.
+mailRoutes.get("/shipments", requireSession, async (c) => {
+  try {
+    const userId = c.get("session").user.id
+    const scan = await scanShipments(userId)
+    return c.json({ shipments: await listShipments(userId), complete: scan.done }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/threads/:id/shipment", requireSession, async (c) => {
+  try {
+    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    return c.json({ shipment: await shipmentForConversation(conversation) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
 mailRoutes.get("/threads/:id", requireSession, async (c) => {
   try {
     return c.json(await readThread(c.get("session").user.id, c.req.param("id")), 200, noStore)
@@ -581,6 +603,17 @@ mailRoutes.get("/accounts/:id/conversation", requireSession, async (c) => {
     // Spam and trash only show when the conversation is opened from those folders.
     const includeHidden = c.req.query("hidden") === "1"
     return c.json(await readConversation(conversation, { includeHidden }), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/accounts/:id/conversation/shipment", requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    const hidden = c.req.query("hidden") === "1"
+    return c.json({ shipment: await shipmentForConversation({ ...conversation, hidden }) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

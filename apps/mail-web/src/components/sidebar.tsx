@@ -22,6 +22,7 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   UnfoldMoreIcon,
+  PackageIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -45,7 +46,7 @@ import { signOut } from "@/lib/auth-client"
 import { useUnread } from "@/lib/mail"
 import { IconTip } from "@/components/icon-tip"
 
-export type MailView = "inbox" | "drafts" | MailFolder
+export type MailView = "inbox" | "drafts" | "parcels" | MailFolder
 
 export const FOLDER_ICONS: Record<MailFolder, IconSvgElement> = {
   starred: StarIcon,
@@ -69,6 +70,7 @@ export type MailNavigation = {
   composing: boolean
   onSelectAccount: (id: string) => void
   onSelectDrafts: () => void
+  onSelectParcels: () => void
   onSelectFolder: (folder: MailFolder) => void
   onCompose: () => void
   onSettings: () => void
@@ -157,6 +159,7 @@ export function Sidebar({
   composing,
   onSelectAccount,
   onSelectDrafts,
+  onSelectParcels,
   onSelectFolder,
   onCompose,
   onSettings,
@@ -225,6 +228,15 @@ export function Sidebar({
               )}
             </button>
             <FolderLink folder="starred" view={shownView} onSelect={onSelectFolder} />
+            <button
+              type="button"
+              className={cn("list-link", shownView === "parcels" && "is-selected")}
+              aria-current={shownView === "parcels" ? "page" : undefined}
+              onClick={onSelectParcels}
+            >
+              <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+              <span>{t.parcels.title}</span>
+            </button>
             <button
               type="button"
               className={cn("list-link", draftsSelected && "is-selected")}
@@ -313,7 +325,7 @@ export function Sidebar({
       </div>
       <SidebarRail
         {...{ accounts, accountId, user, sidebar, view, draftCount, draftWaiting, composing }}
-        {...{ onSelectAccount, onSelectDrafts, onSelectFolder, onCompose, onSettings, onShortcuts }}
+        {...{ onSelectAccount, onSelectDrafts, onSelectParcels, onSelectFolder, onCompose, onSettings, onShortcuts }}
         unread={unread}
       />
     </aside>
@@ -427,6 +439,7 @@ function SidebarRail({
   unread,
   onSelectAccount,
   onSelectDrafts,
+  onSelectParcels,
   onSelectFolder,
   onCompose,
   onSettings,
@@ -473,6 +486,12 @@ function SidebarRail({
           label={t.folders.starred}
           selected={shownView === "starred"}
           onClick={() => onSelectFolder("starred")}
+        />
+        <RailLink
+          icon={PackageIcon}
+          label={t.parcels.title}
+          selected={shownView === "parcels"}
+          onClick={onSelectParcels}
         />
         <RailLink
           icon={File01Icon}
@@ -533,6 +552,7 @@ function SidebarRail({
 /** The sidebar's choices in one menu, for screens too narrow to keep it open. */
 /** Not an account id, which are UUIDs. */
 const DRAFTS_CHOICE = "drafts:"
+const PARCELS_CHOICE = "parcels:"
 const FOLDER_CHOICE = "folder:"
 
 export function MailMenu({
@@ -542,6 +562,7 @@ export function MailMenu({
   draftCount,
   onSelectAccount,
   onSelectDrafts,
+  onSelectParcels,
   onSelectFolder,
   onSettings,
 }: Pick<
@@ -552,6 +573,7 @@ export function MailMenu({
   | "draftCount"
   | "onSelectAccount"
   | "onSelectDrafts"
+  | "onSelectParcels"
   | "onSelectFolder"
   | "onSettings"
 >) {
@@ -565,9 +587,18 @@ export function MailMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuRadioGroup
-          value={view === "drafts" ? DRAFTS_CHOICE : view === "inbox" ? accountId : `${FOLDER_CHOICE}${view}`}
+          value={
+            view === "drafts"
+              ? DRAFTS_CHOICE
+              : view === "parcels"
+                ? PARCELS_CHOICE
+                : view === "inbox"
+                  ? accountId
+                  : `${FOLDER_CHOICE}${view}`
+          }
           onValueChange={(value) => {
             if (value === DRAFTS_CHOICE) onSelectDrafts()
+            else if (value === PARCELS_CHOICE) onSelectParcels()
             else if (value.startsWith(FOLDER_CHOICE)) onSelectFolder(value.slice(FOLDER_CHOICE.length) as MailFolder)
             else onSelectAccount(value)
           }}
@@ -577,6 +608,7 @@ export function MailMenu({
             {t.drafts.title}
             {draftCount > 0 && <span className="ml-auto text-xs text-muted-foreground tabular-nums">{draftCount}</span>}
           </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value={PARCELS_CHOICE}>{t.parcels.title}</DropdownMenuRadioItem>
           {MAIL_FOLDERS.map((folder) => (
             <DropdownMenuRadioItem key={folder} value={`${FOLDER_CHOICE}${folder}`}>
               {t.folders[folder]}

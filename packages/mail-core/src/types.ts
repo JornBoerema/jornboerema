@@ -1,4 +1,5 @@
 // Safe to import from browsers: no Node APIs here.
+import type { Carrier, ShipmentStatus } from "./shipments"
 
 export const MAIL_PROVIDERS = ["gmail", "outlook"] as const
 export type MailProviderId = (typeof MAIL_PROVIDERS)[number]
@@ -283,6 +284,20 @@ export function rankSearchHits(query: string, hits: MailSearchHit[]) {
 }
 
 /** What the reading pane shows above a conversation. */
+/** A parcel followed in the mail, for the Parcels view and above its conversation. */
+export type MailShipmentView = {
+  carrier: Carrier | null
+  trackingCode: string | null
+  trackingUrl: string | null
+  merchant: string | null
+  status: ShipmentStatus | null
+  /** The newest mail about it: what the list line and the card describe. */
+  subject: string
+  receivedAt: string
+  /** The conversation to open; absent above the conversation itself. */
+  thread?: MailThreadView
+}
+
 export type MailSummary =
   | { kind: "code"; code: string }
   | { kind: "summary"; summary: string }
