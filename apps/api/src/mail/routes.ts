@@ -55,6 +55,7 @@ import {
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
 import { repliesFor, RepliesFailedError } from "./replies-server"
+import { MessageNotFoundError, translateMessage, TranslateFailedError } from "./translate-server"
 import { listShipments, scanShipments, shipmentForConversation } from "./shipments-server"
 import { NothingToUnsubscribeError, unsubscribeFrom } from "./unsubscribe-server"
 import {
@@ -449,6 +450,38 @@ mailRoutes.get("/accounts/:id/conversation/replies", requireSession, async (c) =
     const conversation = await conversationOf(c)
     if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
     return await repliesAnswer(c, { ...conversation, hidden: c.req.query("hidden") === "1" })
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+/** One message in the reader's language, on request; neither it nor the translation is kept. */
+const messageParam = z.string().min(1).max(1000)
+async function translationAnswer(c: Context<AppEnv>, conversation: Conversation) {
+  const messageId = messageParam.safeParse(c.req.query("message"))
+  if (!messageId.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await translateMessage(conversation, messageId.data, languageOf(c)), 200, noStore)
+  } catch (error) {
+    if (error instanceof MessageNotFoundError) return c.json({ error: msg(c, "invalidRequest") }, 404)
+    if (error instanceof TranslateFailedError) return c.json({ error: msg(c, "translateFailed") }, 502)
+    return failure(c, error)
+  }
+}
+
+mailRoutes.get("/threads/:id/translation", requireSession, async (c) => {
+  try {
+    return await translationAnswer(c, await ownedMessage(c.get("session").user.id, c.req.param("id")))
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/accounts/:id/conversation/translation", requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return await translationAnswer(c, { ...conversation, hidden: c.req.query("hidden") === "1" })
   } catch (error) {
     return failure(c, error)
   }

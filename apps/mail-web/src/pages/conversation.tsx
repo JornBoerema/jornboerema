@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
@@ -44,6 +44,7 @@ import { UnsubscribeButton } from "@/components/unsubscribe-button"
 import { WhenPicker } from "@/components/when-picker"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { ReplySuggestions } from "@/components/reply-suggestions"
+import { MessageTranslation, TranslateButton } from "@/components/message-translation"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
@@ -238,6 +239,8 @@ function MessageBody({
   sender,
   allowImages,
   quoted,
+  translated,
+  onOriginal,
 }: {
   threadId: string
   message: SanitizedMessage
@@ -245,6 +248,9 @@ function MessageBody({
   allowImages: boolean
   /** Earlier messages are in the thread, so a quote of them can be tucked away. */
   quoted: boolean
+  /** Shown in the reader's language instead. */
+  translated: boolean
+  onOriginal: () => void
 }) {
   const t = useI18n().t.conversation
   const body = useBodyWithInlineImages(threadId, message)
@@ -252,7 +258,9 @@ function MessageBody({
   const [showQuote, setShowQuote] = useState(false)
   return (
     <>
-      {body ? (
+      {translated ? (
+        <MessageTranslation threadId={threadId} messageId={message.id} onDone={onOriginal} />
+      ) : body ? (
         <div className="flex flex-col items-start gap-1">
           <EmailFrame
             html={trimmed && !showQuote ? trimmed : body}
@@ -312,6 +320,9 @@ function Message({
   const { t: strings, locale } = useI18n()
   const t = strings.conversation
   const [expanded, setExpanded] = useState(latest)
+  const [translated, setTranslated] = useState(false)
+  const showOriginal = useCallback(() => setTranslated(false), [])
+  const translatable = Boolean(message.text?.trim() || message.html)
   const sender = message.from ? label(message.from) : strings.inbox.unknownSender
   const received = new Date(message.receivedAt).toLocaleString(locale, {
     dateStyle: "medium",
@@ -342,12 +353,13 @@ function Message({
       </button>
       {expanded && (
         <>
-          {(message.to.length + message.cc.length > 0 || message.unsubscribe) && (
+          {(message.to.length + message.cc.length > 0 || message.unsubscribe || translatable) && (
             <div className="-mt-3 flex items-baseline gap-3">
               <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                 {message.to.length > 0 && `${t.to}: ${message.to.map(label).join(", ")}`}
                 {message.cc.length > 0 && ` · ${t.cc}: ${message.cc.map(label).join(", ")}`}
               </p>
+              {translatable && <TranslateButton on={translated} onChange={setTranslated} />}
               {message.unsubscribe && (
                 <UnsubscribeButton
                   threadId={threadId}
@@ -365,6 +377,8 @@ function Message({
             sender={sender}
             allowImages={allowImages}
             quoted={quoted}
+            translated={translated}
+            onOriginal={showOriginal}
           />
         </>
       )}

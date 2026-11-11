@@ -351,6 +351,12 @@ export type MailScheduledView = {
 /** A reply a model suggests: a few words to pick it by, and the reply itself. */
 export type MailReplySuggestion = { label: string; text: string }
 
+/**
+ * A message in the reader's language, with the language it was written in.
+ * `same` when it already was in theirs, and nothing was translated.
+ */
+export type MailTranslation = { same: boolean; from: string; text: string }
+
 export type MailSummary =
   | { kind: "code"; code: string }
   | { kind: "summary"; summary: string }
