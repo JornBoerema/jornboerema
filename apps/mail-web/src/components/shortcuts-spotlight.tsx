@@ -70,6 +70,7 @@ export function ShortcutsSpotlight({
         { keys: ["I"], label: t.moveToInbox },
         { keys: ["!"], label: t.reportSpam },
         { keys: ["S"], label: t.star },
+        { keys: ["B"], label: t.snooze },
         { keys: ["U"], label: t.markUnread },
       ],
     },

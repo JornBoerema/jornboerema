@@ -15,6 +15,9 @@ import {
   PencilEdit02Icon,
   Search01Icon,
   StarIcon,
+  InboxIcon,
+  SentIcon,
+  AlarmClockIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -54,6 +57,9 @@ import { useHotkeys } from "@/lib/hotkeys"
 import { useScrollFade } from "@/lib/scroll-fade"
 import { CARRIER_NAMES, useShipments } from "@/lib/shipments"
 import { setShowDelivered, useShowDelivered } from "@/lib/preferences"
+import { formatMoment, useScheduled, useScheduledActions, useSnoozes, useUnsnooze } from "@/lib/later"
+import { toast } from "sonner"
+import { WhenPicker } from "@/components/when-picker"
 import { carrierName, Status } from "@/components/parcels"
 import {
   leavesList,
@@ -122,6 +128,7 @@ function ThreadRow({
   onToggle,
   onHover,
   onAction,
+  returned,
 }: {
   thread: MailThreadView
   /** Only set when several mailboxes share the list. */
@@ -141,6 +148,8 @@ function ThreadRow({
   /** The pointer entered or left the row; Space then selects it. */
   onHover: (hovering: boolean) => void
   onAction: (action: MailThreadAction) => void
+  /** Back from snooze, which is why it sits on top. */
+  returned?: boolean
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
@@ -189,6 +198,14 @@ function ThreadRow({
               </span>
             )}
           </span>
+          {returned && (
+            <HugeiconsIcon
+              icon={AlarmClockIcon}
+              strokeWidth={1.75}
+              aria-label={strings.later.returned}
+              className={cn(icon, "text-primary")}
+            />
+          )}
           {thread.isStarred && (
             <HugeiconsIcon
               icon={StarIcon}
@@ -256,6 +273,56 @@ function ThreadRow({
           })),
         ]}
       />
+    </li>
+  )
+}
+
+/** A snoozed or scheduled message, laid out as a mail line, with its moment and quick actions. */
+function LaterRow({
+  title,
+  subject,
+  when,
+  failed,
+  selected,
+  onOpen,
+  onHover,
+  actions,
+}: {
+  title: string
+  subject: string
+  when: string
+  failed?: boolean
+  selected: boolean
+  onOpen: () => void
+  onHover?: (hovering: boolean) => void
+  actions: { icon: IconSvgElement; label: string; run: () => void }[]
+}) {
+  return (
+    <li className="group relative" onMouseEnter={() => onHover?.(true)} onMouseLeave={() => onHover?.(false)}>
+      <button
+        type="button"
+        aria-current={selected ? "true" : undefined}
+        onClick={onOpen}
+        className={cn(
+          "flex w-full flex-col gap-0.5 rounded-lg py-2 pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
+          selected ? "bg-accent" : "group-hover:bg-accent/60"
+        )}
+      >
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
+          <span
+            className={cn(
+              "shrink-0 text-xs tabular-nums",
+              failed ? "text-destructive" : "text-muted-foreground",
+              UNDER_ACTIONS
+            )}
+          >
+            {when}
+          </span>
+        </span>
+        <span className="min-w-0 truncate text-muted-foreground">{subject}</span>
+      </button>
+      <RowActions actions={actions} />
     </li>
   )
 }
@@ -429,6 +496,7 @@ function SelectionBar({
   onSelectAll,
   onAction,
   onClear,
+  onSnooze,
 }: {
   count: number
   total: number
@@ -441,9 +509,11 @@ function SelectionBar({
   onSelectAll: () => void
   onAction: (action: MailThreadAction) => void
   onClear: () => void
+  onSnooze: (until: Date) => void
 }) {
   const strings = useI18n().t
   const t = strings.selection
+  const [picking, setPicking] = useState(false)
   const c = strings.conversation
   const button = (icon: IconSvgElement, label: string, run: () => void, className?: string) => (
     <IconTip key={label} label={label}>
@@ -487,6 +557,7 @@ function SelectionBar({
           </DropdownMenuTrigger>
         </IconTip>
         <DropdownMenuContent align="end" sideOffset={6} className="min-w-48 rounded-xl p-1">
+          <MenuAction icon={AlarmClockIcon} label={`${strings.later.snooze}…`} onSelect={() => setPicking(true)} />
           {!allRead && <MenuAction icon={MailOpen01Icon} label={t.markRead} onSelect={() => onAction("read")} />}
           {!allUnread && <MenuAction icon={Mail01Icon} label={c.markUnread} onSelect={() => onAction("unread")} />}
           <MenuAction
@@ -508,6 +579,7 @@ function SelectionBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <WhenPicker open={picking} onOpenChange={setPicking} purpose="snooze" onPick={onSnooze} />
     </div>
   )
 }
@@ -591,13 +663,20 @@ export function InboxPage({
   onShowCompose: () => void
   onCloseCompose: () => void
 }) {
-  const strings = useI18n().t
+  const { t: strings, locale } = useI18n()
   const t = strings.inbox
   const listScroller = useScrollFade<HTMLDivElement>()
   const showDrafts = navigation.view === "drafts"
   const showParcels = navigation.view === "parcels"
-  // Drafts and parcels aren't conversations of this list: nothing to select there.
-  const listOfOthers = showDrafts || showParcels
+  const showSnoozed = navigation.view === "snoozed"
+  const showScheduled = navigation.view === "scheduled"
+  // These lists aren't the folder's conversations: nothing to select there.
+  const listOfOthers = showDrafts || showParcels || showSnoozed || showScheduled
+  const snoozes = useSnoozes()
+  const scheduled = useScheduled()
+  const unsnooze = useUnsnooze()
+  const scheduledActions = useScheduledActions()
+  const snoozedIds = new Set(snoozes.data?.snoozed.map((item) => item.thread.id) ?? [])
   const shipments = useShipments(showParcels)
   const showDelivered = useShowDelivered()
   const allParcels = shipments.data?.shipments ?? []
@@ -628,7 +707,16 @@ export function InboxPage({
     },
     getNextPageParam: (page) => page.nextCursor,
   })
-  const rows = list.data?.pages.flatMap((page) => page.threads) ?? []
+  const listed = list.data?.pages.flatMap((page) => page.threads) ?? []
+  // Back from snooze and not read yet: on top of the inbox, as Gmail brings them back.
+  const returned =
+    navigation.view === "inbox"
+      ? (snoozes.data?.returned ?? [])
+          .map((item) => item.thread)
+          .filter((thread) => !accountId || thread.accountId === accountId)
+      : []
+  const returnedIds = new Set(returned.map((thread) => thread.id))
+  const rows = returned.length ? [...returned, ...listed.filter((thread) => !returnedIds.has(thread.id))] : listed
   const position = open ? rows.findIndex((thread) => thread.id === open.id) : -1
   // The neighbours of the open conversation are where J, K and archive go next.
   const before = position > 0 ? rows[position - 1]?.id : undefined
@@ -673,10 +761,10 @@ export function InboxPage({
     anchor.current = null
   }
 
-  function bulk(action: MailThreadAction) {
+  function bulk(action: MailThreadAction, until?: Date) {
     const ids = selection.map((thread) => thread.id)
-    if (open && ids.includes(open.id) && leavesList(folder, action)) onOpen(null)
-    runAction({ ids, action })
+    if (open && ids.includes(open.id) && (until || leavesList(folder, action))) onOpen(null)
+    runAction({ ids, action, ...(until && { until: until.toISOString() }) })
     clearSelection()
   }
 
@@ -703,13 +791,15 @@ export function InboxPage({
     if (next) onOpen(next)
   }
 
-  function leave(thread: MailThreadView, action: MailThreadAction) {
+  /** `until` snoozes: it leaves like an archived conversation and comes back then. */
+  function leave(thread: MailThreadView, action: MailThreadAction, until?: Date) {
+    const run = () => runAction({ id: thread.id, action, ...(until && { until: until.toISOString() }) })
     // A star or a read mark keeps the conversation where it is.
-    if (action !== "unread" && !leavesList(folder, action)) return runAction({ id: thread.id, action })
+    if (!until && action !== "unread" && !leavesList(folder, action)) return run()
     // Opened from search and not in this list: there's no next one to move to.
     if (position < 0) {
       onOpen(null)
-      return runAction({ id: thread.id, action })
+      return run()
     }
     // Marking unread means "not now", so the next mail shouldn't open by itself.
     onOpen(
@@ -717,7 +807,7 @@ export function InboxPage({
         ? null
         : (rows[position + 1] ?? rows[position - 1] ?? null)
     )
-    runAction({ id: thread.id, action })
+    run()
   }
 
   useHotkeys({
@@ -767,6 +857,7 @@ export function InboxPage({
               }
               onAction={bulk}
               onClear={clearSelection}
+              onSnooze={(until) => bulk("archive", until)}
             />
           ) : (
             <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -774,7 +865,11 @@ export function InboxPage({
                 ? strings.drafts.title
                 : showParcels
                   ? strings.parcels.title
-                  : folder
+                  : showSnoozed
+                    ? strings.later.snoozedTitle
+                    : showScheduled
+                      ? strings.later.scheduledTitle
+                      : folder
                   ? strings.folders[folder]
                   : (selectedAccount?.email ?? t.title)}
             </h1>
@@ -852,7 +947,71 @@ export function InboxPage({
           ref={listScroller}
           className="scroll-fade relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {showParcels ? (
+          {showSnoozed ? (
+            <>
+              {snoozes.isPending && <ListSkeleton />}
+              {snoozes.isSuccess && snoozes.data.snoozed.length === 0 && (
+                <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.later.snoozedEmpty}</p>
+              )}
+              <ul className="flex flex-col gap-0.5 px-2 pb-2">
+                {snoozes.data?.snoozed.map((item) => (
+                  <LaterRow
+                    key={item.thread.id}
+                    title={item.thread.fromName ?? item.thread.fromEmail ?? t.unknownSender}
+                    subject={item.thread.subject || t.noSubject}
+                    when={strings.later.backAt(formatMoment(new Date(item.until), locale))}
+                    selected={item.thread.id === open?.id}
+                    onOpen={() => onOpen(item.thread)}
+                    onHover={(hovering) => prefetch.onHover(hovering ? item.thread.id : null)}
+                    actions={[
+                      {
+                        icon: InboxIcon,
+                        label: strings.later.unsnooze,
+                        run: () => {
+                          if (open?.id === item.thread.id) onOpen(null)
+                          unsnooze.mutate(item.thread.id)
+                        },
+                      },
+                    ]}
+                  />
+                ))}
+              </ul>
+            </>
+          ) : showScheduled ? (
+            <>
+              {scheduled.isPending && <ListSkeleton />}
+              {scheduled.isSuccess && scheduled.data.scheduled.length === 0 && (
+                <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.later.scheduledEmpty}</p>
+              )}
+              <ul className="flex flex-col gap-0.5 px-2 pb-2">
+                {scheduled.data?.scheduled.map((item) => {
+                  // Opening it is changing it: it goes back to the drafts, as in Gmail.
+                  const edit = () =>
+                    scheduledActions.cancel.mutate(item.id, {
+                      onSuccess: (draft) => {
+                        toast.success(strings.later.canceled)
+                        onOpenDraft({ accountId: draft.accountId, id: draft.draftId })
+                      },
+                    })
+                  return (
+                    <LaterRow
+                      key={item.id}
+                      title={strings.folders.to(item.to.map((address) => address.name || address.email).join(", ") || "—")}
+                      subject={item.subject || t.noSubject}
+                      when={item.failed ? strings.later.failed : formatMoment(new Date(item.sendAt), locale)}
+                      failed={item.failed}
+                      selected={false}
+                      onOpen={edit}
+                      actions={[
+                        { icon: SentIcon, label: strings.later.sendNow, run: () => scheduledActions.sendNow.mutate(item.id) },
+                        { icon: PencilEdit02Icon, label: strings.later.cancel, run: edit },
+                      ]}
+                    />
+                  )
+                })}
+              </ul>
+            </>
+          ) : showParcels ? (
             <>
               {shipments.isPending && <ListSkeleton />}
               {shipments.isError && <p className="p-4 text-sm text-destructive">{strings.parcels.loadFailed}</p>}
@@ -973,6 +1132,7 @@ export function InboxPage({
                         canDelete={canDeleteForever(accountOf.get(thread.accountId)?.provider ?? "gmail")}
                         checked={picked.has(thread.id)}
                         selecting={selecting}
+                        returned={returnedIds.has(thread.id)}
                         onToggle={(range) => toggle(thread.id, range)}
                         onHover={(hovering) => {
                           if (hovering) hovered.current = thread.id
@@ -1029,6 +1189,12 @@ export function InboxPage({
             onBack={() => onOpen(null)}
             folder={folder}
             onLeave={(action) => leave(open, action)}
+            onSnooze={(until) => leave(open, "archive", until)}
+            snoozed={snoozedIds.has(open.id)}
+            onUnsnooze={() => {
+              unsnooze.mutate(open.id)
+              onOpen(null)
+            }}
           />
         ) : (
           !composerVisible && <EmptyPane />

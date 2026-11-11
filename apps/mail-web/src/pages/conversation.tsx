@@ -11,6 +11,8 @@ import {
   MailReply01Icon,
   MailReplyAll01Icon,
   MailSend01Icon,
+  AlarmClockIcon,
+  AlarmClockOffIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -31,6 +33,7 @@ import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
 import { ShipmentCard } from "@/components/parcels"
 import { UnsubscribeButton } from "@/components/unsubscribe-button"
+import { WhenPicker } from "@/components/when-picker"
 import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
@@ -352,6 +355,9 @@ export function ConversationPage({
   folder,
   onBack,
   onLeave,
+  onSnooze,
+  snoozed,
+  onUnsnooze,
 }: {
   thread: MailThreadView
   /** Missing only for the moment a mailbox is being disconnected. */
@@ -361,8 +367,14 @@ export function ConversationPage({
   onBack: () => void
   /** Runs an action; the list decides whether that takes the conversation out of view. */
   onLeave: (action: MailThreadAction) => void
+  /** Snoozes it until then; it leaves the list as if archived. */
+  onSnooze: (until: Date) => void
+  /** Opened from Snoozed: the toolbar offers to have it back now instead. */
+  snoozed?: boolean
+  onUnsnooze?: () => void
 }) {
   const t = useI18n().t.conversation
+  const later = useI18n().t.later
   const scroller = useScrollFade<HTMLDivElement>()
   const moves = moveActions(folder, account ? canDeleteForever(account.provider) : false)
   const spam = canReportSpam(folder)
@@ -377,6 +389,7 @@ export function ConversationPage({
   const allowImages = alwaysShowImages || showImagesOnce
   // A reply left half written here comes back open, as it was.
   const [savedReply] = useState(() => readReplyDraft(summary.id))
+  const [picking, setPicking] = useState(false)
   const [replyMode, setReplyMode] = useState<ReplyMode | null>(savedReply?.mode ?? null)
   const replyDraft = savedReply?.mode === replyMode ? savedReply : null
   const { mutate: runAction } = useThreadAction()
@@ -398,6 +411,7 @@ export function ConversationPage({
     ...(moves.includes("inbox") && { i: () => onLeave("inbox") }),
     ...(spam && { "!": () => onLeave("spam") }),
     s: toggleStar,
+    b: () => (snoozed ? onUnsnooze?.() : setPicking(true)),
     u: () => onLeave("unread"),
     r: () => setReplyMode("reply"),
     a: () => setReplyMode("all"),
@@ -449,8 +463,14 @@ export function ConversationPage({
               onClick={() => onLeave(action)}
             />
           ))}
+          {snoozed ? (
+            <ToolbarAction icon={AlarmClockOffIcon} label={later.unsnooze} shortcut="B" onClick={() => onUnsnooze?.()} />
+          ) : (
+            <ToolbarAction icon={AlarmClockIcon} label={later.snooze} shortcut="B" onClick={() => setPicking(true)} />
+          )}
           <ToolbarAction icon={MailOpen01Icon} label={t.markUnread} shortcut="U" onClick={() => onLeave("unread")} />
         </div>
+        <WhenPicker open={picking} onOpenChange={setPicking} purpose="snooze" onPick={onSnooze} />
       </header>
 
       {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}

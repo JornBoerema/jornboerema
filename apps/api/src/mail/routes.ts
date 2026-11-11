@@ -55,6 +55,18 @@ import {
 import { summaryFor, SummaryFailedError } from "./summary-server"
 import { listShipments, scanShipments, shipmentForConversation } from "./shipments-server"
 import { NothingToUnsubscribeError, unsubscribeFrom } from "./unsubscribe-server"
+import {
+  cancelScheduled,
+  catchUp,
+  listScheduled,
+  listSnoozes,
+  runJob,
+  scheduleSend,
+  sendScheduledNow,
+  snooze,
+  unsnooze,
+} from "./later-server"
+import { secretsMatch } from "@evido/mail-core/secrets"
 import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
@@ -310,11 +322,14 @@ mailRoutes.get("/threads", requireSession, async (c) => {
   try {
     const folder = c.req.query("folder")
     if (folder !== undefined && !isMailFolder(folder)) return c.json({ error: msg(c, "invalidRequest") }, 400)
-    const page = await listThreads(c.get("session").user.id, {
+    const userId = c.get("session").user.id
+    const page = await listThreads(userId, {
       accountId: c.req.query("account"),
       cursor: c.req.query("cursor"),
       folder,
     })
+    // Snoozes and scheduled mail whose moment passed unnoticed are done now, after answering.
+    if (!c.req.query("cursor")) defer(() => catchUp(userId))
     return c.json(page, 200, noStore)
   } catch (error) {
     if (error instanceof InvalidThreadCursorError)
@@ -441,6 +456,83 @@ mailRoutes.post("/accounts/:id/conversation/unsubscribe", requireTrustedOrigin, 
   } catch (error) {
     return failure(c, error)
   }
+})
+
+// Snoozing and sending later. A moment must lie ahead, within two years.
+const moment = z.iso
+  .datetime({ offset: true })
+  .transform((value) => new Date(value))
+  .refine((date) => date.getTime() > Date.now() - 60_000 && date.getTime() < Date.now() + 2 * 365 * 86_400_000)
+const snoozeBody = z.object({ until: moment })
+
+mailRoutes.get("/snoozes", requireSession, async (c) =>
+  c.json(await listSnoozes(c.get("session").user.id), 200, noStore)
+)
+
+mailRoutes.post("/threads/:id/snooze", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, snoozeBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    return c.json(await snooze(conversation, body.until), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.delete("/threads/:id/snooze", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    await unsnooze(await ownedMessage(c.get("session").user.id, c.req.param("id")))
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/scheduled", requireSession, async (c) =>
+  c.json({ scheduled: await listScheduled(c.get("session").user.id) }, 200, noStore)
+)
+
+mailRoutes.post("/accounts/:id/scheduled", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, draftBody.extend({ sendAt: moment }))
+  if (!body || body.to.length + body.cc.length + body.bcc.length === 0)
+    return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const userId = c.get("session").user.id
+    const { sendAt, ...draft } = body
+    const files = await loadAttachments(userId, draft.attachments)
+    return c.json(await scheduleSend(userId, c.req.param("id"), { ...draft, attachments: files }, sendAt), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.delete("/scheduled/:id", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    return c.json(await cancelScheduled(c.get("session").user.id, c.req.param("id")), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/scheduled/:id/send", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    await sendScheduledNow(c.get("session").user.id, c.req.param("id"))
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Trigger.dev knocks here at a job's moment, with the shared secret.
+const jobBody = z.object({ kind: z.enum(["snooze", "send"]), id: z.uuid() })
+mailRoutes.post("/jobs/run", async (c) => {
+  const secret = process.env.MAIL_JOBS_SECRET
+  const header = c.req.header("authorization")
+  if (!secret || !header || !secretsMatch(header, `Bearer ${secret}`)) return c.body(null, 401)
+  const body = await readBody(c, jobBody)
+  if (!body) return c.json({ error: "invalid job" }, 400)
+  return c.json({ done: await runJob(body) }, 200, noStore)
 })
 
 mailRoutes.get("/threads/:id", requireSession, async (c) => {
@@ -820,7 +912,8 @@ mailRoutes.post("/webhook/gmail", async (c) => {
 mailRoutes.get("/cron/watches", async (c) => {
   if (!authorizeCron(c.req.header("authorization"))) return c.body(null, 401)
   const dropped = await dropOldUploads()
-  return c.json({ ...(await renewWatches()), droppedUploads: dropped }, 200, noStore)
+  const overdue = await catchUp()
+  return c.json({ ...(await renewWatches()), droppedUploads: dropped, overdue }, 200, noStore)
 })
 
 mailRoutes.patch("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {

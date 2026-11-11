@@ -4,6 +4,8 @@ packages:
 
 allowBuilds:
   esbuild: true
+  # Trigger.dev deploys build remotely through Depot's CLI.
+  "@depot/cli": true
   msw: false
   prisma: true
   "@prisma/engines": true

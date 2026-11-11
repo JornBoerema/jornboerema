@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto"
 import { getDb, type MailAccount } from "@evido/db"
 import { findShipmentInThread, looksLikeShipment, type FoundShipment } from "@evido/mail-core/shipments"
-import type { MailShipmentView, MailThreadMessage, MailThreadView } from "@evido/mail-core/types"
-import { readConversation, type Conversation } from "./threads-server"
+import type { MailShipmentView, MailThreadMessage } from "@evido/mail-core/types"
+import { readConversation, threadLines, type Conversation } from "./threads-server"
 
 /** How far back shipping mail is looked through: parcels older than this have arrived. */
 const SCAN_DAYS = 30
@@ -179,41 +179,8 @@ export async function listShipments(userId: string): Promise<MailShipmentView[]>
     .filter((row) => !(row.status === "delivered" && row.receivedAt < daysAgo(KEEP_DELIVERED_DAYS)))
     .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
   // The conversation each line opens: its newest mail's.
-  const threads = await threadViews(userId, shown)
+  const threads = await threadLines(userId, shown)
   return shown.map((row) => ({ ...toView(row), thread: threads.get(`${row.accountId}:${row.threadId}`) }))
-}
-
-/** The newest synced message of each conversation, shaped as a list line. */
-async function threadViews(userId: string, rows: { accountId: string; threadId: string }[]) {
-  const views = new Map<string, MailThreadView>()
-  if (rows.length === 0) return views
-  const messages = await getDb().mailMessage.findMany({
-    where: { userId, OR: rows.map(({ accountId, threadId }) => ({ accountId, threadId })) },
-    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
-  })
-  for (const message of messages) {
-    const key = `${message.accountId}:${message.threadId}`
-    const view = views.get(key)
-    if (view) {
-      view.messageCount += 1
-      view.isRead &&= message.isRead
-      continue
-    }
-    views.set(key, {
-      id: message.id,
-      accountId: message.accountId,
-      subject: message.subject,
-      snippet: message.snippet,
-      fromName: message.fromName,
-      fromEmail: message.fromEmail,
-      receivedAt: message.receivedAt.toISOString(),
-      isRead: message.isRead,
-      isStarred: message.isStarred,
-      hasAttachments: message.hasAttachments,
-      messageCount: 1,
-    })
-  }
-  return views
 }
 
 /**

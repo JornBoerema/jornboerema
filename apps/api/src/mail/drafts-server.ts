@@ -1,3 +1,4 @@
+import { scheduledDraftIds } from "./later-server"
 import { getDb } from "@evido/db"
 import type { MailDraft, MailDraftContent, MailDraftView } from "@evido/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
@@ -28,8 +29,11 @@ export async function listDrafts(userId: string) {
   for (const result of results)
     if (result.status === "rejected")
       console.error("Drafts list failed", result.reason instanceof Error ? result.reason.message : "unknown")
+  // Drafts waiting to be sent later show under Scheduled instead.
+  const scheduled = await scheduledDraftIds(userId)
   const drafts = results
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+    .filter((draft) => !scheduled.has(`${draft.accountId}:${draft.id}`))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   return { drafts, failedAccounts }
 }

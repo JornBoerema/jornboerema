@@ -41,6 +41,8 @@ model User {
   appAccessRequests    AppAccessRequest[]
   mailPreferences      MailPreferences?
   mailShipments        MailShipment[]
+  mailSnoozes          MailSnooze[]
+  mailScheduledSends   MailScheduledSend[]
 
   @@map("user")
 }
@@ -437,6 +439,8 @@ model MailAccount {
   messages             MailMessage[]
   summaries            MailSummary[]
   shipments            MailShipment[]
+  snoozes              MailSnooze[]
+  scheduledSends       MailScheduledSend[]
 
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
   @@index([watchId], map: "mail_accounts_watch_id_idx")
@@ -510,6 +514,49 @@ model MailShipment {
   @@unique([accountId, threadId], map: "mail_shipments_thread_key")
   @@index([userId, receivedAt(sort: Desc)], map: "mail_shipments_user_received_idx")
   @@map("mail_shipments")
+}
+
+/// A conversation put away until later: archived at the provider, and moved
+/// back to the inbox at `until`. Kept a while after waking, so the inbox can
+/// show it on top until it is read.
+model MailSnooze {
+  id        String      @id
+  userId    String      @map("user_id")
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String      @map("account_id")
+  account   MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  threadId  String      @map("thread_id")
+  until     DateTime
+  wokeAt    DateTime?   @map("woke_at")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@unique([accountId, threadId], map: "mail_snoozes_thread_key")
+  @@index([until], map: "mail_snoozes_until_idx")
+  @@index([userId, until], map: "mail_snoozes_user_until_idx")
+  @@map("mail_snoozes")
+}
+
+/// A draft at the provider to be sent at `sendAt`. What it says lives in the
+/// draft; only what the Scheduled list shows is kept here.
+model MailScheduledSend {
+  id        String      @id
+  userId    String      @map("user_id")
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String      @map("account_id")
+  account   MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  draftId   String      @map("draft_id")
+  sendAt    DateTime    @map("send_at")
+  subject   String
+  /// Name and address pairs, for the list line.
+  toAddresses Json      @default("[]") @map("to_addresses")
+  /// Set when sending failed, with the reason, so the list can say so.
+  failedAt  DateTime?   @map("failed_at")
+  error     String?
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@unique([accountId, draftId], map: "mail_scheduled_sends_draft_key")
+  @@index([sendAt], map: "mail_scheduled_sends_send_at_idx")
+  @@map("mail_scheduled_sends")
 }
 
 /// A file on its way into a message, sent in chunks because one request may

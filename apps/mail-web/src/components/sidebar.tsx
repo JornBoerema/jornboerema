@@ -1,3 +1,4 @@
+import { useLaterCounts } from "@/lib/later"
 import { useParcels } from "@/lib/preferences"
 import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
@@ -24,6 +25,8 @@ import {
   PanelLeftOpenIcon,
   UnfoldMoreIcon,
   PackageIcon,
+  AlarmClockIcon,
+  MailSend01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -47,7 +50,7 @@ import { signOut } from "@/lib/auth-client"
 import { useUnread } from "@/lib/mail"
 import { IconTip } from "@/components/icon-tip"
 
-export type MailView = "inbox" | "drafts" | "parcels" | MailFolder
+export type MailView = "inbox" | "drafts" | "parcels" | "snoozed" | "scheduled" | MailFolder
 
 export const FOLDER_ICONS: Record<MailFolder, IconSvgElement> = {
   starred: StarIcon,
@@ -72,6 +75,8 @@ export type MailNavigation = {
   onSelectAccount: (id: string) => void
   onSelectDrafts: () => void
   onSelectParcels: () => void
+  onSelectSnoozed: () => void
+  onSelectScheduled: () => void
   onSelectFolder: (folder: MailFolder) => void
   onCompose: () => void
   onSettings: () => void
@@ -161,6 +166,8 @@ export function Sidebar({
   onSelectAccount,
   onSelectDrafts,
   onSelectParcels,
+  onSelectSnoozed,
+  onSelectScheduled,
   onSelectFolder,
   onCompose,
   onSettings,
@@ -169,6 +176,7 @@ export function Sidebar({
   const { t, locale } = useI18n()
   const desktop = useInDesktop()
   const parcels = useParcels()
+  const { snoozedCount, scheduledCount } = useLaterCounts()
   const unread = useUnread(true).data?.count
   // While writing, only New message is current; closing it gives the selection back.
   const allSelected = !composing && view === "inbox" && accountId === ""
@@ -241,6 +249,18 @@ export function Sidebar({
                 <span>{t.parcels.title}</span>
               </button>
             )}
+            {(snoozedCount > 0 || shownView === "snoozed") && (
+              <button
+                type="button"
+                className={cn("list-link", shownView === "snoozed" && "is-selected")}
+                aria-current={shownView === "snoozed" ? "page" : undefined}
+                onClick={onSelectSnoozed}
+              >
+                <HugeiconsIcon icon={AlarmClockIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                <span>{t.later.snoozedTitle}</span>
+                <span className="list-count">{snoozedCount}</span>
+              </button>
+            )}
             <button
               type="button"
               className={cn("list-link", draftsSelected && "is-selected")}
@@ -255,6 +275,18 @@ export function Sidebar({
                 </span>
               )}
             </button>
+            {(scheduledCount > 0 || shownView === "scheduled") && (
+              <button
+                type="button"
+                className={cn("list-link", shownView === "scheduled" && "is-selected")}
+                aria-current={shownView === "scheduled" ? "page" : undefined}
+                onClick={onSelectScheduled}
+              >
+                <HugeiconsIcon icon={MailSend01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                <span>{t.later.scheduledTitle}</span>
+                <span className="list-count">{scheduledCount}</span>
+              </button>
+            )}
             <FolderLink folder="sent" view={shownView} onSelect={onSelectFolder} />
             <MoreFolders view={shownView} onSelect={onSelectFolder} />
           </div>
@@ -329,7 +361,17 @@ export function Sidebar({
       </div>
       <SidebarRail
         {...{ accounts, accountId, user, sidebar, view, draftCount, draftWaiting, composing }}
-        {...{ onSelectAccount, onSelectDrafts, onSelectParcels, onSelectFolder, onCompose, onSettings, onShortcuts }}
+        {...{
+          onSelectAccount,
+          onSelectDrafts,
+          onSelectParcels,
+          onSelectSnoozed,
+          onSelectScheduled,
+          onSelectFolder,
+          onCompose,
+          onSettings,
+          onShortcuts,
+        }}
         unread={unread}
       />
     </aside>
@@ -445,6 +487,8 @@ function SidebarRail({
   onSelectAccount,
   onSelectDrafts,
   onSelectParcels,
+  onSelectSnoozed,
+  onSelectScheduled,
   onSelectFolder,
   onCompose,
   onSettings,
@@ -453,6 +497,7 @@ function SidebarRail({
   const { t } = useI18n()
   const desktop = useInDesktop()
   const parcels = useParcels()
+  const { snoozedCount, scheduledCount } = useLaterCounts()
   const shownView: MailView | null = composing ? null : view
   return (
     <div className="sidebar-rail" inert={!sidebar.collapsed}>
@@ -499,6 +544,22 @@ function SidebarRail({
             label={t.parcels.title}
             selected={shownView === "parcels"}
             onClick={onSelectParcels}
+          />
+        )}
+        {(snoozedCount > 0 || shownView === "snoozed") && (
+          <RailLink
+            icon={AlarmClockIcon}
+            label={t.later.snoozedTitle}
+            selected={shownView === "snoozed"}
+            onClick={onSelectSnoozed}
+          />
+        )}
+        {(scheduledCount > 0 || shownView === "scheduled") && (
+          <RailLink
+            icon={MailSend01Icon}
+            label={t.later.scheduledTitle}
+            selected={shownView === "scheduled"}
+            onClick={onSelectScheduled}
           />
         )}
         <RailLink
@@ -561,6 +622,8 @@ function SidebarRail({
 /** Not an account id, which are UUIDs. */
 const DRAFTS_CHOICE = "drafts:"
 const PARCELS_CHOICE = "parcels:"
+const SNOOZED_CHOICE = "snoozed:"
+const SCHEDULED_CHOICE = "scheduled:"
 const FOLDER_CHOICE = "folder:"
 
 export function MailMenu({
@@ -571,6 +634,8 @@ export function MailMenu({
   onSelectAccount,
   onSelectDrafts,
   onSelectParcels,
+  onSelectSnoozed,
+  onSelectScheduled,
   onSelectFolder,
   onSettings,
 }: Pick<
@@ -582,6 +647,8 @@ export function MailMenu({
   | "onSelectAccount"
   | "onSelectDrafts"
   | "onSelectParcels"
+  | "onSelectSnoozed"
+  | "onSelectScheduled"
   | "onSelectFolder"
   | "onSettings"
 >) {
@@ -601,13 +668,19 @@ export function MailMenu({
               ? DRAFTS_CHOICE
               : view === "parcels"
                 ? PARCELS_CHOICE
-                : view === "inbox"
+                : view === "snoozed"
+                  ? SNOOZED_CHOICE
+                  : view === "scheduled"
+                    ? SCHEDULED_CHOICE
+                    : view === "inbox"
                   ? accountId
                   : `${FOLDER_CHOICE}${view}`
           }
           onValueChange={(value) => {
             if (value === DRAFTS_CHOICE) onSelectDrafts()
             else if (value === PARCELS_CHOICE) onSelectParcels()
+            else if (value === SNOOZED_CHOICE) onSelectSnoozed()
+            else if (value === SCHEDULED_CHOICE) onSelectScheduled()
             else if (value.startsWith(FOLDER_CHOICE)) onSelectFolder(value.slice(FOLDER_CHOICE.length) as MailFolder)
             else onSelectAccount(value)
           }}
@@ -618,6 +691,8 @@ export function MailMenu({
             {draftCount > 0 && <span className="ml-auto text-xs text-muted-foreground tabular-nums">{draftCount}</span>}
           </DropdownMenuRadioItem>
           {parcels && <DropdownMenuRadioItem value={PARCELS_CHOICE}>{t.parcels.title}</DropdownMenuRadioItem>}
+          <DropdownMenuRadioItem value={SNOOZED_CHOICE}>{t.later.snoozedTitle}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value={SCHEDULED_CHOICE}>{t.later.scheduledTitle}</DropdownMenuRadioItem>
           {MAIL_FOLDERS.map((folder) => (
             <DropdownMenuRadioItem key={folder} value={`${FOLDER_CHOICE}${folder}`}>
               {t.folders[folder]}

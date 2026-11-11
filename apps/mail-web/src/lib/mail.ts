@@ -21,6 +21,7 @@ import {
   type MailThreadView,
 } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
+import { formatMoment, SCHEDULED_KEY, SNOOZES_KEY } from "@/lib/later"
 import { api, ApiError, errorText } from "@/lib/api"
 import { UndoneError, waitForUndo } from "@/lib/undo"
 
@@ -123,13 +124,18 @@ function applyAction(threads: MailThreadView[], folder: MailFolder | null, id: s
 }
 
 /** One conversation, or several at once from a selection. */
-type ActionInput = { action: MailThreadAction } & ({ id: string; ids?: never } | { ids: string[]; id?: never })
+/** `until` snoozes: the conversation leaves the list as if archived and comes back then. */
+type ActionInput = { action: MailThreadAction; until?: string } & (
+  | { id: string; ids?: never }
+  | { ids: string[]; id?: never }
+)
 const idsOf = (input: ActionInput) => input.ids ?? [input.id]
 const ACTION_CONCURRENCY = 3
 
 export function useThreadAction() {
   const queryClient = useQueryClient()
-  const t = useI18n().t.conversation
+  const { t: strings, locale } = useI18n()
+  const t = strings.conversation
   // Moves wait a moment so they can be taken back; marks and stars go at once.
   const done: Partial<Record<MailThreadAction, (count: number) => string>> = {
     archive: t.archived,
@@ -142,14 +148,17 @@ export function useThreadAction() {
     mutationKey: ACTION_KEY,
     mutationFn: async (input: ActionInput) => {
       const ids = idsOf(input)
-      const message = done[input.action]
+      const { until } = input
+      const message = until
+        ? (count: number) => strings.later.snoozed(count, formatMoment(new Date(until), locale))
+        : done[input.action]
       // One undo for the whole selection, not one per conversation.
       const { leaving } = message ? await waitForUndo(message(ids.length), t.undo) : { leaving: false }
       const post = (id: string) =>
-        api(conversationUrl(id, "/actions"), {
+        api(conversationUrl(id, until ? "/snooze" : "/actions"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: input.action }),
+          body: JSON.stringify(until ? { until } : { action: input.action }),
           // Lets the request finish while the tab closes.
           keepalive: leaving,
         })
@@ -183,6 +192,7 @@ export function useThreadAction() {
       if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 1) {
         void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
         void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
+        void queryClient.invalidateQueries({ queryKey: SNOOZES_KEY })
       }
     },
   })
@@ -207,6 +217,9 @@ export function useMailRealtime(userId: string) {
       if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
         void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
       void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
+      // A snooze that woke, or a scheduled message that went, changes these too.
+      void queryClient.invalidateQueries({ queryKey: SNOOZES_KEY })
+      void queryClient.invalidateQueries({ queryKey: SCHEDULED_KEY })
     })
     return () => realtime.close()
   }, [userId, queryClient])

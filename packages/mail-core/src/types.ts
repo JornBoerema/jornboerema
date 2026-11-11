@@ -301,6 +301,21 @@ export type MailShipmentView = {
   thread?: MailThreadView
 }
 
+/** A snoozed conversation, as the Snoozed list and the inbox's top show it. */
+export type MailSnoozedView = { thread: MailThreadView; until: string }
+
+/** A message waiting to be sent, as the Scheduled list shows it. */
+export type MailScheduledView = {
+  id: string
+  accountId: string
+  draftId: string
+  subject: string
+  to: MailAddress[]
+  sendAt: string
+  /** Sending failed; the draft is still there to open. */
+  failed: boolean
+}
+
 export type MailSummary =
   | { kind: "code"; code: string }
   | { kind: "summary"; summary: string }

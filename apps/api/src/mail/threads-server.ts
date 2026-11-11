@@ -406,3 +406,36 @@ export async function emptyTrash(userId: string, accountId: string) {
   if (result.done) await getDb().mailMessage.deleteMany({ where: { accountId: account.id, folder: "trash" } })
   return result
 }
+
+/** The newest synced message of each conversation, shaped as a list line, by "accountId:threadId". */
+export async function threadLines(userId: string, rows: { accountId: string; threadId: string }[]) {
+  const views = new Map<string, MailThreadView>()
+  if (rows.length === 0) return views
+  const messages = await getDb().mailMessage.findMany({
+    where: { userId, OR: rows.map(({ accountId, threadId }) => ({ accountId, threadId })) },
+    orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+  })
+  for (const message of messages) {
+    const key = `${message.accountId}:${message.threadId}`
+    const view = views.get(key)
+    if (view) {
+      view.messageCount += 1
+      view.isRead &&= message.isRead
+      continue
+    }
+    views.set(key, {
+      id: message.id,
+      accountId: message.accountId,
+      subject: message.subject,
+      snippet: message.snippet,
+      fromName: message.fromName,
+      fromEmail: message.fromEmail,
+      receivedAt: message.receivedAt.toISOString(),
+      isRead: message.isRead,
+      isStarred: message.isStarred,
+      hasAttachments: message.hasAttachments,
+      messageCount: 1,
+    })
+  }
+  return views
+}

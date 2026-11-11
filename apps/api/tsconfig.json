@@ -7,5 +7,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src", "test", "tsup.config.ts"]
+  "include": ["src", "test", "trigger", "trigger.config.ts", "tsup.config.ts"]
 }

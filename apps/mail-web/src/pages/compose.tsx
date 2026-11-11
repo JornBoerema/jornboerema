@@ -51,6 +51,8 @@ import {
 import { isAiWriteKey, sendOnModEnter } from "@/lib/hotkeys"
 import { AiPrompt, AiWriteButton, useAiWriter } from "@/components/ai-writer"
 import { SendButton } from "@/components/send-button"
+import { WhenPicker } from "@/components/when-picker"
+import { formatMoment, SCHEDULED_KEY } from "@/lib/later"
 import { syncSoon } from "@/lib/mail"
 import { UndoneError, waitForUndo } from "@/lib/undo"
 import { useSignatureChoice } from "@/lib/signatures"
@@ -155,7 +157,8 @@ function ComposeForm({
   onDraftChange,
   discardRequest,
 }: ComposeProps & { initial: MailDraftOpened | null }) {
-  const t = useI18n().t.compose
+  const { t: strings, locale } = useI18n()
+  const t = strings.compose
   const queryClient = useQueryClient()
   const usable = accounts.filter((account) => account.status === "active")
   const [accountId, setAccountId] = useState(
@@ -318,22 +321,64 @@ function ComposeForm({
     discard.mutate()
   }, [discardRequest, discard])
 
-  function submit() {
-    if (send.isPending || !accountId) return
+  const [pickingTime, setPickingTime] = useState(false)
+  const schedule = useMutation({
+    mutationFn: async ({ message, at }: { message: WithAttachmentRefs<MailOutgoing>; at: Date }) => {
+      const { ref, attachmentsChanged } = await autosave.pause()
+      try {
+        // Saved as the draft it already is, so it leaves the drafts for Scheduled until its moment.
+        await api(`/api/mail/accounts/${encodeURIComponent(accountId)}/scheduled`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...message,
+            ...(reply && { reply }),
+            draftId: ref?.accountId === accountId ? ref.id : null,
+            attachmentsChanged,
+            sendAt: at.toISOString(),
+          }),
+        })
+        if (ref && ref.accountId !== accountId) await deleteDraft(ref).catch(() => undefined)
+      } catch (error) {
+        autosave.resume()
+        throw error
+      }
+      return at
+    },
+    onSuccess: (at) => {
+      toast.success(strings.later.scheduled(formatMoment(at, locale)))
+      void queryClient.invalidateQueries({ queryKey: SCHEDULED_KEY })
+      finished()
+    },
+    onError: (error) => toast.error(errorText(error)),
+  })
+
+  /** The message as written, or null after saying what's missing. */
+  function message(): WithAttachmentRefs<MailOutgoing> | null {
     const parsed = [to, cc, bcc].map(parseAddresses)
     const invalid = parsed.find((item) => item.invalid)?.invalid
-    if (invalid) return toast.error(t.invalid(invalid))
+    if (invalid) {
+      toast.error(t.invalid(invalid))
+      return null
+    }
     const [toList, ccList, bccList] = parsed.map((item) => item.addresses) as [
       MailAddress[],
       MailAddress[],
       MailAddress[],
     ]
-    if (toList.length + ccList.length + bccList.length === 0)
-      return toast.error(t.noRecipients)
-    if (isUploading(files)) return toast.error(t.stillUploading)
-    if (uploadBytes(body.inline) > MAX_UPLOAD_BYTES)
-      return toast.error(t.tooLarge(`${MAX_UPLOAD_BYTES / (1024 * 1024)} MB`))
-    send.mutate({
+    if (toList.length + ccList.length + bccList.length === 0) {
+      toast.error(t.noRecipients)
+      return null
+    }
+    if (isUploading(files)) {
+      toast.error(t.stillUploading)
+      return null
+    }
+    if (uploadBytes(body.inline) > MAX_UPLOAD_BYTES) {
+      toast.error(t.tooLarge(`${MAX_UPLOAD_BYTES / (1024 * 1024)} MB`))
+      return null
+    }
+    return {
       to: toList,
       cc: ccList,
       bcc: bccList,
@@ -342,7 +387,19 @@ function ComposeForm({
       ...(body.html && { html: body.html }),
       attachments,
       ...(body.inline.length > 0 && { inline: body.inline }),
-    })
+    }
+  }
+
+  function submit() {
+    if (send.isPending || schedule.isPending || !accountId) return
+    const written = message()
+    if (written) send.mutate(written)
+  }
+
+  function sendAt(at: Date) {
+    if (send.isPending || schedule.isPending || !accountId) return
+    const written = message()
+    if (written) schedule.mutate({ message: written, at })
   }
 
   const status = {
@@ -481,7 +538,12 @@ function ComposeForm({
                     </Button>
                   </IconTip>
                 )}
-                <SendButton label={t.send} disabled={send.isPending || !accountId} />
+                <SendButton
+                  label={t.send}
+                  disabled={send.isPending || schedule.isPending || !accountId}
+                  onLater={() => setPickingTime(true)}
+                />
+                <WhenPicker open={pickingTime} onOpenChange={setPickingTime} purpose="send" onPick={sendAt} />
               </div>
               </div>
             </div>

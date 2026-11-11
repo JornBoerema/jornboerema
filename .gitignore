@@ -42,3 +42,6 @@ playwright-report
 
 # Tauri / Rust build output
 apps/*/src-tauri/target
+
+# Trigger.dev local dev state
+.trigger
