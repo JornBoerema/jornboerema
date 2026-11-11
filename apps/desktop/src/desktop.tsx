@@ -8,6 +8,7 @@ import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/ap
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { cn } from "@evido/ui/lib/utils"
 import { Brand } from "./brand"
+import { useUpdateNotice } from "./updates"
 import { useWindowDragging } from "./window"
 
 type AppId = "mail" | "todo"
@@ -99,6 +100,7 @@ function Gate() {
 
 export function Desktop() {
   useWindowDragging()
+  useUpdateNotice()
   return (
     <ThemeProvider>
       <Gate />

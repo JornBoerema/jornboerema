@@ -1,3 +1,5 @@
+mod updates;
+
 use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
@@ -68,8 +70,12 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::UpdateState::default())
+        .invoke_handler(tauri::generate_handler![updates::ready_update, updates::install_update])
         .setup(|app| {
             create_main_window(app.handle())?;
+            updates::watch(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
