@@ -35,6 +35,7 @@ import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
 import { useTheme } from "@evido/ui/lib/theme"
+import { useScrollFade } from "@/lib/scroll-fade"
 import { useHotkeys } from "@/lib/hotkeys"
 import { canReportSpam, conversationUrl, moveActions, STARRED, threadQuery, useThreadAction } from "@/lib/mail"
 import { DANGER, isDestructive, MOVE_ICONS, MOVE_KEYS, moveLabel } from "@/lib/thread-actions"
@@ -346,6 +347,7 @@ export function ConversationPage({
   onLeave: (action: MailThreadAction) => void
 }) {
   const t = useI18n().t.conversation
+  const scroller = useScrollFade<HTMLDivElement>()
   const moves = moveActions(folder, account ? canDeleteForever(account.provider) : false)
   const spam = canReportSpam(folder)
   const [starred, setStarred] = useState(summary.isStarred)
@@ -436,7 +438,8 @@ export function ConversationPage({
       </header>
 
       {/* Relative keeps absolute children, like screen-reader text, inside this scroller. */}
-      <div className="@container relative min-h-0 flex-1 overflow-y-auto">
+      {/* Fades only at the top: the reply bar sticks to the bottom inside this scroller. */}
+      <div ref={scroller} className="scroll-fade fade-top-only @container relative min-h-0 flex-1 overflow-y-auto">
         <div className={cn(readingColumn, "flex min-h-full flex-col px-4 pt-2 md:px-8")}>
           <h2 className="mb-2 text-lg font-semibold tracking-tight break-words">
             {messages[0]?.subject || summary.subject}

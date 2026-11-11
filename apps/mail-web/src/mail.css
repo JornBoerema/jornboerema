@@ -287,6 +287,10 @@
 .scroll-fade[data-fade-bottom] {
   --fade-bottom: 32px;
 }
+/* Where something sticks to the bottom inside the scroller, only the top fades. */
+.scroll-fade.fade-top-only[data-fade-bottom] {
+  --fade-bottom: 0px;
+}
 @media (prefers-reduced-motion: reduce) {
   .scroll-fade {
     transition: none;
