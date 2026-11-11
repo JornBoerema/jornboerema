@@ -99,6 +99,17 @@
 .list-link.is-ghost:hover {
   color: var(--foreground);
 }
+/* A quieter row, such as a toggle; the icon keeps its column so text lines up. */
+.list-link.is-small {
+  min-height: 28px;
+  padding-block: 4px;
+  font-size: 13px;
+}
+.list-link.is-small > svg {
+  width: 14px;
+  height: 14px;
+  margin-inline: 1px;
+}
 .nav-kbd {
   margin-left: auto;
   font-family: inherit;

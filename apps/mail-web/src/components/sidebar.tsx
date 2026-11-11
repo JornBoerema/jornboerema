@@ -292,11 +292,11 @@ function MorePlaces({ places, onCustomize }: { places: Place[]; onCustomize: () 
   }
   return (
     <>
-      <button type="button" className="list-link is-ghost" aria-expanded={open} onClick={toggle}>
+      <button type="button" className="list-link is-ghost is-small" aria-expanded={open} onClick={toggle}>
         <HugeiconsIcon
           icon={ArrowRight01Icon}
           strokeWidth={2}
-          className={cn(NAV_ICON, "transition-transform", open && "rotate-90")}
+          className={cn("shrink-0 transition-transform", open && "rotate-90")}
           aria-hidden="true"
         />
         <span>{t.more}</span>
