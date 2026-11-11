@@ -1,6 +1,6 @@
 @font-face {
   font-family: "DM Mono";
-  src: url("/fonts/dm-mono-latin-400-normal.woff2") format("woff2");
+  src: url("./fonts/dm-mono-latin-400-normal.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: "DM Mono";
-  src: url("/fonts/dm-mono-latin-500-normal.woff2") format("woff2");
+  src: url("./fonts/dm-mono-latin-500-normal.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -239,6 +239,81 @@ footer a:hover,
 .prose a:hover {
   color: var(--accent);
   text-decoration-color: currentColor;
+}
+
+/* Download pages (/download, capture.jornboerema.nl): a name, a line, a button. */
+main.is-download {
+  gap: 48px;
+}
+
+.download-button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 500;
+  text-decoration: none;
+  text-transform: lowercase;
+  transition:
+    background-color 0.2s,
+    transform 0.2s var(--ease-out);
+}
+
+.download-button .file {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.download-button:hover {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+}
+
+.download-button:active {
+  transform: translateY(1px);
+}
+
+.download-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-top: 12px;
+  color: var(--faint);
+  text-transform: lowercase;
+}
+
+.download-meta a {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.download-meta a:hover {
+  color: var(--accent);
+}
+
+footer button {
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: color 0.2s;
+}
+
+footer button:hover {
+  color: var(--accent);
+}
+
+footer button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 @media (max-width: 30rem) {

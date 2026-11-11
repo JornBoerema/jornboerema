@@ -7,70 +7,28 @@
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#111110" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="stylesheet" href="/src/style.css" />
     <title>Even vastleggen</title>
   </head>
   <body>
-    <main>
+    <main class="is-download">
       <header>
-        <p class="eyebrow"><a href="https://jornboerema.nl">jornboerema.nl</a> / <span data-i18n="eyebrow">screenshots</span></p>
+        <nav class="crumb" aria-label="Breadcrumb"><a href="https://jornboerema.nl">jornboerema.nl</a> / screenshots</nav>
         <h1>Even vastleggen</h1>
-        <p class="intro" data-i18n="intro">
-          Screenshots in a moment. Capture your screen, an area or a window, draw on it, and copy or save it.
-        </p>
-        <div class="download">
-          <a class="button" id="primary" href="#"><span id="primary-label">Download</span> <span aria-hidden="true">↓</span></a>
-          <p class="meta" id="meta"></p>
-        </div>
-        <p class="others"><span data-i18n="alsoFor">Also for</span> <span id="others"></span></p>
+        <p class="intro" data-i18n="intro">Screenshots in a moment, for macOS and Windows.</p>
       </header>
 
-      <section aria-labelledby="shortcuts">
-        <h2 id="shortcuts" class="eyebrow" data-i18n="shortcuts">Shortcuts</h2>
-        <ol class="rows">
-          <li><kbd data-key="1"></kbd><span data-i18n="screen">Capture the screen under the mouse</span></li>
-          <li><kbd data-key="2"></kbd><span data-i18n="area">Select an area on a frozen screen</span></li>
-          <li><kbd data-key="3"></kbd><span data-i18n="window">Click a window to capture it</span></li>
-        </ol>
-        <p class="note" data-i18n="shortcutsNote">You can change them in the settings.</p>
-      </section>
-
-      <section aria-labelledby="features">
-        <h2 id="features" class="eyebrow" data-i18n="then">Then</h2>
-        <ol class="rows">
-          <li><span class="what" data-i18n="draw">draw</span><span data-i18n="drawText">Arrows, boxes, circles, lines, pen, highlighter, text, numbered steps and blur.</span></li>
-          <li><span class="what" data-i18n="share">share</span><span data-i18n="shareText">Copy or save at full resolution, or skip the editor and copy or save right away.</span></li>
-          <li><span class="what" data-i18n="stay">stays</span><span data-i18n="stayText">In the menu bar or system tray, out of your way. It updates itself.</span></li>
-        </ol>
-      </section>
-
-      <section aria-labelledby="first-launch">
-        <h2 id="first-launch" class="eyebrow" data-i18n="firstLaunch">First launch</h2>
-        <p class="note" data-i18n="unsigned">
-          The Mac app is signed and checked by Apple. On Windows the app isn't signed yet, so Windows asks once whether you trust it.
+      <section aria-label="Download">
+        <a class="download-button" id="primary" href="#"><span class="label">download</span><span class="file">↓</span></a>
+        <p class="download-meta">
+          <span><span data-i18n="alsoFor">also for</span> <span id="others"></span></span>
+          <span id="version"></span>
         </p>
-        <div class="steps" id="steps-mac">
-          <h3>macOS</h3>
-          <ol>
-            <li data-i18n="mac1">Open the downloaded file and drag Even vastleggen to Applications.</li>
-            <li data-i18n="mac2">Open it, allow Screen Recording when asked, then open the app again.</li>
-          </ol>
-        </div>
-        <div class="steps" id="steps-windows">
-          <h3>Windows</h3>
-          <ol>
-            <li data-i18n="win1">Open the downloaded installer.</li>
-            <li data-i18n="win2">If Windows protected your PC: click More info, then Run anyway.</li>
-          </ol>
-        </div>
       </section>
 
       <footer>
         <span>© 2026</span>
-        <span class="links">
-          <a href="https://github.com/JornBoerema/jornboerema/tree/main/apps/capture-desktop" data-i18n="source">Source</a>
-          <button type="button" id="language" aria-label="Language">NL</button>
-        </span>
+        <a href="https://github.com/JornBoerema/jornboerema/tree/main/apps/capture-desktop" target="_blank" rel="noopener" data-i18n="source">source</a>
+        <button type="button" id="language">nl</button>
       </footer>
     </main>
     <script type="module" src="/src/main.ts"></script>

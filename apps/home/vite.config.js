@@ -20,7 +20,7 @@ function rewrite(req, _res, next) {
   next()
 }
 
-// The home page and privacy page are plain HTML; /admin is a React app.
+// The home, privacy and download pages are plain HTML; /admin is a React app.
 export default defineConfig({
   plugins: [react(), tailwindcss(), adminFallback],
   resolve: {
@@ -33,6 +33,7 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, "index.html"),
         privacy: resolve(import.meta.dirname, "privacy/index.html"),
+        download: resolve(import.meta.dirname, "download/index.html"),
         admin: resolve(import.meta.dirname, "admin/index.html"),
       },
     },

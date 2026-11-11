@@ -139,6 +139,9 @@ importers:
 
   apps/capture-web:
     devDependencies:
+      '@evido/home':
+        specifier: workspace:*
+        version: link:../home
       typescript:
         specifier: ~6.0.2
         version: 6.0.3

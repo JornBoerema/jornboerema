@@ -22,5 +22,5 @@
       "@evido/ui/*": ["../../packages/ui/src/*"]
     }
   },
-  "include": ["admin/src"]
+  "include": ["admin/src", "src"]
 }

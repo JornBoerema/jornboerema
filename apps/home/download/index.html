@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Even for macOS and Windows: Even mailen and Even doen in one desktop app." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#111110" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="preload" href="/src/fonts/dm-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>Download Even</title>
+  </head>
+  <body>
+    <main class="is-download">
+      <header>
+        <nav class="crumb" aria-label="Breadcrumb"><a href="/">jornboerema.nl</a> / download</nav>
+        <h1>Even</h1>
+        <p class="intro" data-i18n="intro">Even mailen and Even doen in one desktop app.</p>
+      </header>
+
+      <section aria-label="Download">
+        <a class="download-button" id="primary" href="#"><span class="label">download</span><span class="file">↓</span></a>
+        <p class="download-meta">
+          <span><span data-i18n="alsoFor">also for</span> <span id="others"></span></span>
+          <span id="version"></span>
+        </p>
+      </section>
+
+      <footer>
+        <span>© 2026</span>
+        <a href="https://github.com/JornBoerema/jornboerema/tree/main/apps/desktop" target="_blank" rel="noopener" data-i18n="source">source</a>
+        <button type="button" id="language">nl</button>
+      </footer>
+    </main>
+    <script type="module" src="/src/download-even.ts"></script>
+  </body>
+</html>
