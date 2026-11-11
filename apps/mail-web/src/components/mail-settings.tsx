@@ -210,14 +210,14 @@ function linkedPage() {
 function SidebarSettings({ onArrange }: { onArrange: () => void }) {
   const strings = useI18n().t
   const t = strings.sidebarPage
+  // Arranged in place, where the sidebar is open: only on wider screens.
   return (
-    <SettingsSection title={strings.shell.sidebarPage} description={t.description}>
-      <div className="max-lg:hidden">
-        <Button variant="outline" onClick={onArrange}>
-          {t.arrange}
+    <SettingsSection title={strings.shell.sidebarPage}>
+      <SettingsRow title={t.arrange} description={t.description}>
+        <Button variant="outline" className="max-lg:hidden" onClick={onArrange}>
+          {t.start}
         </Button>
-      </div>
-      <p className="text-sm text-muted-foreground lg:hidden">{t.wideOnly}</p>
+      </SettingsRow>
     </SettingsSection>
   )
 }

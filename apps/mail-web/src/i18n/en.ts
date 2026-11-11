@@ -334,9 +334,9 @@ export const en = {
     dragHelp: "Press space or enter to pick it up, the arrow keys to move it, and space or enter again to drop it. Escape puts it back.",
   },
   sidebarPage: {
-    description: "Put the places in the order you like, tuck some under More, or hide them. Saved to your account.",
+    description: "Put the places in the order you like, tuck some under More, or hide them. On a wider screen, in the sidebar itself.",
+    start: "Arrange",
     arrange: "Arrange sidebar",
-    wideOnly: "On a wider screen, where the sidebar is open.",
   },
   mailboxFilter: {
     showFrom: "Show mail from",

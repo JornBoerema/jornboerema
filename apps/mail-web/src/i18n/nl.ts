@@ -335,9 +335,9 @@ export const nl: typeof en = {
     dragHelp: "Druk op spatie of enter om op te pakken, gebruik de pijltjes om te verplaatsen en druk nogmaals op spatie of enter om neer te zetten. Escape zet het terug.",
   },
   sidebarPage: {
-    description: "Zet de onderdelen in de volgorde die jij fijn vindt, stop er een paar onder Meer of verberg ze. Bewaard bij je account.",
+    description: "Zet de onderdelen in de volgorde die jij fijn vindt, stop er een paar onder Meer of verberg ze. Op een breder scherm, in de sidebar zelf.",
+    start: "Indelen",
     arrange: "Sidebar indelen",
-    wideOnly: "Op een breder scherm, waar de sidebar open staat.",
   },
   mailboxFilter: {
     showFrom: "Mail tonen van",
