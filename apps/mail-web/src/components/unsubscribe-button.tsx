@@ -14,6 +14,7 @@ import type { MailAccountView } from "@evido/mail-core/types"
 import type { MailUnsubscribe } from "@evido/mail-core/unsubscribe"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
+import { conversationUrl } from "@/lib/mail"
 import { useUnsubscribe } from "@/lib/preferences"
 
 /** Lists left during this visit, so their button says so on every message. */
@@ -21,50 +22,34 @@ const left = new Set<string>()
 
 const siteOf = (url: string) => new URL(url).hostname.replace(/^www\./, "")
 
+type Result = { done: true; via: "one-click" | "mail" } | { done: false; url: string }
+
 /**
- * Leaves the list as its headers ask: one POST when it supports one-click
- * (sent from the browser, as a click on the link would be, so our server never
- * fetches an address out of someone's mail), else a message to its unsubscribe
- * mailbox from the account it came to, else its page opened for the reader.
+ * Asks our server to leave the list: it reads the message's headers itself
+ * and tries one-click, then the list's unsubscribe mailbox. Only a list with
+ * neither leaves a page for the reader, which opens here.
  */
-async function leave(unsubscribe: MailUnsubscribe, account: MailAccountView | undefined) {
-  if (unsubscribe.oneClick && unsubscribe.url) {
-    await fetch(unsubscribe.url, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "List-Unsubscribe=One-Click",
-    })
-    return "left" as const
-  }
-  if (unsubscribe.mailto && account) {
-    await api(`/api/mail/accounts/${encodeURIComponent(account.id)}/send`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: [{ name: null, email: unsubscribe.mailto.address }],
-        cc: [],
-        bcc: [],
-        subject: unsubscribe.mailto.subject,
-        text: unsubscribe.mailto.body,
-        attachments: [],
-      }),
-    })
-    return "left" as const
-  }
-  if (unsubscribe.url) {
-    window.open(unsubscribe.url, "_blank", "noopener,noreferrer")
-    return "opened" as const
-  }
-  throw new Error("Nothing to unsubscribe with")
+async function leave(threadId: string, messageId: string) {
+  const result = await api<Result>(conversationUrl(threadId, "/unsubscribe"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messageId }),
+  })
+  if (result.done) return "left" as const
+  window.open(result.url, "_blank", "noopener,noreferrer")
+  return "opened" as const
 }
 
 /** "Unsubscribe" beside mail from a mailing list, asking first what will happen. */
 export function UnsubscribeButton({
+  threadId,
+  messageId,
   unsubscribe,
   sender,
   account,
 }: {
+  threadId: string
+  messageId: string
   unsubscribe: MailUnsubscribe
   sender: string
   account: MailAccountView | undefined
@@ -76,7 +61,7 @@ export function UnsubscribeButton({
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
   // A mailbox only works from a connected account; without one, only a link can.
-  const usable = (unsubscribe.oneClick && unsubscribe.url) || (unsubscribe.mailto && account) || unsubscribe.url
+  const usable = unsubscribe.url || (unsubscribe.mailto && account)
   if (!enabled || !usable) return null
 
   const description =
@@ -110,7 +95,7 @@ export function UnsubscribeButton({
                 event.preventDefault()
                 setBusy(true)
                 try {
-                  const result = await leave(unsubscribe, account)
+                  const result = await leave(threadId, messageId)
                   // An opened page still needs the reader; only a request sent is done.
                   if (result === "left") {
                     left.add(key)

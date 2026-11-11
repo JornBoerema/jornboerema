@@ -54,6 +54,8 @@ import {
 } from "./signatures-server"
 import { summaryFor, SummaryFailedError } from "./summary-server"
 import { listShipments, scanShipments, shipmentForConversation } from "./shipments-server"
+import { NothingToUnsubscribeError, unsubscribeFrom } from "./unsubscribe-server"
+import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
 import { syncAccount } from "./sync-server"
@@ -405,6 +407,37 @@ mailRoutes.get("/threads/:id/shipment", requireSession, async (c) => {
     if (!(await parcelsEnabled(userId))) return c.json({ shipment: null }, 200, noStore)
     const conversation = await ownedMessage(userId, c.req.param("id"))
     return c.json({ shipment: await shipmentForConversation(conversation) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Unsubscribing: the browser names the message; its headers are read here, from the provider.
+const unsubscribeBody = z.object({ messageId: z.string().min(1).max(1000) })
+
+const unsubscribed = async (c: Context, conversation: Conversation | null) => {
+  const body = await readBody(c, unsubscribeBody)
+  if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    return c.json(await unsubscribeFrom(conversation, body.messageId), 200, noStore)
+  } catch (error) {
+    if (error instanceof NothingToUnsubscribeError) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return failure(c, error)
+  }
+}
+
+mailRoutes.post("/threads/:id/unsubscribe", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    return await unsubscribed(c, await ownedMessage(c.get("session").user.id, c.req.param("id")))
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/conversation/unsubscribe", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    return await unsubscribed(c, conversation && { ...conversation, hidden: c.req.query("hidden") === "1" })
   } catch (error) {
     return failure(c, error)
   }

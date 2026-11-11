@@ -305,7 +305,13 @@ function Message({
                 {message.cc.length > 0 && ` · ${t.cc}: ${message.cc.map(label).join(", ")}`}
               </p>
               {message.unsubscribe && (
-                <UnsubscribeButton unsubscribe={message.unsubscribe} sender={sender} account={account} />
+                <UnsubscribeButton
+                  threadId={threadId}
+                  messageId={message.id}
+                  unsubscribe={message.unsubscribe}
+                  sender={sender}
+                  account={account}
+                />
               )}
             </div>
           )}
