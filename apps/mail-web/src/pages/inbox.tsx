@@ -48,6 +48,7 @@ import { api } from "@/lib/api"
 import type { DraftRef, useDrafts } from "@/lib/drafts"
 import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
+import { useScrollFade } from "@/lib/scroll-fade"
 import {
   leavesList,
   listKey,
@@ -531,6 +532,7 @@ export function InboxPage({
 }) {
   const strings = useI18n().t
   const t = strings.inbox
+  const listScroller = useScrollFade<HTMLDivElement>()
   const showDrafts = navigation.view === "drafts"
   const draftRows = drafts.data?.drafts ?? []
   const { accounts, accountId, onCompose, onSettings } = navigation
@@ -754,7 +756,10 @@ export function InboxPage({
 
         {/* Relative keeps absolute children, like screen-reader text, inside this scroller.
             It scrolls by wheel, touch and keys, without showing a bar. */}
-        <div className="relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          ref={listScroller}
+          className="scroll-fade relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {showDrafts ? (
             <>
               {drafts.isPending && <ListSkeleton />}
