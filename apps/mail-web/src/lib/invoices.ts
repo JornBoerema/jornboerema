@@ -27,10 +27,15 @@ export function useConversationInvoice(threadId: string, enabled: boolean) {
   })
 }
 
-/** "€ 121,00", "$20.00": in the reader's locale, in the invoice's currency. */
-export function formatMoney(cents: number, currency: string | null, locale: string) {
+/** "€ 121,00", "$20.00": in the reader's locale, in the invoice's currency. `round` drops the cents, for sums. */
+export function formatMoney(cents: number, currency: string | null, locale: string, round = false) {
   try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency: currency ?? "EUR" }).format(cents / 100)
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: currency ?? "EUR",
+      currencyDisplay: "narrowSymbol",
+      ...(round && { maximumFractionDigits: 0, minimumFractionDigits: 0 }),
+    }).format(cents / 100)
   } catch {
     return `${currency ?? ""} ${(cents / 100).toFixed(2)}`.trim()
   }

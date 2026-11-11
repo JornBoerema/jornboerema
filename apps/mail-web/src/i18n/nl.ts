@@ -286,8 +286,6 @@ export const nl: typeof en = {
     filterAll: "Alles",
     filterDue: "Te betalen",
     filterPaid: "Betaald",
-    stillToPay: (amount: string) => `${amount} te betalen`,
-    nothingToPay: "Niets meer te betalen.",
     nothingHere: "Hier staat niets.",
     status: {
       due: "Te betalen",

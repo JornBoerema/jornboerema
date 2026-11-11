@@ -285,8 +285,6 @@ export const en = {
     filterAll: "All",
     filterDue: "To pay",
     filterPaid: "Paid",
-    stillToPay: (amount: string) => `${amount} to pay`,
-    nothingToPay: "Nothing left to pay.",
     nothingHere: "Nothing here.",
     status: {
       due: "To pay",

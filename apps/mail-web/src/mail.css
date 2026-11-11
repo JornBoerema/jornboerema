@@ -394,3 +394,12 @@
   color: var(--foreground);
   box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 12%, transparent);
 }
+/* What is still to pay, inside its tab: the amount reads as part of the label. */
+.invoice-filter-sum {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+}
+.invoice-filter button[aria-selected="true"] .invoice-filter-sum {
+  color: var(--primary);
+}

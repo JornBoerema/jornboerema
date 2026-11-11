@@ -1083,34 +1083,35 @@ export function InboxPage({
 
         {/* Relative keeps absolute children, like screen-reader text, inside this scroller.
             It scrolls by wheel, touch and keys, without showing a bar. */}
+        {showInvoices && (
+          // Stays put while the list scrolls under it; lined up with the rows' text.
+          <div className="shrink-0 pr-4 pb-2 pl-10">
+            <div className="invoice-filter" role="tablist" aria-label={strings.invoices.title}>
+              {(["all", "due", "paid"] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={invoiceFilter === key}
+                  onClick={() => setInvoiceFilter(key)}
+                >
+                  {key === "all" ? strings.invoices.filterAll : key === "due" ? strings.invoices.filterDue : strings.invoices.filterPaid}
+                  {key === "due" && toPay.length > 0 && (
+                    <span className="invoice-filter-sum">
+                      {toPay.map(([currency, cents]) => formatMoney(cents, currency, locale, true)).join(" + ")}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div
           ref={listScroller}
           className="scroll-fade relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {showInvoices ? (
             <>
-              <div className="flex flex-col gap-2 px-4 pt-1 pb-3 pl-8">
-                <div className="invoice-filter" role="tablist" aria-label={strings.invoices.title}>
-                  {(["all", "due", "paid"] as const).map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      role="tab"
-                      aria-selected={invoiceFilter === key}
-                      onClick={() => setInvoiceFilter(key)}
-                    >
-                      {key === "all" ? strings.invoices.filterAll : key === "due" ? strings.invoices.filterDue : strings.invoices.filterPaid}
-                    </button>
-                  ))}
-                </div>
-                {invoiceList.isSuccess && (
-                  <p className="text-xs text-muted-foreground">
-                    {toPay.length
-                      ? strings.invoices.stillToPay(toPay.map(([currency, cents]) => formatMoney(cents, currency, locale)).join(" + "))
-                      : strings.invoices.nothingToPay}
-                  </p>
-                )}
-              </div>
               {invoiceList.isPending && <ListSkeleton />}
               {invoiceList.isError && <p className="p-4 pl-8 text-sm text-destructive">{strings.invoices.loadFailed}</p>}
               {invoiceList.isSuccess && invoiceRows.length === 0 && (
