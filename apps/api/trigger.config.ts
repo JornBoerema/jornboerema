@@ -1,9 +1,9 @@
 import { defineConfig } from "@trigger.dev/sdk"
 
 // Delayed runs that wake snoozed mail and send scheduled mail at their moment.
-// Project "Even" on cloud.trigger.dev.
+// Project "Even" in the Bijvoorbeeld Zo organisation on cloud.trigger.dev.
 export default defineConfig({
-  project: "proj_mcjbcbpxlwywjneryfhr",
+  project: "proj_hkbrnayjaordsvwxcdbe",
   dirs: ["./trigger"],
   maxDuration: 120,
   retries: {
