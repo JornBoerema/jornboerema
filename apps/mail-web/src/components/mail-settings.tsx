@@ -29,10 +29,10 @@ import {
   SettingsSection,
   type SettingsPage,
 } from "@evido/ui/components/settings-dialog"
+import { Button } from "@evido/ui/components/button"
 import { Switch } from "@evido/ui/components/switch"
 import { useTheme, type Theme } from "@evido/ui/lib/theme"
 import { useI18n } from "@/i18n"
-import { SidebarSettings } from "@/components/sidebar-settings"
 import { notificationsSupported } from "@/lib/notifications"
 import {
   setAlwaysShowImages,
@@ -206,24 +206,37 @@ function linkedPage() {
   return new URLSearchParams(window.location.search).get("settings") === "account" ? "account" : "mailboxes"
 }
 
+/** The sidebar is arranged in place; this only starts it. */
+function SidebarSettings({ onArrange }: { onArrange: () => void }) {
+  const strings = useI18n().t
+  const t = strings.sidebarPage
+  return (
+    <SettingsSection title={strings.shell.sidebarPage} description={t.description}>
+      <div className="max-lg:hidden">
+        <Button variant="outline" onClick={onArrange}>
+          {t.arrange}
+        </Button>
+      </div>
+      <p className="text-sm text-muted-foreground lg:hidden">{t.wideOnly}</p>
+    </SettingsSection>
+  )
+}
+
 export function MailSettings({
   open,
   onOpenChange,
   user,
-  openAt,
+  onCustomizeSidebar,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: { name: string; email: string }
-  /** Asked to show this page, such as the sidebar from its own link. */
-  openAt?: { id: string } | null
+  /** Closes the settings and arranges the sidebar in place. */
+  onCustomizeSidebar: () => void
 }) {
   const strings = useI18n().t
   const t = strings.shell
   const [page, setPage] = useState(linkedPage)
-  useEffect(() => {
-    if (openAt) setPage(openAt.id)
-  }, [openAt])
   const about = useAboutPage()
   // As in Even doen: the account first, then what belongs to this app.
   const pages: SettingsPage[] = [
@@ -303,7 +316,7 @@ export function MailSettings({
       {page === "notifications" && <NotificationSettings />}
       {page === "ai" && <AiSettings />}
       {page === "features" && <FeatureSettings />}
-      {page === "sidebar" && <SidebarSettings />}
+      {page === "sidebar" && <SidebarSettings onArrange={onCustomizeSidebar} />}
       {page === "appearance" && <AppearanceSettings />}
       {page === "about" && <AboutSettings />}
       {page === "privacy" && <PrivacySettings />}

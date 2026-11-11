@@ -53,6 +53,7 @@ import { useI18n } from "@/i18n"
 import { signOut } from "@/lib/auth-client"
 import { useUnread } from "@/lib/mail"
 import { IconTip } from "@/components/icon-tip"
+import { SidebarEditor } from "@/components/sidebar-editor"
 
 export type MailView = "inbox" | "drafts" | "parcels" | "invoices" | "snoozed" | "scheduled" | "senders" | MailFolder
 
@@ -77,8 +78,11 @@ export type MailNavigation = {
   /** The composer fills the reading pane; New message is then the current place. */
   composing: boolean
   onSelectAccount: (id: string) => void
-  /** Opens the settings where the sidebar is arranged. */
+  /** The sidebar itself is being arranged, with Save and Cancel at the bottom. */
+  editingSidebar: boolean
+  /** Starts arranging the sidebar in place. */
   onCustomizeSidebar: () => void
+  onDoneEditingSidebar: () => void
   /** One mailbox for the list in view, or every one, without leaving it. */
   onFilterAccount: (id: string) => void
   onSelectDrafts: () => void
@@ -334,10 +338,13 @@ export function Sidebar({
   onSettings,
   onShortcuts,
   onCustomizeSidebar,
+  editingSidebar,
+  onDoneEditingSidebar,
 }: MailNavigation) {
   const { t } = useI18n()
   const desktop = useInDesktop()
   const layout = useSidebarLayout()
+  const placeLabels = usePlaceLabels()
   // While writing, only New message is current; closing it gives the selection back.
   const places = usePlaces({
     accountId,
@@ -394,11 +401,17 @@ export function Sidebar({
               <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
               <kbd className="nav-kbd">C</kbd>
             </button>
-            {layout.main.map((id) => places[id].shown && <PlaceLink key={id} place={places[id]} />)}
-            <MorePlaces
-              places={layout.more.map((id) => places[id]).filter((place) => place.shown)}
-              onCustomize={onCustomizeSidebar}
-            />
+            {editingSidebar ? (
+              <SidebarEditor icons={PLACE_ICONS} labels={placeLabels} onDone={onDoneEditingSidebar} />
+            ) : (
+              <>
+                {layout.main.map((id) => places[id].shown && <PlaceLink key={id} place={places[id]} />)}
+                <MorePlaces
+                  places={layout.more.map((id) => places[id]).filter((place) => place.shown)}
+                  onCustomize={onCustomizeSidebar}
+                />
+              </>
+            )}
           </div>
           <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
             <div className="sidebar-heading">
