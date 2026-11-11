@@ -72,7 +72,7 @@ export function SendButton({
           className="min-w-44 rounded-xl p-1"
         >
           <DropdownMenuItem
-            className="gap-2.5 rounded-lg px-2 py-1.5 text-[13px]"
+            className="min-h-7 gap-2.5 rounded-lg px-2 py-1 text-[13px]"
             onSelect={onLater}
           >
             <HugeiconsIcon
