@@ -11,8 +11,14 @@ import {
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 
-/** The arrow's own left edge divides it from Send: on the orange, and dimmed with it when disabled. */
-const DIVIDED = "border-l! border-l-[color-mix(in_oklch,var(--primary),var(--primary-foreground)_30%)]"
+/**
+ * Buttons keep a transparent border outside their fill; between the two halves
+ * it would show as a dark slit. Send drops its right one, and the arrow draws
+ * the divider inside its own fill, so it dims with it when disabled.
+ */
+const JOINED = "border-r-0"
+const DIVIDED =
+  "relative before:absolute before:inset-y-2 before:left-0 before:w-px before:bg-primary-foreground/30"
 
 /**
  * Sends the form it sits in: its name, the shortcut in a tooltip.
@@ -30,7 +36,12 @@ export function SendButton({
   const t = useI18n().t.later
   const send = (
     <IconTip label={label} shortcut="⌘↵">
-      <Button type="submit" disabled={disabled} aria-keyshortcuts="Meta+Enter Control+Enter">
+      <Button
+        type="submit"
+        className={onLater ? JOINED : undefined}
+        disabled={disabled}
+        aria-keyshortcuts="Meta+Enter Control+Enter"
+      >
         {label}
       </Button>
     </IconTip>
@@ -48,12 +59,29 @@ export function SendButton({
             disabled={disabled}
             aria-label={t.sendLater}
           >
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} aria-hidden="true" />
+            <HugeiconsIcon
+              icon={ArrowDown01Icon}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" sideOffset={6} className="min-w-44 rounded-xl p-1">
-          <DropdownMenuItem className="gap-2.5 rounded-lg px-2 py-1.5 text-[13px]" onSelect={onLater}>
-            <HugeiconsIcon icon={AlarmClockIcon} strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
+        <DropdownMenuContent
+          align="end"
+          side="top"
+          sideOffset={6}
+          className="min-w-44 rounded-xl p-1"
+        >
+          <DropdownMenuItem
+            className="gap-2.5 rounded-lg px-2 py-1.5 text-[13px]"
+            onSelect={onLater}
+          >
+            <HugeiconsIcon
+              icon={AlarmClockIcon}
+              strokeWidth={1.75}
+              aria-hidden="true"
+              className="size-3.5"
+            />
             {t.sendLater}
           </DropdownMenuItem>
         </DropdownMenuContent>
