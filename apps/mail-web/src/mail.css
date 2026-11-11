@@ -88,7 +88,7 @@
   justify-content: space-between;
   padding: 0 0 22px 10px;
 }
-.list-sidebar > .mail-brand-row .brand {
+.mail-brand-row .brand {
   padding: 0;
 }
 .mail-collapse {
@@ -106,23 +106,73 @@
   }
 }
 
-/* Collapsed: a narrow strip of icons instead of nothing. */
+/* Collapsed: a narrow strip of icons instead of nothing. One panel holds both
+   the full sidebar and the rail: its width animates with the grid, and the two
+   fade into each other, the leaving one first. */
 .workspace-shell.mail-shell.sidebar-collapsed {
   grid-template-columns: 60px minmax(0, 1fr);
 }
-.mail-shell.sidebar-collapsed .list-sidebar.mail-rail {
+.mail-shell .list-sidebar.mail-sidebar,
+.mail-shell.sidebar-collapsed .list-sidebar.mail-sidebar {
+  padding: 0;
   transform: none;
   opacity: 1;
   visibility: visible;
+  transition: width 220ms ease;
+}
+.mail-shell.sidebar-collapsed .list-sidebar.mail-sidebar {
+  width: 44px;
+}
+.sidebar-full,
+.sidebar-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sidebar-full {
+  width: 248px;
+  gap: 8px;
+  padding: 22px 16px 16px;
+  transition:
+    opacity 160ms ease 60ms,
+    visibility 0s;
+}
+.sidebar-full > :not(.list-navigation) {
+  flex-shrink: 0;
+}
+.sidebar-rail {
   width: 44px;
   padding: 16px 0 12px;
   align-items: center;
   gap: 4px;
-  animation: rail-in 180ms ease;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 100ms ease,
+    visibility 0s 100ms;
 }
-@keyframes rail-in {
-  from {
-    opacity: 0;
+.is-collapsed > .sidebar-full {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 100ms ease,
+    visibility 0s 100ms;
+}
+.is-collapsed > .sidebar-rail {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 160ms ease 60ms,
+    visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mail-shell,
+  .mail-shell .list-sidebar.mail-sidebar,
+  .sidebar-full,
+  .sidebar-rail {
+    transition: none !important;
   }
 }
 .rail-group {

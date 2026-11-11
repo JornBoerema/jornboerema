@@ -26,7 +26,10 @@ export function useCollapsibleSidebar({ enabled = true }: { enabled?: boolean } 
         ? expandButton.current
         : document.querySelector<HTMLButtonElement>("#list-sidebar .workspace-switcher")
       if (!button) return
-      await Promise.allSettled(button.getAnimations().map((animation) => animation.finished))
+      // After the panel has moved too, so its tooltip doesn't open mid-way.
+      const panel = document.getElementById("list-sidebar")
+      const moving = [...button.getAnimations(), ...(panel?.getAnimations() ?? [])]
+      await Promise.allSettled(moving.map((animation) => animation.finished))
       if (!cancelled) {
         button.focus()
         focusPending.current = false

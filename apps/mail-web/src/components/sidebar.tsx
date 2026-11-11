@@ -166,143 +166,147 @@ export function Sidebar({
   const allSelected = !composing && view === "inbox" && accountId === ""
   const draftsSelected = !composing && view === "drafts"
   const shownView: MailView | null = composing ? null : view
-  if (sidebar.collapsed)
-    return (
+  return (
+    // One panel for both: its width animates, and the full sidebar and the rail fade into each other.
+    <aside
+      id="list-sidebar"
+      className={cn("list-sidebar mail-sidebar max-lg:hidden!", sidebar.collapsed && "is-collapsed")}
+      aria-label={t.shell.sidebar}
+    >
+      <div className="sidebar-full" inert={sidebar.collapsed}>
+        <div className="mail-brand-row">
+          <Brand />
+          <IconTip label={t.shell.collapse} shortcut="⌘B">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="mail-collapse"
+              aria-label={t.shell.collapse}
+              aria-keyshortcuts="Meta+B Control+B"
+              aria-expanded={true}
+              aria-controls="list-sidebar"
+              onClick={sidebar.toggle}
+            >
+              <HugeiconsIcon icon={PanelLeftOpenIcon} strokeWidth={2} aria-hidden="true" />
+            </Button>
+          </IconTip>
+        </div>
+        <div className="list-navigation sidebar-sections">
+          <div className="sidebar-top">
+            {/* Apart from the folders: writing is an action, not a place. */}
+            <button
+              type="button"
+              className={cn("list-link mb-3", composing && "is-selected")}
+              aria-current={composing ? "page" : undefined}
+              aria-keyshortcuts="C"
+              onClick={onCompose}
+            >
+              <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+              <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
+              <kbd className="nav-kbd">C</kbd>
+            </button>
+            <button
+              type="button"
+              className={cn("list-link", allSelected && "is-selected")}
+              aria-current={allSelected ? "page" : undefined}
+              onClick={() => onSelectAccount("")}
+            >
+              <HugeiconsIcon icon={InboxIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+              <span>{t.inbox.allMailboxes}</span>
+              {!!unread && (
+                <span className="list-count" aria-label={t.emptyPane.unread(String(unread))}>
+                  {unread.toLocaleString(locale)}
+                </span>
+              )}
+            </button>
+            <FolderLink folder="starred" view={shownView} onSelect={onSelectFolder} />
+            <button
+              type="button"
+              className={cn("list-link", draftsSelected && "is-selected")}
+              aria-current={draftsSelected ? "page" : undefined}
+              onClick={onSelectDrafts}
+            >
+              <HugeiconsIcon icon={File01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+              <span>{t.drafts.title}</span>
+              {draftCount > 0 && (
+                <span className="list-count" aria-label={t.drafts.count(draftCount)}>
+                  {draftCount}
+                </span>
+              )}
+            </button>
+            <FolderLink folder="sent" view={shownView} onSelect={onSelectFolder} />
+            <MoreFolders view={shownView} onSelect={onSelectFolder} />
+          </div>
+          <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
+            <div className="sidebar-heading">
+              <h2 id="sidebar-mailboxes">{t.shell.mailboxes}</h2>
+              <IconTip label={t.inbox.connect}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="sidebar-add"
+                  aria-label={t.inbox.connect}
+                  onClick={onSettings}
+                >
+                  <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
+                </Button>
+              </IconTip>
+            </div>
+            <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
+              {accounts.map((account) => {
+                const selected = !composing && view === "inbox" && account.id === accountId
+                const active = account.status === "active"
+                return (
+                  <button
+                    key={account.id}
+                    type="button"
+                    className={cn("list-link", selected && "is-selected")}
+                    aria-current={selected ? "page" : undefined}
+                    title={active ? account.email : t.inbox.reconnectNeeded}
+                    onClick={() => onSelectAccount(account.id)}
+                  >
+                    {active ? (
+                      <span className="flex size-4 shrink-0 items-center justify-center">
+                        <AccountDot color={account.color} className="size-2.5" />
+                      </span>
+                    ) : (
+                      <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                    )}
+                    <span className="truncate">{account.email}</span>
+                  </button>
+                )
+              })}
+            </nav>
+          </section>
+        </div>
+        <div className="sidebar-footer">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
+                <span className="workspace-avatar" aria-hidden="true">
+                  {initialOf(user)}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col text-left">
+                  <span className="truncate">{user.name || user.email}</span>
+                  <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+                </span>
+                <HugeiconsIcon
+                  icon={UnfoldMoreIcon}
+                  strokeWidth={2}
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </button>
+            </DropdownMenuTrigger>
+            <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} />
+          </DropdownMenu>
+        </div>
+      </div>
       <SidebarRail
         {...{ accounts, accountId, user, sidebar, view, draftCount, draftWaiting, composing }}
         {...{ onSelectAccount, onSelectDrafts, onSelectFolder, onCompose, onSettings, onShortcuts }}
         unread={unread}
       />
-    )
-  return (
-    <aside id="list-sidebar" className="list-sidebar max-lg:hidden!" aria-label={t.shell.sidebar}>
-      <div className="mail-brand-row">
-        <Brand />
-        <IconTip label={t.shell.collapse} shortcut="⌘B">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="mail-collapse"
-            aria-label={t.shell.collapse}
-            aria-keyshortcuts="Meta+B Control+B"
-            aria-expanded={true}
-            aria-controls="list-sidebar"
-            onClick={sidebar.toggle}
-          >
-            <HugeiconsIcon icon={PanelLeftOpenIcon} strokeWidth={2} aria-hidden="true" />
-          </Button>
-        </IconTip>
-      </div>
-      <div className="list-navigation sidebar-sections">
-        <div className="sidebar-top">
-          {/* Apart from the folders: writing is an action, not a place. */}
-          <button
-            type="button"
-            className={cn("list-link mb-3", composing && "is-selected")}
-            aria-current={composing ? "page" : undefined}
-            aria-keyshortcuts="C"
-            onClick={onCompose}
-          >
-            <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-            <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
-            <kbd className="nav-kbd">C</kbd>
-          </button>
-          <button
-            type="button"
-            className={cn("list-link", allSelected && "is-selected")}
-            aria-current={allSelected ? "page" : undefined}
-            onClick={() => onSelectAccount("")}
-          >
-            <HugeiconsIcon icon={InboxIcon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-            <span>{t.inbox.allMailboxes}</span>
-            {!!unread && (
-              <span className="list-count" aria-label={t.emptyPane.unread(String(unread))}>
-                {unread.toLocaleString(locale)}
-              </span>
-            )}
-          </button>
-          <FolderLink folder="starred" view={shownView} onSelect={onSelectFolder} />
-          <button
-            type="button"
-            className={cn("list-link", draftsSelected && "is-selected")}
-            aria-current={draftsSelected ? "page" : undefined}
-            onClick={onSelectDrafts}
-          >
-            <HugeiconsIcon icon={File01Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-            <span>{t.drafts.title}</span>
-            {draftCount > 0 && (
-              <span className="list-count" aria-label={t.drafts.count(draftCount)}>
-                {draftCount}
-              </span>
-            )}
-          </button>
-          <FolderLink folder="sent" view={shownView} onSelect={onSelectFolder} />
-          <MoreFolders view={shownView} onSelect={onSelectFolder} />
-        </div>
-        <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
-          <div className="sidebar-heading">
-            <h2 id="sidebar-mailboxes">{t.shell.mailboxes}</h2>
-            <IconTip label={t.inbox.connect}>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="sidebar-add"
-                aria-label={t.inbox.connect}
-                onClick={onSettings}
-              >
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
-              </Button>
-            </IconTip>
-          </div>
-          <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
-            {accounts.map((account) => {
-              const selected = !composing && view === "inbox" && account.id === accountId
-              const active = account.status === "active"
-              return (
-                <button
-                  key={account.id}
-                  type="button"
-                  className={cn("list-link", selected && "is-selected")}
-                  aria-current={selected ? "page" : undefined}
-                  title={active ? account.email : t.inbox.reconnectNeeded}
-                  onClick={() => onSelectAccount(account.id)}
-                >
-                  {active ? (
-                    <span className="flex size-4 shrink-0 items-center justify-center">
-                      <AccountDot color={account.color} className="size-2.5" />
-                    </span>
-                  ) : (
-                    <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-                  )}
-                  <span className="truncate">{account.email}</span>
-                </button>
-              )
-            })}
-          </nav>
-        </section>
-      </div>
-      <div className="sidebar-footer">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
-              <span className="workspace-avatar" aria-hidden="true">
-                {initialOf(user)}
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col text-left">
-                <span className="truncate">{user.name || user.email}</span>
-                <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
-              </span>
-              <HugeiconsIcon
-                icon={UnfoldMoreIcon}
-                strokeWidth={2}
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </button>
-          </DropdownMenuTrigger>
-          <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} />
-        </DropdownMenu>
-      </div>
     </aside>
   )
 }
@@ -405,7 +409,7 @@ function SidebarRail({
   const { t } = useI18n()
   const shownView: MailView | null = composing ? null : view
   return (
-    <aside id="list-sidebar" className="list-sidebar mail-rail max-lg:hidden!" aria-label={t.shell.sidebar}>
+    <div className="sidebar-rail" inert={!sidebar.collapsed}>
       <RailTip label={t.shell.expand} shortcut="⌘B">
         <button
           ref={sidebar.expandButton}
@@ -483,7 +487,7 @@ function SidebarRail({
           <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} side="right" />
         </DropdownMenu>
       </div>
-    </aside>
+    </div>
   )
 }
 
