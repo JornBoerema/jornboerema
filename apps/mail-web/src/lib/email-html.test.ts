@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest"
-import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail } from "./email-html"
+import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail, withoutQuote } from "./email-html"
 
 describe("sanitizeEmail", () => {
   it.each([
@@ -83,5 +83,34 @@ describe("dark plain mail", () => {
   it("drops the white paper only when asked", () => {
     expect(buildEmailDocument("<p>hi</p>", false)).not.toContain("color-scheme:dark")
     expect(buildEmailDocument("<p>hi</p>", false, true)).toContain("color-scheme:dark")
+  })
+})
+
+describe("withoutQuote", () => {
+  it("cuts a Gmail quote with its attribution", () => {
+    const html = `<div dir="ltr">Thanks!</div><br><div class="gmail_quote"><div class="gmail_attr">On Wed, X wrote:</div><blockquote>old</blockquote></div>`
+    const result = withoutQuote(html)
+    expect(result).toContain("Thanks!")
+    expect(result).not.toContain("old")
+    expect(result).not.toContain("wrote")
+  })
+
+  it("cuts an Apple Mail quote and the line that introduces it", () => {
+    const html = `<div>Sure.</div><div><br><blockquote type="cite"><div>On 6 Nov, X wrote:</div></blockquote></div>`
+    expect(withoutQuote(`<div>Sure.</div><div>On 6 Nov, X wrote:</div><blockquote type="cite">old</blockquote>`)).toBe(
+      "<div>Sure.</div>"
+    )
+    expect(withoutQuote(html)).toContain("Sure.")
+    expect(withoutQuote(html)).not.toContain("wrote")
+  })
+
+  it("cuts everything after Outlook's marker, also outside its parent", () => {
+    const html = `<div><p>New text</p><div id="appendonsend"></div></div><hr><div id="divRplyFwdMsg">From: X</div><div>old</div>`
+    expect(withoutQuote(html)).toBe("<div><p>New text</p></div>")
+  })
+
+  it("leaves mail without a quote, or with nothing but one", () => {
+    expect(withoutQuote("<p>Just this</p>")).toBeNull()
+    expect(withoutQuote(`<div class="gmail_quote">old</div>`)).toBeNull()
   })
 })

@@ -77,3 +77,41 @@ export function buildEmailDocument(sanitizedHtml: string, allowImages: boolean, 
   const style = dark ? FRAME_STYLE + DARK_STYLE : FRAME_STYLE
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${style}</style></head><body><div id="evido-mail">${sanitizedHtml}</div></body></html>`
 }
+
+/**
+ * Where mail clients start the earlier mail they quote under a reply: Gmail,
+ * Apple Mail and Thunderbird, Outlook (web and desktop), Yahoo.
+ */
+const QUOTE_START = [
+  ".gmail_quote",
+  "blockquote[type=cite]",
+  ".moz-cite-prefix",
+  "#appendonsend",
+  "#divRplyFwdMsg",
+  "#mail-editor-reference-message-container",
+  ".yahoo_quoted",
+].join(",")
+
+/**
+ * The reply without the earlier mail it quotes, or null when there is no quote
+ * to leave out (or nothing would be left). Cuts at the first marker: it and
+ * everything after it, at its own level and at each level above.
+ */
+export function withoutQuote(sanitizedHtml: string): string | null {
+  const doc = new DOMParser().parseFromString(sanitizedHtml, "text/html")
+  const marker = doc.body.querySelector(QUOTE_START)
+  if (!marker) return null
+  // Apple Mail puts "On …, … wrote:" just before its blockquote.
+  let start: Element = marker
+  const before = marker.previousElementSibling
+  if (marker.matches("blockquote") && before && /:\s*$/.test(before.textContent ?? "")) start = before
+  let node: Element | null = start
+  while (node && node !== doc.body) {
+    while (node.nextSibling) node.nextSibling.remove()
+    node = node.parentElement
+  }
+  start.remove()
+  // Only the quote, or only an image: then there is nothing to tuck away.
+  if (!doc.body.textContent?.trim() && !doc.body.querySelector("img")) return null
+  return doc.body.innerHTML
+}

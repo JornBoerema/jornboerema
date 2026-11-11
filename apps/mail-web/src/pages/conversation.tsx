@@ -16,6 +16,7 @@ import {
   TaskAdd01Icon,
   PinIcon,
   PinOffIcon,
+  MoreHorizontalIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
@@ -45,7 +46,7 @@ import { ForwardForm, ReplyForm } from "@/components/reply-forms"
 import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
-import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail } from "@/lib/email-html"
+import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail, withoutQuote } from "@/lib/email-html"
 import { useTheme } from "@evido/ui/lib/theme"
 import { useScrollFade } from "@evido/ui/hooks/use-scroll-fade"
 import { useHotkeys } from "@/lib/hotkeys"
@@ -58,6 +59,10 @@ import { IconTip } from "@/components/icon-tip"
 const MARK_READ_DELAY_MS = 1200
 
 const label = (address: MailAddress) => address.name ?? address.email
+
+/** From this many messages a thread folds its older ones away. */
+const LONG_THREAD = 4
+const VISIBLE_IN_LONG_THREAD = 3
 
 function formatSize(bytes: number) {
   return bytes < 1024 * 1024
@@ -231,18 +236,44 @@ function MessageBody({
   message,
   sender,
   allowImages,
+  quoted,
 }: {
   threadId: string
   message: SanitizedMessage
   sender: string
   allowImages: boolean
+  /** Earlier messages are in the thread, so a quote of them can be tucked away. */
+  quoted: boolean
 }) {
   const t = useI18n().t.conversation
   const body = useBodyWithInlineImages(threadId, message)
+  const trimmed = useMemo(() => (quoted && body ? withoutQuote(body) : null), [quoted, body])
+  const [showQuote, setShowQuote] = useState(false)
   return (
     <>
       {body ? (
-        <EmailFrame html={body} allowImages={allowImages} title={t.frameTitle(sender)} />
+        <div className="flex flex-col items-start gap-1">
+          <EmailFrame
+            html={trimmed && !showQuote ? trimmed : body}
+            allowImages={allowImages}
+            title={t.frameTitle(sender)}
+          />
+          {trimmed && (
+            <IconTip label={showQuote ? t.hideQuote : t.showQuote}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="xs"
+                className="ml-3 h-4 rounded-sm px-1.5"
+                aria-label={showQuote ? t.hideQuote : t.showQuote}
+                aria-expanded={showQuote}
+                onClick={() => setShowQuote(!showQuote)}
+              >
+                <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={2} aria-hidden="true" className="size-3.5" />
+              </Button>
+            </IconTip>
+          )}
+        </div>
       ) : message.text ? (
         <p className="leading-relaxed break-words whitespace-pre-wrap">{message.text}</p>
       ) : (
@@ -266,12 +297,14 @@ function Message({
   message,
   allowImages,
   latest,
+  quoted,
   account,
 }: {
   threadId: string
   message: SanitizedMessage
   allowImages: boolean
   latest: boolean
+  quoted: boolean
   /** The mailbox it came to: an unsubscribe message goes out from there. */
   account: MailAccountView | undefined
 }) {
@@ -285,7 +318,7 @@ function Message({
   })
 
   return (
-    <article className="flex flex-col gap-3 py-1.5 text-sm">
+    <article className="flex flex-col gap-3 py-2.5 text-sm">
       <button
         type="button"
         aria-expanded={expanded}
@@ -325,7 +358,13 @@ function Message({
               )}
             </div>
           )}
-          <MessageBody threadId={threadId} message={message} sender={sender} allowImages={allowImages} />
+          <MessageBody
+            threadId={threadId}
+            message={message}
+            sender={sender}
+            allowImages={allowImages}
+            quoted={quoted}
+          />
         </>
       )}
     </article>
@@ -445,6 +484,9 @@ export function ConversationPage({
     [thread.data]
   )
   const last = messages.at(-1)
+  const newestFirst = useMemo(() => [...messages].reverse(), [messages])
+  const [expandAll, setShowAll] = useState(false)
+  const showAll = expandAll || newestFirst.length <= LONG_THREAD
   const blockedImages =
     !allowImages && messages.some((message) => message.cleanHtml && hasRemoteImages(message.cleanHtml))
   const replyActions = [
@@ -543,16 +585,32 @@ export function ConversationPage({
               </Button>
             </div>
           )}
-          {messages.map((message) => (
-            <Message
-              key={message.id}
-              threadId={id}
-              message={message}
-              allowImages={allowImages}
-              latest={message === last}
-              account={account}
-            />
-          ))}
+          {/* Newest first, each apart from the next; a long thread shows its
+              latest few and keeps the rest one click away. */}
+          <div className="mt-1 flex flex-col divide-y divide-border/60">
+            {newestFirst.slice(0, showAll ? undefined : VISIBLE_IN_LONG_THREAD).map((message) => (
+              <Message
+                key={message.id}
+                threadId={id}
+                message={message}
+                allowImages={allowImages}
+                latest={message === last}
+                quoted={message !== messages[0]}
+                account={account}
+              />
+            ))}
+            {!showAll && (
+              <div className="py-2.5">
+                <button
+                  type="button"
+                  className="-mx-2.5 w-[calc(100%+1.25rem)] rounded-lg px-2.5 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                  onClick={() => setShowAll(true)}
+                >
+                  {t.olderMessages(newestFirst.length - VISIBLE_IN_LONG_THREAD)}
+                </button>
+              </div>
+            )}
+          </div>
           {last && (
             <div className="@container sticky bottom-4 z-10 mt-auto mb-4 pt-4">
               {replyMode === "forward" ? (
