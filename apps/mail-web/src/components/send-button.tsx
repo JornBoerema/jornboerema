@@ -1,7 +1,7 @@
-import { AlarmClockIcon, ArrowDown01Icon, SentIcon } from "@hugeicons/core-free-icons"
+import { AlarmClockIcon, ArrowDown01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
-import { ButtonGroup, ButtonGroupSeparator } from "@evido/ui/components/button-group"
+import { ButtonGroup } from "@evido/ui/components/button-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +11,11 @@ import {
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 
+/** The arrow's own left edge divides it from Send: on the orange, and dimmed with it when disabled. */
+const DIVIDED = "border-l! border-l-[color-mix(in_oklch,var(--primary),var(--primary-foreground)_30%)]"
+
 /**
- * Sends the form it sits in: an icon, its name and shortcut in a tooltip.
+ * Sends the form it sits in: its name, the shortcut in a tooltip.
  * With `onLater`, a split button: the arrow on its right opens "Send later".
  */
 export function SendButton({
@@ -27,15 +30,8 @@ export function SendButton({
   const t = useI18n().t.later
   const send = (
     <IconTip label={label} shortcut="⌘↵">
-      <Button
-        type="submit"
-        size="icon"
-        className={onLater ? undefined : "rounded-full"}
-        disabled={disabled}
-        aria-label={label}
-        aria-keyshortcuts="Meta+Enter Control+Enter"
-      >
-        <HugeiconsIcon icon={SentIcon} strokeWidth={2} aria-hidden="true" />
+      <Button type="submit" disabled={disabled} aria-keyshortcuts="Meta+Enter Control+Enter">
+        {label}
       </Button>
     </IconTip>
   )
@@ -43,10 +39,15 @@ export function SendButton({
   return (
     <ButtonGroup>
       {send}
-      <ButtonGroupSeparator className="my-0! bg-primary-foreground/20" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" size="icon" disabled={disabled} aria-label={t.sendLater}>
+          <Button
+            type="button"
+            size="icon"
+            className={DIVIDED}
+            disabled={disabled}
+            aria-label={t.sendLater}
+          >
             <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
