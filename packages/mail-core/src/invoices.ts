@@ -69,10 +69,13 @@ function toCents(raw: string): number | null {
 
 const AMOUNT = /(€|\$|£|EUR|USD|GBP)\s?(-?\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)|(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))\s?(€|EUR|USD|GBP)\b/gi
 
+/** Words before an amount that make it a limit, a threshold or a saving, never what is owed. */
+const NOT_OWED = /(maximaal|max\.?|maximum|minimaal|minimum|limiet|limit|tot|up to|vanaf|from|starting at|korting|discount|bespaar|save|saving|tegoed|credit|vrijgesteld|grens)\s*:?\s*$/i
+
 /** Words that sit beside the amount that matters, rather than a line item. */
 const TOTAL_WORDS = /totaal|total|te betalen|amount due|balance due|bedrag|amount|charged|afgeschreven|incasso|betaald|paid|summe|gesamt/i
 
-function amountIn(text: string): { cents: number; currency: string } | null {
+function amountIn(text: string): { cents: number; currency: string; total: boolean } | null {
   const found: { cents: number; currency: string; index: number; total: boolean }[] = []
   for (const match of text.matchAll(AMOUNT)) {
     const sign = (match[1] ?? match[4] ?? "").toUpperCase()
@@ -80,13 +83,14 @@ function amountIn(text: string): { cents: number; currency: string } | null {
     if (cents === null) continue
     const index = match.index ?? 0
     const before = text.slice(Math.max(0, index - 50), index)
+    if (NOT_OWED.test(before.slice(-25))) continue
     found.push({ cents, currency: CURRENCY_SIGNS[sign] ?? sign, index, total: TOTAL_WORDS.test(before) })
   }
   if (found.length === 0) return null
   // The total, where the mail names one; else the largest, which is the total more often than not.
   const totals = found.filter((item) => item.total)
   const pick = (totals.length ? totals : found).reduce((best, item) => (item.cents > best.cents ? item : best))
-  return { cents: pick.cents, currency: pick.currency }
+  return { cents: pick.cents, currency: pick.currency, total: pick.total }
 }
 
 const MONTHS: Record<string, number> = {
@@ -144,10 +148,13 @@ const STATUS_PATTERNS: [InvoiceStatus, RegExp][] = [
   ["failed", /betaling (is )?mislukt|niet (gelukt|geslaagd)|payment (has )?failed|could not be (processed|charged)|declined|geweigerd|unsuccessful|zahlung fehlgeschlagen/i],
   [
     "paid",
-    /betaling ontvangen|bedankt voor je betaling|thanks for your payment|payment received|we('ve| have) received your payment|ontvangstbewijs|betaalbewijs|\breceipt\b|kassabon|\bbetaald\b|\bpaid\b|zahlung erhalten|quittung/i,
+    /betaling ontvangen|payment success|successful payment|betaling geslaagd|succesvol betaald|credit ?note|creditnota|creditfactuur|refund|terugbetaling|factuur (voor|bij) (je|uw) (bestelling|order)|bedankt voor je betaling|thanks for your payment|payment received|we('ve| have) received your payment|ontvangstbewijs|betaalbewijs|\breceipt\b|kassabon|\bbetaald\b|\bpaid\b|zahlung erhalten|quittung/i,
   ],
-  ["auto", /debit initiated|sepa|automatische incasso|automatisch (afgeschreven|geïncasseerd)|wordt (automatisch )?(afgeschreven|geïncasseerd)|incasso|direct debit|will be charged|charged to your|automatically charged|abgebucht/i],
+  ["auto", /wordt (binnenkort |automatisch )?verlengd|will (automatically )?renew|renews on|debit initiated|sepa|automatische incasso|automatisch (afgeschreven|geïncasseerd)|wordt (automatisch )?(afgeschreven|geïncasseerd)|incasso|direct debit|will be charged|charged to your|automatically charged|abgebucht/i],
 ]
+
+/** What a request to pay says, beyond the word invoice. */
+const PAY_WORDS = /factuur|invoice|betaalverzoek|tikkie|te betalen|amount due|please pay|betaal|pay now|receipt|bon\b|kassabon/i
 
 const OVERDUE = /aanmaning|herinnering|reminder|overdue|achterstallig|past due|verlopen|nog niet ontvangen|not (yet )?received|nog open|openstaand|mahnung/i
 
@@ -179,6 +186,12 @@ export function findInvoice(mail: Mail): FoundInvoice | null {
   // a line, and only when the subject itself is about money: a billing company's
   // product news ("[Reminder] new dashboard") isn't.
   if (!money && !mail.hasAttachments && ((status !== "failed" && !overdue) || !SUBJECT.test(mail.subject))) return null
+  // An amount nothing calls a total, in mail without a number or attachment that
+  // says nothing was paid or failed, is a figure in passing: a payment provider's
+  // news about card payments mentions amounts too.
+  const invoiceNumber = invoiceNumberIn(mail.subject, text)
+  if (money && !money.total && !invoiceNumber && !mail.hasAttachments && status === "due" && !overdue && !PAY_WORDS.test(opening))
+    return null
 
   const dueDate = status === "due" ? dueDateIn(text) : null
   return {
@@ -186,7 +199,7 @@ export function findInvoice(mail: Mail): FoundInvoice | null {
     amountCents: money?.cents ?? null,
     currency: money?.currency ?? null,
     dueDate,
-    invoiceNumber: invoiceNumberIn(mail.subject, text),
+    invoiceNumber,
     payUrl: status === "due" || status === "failed" ? payUrlIn(mail.html ?? "") : null,
     status,
     overdue,

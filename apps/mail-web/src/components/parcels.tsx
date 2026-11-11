@@ -6,6 +6,7 @@ import { Button } from "@evido/ui/components/button"
 import { cn } from "@evido/ui/lib/utils"
 import { looksLikeShipment } from "@evido/mail-core/shipments"
 import type { MailShipmentView, MailThreadView } from "@evido/mail-core/types"
+import { ReportRecognitionButton } from "@/components/report-recognition"
 import { useI18n } from "@/i18n"
 import { useParcels } from "@/lib/preferences"
 import { CARRIER_NAMES, STATUS_TONE, useConversationShipment } from "@/lib/shipments"
@@ -94,6 +95,7 @@ export function ShipmentCard({ threadId, thread }: { threadId: string; thread: M
           </a>
         </Button>
       )}
+      <ReportRecognitionButton kind="parcel" threadId={threadId} />
     </section>
   )
 }

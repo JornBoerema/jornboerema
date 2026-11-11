@@ -19,7 +19,9 @@ import {
   SentIcon,
   AlarmClockIcon,
   FilterMailRemoveIcon,
+  Flag02Icon,
 } from "@hugeicons/core-free-icons"
+import { canReport, ReportRecognitionDialog } from "@/components/report-recognition"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { Checkbox } from "@evido/ui/components/checkbox"
@@ -308,6 +310,8 @@ function InvoiceRow({
 }) {
   const { t, locale } = useI18n()
   const payUrl = invoice.payUrl
+  const threadId = canReport(invoice.thread?.id) ? invoice.thread?.id : undefined
+  const [reporting, setReporting] = useState(false)
   return (
     <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
       <button
@@ -322,7 +326,7 @@ function InvoiceRow({
       >
         <span className="flex items-center gap-2">
           <span className="min-w-0 flex-1 truncate font-medium">{invoice.vendor ?? invoice.subject}</span>
-          <span className={cn("shrink-0 text-sm tabular-nums", payUrl && UNDER_ACTIONS)}>
+          <span className={cn("shrink-0 text-sm tabular-nums", (payUrl || threadId) && UNDER_ACTIONS)}>
             {invoice.amountCents !== null ? formatMoney(invoice.amountCents, invoice.currency, locale) : "—"}
           </span>
         </span>
@@ -331,10 +335,16 @@ function InvoiceRow({
           <span className="ml-auto shrink-0 text-xs tabular-nums">{shortDate(invoice.receivedAt, locale)}</span>
         </span>
       </button>
-      {payUrl && (
-        <RowActions
-          actions={[{ icon: ArrowUpRight01Icon, label: t.invoices.pay, run: () => window.open(payUrl, "_blank", "noopener,noreferrer") }]}
-        />
+      <RowActions
+        actions={[
+          ...(payUrl
+            ? [{ icon: ArrowUpRight01Icon, label: t.invoices.pay, run: () => window.open(payUrl, "_blank", "noopener,noreferrer") }]
+            : []),
+          ...(threadId ? [{ icon: Flag02Icon, label: t.recognition.report, run: () => setReporting(true) }] : []),
+        ]}
+      />
+      {threadId && (
+        <ReportRecognitionDialog kind="invoice" threadId={threadId} open={reporting} onOpenChange={setReporting} />
       )}
     </li>
   )
@@ -448,6 +458,8 @@ function ParcelRow({
   const p = t.parcels
   const title = shipment.merchant ?? carrierName(shipment, p.unknownCarrier)
   const url = shipment.trackingUrl
+  const threadId = canReport(shipment.thread?.id) ? shipment.thread?.id : undefined
+  const [reporting, setReporting] = useState(false)
   return (
     <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
       <button
@@ -464,7 +476,7 @@ function ParcelRow({
         <span className="flex items-center gap-2">
           <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
           <time
-            className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", url && UNDER_ACTIONS)}
+            className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", (url || threadId) && UNDER_ACTIONS)}
             dateTime={shipment.receivedAt}
           >
             {shortDate(shipment.receivedAt, locale)}
@@ -475,12 +487,16 @@ function ParcelRow({
           {shipment.merchant && shipment.carrier && <span className="truncate">· {CARRIER_NAMES[shipment.carrier]}</span>}
         </span>
       </button>
-      {url && (
-        <RowActions
-          actions={[
-            { icon: ArrowUpRight01Icon, label: p.trackParcel, run: () => window.open(url, "_blank", "noopener,noreferrer") },
-          ]}
-        />
+      <RowActions
+        actions={[
+          ...(url
+            ? [{ icon: ArrowUpRight01Icon, label: p.trackParcel, run: () => window.open(url, "_blank", "noopener,noreferrer") }]
+            : []),
+          ...(threadId ? [{ icon: Flag02Icon, label: t.recognition.report, run: () => setReporting(true) }] : []),
+        ]}
+      />
+      {threadId && (
+        <ReportRecognitionDialog kind="parcel" threadId={threadId} open={reporting} onOpenChange={setReporting} />
       )}
     </li>
   )

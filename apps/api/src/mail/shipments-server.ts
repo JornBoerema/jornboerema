@@ -96,10 +96,11 @@ export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
 
   const known = await db.mailShipment.findMany({
     where: { userId, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
-    select: { accountId: true, threadId: true, messageId: true, readVersion: true },
+    select: { accountId: true, threadId: true, messageId: true, readVersion: true, dismissed: true },
   })
+  // Reported as wrong: never read again, whatever the version.
   const upToDate = new Set(
-    known.filter((row) => row.readVersion >= READ_VERSION).map((row) => `${row.accountId}:${row.threadId}:${row.messageId}`)
+    known.filter((row) => row.readVersion >= READ_VERSION || row.dismissed).map((row) => `${row.accountId}:${row.threadId}:${row.messageId}`)
   )
   const toRead = [...newestByThread.entries()].filter(
     ([key, message]) => !upToDate.has(`${key}:${message.providerMessageId}`)
@@ -171,7 +172,7 @@ function asLine(mails: Row[]): Row {
 /** Parcels on their way, and delivered ones for two weeks, newest first, one line per delivery. */
 export async function listShipments(userId: string): Promise<MailShipmentView[]> {
   const rows = await getDb().mailShipment.findMany({
-    where: { userId, found: true, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
+    where: { userId, found: true, dismissed: false, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
     orderBy: { receivedAt: "desc" },
   })
   const shown = deliveries(rows)
@@ -196,6 +197,7 @@ export async function shipmentForConversation(conversation: Conversation): Promi
     select: { providerMessageId: true },
   })
   const kept = await db.mailShipment.findUnique({ where: { accountId_threadId: { accountId: account.id, threadId } } })
+  if (kept?.dismissed) return null
   if (kept && newestSynced && kept.messageId === newestSynced.providerMessageId && kept.readVersion >= READ_VERSION)
     return kept.found ? toView(kept) : null
 

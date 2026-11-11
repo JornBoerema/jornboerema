@@ -10,6 +10,7 @@ import { useI18n } from "@/i18n"
 import { formatMoney, invoiceTone, useConversationInvoice } from "@/lib/invoices"
 import { useInvoices } from "@/lib/preferences"
 import { IconTip } from "@/components/icon-tip"
+import { ReportRecognitionButton } from "@/components/report-recognition"
 
 /** "20 Nov" for a due date written as yyyy-mm-dd, read as a calendar day. */
 const dueLabel = (date: string, locale: string) => {
@@ -103,6 +104,7 @@ export function InvoiceCard({ threadId, thread }: { threadId: string; thread: Ma
           </a>
         </Button>
       )}
+      <ReportRecognitionButton kind="invoice" threadId={threadId} />
     </section>
   )
 }

@@ -300,6 +300,18 @@ export const en = {
     pay: "Pay",
     amountUnknown: "Amount in the attachment",
   },
+  recognition: {
+    report: "Not recognised well",
+    title: "Not recognised well?",
+    description: "It leaves the list. What you pick helps read mail like this better next time.",
+    parcelNotOne: "This isn't a parcel",
+    invoiceNotOne: "This isn't an invoice or payment",
+    amount: "The amount is wrong",
+    status: "The status is wrong",
+    other: "Something else",
+    reported: "Thanks, it's off the list",
+    cancel: "Cancel",
+  },
   features: {
     title: "Features",
     description: "Extras on top of your mail. Saved to your account, so they apply on every device.",

@@ -44,6 +44,7 @@ model User {
   mailSnoozes          MailSnooze[]
   mailScheduledSends   MailScheduledSend[]
   mailInvoices         MailInvoice[]
+  mailRecognitionReports MailRecognitionReport[]
 
   @@map("user")
 }
@@ -511,6 +512,8 @@ model MailShipment {
   status       String?
   subject      String
   receivedAt   DateTime    @map("received_at")
+  /// Reported as recognised wrongly: out of the list, and not read again.
+  dismissed     Boolean     @default(false)
   updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
 
   @@unique([accountId, threadId], map: "mail_shipments_thread_key")
@@ -541,11 +544,34 @@ model MailInvoice {
   overdue       Boolean     @default(false)
   subject       String
   receivedAt    DateTime    @map("received_at")
+  /// Reported as recognised wrongly: out of the list, and not read again.
+  dismissed     Boolean     @default(false)
   updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
 
   @@unique([accountId, threadId], map: "mail_invoices_thread_key")
   @@index([userId, receivedAt(sort: Desc)], map: "mail_invoices_user_received_idx")
   @@map("mail_invoices")
+}
+
+/// A user saying a parcel or invoice was recognised wrongly, to improve the
+/// reading. Only the subject, the sender's domain and what was found are kept,
+/// never the mail.
+model MailRecognitionReport {
+  id         String   @id
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "parcel" or "invoice".
+  kind       String
+  /// What was wrong: not_one, amount, status, other.
+  reason     String
+  subject    String
+  fromDomain String?  @map("from_domain")
+  /// The fields the reading found, as it found them.
+  found      Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([kind, createdAt(sort: Desc)], map: "mail_recognition_reports_kind_created_idx")
+  @@map("mail_recognition_reports")
 }
 
 /// A conversation put away until later: archived at the provider, and moved

@@ -7,7 +7,7 @@ import { readConversation, threadLines, type Conversation } from "./threads-serv
 /** How far back mail about money is looked through. */
 const SCAN_DAYS = 120
 /** Raised when the reading improves, so mail already read is read again. */
-const READ_VERSION = 3
+const READ_VERSION = 5
 /** Reading mail takes a provider call each; the rest is picked up next time. */
 const SCAN_BUDGET_MS = 8_000
 
@@ -91,10 +91,11 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
 
   const known = await db.mailInvoice.findMany({
     where: { userId, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
-    select: { accountId: true, threadId: true, messageId: true, readVersion: true },
+    select: { accountId: true, threadId: true, messageId: true, readVersion: true, dismissed: true },
   })
+  // Reported as wrong: never read again, whatever the version.
   const upToDate = new Set(
-    known.filter((row) => row.readVersion >= READ_VERSION).map((row) => `${row.accountId}:${row.threadId}:${row.messageId}`)
+    known.filter((row) => row.readVersion >= READ_VERSION || row.dismissed).map((row) => `${row.accountId}:${row.threadId}:${row.messageId}`)
   )
   const toRead = [...newestByThread.entries()].filter(([key, message]) => !upToDate.has(`${key}:${message.providerMessageId}`))
   if (toRead.length === 0) return { done: true }
@@ -128,7 +129,7 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
  */
 export async function listInvoices(userId: string): Promise<MailInvoiceView[]> {
   const rows = await getDb().mailInvoice.findMany({
-    where: { userId, found: true, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
+    where: { userId, found: true, dismissed: false, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
     orderBy: { receivedAt: "desc" },
   })
   const lines = new Map<string, Row>()
@@ -166,6 +167,7 @@ export async function invoiceForConversation(conversation: Conversation): Promis
     select: { providerMessageId: true },
   })
   const kept = await db.mailInvoice.findUnique({ where: { accountId_threadId: { accountId: account.id, threadId } } })
+  if (kept?.dismissed) return null
   if (kept && newestSynced && kept.messageId === newestSynced.providerMessageId && kept.readVersion >= READ_VERSION)
     return kept.found ? toView(kept) : null
 

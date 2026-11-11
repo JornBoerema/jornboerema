@@ -110,3 +110,25 @@ it("reads a payment not yet received as overdue, and ignores product news from a
   ).toMatchObject({ status: "due", overdue: true })
   expect(findInvoice(mail({ subject: "[Reminder] Workbench will be enabled", fromEmail: "notifications@stripe.com", text: "New features." }))).toBeNull()
 })
+
+it("doesn't take a limit for an invoice", () => {
+  expect(
+    findInvoice(
+      mail({
+        subject: "Betalingen met creditcards aangevraagd",
+        fromName: "Team Mollie",
+        fromEmail: "noreply@mollie.com",
+        text: "We hebben betalingen met creditcards aangevraagd. Per transactie kunnen je klanten maximaal € 10.000,00 besteden.",
+      })
+    )
+  ).toBeNull()
+})
+
+it.each([
+  ["Payment Success", "Your payment of €49.90", "paid"],
+  ["Credit note from Anthropic for invoice 12", "Amount €180.00", "paid"],
+  ["Je abonnement wordt binnenkort verlengd", "Je betaalt € 4,99", "auto"],
+  ["Dit is de factuur voor je bestelling 100336018", "Totaal € 129,00", "paid"],
+])("reads %j as %s", (subject, text, status) => {
+  expect(findInvoice(mail({ subject, fromEmail: "a@shop.nl", text, hasAttachments: true }))?.status).toBe(status)
+})

@@ -301,6 +301,18 @@ export const nl: typeof en = {
     pay: "Betalen",
     amountUnknown: "Bedrag in de bijlage",
   },
+  recognition: {
+    report: "Niet goed herkend",
+    title: "Niet goed herkend?",
+    description: "Hij gaat uit de lijst. Wat je kiest helpt om mail als deze de volgende keer beter te lezen.",
+    parcelNotOne: "Dit is geen pakket",
+    invoiceNotOne: "Dit is geen factuur of betaling",
+    amount: "Het bedrag klopt niet",
+    status: "De status klopt niet",
+    other: "Iets anders",
+    reported: "Bedankt, hij staat niet meer in de lijst",
+    cancel: "Annuleren",
+  },
   features: {
     title: "Functies",
     description: "Extra's bovenop je mail. Opgeslagen bij je account, dus ze gelden op elk apparaat.",

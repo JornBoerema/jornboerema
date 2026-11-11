@@ -72,6 +72,7 @@ import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { invoicesEnabled, parcelsEnabled, readPreferences, savePreferences } from "./preferences-server"
 import { invoiceForConversation, listInvoices, scanInvoices } from "./invoices-server"
+import { RECOGNITION_KINDS, REPORT_REASONS, reportRecognition } from "./recognition-server"
 import { syncAccount } from "./sync-server"
 import {
   createUpload,
@@ -427,6 +428,20 @@ mailRoutes.get("/invoices", requireSession, async (c) => {
     if (!(await invoicesEnabled(userId))) return c.json({ invoices: [], complete: true }, 200, noStore)
     const scan = await scanInvoices(userId)
     return c.json({ invoices: await listInvoices(userId), complete: scan.done }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// "Not recognised well": out of the list, and a report to improve the reading.
+const reportBody = z.object({ kind: z.enum(RECOGNITION_KINDS), reason: z.enum(REPORT_REASONS) })
+mailRoutes.post("/threads/:id/recognition/report", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, reportBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const userId = c.get("session").user.id
+    const conversation = await ownedMessage(userId, c.req.param("id"))
+    return c.json(await reportRecognition(userId, conversation, body.kind, body.reason), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
