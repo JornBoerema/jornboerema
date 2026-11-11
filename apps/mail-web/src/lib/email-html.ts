@@ -65,7 +65,11 @@ const DARK_STYLE = [
   "#evido-mail hr{border-color:rgba(255,255,255,.14)!important}",
 ].join("")
 
-export function buildEmailDocument(sanitizedHtml: string, allowImages: boolean, dark = false) {
+/**
+ * `flush` drops the paper and its side padding, so plain mail lines up with the
+ * sender above it; designed mail keeps a margin around its own paper.
+ */
+export function buildEmailDocument(sanitizedHtml: string, allowImages: boolean, dark = false, flush = false) {
   const policy = [
     "default-src 'none'",
     "style-src 'unsafe-inline'",
@@ -74,7 +78,7 @@ export function buildEmailDocument(sanitizedHtml: string, allowImages: boolean, 
     "form-action 'none'",
     "base-uri 'none'",
   ].join("; ")
-  const style = dark ? FRAME_STYLE + DARK_STYLE : FRAME_STYLE
+  const style = (dark ? FRAME_STYLE + DARK_STYLE : FRAME_STYLE) + (flush ? "html,body{background:transparent!important}body{padding-inline:0}" : "")
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${style}</style></head><body><div id="evido-mail">${sanitizedHtml}</div></body></html>`
 }
 

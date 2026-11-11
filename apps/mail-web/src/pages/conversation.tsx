@@ -79,8 +79,9 @@ function EmailFrame({ html, allowImages, title }: { html: string; allowImages: b
   const observer = useRef<ResizeObserver | null>(null)
   const [height, setHeight] = useState(120)
   // In the dark theme plain mail goes dark too; designed mail keeps its white paper.
-  const dark = useTheme().resolvedTheme === "dark" && !hasOwnBackground(html)
-  const source = useMemo(() => buildEmailDocument(html, allowImages, dark), [html, allowImages, dark])
+  const plain = !hasOwnBackground(html)
+  const dark = useTheme().resolvedTheme === "dark" && plain
+  const source = useMemo(() => buildEmailDocument(html, allowImages, dark, plain), [html, allowImages, dark, plain])
   useEffect(() => () => observer.current?.disconnect(), [])
 
   function onLoad() {
@@ -111,7 +112,7 @@ function EmailFrame({ html, allowImages, title }: { html: string; allowImages: b
       scrolling="no"
       onLoad={onLoad}
       style={{ height }}
-      className={cn("w-full rounded-md border-0", dark ? "bg-transparent" : "bg-white")}
+      className={cn("w-full rounded-md border-0", plain ? "bg-transparent" : "bg-white")}
     />
   )
 }
@@ -264,7 +265,7 @@ function MessageBody({
                 type="button"
                 variant="secondary"
                 size="xs"
-                className="ml-3 h-4 rounded-sm px-1.5"
+                className="h-4 rounded-sm px-1.5"
                 aria-label={showQuote ? t.hideQuote : t.showQuote}
                 aria-expanded={showQuote}
                 onClick={() => setShowQuote(!showQuote)}
