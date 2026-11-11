@@ -45,6 +45,7 @@ model User {
   mailScheduledSends     MailScheduledSend[]
   mailInvoices           MailInvoice[]
   mailRecognitionReports MailRecognitionReport[]
+  connections            Connection[]
 
   @@map("user")
 }
@@ -478,6 +479,7 @@ model MailAccount {
   scheduledSends       MailScheduledSend[]
   invoices             MailInvoice[]
   pins                 MailPin[]
+  moneybirdExports     MoneybirdExport[]
 
   @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
   @@index([watchId], map: "mail_accounts_watch_id_idx")
@@ -802,4 +804,66 @@ model MailPreferences {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("mail_preferences")
+}
+
+// ─── Connections (other services, per user) ─────────────────────────────────
+
+/// A service the user linked, such as Moneybird. One per service per user.
+model Connection {
+  id                   String    @id
+  userId               String    @map("user_id")
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "moneybird"
+  provider             String
+  /// Sealed with MAIL_TOKEN_KEY (see @evido/mail-core/secrets). Never plaintext.
+  accessToken          String    @map("access_token_sealed")
+  refreshToken         String?   @map("refresh_token_sealed")
+  /// Null when the service hands out tokens that don't expire.
+  accessTokenExpiresAt DateTime? @map("access_token_expires_at")
+  scope                String
+  /// active, or reauth_required when the service no longer accepts the token.
+  status               String    @default("active")
+  /// Moneybird: the administration mail goes to unless another is picked.
+  defaultTargetId      String?   @map("default_target_id")
+  defaultTargetName    String?   @map("default_target_name")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([userId, provider], map: "connections_user_provider_key")
+  @@map("connections")
+}
+
+/// A connect flow under way. Only the hash of the state that leaves through the browser is kept.
+model ConnectionOauthState {
+  id        String   @id
+  userId    String   @map("user_id")
+  provider  String
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt], map: "connection_oauth_states_expires_idx")
+  @@map("connection_oauth_states")
+}
+
+/// An attachment sent to Moneybird, so it isn't sent twice and the card can say where it went.
+model MoneybirdExport {
+  id                 String      @id
+  userId             String      @map("user_id")
+  accountId          String      @map("account_id")
+  account            MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  threadId           String      @map("thread_id")
+  messageId          String      @map("message_id")
+  /// Name and size of the file: provider attachment ids aren't stable.
+  attachmentKey      String      @map("attachment_key")
+  attachmentName     String      @map("attachment_name")
+  /// The sender's domain, so the next mail from it goes to the same administration.
+  senderDomain       String?     @map("sender_domain")
+  administrationId   String      @map("administration_id")
+  administrationName String      @map("administration_name")
+  documentId         String      @map("document_id")
+  createdAt          DateTime    @default(now()) @map("created_at")
+
+  @@unique([accountId, messageId, attachmentKey, administrationId], map: "moneybird_exports_file_key")
+  @@index([accountId, threadId], map: "moneybird_exports_thread_idx")
+  @@index([userId, senderDomain], map: "moneybird_exports_sender_idx")
+  @@map("moneybird_exports")
 }

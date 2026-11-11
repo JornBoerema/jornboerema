@@ -5,11 +5,12 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { cn } from "@evido/ui/lib/utils"
 import { looksLikeInvoice } from "@evido/mail-core/invoices"
-import type { MailInvoiceView, MailThreadView } from "@evido/mail-core/types"
+import type { MailInvoiceView, MailThreadMessage, MailThreadView } from "@evido/mail-core/types"
 import { useI18n } from "@/i18n"
 import { formatMoney, invoiceTone, useConversationInvoice } from "@/lib/invoices"
 import { useInvoices } from "@/lib/preferences"
 import { ReportRecognitionButton } from "@/components/report-recognition"
+import { MoneybirdButton } from "@/components/moneybird-button"
 
 /** "20 Nov" for a due date written as yyyy-mm-dd, read as a calendar day. */
 const dueLabel = (date: string, locale: string) => {
@@ -64,9 +65,19 @@ function CopyNumber({ number }: { number: string }) {
 /**
  * Above mail about money: who wants how much, by when, and whether it is paid,
  * with its number to copy and a way to pay when the mail has one. Only mail
- * that looks like it (by sender and subject) is asked about.
+ * that looks like it (by sender and subject) is asked about. With Moneybird
+ * connected, its PDF goes there in one click.
  */
-export function InvoiceCard({ threadId, thread }: { threadId: string; thread: MailThreadView }) {
+export function InvoiceCard({
+  threadId,
+  thread,
+  messages,
+}: {
+  threadId: string
+  thread: MailThreadView
+  /** The conversation as read, for its attachments. */
+  messages: MailThreadMessage[]
+}) {
   const { t: strings, locale } = useI18n()
   const t = strings.invoices
   const candidate = useInvoices() && looksLikeInvoice(thread)
@@ -93,6 +104,7 @@ export function InvoiceCard({ threadId, thread }: { threadId: string; thread: Ma
           )}
         </span>
       </div>
+      <MoneybirdButton threadId={threadId} messages={messages} subject={thread.subject} />
       {invoice.payUrl && (
         <Button size="sm" asChild>
           <a href={invoice.payUrl} target="_blank" rel="noopener noreferrer">

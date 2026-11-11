@@ -576,7 +576,7 @@ export function ConversationPage({
             {messages[0]?.subject || summary.subject}
           </h2>
           <ShipmentCard threadId={id} thread={summary} />
-          <InvoiceCard threadId={id} thread={summary} />
+          <InvoiceCard threadId={id} thread={summary} messages={messages} />
           <LinkedTodos threadId={id} />
           <MailSummaryCard threadId={id} />
           {thread.isPending && (

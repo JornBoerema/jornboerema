@@ -6,6 +6,7 @@ import {
   Notification03Icon,
   PaintBoardIcon,
   PuzzleIcon,
+  Plug01Icon,
   SecurityCheckIcon,
   SignatureIcon,
   SparklesIcon,
@@ -61,6 +62,7 @@ import {
   useUnsubscribe,
 } from "@/lib/preferences"
 import { AccountSettings } from "@/components/account-settings"
+import { ConnectionSettings } from "@/components/connection-settings"
 import { SignatureSettings } from "@/components/signature-settings"
 import { AccountsPage } from "@/pages/accounts"
 
@@ -214,10 +216,11 @@ function AiSettings() {
 }
 
 /** The page a link back into the app asks for, such as after confirming a new email. */
-/** The first page, unless a mailbox connect just returned here: then its result, under Mailboxes. */
+/** The first page, unless a connect flow just returned here: then its result, under its page. */
 function linkedPage() {
   const params = new URLSearchParams(window.location.search)
   if (params.get("settings") === "account") return "account"
+  if (params.get("settings") === "connections") return "connections"
   return params.has("connected") || params.has("error") ? "mailboxes" : "account"
 }
 
@@ -306,6 +309,12 @@ export function MailSettings({
       icon: <HugeiconsIcon icon={PuzzleIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
+      id: "connections",
+      label: t.connections,
+      group: t.mailGroup,
+      icon: <HugeiconsIcon icon={Plug01Icon} strokeWidth={1.75} aria-hidden="true" />,
+    },
+    {
       id: "privacy",
       label: t.privacy,
       group: t.mailGroup,
@@ -339,6 +348,7 @@ export function MailSettings({
       {page === "appearance" && <AppearanceSettings />}
       {page === "about" && <AboutSettings />}
       {page === "privacy" && <PrivacySettings />}
+      {page === "connections" && <ConnectionSettings />}
     </SettingsDialog>
   )
 }

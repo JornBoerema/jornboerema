@@ -63,6 +63,15 @@ const en = {
   todoListGone: "That list no longer exists.",
   mailReconnect: "Access to this mailbox has ended. Connect it again.",
   mailProviderFailed: "The mail provider didn't respond. Please try again in a minute.",
+  // Connections
+  connectionGone: "Moneybird isn't connected. Connect it in Settings → Connections.",
+  moneybirdNotConfigured: "The Moneybird connection isn't set up on this server yet.",
+  moneybirdReconnect: "Moneybird no longer accepts this connection. Connect it again in Settings → Connections.",
+  moneybirdBusy: "Moneybird is busy right now. Try again in a minute.",
+  moneybirdFailed: "Moneybird didn't respond. Please try again in a minute.",
+  administrationGone: "That administration isn't available in Moneybird.",
+  chooseAdministration: "Choose which administration this goes to.",
+  fileTooLargeForMoneybird: "This file is too large for Moneybird.",
 }
 
 export type MessageKey = keyof typeof en
@@ -122,6 +131,14 @@ const nl: Record<MessageKey, string> = {
   todoListGone: "Die lijst bestaat niet meer.",
   mailReconnect: "De toegang tot deze mailbox is verlopen. Koppel hem opnieuw.",
   mailProviderFailed: "De mailprovider reageert niet. Probeer het over een minuut opnieuw.",
+  connectionGone: "Moneybird is niet gekoppeld. Koppel het bij Instellingen → Koppelingen.",
+  moneybirdNotConfigured: "De koppeling met Moneybird is op deze server nog niet ingesteld.",
+  moneybirdReconnect: "Moneybird accepteert deze koppeling niet meer. Koppel het opnieuw bij Instellingen → Koppelingen.",
+  moneybirdBusy: "Moneybird heeft het even druk. Probeer het over een minuut opnieuw.",
+  moneybirdFailed: "Moneybird reageert niet. Probeer het over een minuut opnieuw.",
+  administrationGone: "Die administratie is niet beschikbaar in Moneybird.",
+  chooseAdministration: "Kies naar welke administratie dit gaat.",
+  fileTooLargeForMoneybird: "Dit bestand is te groot voor Moneybird.",
 }
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, nl }

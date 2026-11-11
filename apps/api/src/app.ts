@@ -6,6 +6,7 @@ import { getAuth } from "@evido/auth/server"
 import { env } from "./env"
 import { accessRoutes, adminRoutes } from "./admin/routes"
 import { mailRoutes } from "./mail/routes"
+import { connectionRoutes } from "./connections/routes"
 import { todoRoutes } from "./todo/routes"
 import { handleMcp } from "./todo/mcp"
 
@@ -34,6 +35,7 @@ app.get("/.well-known/*", (c) => getAuth().handler(c.req.raw))
 
 app.get("/api/config", (c) => c.json({ realtime: env.realtimeEnabled }))
 app.route("/api/mail", mailRoutes)
+app.route("/api/connections", connectionRoutes)
 app.route("/api/access", accessRoutes)
 app.route("/api/admin", adminRoutes)
 app.route("/api", todoRoutes)

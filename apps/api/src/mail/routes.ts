@@ -75,6 +75,8 @@ import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteReq
 import { invoicesEnabled, parcelsEnabled, pinsEnabled, readPreferences, replySuggestionsEnabled, savePreferences } from "./preferences-server"
 import { invoiceForConversation, listInvoices, scanInvoices } from "./invoices-server"
 import { listPins, pin } from "./pins-server"
+import { FileTooLargeForMoneybirdError, moneybirdForConversation, NoAdministrationChosenError, sendToMoneybird } from "./moneybird-server"
+import { connectionFailure } from "../connections/routes"
 import { createTodoFromMail, TodoListGoneError, todoLists, todosForConversation } from "./todo-server"
 import { RECOGNITION_KINDS, REPORT_REASONS, reportRecognition } from "./recognition-server"
 import { syncAccount } from "./sync-server"
@@ -219,6 +221,10 @@ async function readBody<T extends z.ZodType>(c: Context, schema: T): Promise<z.o
 }
 
 function failure(c: Context, error: unknown) {
+  if (error instanceof NoAdministrationChosenError) return c.json({ error: msg(c, "chooseAdministration") }, 400)
+  if (error instanceof FileTooLargeForMoneybirdError) return c.json({ error: msg(c, "fileTooLargeForMoneybird") }, 413)
+  const connection = connectionFailure(c, error)
+  if (connection) return connection
   if (error instanceof MailAccountNotFoundError)
     return c.json({ error: msg(c, "mailAccountGone") }, 404)
   if (error instanceof TodoListGoneError) return c.json({ error: msg(c, "todoListGone") }, 404)
@@ -1044,6 +1050,58 @@ mailRoutes.post("/accounts/:id/conversation/attachment", requireTrustedOrigin, r
         "X-Content-Type-Options": "nosniff",
       },
     })
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// Moneybird: what of a conversation went there, and handing it a file.
+const moneybirdBody = z.object({
+  messageId: z.string().min(1).max(1000),
+  attachmentId: z.string().min(1).max(4000),
+  name: z.string().min(1).max(255),
+  contentType: z.string().max(200),
+  size: z.number().int().min(0),
+  administrationId: z.string().regex(/^\d{1,30}$/).optional(),
+  subject: z.string().max(900).optional(),
+})
+
+mailRoutes.get("/threads/:id/moneybird", requireSession, async (c) => {
+  try {
+    const userId = c.get("session").user.id
+    return c.json(await moneybirdForConversation(userId, await ownedMessage(userId, c.req.param("id"))), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.get("/accounts/:id/conversation/moneybird", requireSession, async (c) => {
+  try {
+    const conversation = await conversationOf(c)
+    if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return c.json(await moneybirdForConversation(c.get("session").user.id, conversation), 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/threads/:id/moneybird", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, moneybirdBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const userId = c.get("session").user.id
+    return c.json({ export: await sendToMoneybird(userId, await ownedMessage(userId, c.req.param("id")), body) }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+mailRoutes.post("/accounts/:id/conversation/moneybird", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, moneybirdBody)
+  try {
+    const conversation = await conversationOf(c)
+    if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    return c.json({ export: await sendToMoneybird(c.get("session").user.id, conversation, body) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
