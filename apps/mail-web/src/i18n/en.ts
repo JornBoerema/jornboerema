@@ -202,6 +202,10 @@ export const en = {
   },
   parcels: {
     title: "Parcels",
+    showDelivered: "Show delivered",
+    hideDelivered: "Hide delivered",
+    nothingOnTheWay: "Nothing on its way right now.",
+    showDeliveredCount: (count: number) => `Show delivered (${count})`,
     empty: "No parcels on their way. Shipping mail with a track & trace link shows up here.",
     loadFailed: "The parcels couldn't be loaded.",
     stillReading: "Still reading some shipping mail; more may follow.",

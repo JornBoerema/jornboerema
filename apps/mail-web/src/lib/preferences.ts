@@ -168,6 +168,31 @@ export function useParcels() {
   return useSyncExternalStore(subscribe, readParcels)
 }
 
+const DELIVERED_KEY = "evido.mail.parcels-delivered"
+
+function readShowDelivered() {
+  try {
+    return localStorage.getItem(DELIVERED_KEY) === "show"
+  } catch {
+    return false
+  }
+}
+
+export function setShowDelivered(show: boolean) {
+  try {
+    if (show) localStorage.setItem(DELIVERED_KEY, "show")
+    else localStorage.removeItem(DELIVERED_KEY)
+  } catch {
+    // Without storage the filter only lasts this visit.
+  }
+  listeners.forEach((listener) => listener())
+}
+
+/** Parcels that arrived stay out of the list unless asked for; remembered per browser, as a view. */
+export function useShowDelivered() {
+  return useSyncExternalStore(subscribe, readShowDelivered)
+}
+
 /** The settings that follow the account; notifications stay per browser. */
 type AccountPreferences = {
   summaries: boolean

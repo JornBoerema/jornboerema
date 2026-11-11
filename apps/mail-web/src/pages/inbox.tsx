@@ -11,6 +11,7 @@ import {
   CloudAlertIcon,
   MinusSignSquareIcon,
   MoreHorizontalIcon,
+  PackageDeliveredIcon,
   PencilEdit02Icon,
   Search01Icon,
   StarIcon,
@@ -52,6 +53,7 @@ import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
 import { useScrollFade } from "@/lib/scroll-fade"
 import { CARRIER_NAMES, useShipments } from "@/lib/shipments"
+import { setShowDelivered, useShowDelivered } from "@/lib/preferences"
 import { carrierName, Status } from "@/components/parcels"
 import {
   leavesList,
@@ -597,6 +599,11 @@ export function InboxPage({
   // Drafts and parcels aren't conversations of this list: nothing to select there.
   const listOfOthers = showDrafts || showParcels
   const shipments = useShipments(showParcels)
+  const showDelivered = useShowDelivered()
+  const allParcels = shipments.data?.shipments ?? []
+  const deliveredCount = allParcels.filter((shipment) => shipment.status === "delivered").length
+  // Arrived parcels stay out of the way unless the filter in the header shows them.
+  const parcelRows = showDelivered ? allParcels : allParcels.filter((shipment) => shipment.status !== "delivered")
   const queryClient = useQueryClient()
   // The list already knows each card's parcel, so opening one shows it at once.
   useEffect(() => {
@@ -799,6 +806,20 @@ export function InboxPage({
             )}
           </span>
           {folder === "trash" && <EmptyTrashButton accounts={accounts} />}
+          {showParcels && (
+            <IconTip label={showDelivered ? strings.parcels.hideDelivered : strings.parcels.showDelivered}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={strings.parcels.showDelivered}
+                aria-pressed={showDelivered}
+                className={cn(showDelivered && "bg-accent text-foreground")}
+                onClick={() => setShowDelivered(!showDelivered)}
+              >
+                <HugeiconsIcon icon={PackageDeliveredIcon} strokeWidth={1.75} aria-hidden="true" />
+              </Button>
+            </IconTip>
+          )}
           <IconTip label={strings.spotlight.search} shortcut="⌘K">
             <Button
               variant="ghost"
@@ -835,13 +856,25 @@ export function InboxPage({
             <>
               {shipments.isPending && <ListSkeleton />}
               {shipments.isError && <p className="p-4 text-sm text-destructive">{strings.parcels.loadFailed}</p>}
-              {shipments.isSuccess && shipments.data.shipments.length === 0 && (
-                <p className="p-4 text-sm text-muted-foreground">
-                  {shipments.data.complete ? strings.parcels.empty : strings.parcels.stillReading}
-                </p>
+              {shipments.isSuccess && parcelRows.length === 0 && (
+                // Only delivered ones, hidden: say so, with the way to see them right here.
+                <div className="flex flex-col items-start gap-3 p-4 pl-8 text-sm text-muted-foreground">
+                  <p>
+                    {!shipments.data.complete
+                      ? strings.parcels.stillReading
+                      : deliveredCount > 0
+                        ? strings.parcels.nothingOnTheWay
+                        : strings.parcels.empty}
+                  </p>
+                  {deliveredCount > 0 && (
+                    <Button variant="outline" size="sm" onClick={() => setShowDelivered(true)}>
+                      {strings.parcels.showDeliveredCount(deliveredCount)}
+                    </Button>
+                  )}
+                </div>
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
-                {shipments.data?.shipments.map((shipment, index) => (
+                {parcelRows.map((shipment, index) => (
                   <ParcelRow
                     key={`${shipment.trackingCode ?? shipment.thread?.id ?? index}`}
                     shipment={shipment}
@@ -851,7 +884,7 @@ export function InboxPage({
                   />
                 ))}
               </ul>
-              {shipments.data && !shipments.data.complete && shipments.data.shipments.length > 0 && (
+              {shipments.data && !shipments.data.complete && parcelRows.length > 0 && (
                 <p className="px-4 pb-3 text-xs text-muted-foreground">{strings.parcels.stillReading}</p>
               )}
             </>

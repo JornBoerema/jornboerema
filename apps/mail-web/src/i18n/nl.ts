@@ -203,6 +203,10 @@ export const nl: typeof en = {
   },
   parcels: {
     title: "Pakketjes",
+    showDelivered: "Bezorgde tonen",
+    hideDelivered: "Bezorgde verbergen",
+    nothingOnTheWay: "Er is nu niets onderweg.",
+    showDeliveredCount: (count: number) => `Bezorgde tonen (${count})`,
     empty: "Geen pakketjes onderweg. Verzendmail met een track & trace-link komt hier te staan.",
     loadFailed: "De pakketjes konden niet geladen worden.",
     stillReading: "Nog bezig met wat verzendmail; er kunnen er meer bijkomen.",
