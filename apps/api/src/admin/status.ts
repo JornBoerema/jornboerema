@@ -1,8 +1,8 @@
 import { env } from "../env"
 
 /**
- * What the admin dashboard shows: GitHub Actions runs, the Vercel builds per
- * commit (Vercel reports them to GitHub as commit statuses) and which version
+ * What the admin dashboard shows: GitHub Actions runs, the web updates (each
+ * `web-vN` run of web-update.yml, with a deploy job per app) and which version
  * of every app is out. Everything comes from GitHub, so one read-only token
  * (GITHUB_TOKEN) is all it needs.
  */
@@ -35,6 +35,8 @@ export type Build = {
 
 export type Commit = {
   sha: string
+  /** The web update's tag, such as web-v3. */
+  label: string
   message: string
   author: string | null
   date: string
@@ -75,13 +77,17 @@ export class GithubError extends Error {
   }
 }
 
-/** The Vercel projects that build from this repo, in the order the dashboard lists them. */
+/**
+ * The web apps a web update puts live, by the package its deploy job is named
+ * after ("deploy @evido/mail-web"), in the order the dashboard lists them.
+ */
 const PROJECTS = [
-  { project: "even-mailen", name: "Even mailen", kind: "web" },
-  { project: "even-doen", name: "Even doen", kind: "web" },
-  { project: "even-vastleggen", name: "Even vastleggen (web)", kind: "web" },
-  { project: "jornboerema", name: "jornboerema.nl", kind: "web" },
-  { project: "jornboerema-api", name: "API", kind: "api" },
+  { project: "@evido/mail-web", vercel: "even-mailen", name: "Even mailen", kind: "web" },
+  { project: "@evido/todo-web", vercel: "even-doen", name: "Even doen", kind: "web" },
+  { project: "@evido/capture-web", vercel: "even-vastleggen", name: "Even vastleggen (web)", kind: "web" },
+  { project: "@evido/home", vercel: "jornboerema", name: "jornboerema.nl", kind: "web" },
+  { project: "@evido/auth-web", vercel: "jornboerema-auth", name: "Account", kind: "web" },
+  { project: "@evido/api", vercel: "jornboerema-api", name: "API", kind: "api" },
 ] as const
 
 const DESKTOP = [
@@ -90,9 +96,11 @@ const DESKTOP = [
 ] as const
 
 const TRIGGER_WORKFLOW = "trigger-deploy.yml"
-const COMMITS = 8
-/** How far back to look for the build a web app still runs. */
-const HISTORY = 40
+const WEB_WORKFLOW = "web-update.yml"
+/** Web updates listed. */
+const UPDATES = 8
+/** How far back to look for the update a web app still runs. */
+const HISTORY = 30
 
 // Conditional requests: an unchanged answer (304) doesn't count against the rate limit.
 const etags = new Map<string, { etag: string; body: unknown }>()
@@ -153,13 +161,7 @@ type GhRelease = {
   draft: boolean
   assets: { download_count: number }[]
 }
-type GhCommit = {
-  sha: string
-  html_url: string
-  commit: { message: string; author: { name: string; date: string } | null }
-  author: { login: string } | null
-}
-type GhStatus = { context: string; state: string; description: string | null; target_url: string | null; updated_at: string }
+type GhJob = { name: string; status: string; conclusion: string | null; html_url: string; completed_at: string | null; started_at: string | null }
 
 function runState(run: GhRun): RunState {
   if (run.status !== "completed") return run.status === "in_progress" ? "running" : "queued"
@@ -192,10 +194,10 @@ function toRun(run: GhRun): ActionRun {
   }
 }
 
-function buildState(status: GhStatus): DeployState {
-  if (status.state === "pending") return "building"
-  if (status.state !== "success") return "failed"
-  return /skipped/i.test(status.description ?? "") ? "skipped" : "ready"
+function jobState(job: GhJob): DeployState {
+  if (job.status !== "completed") return "building"
+  if (job.conclusion === "success") return "ready"
+  return job.conclusion === "skipped" || job.conclusion === "cancelled" ? "skipped" : "failed"
 }
 
 const versionOf = (json: string | null) => {
@@ -207,50 +209,48 @@ const versionOf = (json: string | null) => {
 }
 
 async function load(): Promise<Status> {
-  const [runs, releases, commits, triggerRuns, ...configs] = await Promise.all([
+  const [runs, releases, webRuns, triggerRuns, ...configs] = await Promise.all([
     github<{ workflow_runs: GhRun[] }>("/actions/runs?per_page=25"),
     github<GhRelease[]>("/releases?per_page=60"),
-    github<GhCommit[]>(`/commits?sha=main&per_page=${HISTORY}`),
+    github<{ workflow_runs: GhRun[] }>(`/actions/workflows/${WEB_WORKFLOW}/runs?per_page=${HISTORY}`).catch(() => ({
+      workflow_runs: [],
+    })),
     github<{ workflow_runs: GhRun[] }>(`/actions/workflows/${TRIGGER_WORKFLOW}/runs?branch=main&per_page=10`).catch(
       () => ({ workflow_runs: [] })
     ),
     ...DESKTOP.map((app) => rawFile(app.config)),
   ])
-  const statusOf = (commit: GhCommit) => github<{ statuses: GhStatus[] }>(`/commits/${commit.sha}/status`)
-  const statuses = await Promise.all(commits.slice(0, COMMITS).map(statusOf))
-  // A project untouched by the recent commits: look further back for what it runs.
-  const seen = (list: { statuses: GhStatus[] }[]) =>
-    new Set(list.flatMap((item) => item.statuses.filter((s) => buildState(s) === "ready").map((s) => s.context)))
-  for (let from = COMMITS; from < commits.length; from += 6) {
-    const found = seen(statuses)
-    if (PROJECTS.every((project) => [...found].some((context) => context.endsWith(project.project)))) break
-    statuses.push(...(await Promise.all(commits.slice(from, from + 6).map(statusOf))))
-  }
 
-  const commitList: Commit[] = commits.slice(0, statuses.length).map((commit, index) => {
-    const builds = (statuses[index]?.statuses ?? [])
-      .filter((status) => status.context.startsWith("Vercel"))
-      .map((status): Build => {
-        const project = status.context.replace(/^Vercel\s*[–-]\s*/, "")
-        return {
-          project,
-          name: PROJECTS.find((item) => item.project === project)?.name ?? project,
-          state: buildState(status),
-          description: status.description ?? "",
-          url: status.target_url,
-          updatedAt: status.updated_at,
-        }
-      })
+  // Each web update and the apps it deployed. Older runs only until every app has a live one.
+  const jobsOf = (run: GhRun) => github<{ jobs: GhJob[] }>(`/actions/runs/${run.id}/jobs?per_page=50`)
+  const updates: Commit[] = []
+  for (const run of webRuns.workflow_runs) {
+    const done = updates.length >= UPDATES &&
+      PROJECTS.every((project) => updates.some((update) => update.builds.some((b) => b.project === project.project && b.state === "ready")))
+    if (done) break
+    const { jobs } = await jobsOf(run)
+    const builds = jobs
+      .map((job) => ({ job, project: PROJECTS.find((item) => job.name === `deploy ${item.project}`) }))
+      .filter((item) => item.project)
+      .map(({ job, project }): Build => ({
+        project: project!.project,
+        name: project!.name,
+        state: jobState(job),
+        description: "",
+        url: job.html_url,
+        updatedAt: job.completed_at ?? job.started_at ?? run.updated_at,
+      }))
       .sort((a, b) => order(a.project) - order(b.project))
-    return {
-      sha: commit.sha,
-      message: commit.commit.message.split("\n")[0] ?? "",
-      author: commit.author?.login ?? commit.commit.author?.name ?? null,
-      date: commit.commit.author?.date ?? "",
-      url: commit.html_url,
+    updates.push({
+      sha: run.head_sha,
+      label: run.head_branch ?? run.head_sha.slice(0, 7),
+      message: run.display_title,
+      author: run.actor?.login ?? null,
+      date: run.run_started_at ?? run.created_at,
+      url: run.html_url,
       builds,
-    }
-  })
+    })
+  }
 
   const desktop = DESKTOP.map((app, index): AppVersion => {
     const release = releases
@@ -275,21 +275,21 @@ async function load(): Promise<Status> {
     }
   })
 
-  // A web app runs the newest commit Vercel built for it; skipped commits didn't change it.
+  // A web app runs what its newest successful deploy put live.
   const web = PROJECTS.map((project): AppVersion => {
-    const latest = commitList.flatMap((commit) =>
-      commit.builds.filter((build) => build.project === project.project).map((build) => ({ commit, build }))
+    const deploys = updates.flatMap((update) =>
+      update.builds.filter((build) => build.project === project.project).map((build) => ({ update, build }))
     )
-    const live = latest.find(({ build }) => build.state === "ready")
-    const newest = latest.find(({ build }) => build.state !== "skipped")
+    const live = deploys.find(({ build }) => build.state === "ready")
+    const newest = deploys[0]
     return {
       id: project.project,
       name: project.name,
       kind: project.kind,
-      version: live ? live.commit.sha.slice(0, 7) : null,
-      sha: live?.commit.sha ?? null,
+      version: live?.update.label ?? null,
+      sha: live?.update.sha ?? null,
       date: live?.build.updatedAt ?? null,
-      url: live?.build.url ?? `https://vercel.com/jornboeremas-projects/${project.project}`,
+      url: live?.update.url ?? `https://vercel.com/jornboeremas-projects/${project.vercel}`,
       state:
         newest?.build.state === "building" ? "building" : newest?.build.state === "failed" ? "failed" : live ? "live" : "unknown",
       unreleased: null,
@@ -324,7 +324,7 @@ async function load(): Promise<Status> {
     fetchedAt: new Date().toISOString(),
     versions: [...desktop, ...web, jobs],
     runs: runs.workflow_runs.map(toRun),
-    commits: commitList.slice(0, COMMITS),
+    commits: updates.slice(0, UPDATES),
     rateLimit,
   }
 }

@@ -40,7 +40,7 @@ type ActionRun = {
   updatedAt: string
 }
 type Build = { project: string; name: string; state: BuildState; description: string; url: string | null; updatedAt: string }
-type Commit = { sha: string; message: string; author: string | null; date: string; url: string; builds: Build[] }
+type Commit = { sha: string; label: string; message: string; author: string | null; date: string; url: string; builds: Build[] }
 type AppVersion = {
   id: string
   name: string
@@ -269,7 +269,7 @@ function CommitRow({ commit }: { commit: Commit }) {
           {...external}
           className="mt-px shrink-0 rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground hover:text-foreground"
         >
-          {commit.sha.slice(0, 7)}
+          {commit.label}
         </a>
         <span className="min-w-0 flex-1 truncate text-sm">{commit.message}</span>
         <span className="shrink-0 text-xs text-muted-foreground tabular-nums" title={full(commit.date)}>
@@ -295,7 +295,7 @@ function Loading() {
   return (
     <div className="flex flex-col gap-8" aria-hidden="true">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 8 }, (_, index) => (
+        {Array.from({ length: 9 }, (_, index) => (
           <Skeleton key={index} className="h-36" />
         ))}
       </div>
@@ -407,9 +407,9 @@ export function DashboardPage() {
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <span className="truncate text-sm">{item.commit.message}</span>
                           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground/80">Vercel · {item.build.name}</span>
+                            <span className="font-medium text-foreground/80">{item.build.name}</span>
                             <span aria-hidden="true">·</span>
-                            <span className="font-mono">{item.commit.sha.slice(0, 7)}</span>
+                            <span className="font-mono">{item.commit.label}</span>
                           </span>
                         </div>
                         <span className="shrink-0 text-xs text-muted-foreground">{ago(item.build.updatedAt)}</span>
