@@ -3,6 +3,7 @@ import { InformationCircleIcon, RefreshIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { SettingsRow, SettingsSection, type SettingsPage } from "@evido/ui/components/settings-dialog"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@evido/ui/components/tooltip"
 
 /** The words below, in the app's language; the desktop app supplies them. */
 export type DesktopTexts = {
@@ -65,19 +66,32 @@ function useInstall(install: () => Promise<void>) {
 }
 
 /**
- * "Restart to update", above the account menu in an app's sidebar, once the
- * desktop app has a new version ready.
+ * "Restart to update", on the desktop app's rail above the settings button,
+ * once a new version is ready. Needs a TooltipProvider around it.
  */
 export function UpdateButton() {
   const desktop = useContext(DesktopContext)
   const [restarting, install] = useInstall(desktop?.install ?? (async () => {}))
   if (!desktop?.ready) return null
+  const label = restarting ? desktop.texts.restarting : desktop.texts.restart
   return (
-    <button type="button" className="update-button" disabled={restarting} onClick={install}>
-      <HugeiconsIcon icon={RefreshIcon} strokeWidth={2} aria-hidden="true" className="size-3.5 shrink-0" />
-      <span className="flex-1 truncate text-left">{restarting ? desktop.texts.restarting : desktop.texts.restart}</span>
-      <span className="update-version">{desktop.ready}</span>
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="app-rail-button update-button"
+          aria-label={`${label}, ${desktop.ready}`}
+          disabled={restarting}
+          onClick={install}
+        >
+          <HugeiconsIcon icon={RefreshIcon} strokeWidth={2} aria-hidden="true" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={10}>
+        <span>{label}</span>
+        <span className="opacity-60">{desktop.ready}</span>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 

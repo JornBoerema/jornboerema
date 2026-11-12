@@ -2,7 +2,6 @@ import { useLaterCounts } from "@/lib/later"
 import { useInvoices, useParcels, useSenders, useSidebarLayout } from "@/lib/preferences"
 import type { NavItem, SidebarLayout } from "@evido/mail-core/sidebar"
 import { DesktopSettingsButton, useInDesktop } from "@evido/ui/components/app-switcher"
-import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
 import {
   Add01Icon,
@@ -470,7 +469,6 @@ export function Sidebar({
             </nav>
           </section>
         </div>
-        <UpdateButton />
         {/* In the desktop app the rail's settings button opens settings; signing out is on their account page. */}
         {!desktop && (
           <div className="sidebar-footer">

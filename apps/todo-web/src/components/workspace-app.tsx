@@ -1,5 +1,4 @@
 import { DesktopSettingsButton } from "@evido/ui/components/app-switcher";
-import { UpdateButton } from "@evido/ui/components/desktop-app";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
@@ -262,7 +261,6 @@ export function WorkspaceApp({
             </section>;
           })}
         </div>
-        <UpdateButton />
         {/* Workspace, settings and sign-out live in one menu at the bottom; in the desktop app only the workspaces. */}
         {user && activeWorkspace && onSelectWorkspace && (
           <div className="sidebar-footer">

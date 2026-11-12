@@ -1,4 +1,5 @@
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@evido/ui/components/tooltip"
 import { cn } from "@evido/ui/lib/utils"
 
@@ -6,8 +7,9 @@ export type RailApp = { id: string; name: string; icon: IconSvgElement; shortcut
 
 /**
  * The strip along the left of the window with every Even app. On macOS the
- * window buttons sit at its top, the open app's settings at its foot. Apps
- * still to come show greyed out.
+ * window buttons sit at its top; at its foot "restart to update" (once a new
+ * version is ready) and the open app's settings. Apps still to come show
+ * greyed out.
  */
 export function AppRail({
   apps,
@@ -39,7 +41,10 @@ export function AppRail({
             <RailButton key={app.id} app={app} upcoming />
           ))}
         </div>
-        <div ref={menuSlot} className="app-rail-menu" />
+        <div className="app-rail-foot">
+          <UpdateButton />
+          <div ref={menuSlot} className="app-rail-menu" />
+        </div>
       </nav>
     </TooltipProvider>
   )

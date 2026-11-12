@@ -123,6 +123,24 @@ body {
 .app-rail-hint {
   opacity: 0.6;
 }
+.app-rail-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+/* Ready to update: in the accent, so it is seen without shouting. */
+.app-rail-button.update-button {
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+.app-rail-button.update-button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--primary) 22%, transparent);
+  color: var(--primary);
+}
+.app-rail-button.update-button:disabled {
+  opacity: 0.6;
+}
 .app-rail-menu {
   display: flex;
   flex-direction: column;
