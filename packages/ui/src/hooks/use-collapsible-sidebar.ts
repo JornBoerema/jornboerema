@@ -1,14 +1,18 @@
 import * as React from "react"
+import { useInDesktop } from "@evido/ui/components/app-switcher"
 
 const OPEN_LAYER =
   '[role="dialog"]:not([data-state="closed"]), [role="alertdialog"]:not([data-state="closed"]), [role="menu"]:not([data-state="closed"])'
 
 /**
  * Collapse state for the shared sidebar (`#list-sidebar`), including ⌘/Ctrl+B.
- * Attach `expandButton` to the control that brings the sidebar back.
+ * Attach `expandButton` to the control that brings the sidebar back. In the
+ * desktop app, whose rail is always there, the sidebar stays open.
  */
-export function useCollapsibleSidebar({ enabled = true }: { enabled?: boolean } = {}) {
-  const [collapsed, setCollapsed] = React.useState(false)
+export function useCollapsibleSidebar({ enabled: allowed = true }: { enabled?: boolean } = {}) {
+  const enabled = allowed && !useInDesktop()
+  const [collapsedState, setCollapsed] = React.useState(false)
+  const collapsed = enabled && collapsedState
   const expandButton = React.useRef<HTMLButtonElement>(null)
   const focusPending = React.useRef(false)
 

@@ -388,20 +388,23 @@ export function Sidebar({
           <DesktopAppMenu app="mail" label={t.shell.settings}>
             <AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />
           </DesktopAppMenu>
-          <IconTip label={t.shell.collapse} shortcut="⌘B">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="mail-collapse"
-              aria-label={t.shell.collapse}
-              aria-keyshortcuts="Meta+B Control+B"
-              aria-expanded={true}
-              aria-controls="list-sidebar"
-              onClick={sidebar.toggle}
-            >
-              <HugeiconsIcon icon={PanelLeftOpenIcon} strokeWidth={2} aria-hidden="true" />
-            </Button>
-          </IconTip>
+          {/* The desktop app keeps the sidebar open. */}
+          {!desktop && (
+            <IconTip label={t.shell.collapse} shortcut="⌘B">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="mail-collapse"
+                aria-label={t.shell.collapse}
+                aria-keyshortcuts="Meta+B Control+B"
+                aria-expanded={true}
+                aria-controls="list-sidebar"
+                onClick={sidebar.toggle}
+              >
+                <HugeiconsIcon icon={PanelLeftOpenIcon} strokeWidth={2} aria-hidden="true" />
+              </Button>
+            </IconTip>
+          )}
         </div>
         <div className="list-navigation sidebar-sections">
           <div className="sidebar-top">
@@ -470,7 +473,7 @@ export function Sidebar({
           </section>
         </div>
         <UpdateButton />
-        {/* In the desktop app these sit in the brand's menu. */}
+        {/* In the desktop app these sit behind the rail's settings button. */}
         {!desktop && (
           <div className="sidebar-footer">
             <DropdownMenu>
@@ -530,7 +533,7 @@ function AccountMenuContent({
   )
 }
 
-/** Settings, shortcuts and sign-out: the account menu on the web, the brand's menu in the desktop app. */
+/** Settings, shortcuts and sign-out: the account menu on the web, the rail's settings menu in the desktop app. */
 function AccountMenuItems({ onSettings, onShortcuts }: { onSettings: () => void; onShortcuts: () => void }) {
   const t = useI18n().t
   return (
