@@ -457,7 +457,7 @@ function NewIssueDialog({ list, statuses, projects, members, run, disabled, canU
           </div>
           <footer className="new-issue-footer">
             {canUpload && <>
-              <Button type="button" variant="ghost" size="icon-sm" className="rounded-full" aria-label={t.attachments.add} title={t.attachments.add} onClick={() => fileInput.current?.click()}><Paperclip /></Button>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={t.attachments.add} title={t.attachments.add} onClick={() => fileInput.current?.click()}><Paperclip /></Button>
               <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) setFiles([...files, ...e.target.files]); e.target.value = ""; }} />
             </>}
             <label className="new-issue-more">
