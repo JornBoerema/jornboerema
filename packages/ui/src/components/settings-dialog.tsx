@@ -185,11 +185,14 @@ function SettingsSection({
   title,
   description,
   destructive,
+  action,
   className,
   children,
 }: {
   title: string
   description?: string
+  /** Control shown at the right of the heading, such as an add button. */
+  action?: React.ReactNode
   /** Danger zone: the heading is shown in the destructive colour. */
   destructive?: boolean
   className?: string
@@ -197,11 +200,14 @@ function SettingsSection({
 }) {
   return (
     <section className={cn("flex flex-col gap-3", className)}>
-      <div className="flex flex-col gap-1 px-1">
-        <h2 className={cn("text-base font-semibold", destructive && "text-destructive")}>{title}</h2>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+      <div className="flex items-end justify-between gap-4 px-1">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 className={cn("text-base font-semibold", destructive && "text-destructive")}>{title}</h2>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       <div className="divide-y overflow-hidden rounded-lg bg-card ring-1 ring-border">
         {children}

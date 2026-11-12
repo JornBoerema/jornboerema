@@ -160,6 +160,7 @@ export const board = {
     projectDescription: "Description",
     projectDescriptionPlaceholder: "What is this project about? (optional)",
     noProjects: "No projects yet.",
+    noProjectsHelp: "Create a project to group issues from any board.",
     issueCount: (count: number) => `${count} ${count === 1 ? "issue" : "issues"}`,
     progress: (done: number, total: number) => `${done} of ${total} done`,
     editProject: (name: string) => `Edit ${name}`,

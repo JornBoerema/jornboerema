@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@evido/ui/components/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@evido/ui/components/dialog";
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "@/components/icons";
+import { Folder, MoreHorizontal, Pencil, Plus, Trash2 } from "@/components/icons";
 import { StatusIcon, ProjectDot } from "@/components/board/board-meta";
 import { useI18n } from "@/i18n";
 
@@ -216,14 +216,19 @@ export function ProjectsSettings({ workspaceId, data, run, disabled }: BoardSett
 
   return (
     <>
-      <SettingsSection title={s.projectsTitle} description={s.projectsHelp}>
-        <div className="flex justify-end px-3 pt-3">
-          <Button size="sm" disabled={disabled}
-            onClick={() => setEditing({ name: "", description: "", color: projectColors[projects.length % projectColors.length] })}>
-            <Plus data-icon="inline-start" />{s.addProject}
-          </Button>
-        </div>
-        {!projects.length ? <p className="py-6 text-center text-sm text-muted-foreground">{s.noProjects}</p> : (
+      <SettingsSection title={s.projectsTitle} description={s.projectsHelp} action={
+        <Button size="sm" disabled={disabled}
+          onClick={() => setEditing({ name: "", description: "", color: projectColors[projects.length % projectColors.length] })}>
+          <Plus data-icon="inline-start" />{s.addProject}
+        </Button>
+      }>
+        {!projects.length ? (
+          <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
+            <span className="mb-2 flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Folder className="size-4" aria-hidden="true" /></span>
+            <p className="text-sm font-medium">{s.noProjects}</p>
+            <p className="max-w-xs text-sm text-pretty text-muted-foreground">{s.noProjectsHelp}</p>
+          </div>
+        ) : (
           <ul className="project-settings">
             {projects.map((project) => {
               const issues = issuesOf(project.id);

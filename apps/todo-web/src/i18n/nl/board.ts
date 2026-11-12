@@ -160,6 +160,7 @@ export const board: typeof en = {
     projectDescription: "Beschrijving",
     projectDescriptionPlaceholder: "Waar gaat dit project over? (optioneel)",
     noProjects: "Nog geen projecten.",
+    noProjectsHelp: "Maak een project om issues van alle borden te bundelen.",
     issueCount: (count: number) => `${count} ${count === 1 ? "issue" : "issues"}`,
     progress: (done: number, total: number) => `${done} van ${total} klaar`,
     editProject: (name: string) => `${name} bewerken`,
