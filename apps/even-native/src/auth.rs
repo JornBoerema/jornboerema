@@ -20,17 +20,22 @@ use crate::api::{api_url, auth_url};
 /// How long a sign-in waits for the browser.
 const WAIT: Duration = Duration::from_secs(10 * 60);
 
-/// The session lives in a file only this user can read, as the Tauri app keeps
-/// it in its webview storage. Not the keychain: macOS asks for the password
-/// there again after every build of an unsigned app.
-fn session_file() -> Option<std::path::PathBuf> {
+/// Where the app keeps what it remembers: the session and the mail cache.
+pub fn data_dir() -> Option<std::path::PathBuf> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("APPDATA"))?;
     let dir = std::path::PathBuf::from(home);
     #[cfg(target_os = "macos")]
     let dir = dir.join("Library/Application Support/nl.jornboerema.even-native");
     #[cfg(not(target_os = "macos"))]
     let dir = dir.join("even-native");
-    Some(dir.join("session"))
+    Some(dir)
+}
+
+/// The session lives in a file only this user can read, as the Tauri app keeps
+/// it in its webview storage. Not the keychain: macOS asks for the password
+/// there again after every build of an unsigned app.
+fn session_file() -> Option<std::path::PathBuf> {
+    Some(data_dir()?.join("session"))
 }
 
 pub fn stored_token() -> Option<String> {

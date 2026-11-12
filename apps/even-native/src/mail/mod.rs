@@ -12,6 +12,7 @@ use gpui_kit::*;
 use gpui_webview::WebView;
 
 use crate::api::{Account, Action, Client, Folder, Thread, Unauthorized};
+use crate::store::Store;
 use crate::theme;
 
 mod conversation;
@@ -53,6 +54,8 @@ impl EventEmitter<SignedOut> for MailView {}
 
 pub struct MailView {
     client: Client,
+    /// What was seen last, shown while the network catches up.
+    store: Arc<Store>,
     focus: FocusHandle,
     accounts: Vec<Account>,
     folder: Folder,
@@ -80,7 +83,7 @@ pub struct MailView {
 }
 
 impl MailView {
-    pub fn new(client: Client, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(client: Client, store: Arc<Store>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
         // New mail shows without a refresh: the API syncs, this asks every minute.
@@ -100,6 +103,7 @@ impl MailView {
         });
         let mut view = Self {
             client,
+            store,
             focus,
             accounts: Vec::new(),
             folder: Folder::Inbox,
@@ -153,6 +157,9 @@ impl MailView {
         let client = self.client.clone();
         let folder = self.folder;
         let cursor = self.cursor.clone();
+        if fresh && self.threads.is_empty() {
+            self.show_cached(folder, generation, cx);
+        }
         let task = cx
             .background_executor()
             .spawn(async move { client.threads(folder, cursor.as_deref()) });
@@ -167,6 +174,7 @@ impl MailView {
                     Ok(page) => {
                         this.error = None;
                         if fresh {
+                            this.cache_threads(folder, page.threads.clone(), cx);
                             this.threads = page.threads;
                         } else {
                             this.threads.extend(page.threads);
@@ -180,6 +188,42 @@ impl MailView {
         })
         .detach();
         cx.notify();
+    }
+
+    /// The folder as last seen, until the network answers. Only into an empty
+    /// list: it never replaces what the network already gave.
+    fn show_cached(&mut self, folder: Folder, generation: u64, cx: &mut Context<Self>) {
+        let store = self.store.clone();
+        let task = cx.background_executor().spawn(async move { store.threads(folder) });
+        cx.spawn(async move |this, cx| {
+            let Some(threads) = task.await else { return };
+            let _ = this.update(cx, |this, cx| {
+                if this.generation == generation && this.loading && this.threads.is_empty() {
+                    this.threads = threads;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn cache_threads(&self, folder: Folder, threads: Vec<Thread>, cx: &mut Context<Self>) {
+        let store = self.store.clone();
+        cx.background_executor()
+            .spawn(async move { store.put_threads(folder, &threads) })
+            .detach();
+    }
+
+    /// Keeps the cached page in step with a change made here: the conversation
+    /// as it is now, or gone when it left the list.
+    fn cache_thread(&self, id: &str, cx: &mut Context<Self>) {
+        let store = self.store.clone();
+        let folder = self.folder;
+        let id = id.to_string();
+        let thread = self.threads.iter().find(|t| t.id == id).cloned();
+        cx.background_executor()
+            .spawn(async move { store.patch_thread(folder, &id, thread.as_ref()) })
+            .detach();
     }
 
     /// The minute's check: the first page again, keeping what is further down when it is the same.
@@ -199,6 +243,7 @@ impl MailView {
                 if this.generation != generation || this.loading {
                     return;
                 }
+                this.cache_threads(folder, page.threads.clone(), cx);
                 let fresh: std::collections::HashSet<&str> = page.threads.iter().map(|t| t.id.as_str()).collect();
                 let oldest = page.threads.last().map(|t| t.received_at);
                 // Keep the pages below the first one; they are older than anything it holds.
@@ -256,6 +301,7 @@ impl MailView {
         if unread {
             self.threads[index].is_read = true;
             self.send(&id, Action::Read, cx);
+            self.cache_thread(&id, cx);
         }
         if !matches!(self.reading.get(&id), Some(Reading::Ready(_))) {
             self.read(id, cx);
@@ -281,23 +327,56 @@ impl MailView {
             .find(|thread| thread.id == id)
             .map(|thread| thread.subject.clone())
             .unwrap_or_default();
+        let store = self.store.clone();
         // Fetching, sanitizing and fetching inline images all stay off the UI thread.
-        let task = cx.background_executor().spawn(async move {
-            client
-                .thread(&fetch_id)
-                .map(|detail| prepare(&client, &fetch_id, subject, detail))
-        });
+        // First the conversation as last seen, if it was, then the network's; that
+        // one is prepared again only when it differs.
         cx.spawn(async move |this, cx| {
-            let result = task.await;
+            let cached = {
+                let (client, store, id, subject) = (client.clone(), store.clone(), fetch_id.clone(), subject.clone());
+                cx.background_executor()
+                    .spawn(async move {
+                        let detail = store.detail(&id)?;
+                        Some(prepare(&client, &id, subject, detail))
+                    })
+                    .await
+            };
+            let had_cached = cached.is_some();
+            if let Some(conversation) = cached {
+                let shown = this.update(cx, |this, cx| {
+                    if matches!(this.reading.get(&id), Some(Reading::Loading)) {
+                        this.reading.insert(id.clone(), Reading::Ready(Arc::new(conversation)));
+                        cx.notify();
+                    }
+                });
+                if shown.is_err() {
+                    return;
+                }
+            }
+            let result = cx
+                .background_executor()
+                .spawn(async move {
+                    let detail = client.thread(&fetch_id)?;
+                    let changed = store.put_detail(&fetch_id, &detail);
+                    anyhow::Ok((changed || !had_cached).then(|| prepare(&client, &fetch_id, subject, detail)))
+                })
+                .await;
             let _ = this.update(cx, |this, cx| {
                 let reading = match result {
-                    Ok(conversation) => Reading::Ready(Arc::new(conversation)),
+                    Ok(Some(conversation)) => Reading::Ready(Arc::new(conversation)),
+                    Ok(None) => return,
                     Err(error) if error.downcast_ref::<Unauthorized>().is_some() => {
                         cx.emit(SignedOut);
                         return;
                     }
+                    // Offline, the conversation as last seen beats an error.
+                    Err(_) if had_cached => return,
                     Err(error) => Reading::Failed(error.to_string().into()),
                 };
+                // The webview holds the old version; have it load the new one.
+                if this.shown.as_ref().is_some_and(|(shown, _)| *shown == id) {
+                    this.shown = None;
+                }
                 this.reading.insert(id, reading);
                 cx.notify();
             });
@@ -340,6 +419,7 @@ impl MailView {
             // "Not now": close it, so it stays unread.
             self.open = None;
         }
+        self.cache_thread(&id, cx);
         cx.notify();
     }
 

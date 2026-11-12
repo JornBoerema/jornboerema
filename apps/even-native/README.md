@@ -16,7 +16,9 @@ the folders, a virtualized conversation list that pages in as you scroll, and th
 open conversation as HTML in a system webview: sanitized with ammonia, behind a
 content policy that runs only our own script, remote images blocked until asked
 for, `cid:` images inlined, links opened in the browser. Keys: J/K or arrows, E
-archive, S star, Shift+U unread, # trash, Cmd+R refresh, Esc close.
+archive, S star, Shift+U unread, # trash, Cmd+R refresh, Esc close. It opens
+with the mail it saw last (a SQLite cache next to the session, deleted on
+sign-out) and fetches fresh in the background.
 
 Not yet: collapsing quoted text, downloading attachments, writing and
 replying, search, the other sidebar views (parcels, invoices, senders).
