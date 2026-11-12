@@ -100,6 +100,9 @@ pub struct InlineImage {
 pub struct Message {
     pub id: String,
     pub from: Option<Address>,
+    /// Where answers go, when the sender asks for somewhere else than `from`.
+    #[serde(default)]
+    pub reply_to: Vec<Address>,
     #[serde(default)]
     pub to: Vec<Address>,
     #[serde(default)]
@@ -150,7 +153,7 @@ pub struct SearchResults {
 /// Conversations outside the synced inbox have no row id, so they are addressed
 /// by mailbox and provider thread id, as the web app does: `remote:<mailbox>:<scope>:<thread>`.
 /// The scope is `h` for spam and trash, which have to be asked for, else `-`.
-const REMOTE: &str = "remote:";
+pub const REMOTE: &str = "remote:";
 
 impl SearchHit {
     /// A hit as a list line, so it opens and acts like any other conversation.
@@ -385,6 +388,35 @@ impl Client {
             Err(ureq::Error::Status(401, _)) => Err(Unauthorized.into()),
             Err(error) => Err(anyhow!(error)),
         }
+    }
+
+    /// Answers a conversation, below `message_id`, from the mailbox it is in.
+    pub fn reply(&self, id: &str, message_id: &str, to: &[Address], cc: &[Address], text: &str) -> Result<()> {
+        let response = self
+            .post(&conversation_path(id, "/reply"))
+            .send_json(serde_json::json!({
+                "messageId": message_id,
+                "to": to,
+                "cc": cc,
+                "text": text,
+            }));
+        let _: serde_json::Value = read(response)?;
+        Ok(())
+    }
+
+    /// Sends a new mail from one of the mailboxes.
+    pub fn send(&self, account_id: &str, to: &[Address], cc: &[Address], subject: &str, text: &str) -> Result<()> {
+        let response = self
+            .post(&format!("/api/mail/accounts/{}/send", encode(account_id)))
+            .send_json(serde_json::json!({
+                "to": to,
+                "cc": cc,
+                "bcc": [],
+                "subject": subject,
+                "text": text,
+            }));
+        let _: serde_json::Value = read(response)?;
+        Ok(())
     }
 
     pub fn act(&self, id: &str, action: Action) -> Result<()> {

@@ -26,4 +26,9 @@ own search (through the text too) joins them; hits outside the synced inbox open
 through the account's conversation endpoint, as in the web app. Esc goes back to
 the folder.
 
-Not yet: writing and replying, the other sidebar views (parcels, invoices, senders).
+Writing: R answers the sender, A everyone, below the open conversation; C writes
+a new mail in the reader's place, from a mailbox you pick. Cmd+Enter sends, Esc
+cancels (twice when there is text). Plain text only for now.
+
+Not yet: formatting, signatures and attachments when writing, drafts, the other
+sidebar views (parcels, invoices, senders).

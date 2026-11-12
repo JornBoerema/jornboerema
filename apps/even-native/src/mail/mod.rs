@@ -15,6 +15,7 @@ use crate::api::{Account, Action, Client, Folder, Thread, Unauthorized};
 use crate::store::Store;
 use crate::{email, theme};
 
+mod compose;
 mod conversation;
 mod download;
 mod list;
@@ -38,7 +39,11 @@ actions!(
         Trash,
         Refresh,
         Close,
-        FocusSearch
+        FocusSearch,
+        Reply,
+        ReplyAll,
+        Compose,
+        SendMail
     ]
 );
 
@@ -59,6 +64,10 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("escape", Close, Some(NOT_TYPING)),
         KeyBinding::new("/", FocusSearch, Some(NOT_TYPING)),
         KeyBinding::new("cmd-f", FocusSearch, Some("Mail")),
+        KeyBinding::new("r", Reply, Some(NOT_TYPING)),
+        KeyBinding::new("a", ReplyAll, Some(NOT_TYPING)),
+        KeyBinding::new("c", Compose, Some(NOT_TYPING)),
+        KeyBinding::new("cmd-enter", SendMail, Some("Composer")),
     ]);
 }
 
@@ -99,6 +108,8 @@ pub struct MailView {
     /// How a download went, for the reader's toolbar; `true` when it failed.
     status: Option<(SharedString, bool)>,
     status_serial: u64,
+    /// The mail being written, if any.
+    composer: Option<compose::Composer>,
     /// Lets only our own script run in the mail document.
     nonce: String,
     /// Messages from that script: shortcuts pressed while the mail has focus, and downloads.
@@ -157,6 +168,7 @@ impl MailView {
             view: 0,
             status: None,
             status_serial: 0,
+            composer: None,
             nonce: random_nonce(),
             ipc,
             search_input,
@@ -374,6 +386,7 @@ impl MailView {
         let id = thread.id.clone();
         let unread = !thread.is_read;
         self.open = Some(id.clone());
+        self.drop_reply_elsewhere();
         self.scroll().scroll_to_item(index, ScrollStrategy::Nearest);
         if unread {
             self.rows_mut()[index].is_read = true;
@@ -554,6 +567,9 @@ impl MailView {
             "#" if self.list_folder() != Folder::Trash => self.act(Action::Trash, cx),
             "cmd-r" => self.refresh(window, cx),
             "/" | "cmd-f" => self.focus_search(window, cx),
+            "r" => self.compose_reply(false, window, cx),
+            "a" => self.compose_reply(true, window, cx),
+            "c" => self.compose_new(window, cx),
             "Escape" => self.close(window, cx),
             _ => {}
         }
@@ -612,6 +628,9 @@ impl Render for MailView {
             .on_action(cx.listener(|this, _: &Refresh, window, cx| this.refresh(window, cx)))
             .on_action(cx.listener(|this, _: &Close, window, cx| this.close(window, cx)))
             .on_action(cx.listener(|this, _: &FocusSearch, window, cx| this.focus_search(window, cx)))
+            .on_action(cx.listener(|this, _: &Reply, window, cx| this.compose_reply(false, window, cx)))
+            .on_action(cx.listener(|this, _: &ReplyAll, window, cx| this.compose_reply(true, window, cx)))
+            .on_action(cx.listener(|this, _: &Compose, window, cx| this.compose_new(window, cx)))
             .flex()
             .size_full()
             .bg(theme::background())

@@ -57,6 +57,11 @@ impl MailView {
 
     pub(super) fn render_reader(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let shell = div().flex().flex_col().flex_1().min_w_0().h_full().bg(theme::panel());
+        // A new mail takes the reader's place.
+        if self.composer.as_ref().is_some_and(|c| c.is_new()) {
+            self.hide_webview(cx);
+            return shell.children(self.render_composer(cx));
+        }
         let Some(index) = self.position() else {
             self.hide_webview(cx);
             return shell.child(
@@ -197,7 +202,11 @@ impl MailView {
                 webview.show();
             }
         });
-        shell.child(toolbar).child(div().flex_1().min_h_0().child(webview))
+        let composer = self.render_composer(cx);
+        shell
+            .child(toolbar)
+            .child(div().flex_1().min_h_0().child(webview))
+            .children(composer)
     }
 }
 

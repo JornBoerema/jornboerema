@@ -62,7 +62,7 @@ impl MailView {
     }
 
     /// A short line in the reader's toolbar, gone after a while unless a newer one replaced it.
-    fn set_status(&mut self, text: String, failed: bool, cx: &mut Context<Self>) {
+    pub(super) fn set_status(&mut self, text: String, failed: bool, cx: &mut Context<Self>) {
         self.status_serial += 1;
         let serial = self.status_serial;
         self.status = Some((text.into(), failed));

@@ -190,7 +190,7 @@ document.addEventListener('keydown', function (e) {
   if (e.metaKey && !e.ctrlKey && !e.altKey && (e.key === 'r' || e.key === 'f')) key = 'cmd-' + e.key;
   else if (!e.metaKey && !e.ctrlKey && !e.altKey) {
     if (e.shiftKey && (e.key === 'U' || e.key === 'u')) key = 'shift-u';
-    else if (['j', 'k', 'e', 's', '#', '/', 'Escape'].indexOf(e.key) >= 0) key = e.key;
+    else if (['j', 'k', 'e', 's', '#', '/', 'r', 'a', 'c', 'Escape'].indexOf(e.key) >= 0) key = e.key;
   }
   if (key) { e.preventDefault(); window.ipc.postMessage('key:' + key); }
 });

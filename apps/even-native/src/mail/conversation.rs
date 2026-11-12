@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use chrono::{Datelike, Local};
 
-use crate::api::{Attachment, Client, Message, ThreadDetail};
+use crate::api::{Address, Attachment, Client, Message, ThreadDetail};
 use crate::email::{self, Body, File, Part};
 use crate::quote;
 
@@ -18,6 +18,17 @@ pub(super) struct Conversation {
     /// Per part, what its attachment chips download.
     pub(super) files: Vec<Files>,
     pub(super) remote_images: bool,
+    /// The newest message: what R and A answer.
+    pub(super) last: Option<ReplyTarget>,
+}
+
+/// What an answer needs from the message it answers.
+pub(super) struct ReplyTarget {
+    pub(super) message_id: String,
+    pub(super) from: Option<Address>,
+    pub(super) reply_to: Vec<Address>,
+    pub(super) to: Vec<Address>,
+    pub(super) cc: Vec<Address>,
 }
 
 pub(super) struct Files {
@@ -39,6 +50,13 @@ const MAX_INLINE_IMAGES: usize = 20;
 /// Runs on the background executor: sanitizes each body, splits off the quote of
 /// earlier mail and puts its `cid:` images in place.
 pub(super) fn prepare(client: &Client, thread_id: &str, subject: String, detail: ThreadDetail) -> Conversation {
+    let last = detail.messages.last().map(|message| ReplyTarget {
+        message_id: message.id.clone(),
+        from: message.from.clone(),
+        reply_to: message.reply_to.clone(),
+        to: message.to.clone(),
+        cc: message.cc.clone(),
+    });
     let mut remote_images = false;
     let parts = detail
         .messages
@@ -124,6 +142,7 @@ pub(super) fn prepare(client: &Client, thread_id: &str, subject: String, detail:
         parts,
         files,
         remote_images,
+        last,
     }
 }
 
