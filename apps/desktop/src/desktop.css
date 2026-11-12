@@ -4,6 +4,9 @@ body {
 }
 .desktop-app {
   --rail-width: 80px;
+  /* The apps' panels start this far past the rail (see .list-sidebar), so the
+     rail's buttons shift by the same amount to sit midway between window edge and panel. */
+  --stage-inset: 4px;
   position: relative;
   display: grid;
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
@@ -19,7 +22,7 @@ body {
 /* The rail holds most of the gap before the apps' sidebars; a little stays,
    so their edge is not cut off. */
 .desktop-stage .list-sidebar {
-  margin-left: 4px;
+  margin-left: var(--stage-inset);
 }
 .desktop-stage .workspace-shell {
   grid-template-columns: 260px minmax(0, 1fr);
@@ -49,7 +52,7 @@ body {
   align-items: center;
   justify-content: space-between;
   min-height: 0;
-  padding: 16px 0 18px;
+  padding: 16px 0 18px var(--stage-inset);
   user-select: none;
 }
 /* On macOS the window buttons sit across its top. */
@@ -99,7 +102,7 @@ body {
 .app-rail-button::before {
   content: "";
   position: absolute;
-  left: calc((var(--rail-width) - 40px) / -2);
+  left: calc((var(--rail-width) + var(--stage-inset) - 40px) / -2);
   top: 50%;
   width: 3px;
   height: 0;
