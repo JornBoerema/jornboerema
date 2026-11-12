@@ -35,7 +35,7 @@ pub struct Account {
     pub color: usize,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Address {
     pub name: Option<String>,
     pub email: String,
@@ -50,7 +50,7 @@ impl Address {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Thread {
     pub id: String,
@@ -75,14 +75,14 @@ pub struct ThreadsPage {
     pub next_cursor: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Attachment {
     pub name: String,
     pub size: u64,
 }
 
 /// An image the body refers to as `cid:<content_id>`.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineImage {
     pub id: String,
@@ -91,7 +91,7 @@ pub struct InlineImage {
     pub content_type: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: String,
@@ -109,7 +109,7 @@ pub struct Message {
     pub inline: Vec<InlineImage>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ThreadDetail {
     pub messages: Vec<Message>,
 }

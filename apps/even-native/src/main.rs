@@ -6,6 +6,7 @@ mod assets;
 mod auth;
 mod email;
 mod mail;
+mod store;
 mod theme;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,6 +28,8 @@ struct Even {
     screen: Screen,
     /// Ends the sign-in that is waiting for the browser.
     cancel: Arc<AtomicBool>,
+    /// The mail cache, kept here so signing out can close and delete it.
+    store: Option<Arc<store::Store>>,
     _signed_out: Option<Subscription>,
 }
 
@@ -38,6 +41,7 @@ impl Even {
                 error: None,
             },
             cancel: Arc::new(AtomicBool::new(false)),
+            store: None,
             _signed_out: None,
         };
         if let Some(token) = auth::stored_token() {
@@ -48,7 +52,9 @@ impl Even {
 
     fn show_mail(&mut self, token: String, window: &mut Window, cx: &mut Context<Self>) {
         let client = api::Client::new(token);
-        let view = cx.new(|cx| MailView::new(client, window, cx));
+        let store = store::Store::open();
+        self.store = Some(store.clone());
+        let view = cx.new(|cx| MailView::new(client, store, window, cx));
         self._signed_out = Some(cx.subscribe(&view, |this, _, _: &SignedOut, cx| this.sign_out(cx)));
         self.screen = Screen::Mail(view);
         cx.notify();
@@ -56,6 +62,11 @@ impl Even {
 
     fn sign_out(&mut self, cx: &mut Context<Self>) {
         auth::forget_token();
+        // The cache holds mail: it goes with the session.
+        match self.store.take() {
+            Some(store) => store.forget(),
+            None => store::forget(),
+        }
         self._signed_out = None;
         self.screen = Screen::SignIn {
             waiting: false,
