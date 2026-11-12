@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router"
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
 import { SettingsDialog, type SettingsPage } from "@evido/ui/components/settings-dialog"
 import { AboutSettings, useAboutPage } from "@evido/ui/components/desktop-app"
+import { DesktopSettingsPages, useDesktopSettings } from "@evido/ui/components/desktop-settings"
 import { Folder, Kanban, Palette, Settings, Share, UserCircle, Users } from "@/components/icons"
 import { ProjectsSettings, StatusesSettings, type BoardSettingsProps } from "./board-settings"
 import { AppearanceSettings } from "./appearance-settings"
@@ -14,8 +15,12 @@ import { WorkspaceMembersSettings } from "./workspace-members-settings"
 
 const PARAM = "settings"
 
-/** Settings modal, opened via `?settings=<page>` so it is linkable. */
+/**
+ * Settings modal, opened via `?settings=<page>` so it is linkable. In the desktop
+ * app the settings of every app share one window, which this opens instead.
+ */
 export function useSettings() {
+  const desktop = useDesktopSettings("todo")
   const [params, setParams] = useSearchParams()
   const page = params.get(PARAM)
   const setPage = (next: string | null, replace = false) =>
@@ -28,6 +33,7 @@ export function useSettings() {
       },
       { replace }
     )
+  if (desktop) return { page: null, open: (id?: string) => desktop.open(id), close: desktop.close, setPage }
   return { page, open: (id = "account") => setPage(id), close: () => setPage(null), setPage }
 }
 
@@ -46,6 +52,7 @@ export function WorkspaceSettings({
   board: Omit<BoardSettingsProps, "workspaceId">
 }) {
   const { page, open, close, setPage } = useSettings()
+  const desktop = useDesktopSettings("todo") !== null
   useEffect(() => {
     // ⌘, / Ctrl+, opens settings, like most desktop apps.
     const onKeyDown = (event: KeyboardEvent) => {
@@ -62,7 +69,7 @@ export function WorkspaceSettings({
   const words = (list: string) => list.split(" | ")
   const about = useAboutPage()
   // Page ids are part of the URL (?settings=…) and stay the same in every language.
-  const pages: SettingsPage[] = [
+  const all: SettingsPage[] = [
     {
       id: "account",
       label: s.pages.account,
@@ -112,7 +119,35 @@ export function WorkspaceSettings({
     // Only in the desktop app: its version and updates.
     ...(about ? [about] : []),
   ]
+  // In the desktop app the window already has the account, appearance and about pages;
+  // this adds the lists' part of the shared connections page and its own pages.
+  const pages = desktop ? all.filter((p) => p.id === "connections" || p.group) : all
   const active = pages.some((p) => p.id === page) ? page! : "account"
+  const content = (id: string) =>
+    id === "account" ? (
+      <AccountSettings user={user} />
+    ) : id === "appearance" ? (
+      <AppearanceSettings />
+    ) : id === "connections" ? (
+      <ConnectionsSettings title={desktop ? "Even doen" : undefined} />
+    ) : id === "about" ? (
+      <AboutSettings />
+    ) : id === "workspace" ? (
+      <WorkspaceGeneralSettings
+        key={activeWorkspace.id}
+        userId={user.id}
+        workspace={activeWorkspace}
+        isLast={workspaces.length === 1}
+        onGone={() => onSelectWorkspace(workspaces.find((w) => w.id !== activeWorkspace.id)!.id)}
+      />
+    ) : id === "statuses" ? (
+      <StatusesSettings workspaceId={activeWorkspace.id} {...board} />
+    ) : id === "projects" ? (
+      <ProjectsSettings workspaceId={activeWorkspace.id} {...board} />
+    ) : (
+      <WorkspaceMembersSettings userId={user.id} workspace={activeWorkspace} />
+    )
+  if (desktop) return <DesktopSettingsPages app="todo" pages={pages}>{content}</DesktopSettingsPages>
   return (
     <SettingsDialog
       open={page !== null}
@@ -122,29 +157,7 @@ export function WorkspaceSettings({
       onActivePageChange={(id) => setPage(id, true)}
       labels={s.dialog}
     >
-      {active === "account" ? (
-        <AccountSettings user={user} />
-      ) : active === "appearance" ? (
-        <AppearanceSettings />
-      ) : active === "connections" ? (
-        <ConnectionsSettings />
-      ) : active === "about" ? (
-        <AboutSettings />
-      ) : active === "workspace" ? (
-        <WorkspaceGeneralSettings
-          key={activeWorkspace.id}
-          userId={user.id}
-          workspace={activeWorkspace}
-          isLast={workspaces.length === 1}
-          onGone={() => onSelectWorkspace(workspaces.find((w) => w.id !== activeWorkspace.id)!.id)}
-        />
-      ) : active === "statuses" ? (
-        <StatusesSettings workspaceId={activeWorkspace.id} {...board} />
-      ) : active === "projects" ? (
-        <ProjectsSettings workspaceId={activeWorkspace.id} {...board} />
-      ) : (
-        <WorkspaceMembersSettings userId={user.id} workspace={activeWorkspace} />
-      )}
+      {content(active)}
     </SettingsDialog>
   )
 }

@@ -1,4 +1,3 @@
-import { DesktopSettingsButton } from "@evido/ui/components/app-switcher";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
@@ -22,7 +21,7 @@ import {
 } from "@/components/icons";
 import { BoardView } from "@/components/board/board-view";
 import { ListSpotlight } from "@/components/list-spotlight";
-import { useSettings, WorkspaceSettings } from "@/components/settings/workspace-settings";
+import { WorkspaceSettings } from "@/components/settings/workspace-settings";
 import { useWorkspaceMenu, WorkspaceSwitcher } from "@/components/workspace-switcher";
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces";
 import {
@@ -113,7 +112,6 @@ export function WorkspaceApp({
 }) {
   const { t: { workspace: t, board: bt } } = useI18n();
   // Workspaces, settings and sign-out: the footer menu; in the desktop app only workspaces, as the rail opens settings.
-  const settings = useSettings();
   const workspaceMenu = useWorkspaceMenu(
     user && activeWorkspace && onSelectWorkspace
       ? { user, workspaces, active: activeWorkspace, onSelect: onSelectWorkspace }
@@ -271,7 +269,6 @@ export function WorkspaceApp({
           <WorkspaceSettings user={user} workspaces={workspaces} activeWorkspace={activeWorkspace} onSelectWorkspace={onSelectWorkspace} board={{ data, run, disabled }} />
         )}
         {workspaceMenu.dialog}
-        {user && activeWorkspace && <DesktopSettingsButton app="todo" label={t.switcher.settings} onOpen={() => settings.open("account")} />}
       </aside>}
       <main id="tasks" className="workspace-main" tabIndex={-1}>
       {!shareToken && <Button ref={sidebarExpand} variant="ghost" size="icon" className="sidebar-corner-toggle"

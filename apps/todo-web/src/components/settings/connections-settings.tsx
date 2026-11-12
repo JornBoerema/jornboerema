@@ -4,13 +4,14 @@ import { useI18n } from "@/i18n"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
 import { Button } from "@evido/ui/components/button"
 
-export function ConnectionsSettings() {
+/** `title` names the part in the desktop app, where every app's connections share a page. */
+export function ConnectionsSettings({ title }: { title?: string }) {
   const { t } = useI18n()
   const s = t.settings.connections
   const mcpUrl = `${API_URL}/mcp`
   const [copied, setCopied] = useState(false)
   return (
-    <SettingsSection title={s.title} description={s.description}>
+    <SettingsSection title={title ?? s.title} description={s.description}>
       <SettingsRow
         title={s.mcpUrl}
         description={<code className="text-xs break-all text-foreground">{mcpUrl}</code>}

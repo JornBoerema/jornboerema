@@ -24,6 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@evido/ui/components/select"
+import { useAppSwitcher } from "@evido/ui/components/app-switcher"
+import { DesktopSettingsPages, useDesktopSettings } from "@evido/ui/components/desktop-settings"
 import {
   SettingsDialog,
   SettingsRow,
@@ -260,6 +262,16 @@ export function MailSettings({
     if (open) setPage(linkedPage())
   }, [open])
   const about = useAboutPage()
+  const desktop = useDesktopSettings("mail")
+  const switcher = useAppSwitcher()
+  // In the desktop app the settings close and Even mailen comes to the front first.
+  const arrange = () => {
+    if (desktop) {
+      desktop.close()
+      switcher?.onSelect("mail")
+    }
+    onCustomizeSidebar()
+  }
   // As in Even doen: the account first, then what belongs to this app.
   const pages: SettingsPage[] = [
     {
@@ -311,7 +323,8 @@ export function MailSettings({
     {
       id: "connections",
       label: t.connections,
-      group: t.mailGroup,
+      // In the desktop app one page for every app's connections.
+      group: desktop ? undefined : t.mailGroup,
       icon: <HugeiconsIcon icon={Plug01Icon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
@@ -323,6 +336,22 @@ export function MailSettings({
     // Only in the desktop app: its version and updates.
     ...(about ? [about] : []),
   ]
+  const content = (id: string) => (
+    <>
+      {id === "account" && <AccountSettings user={user} />}
+      {id === "mailboxes" && <AccountsPage />}
+      {id === "signatures" && <SignatureSettings />}
+      {id === "notifications" && <NotificationSettings />}
+      {id === "ai" && <AiSettings />}
+      {id === "features" && <FeatureSettings />}
+      {id === "sidebar" && <SidebarSettings onArrange={arrange} />}
+      {id === "appearance" && <AppearanceSettings />}
+      {id === "about" && <AboutSettings />}
+      {id === "privacy" && <PrivacySettings />}
+      {id === "connections" && <ConnectionSettings title={desktop ? "Even mailen" : undefined} />}
+    </>
+  )
+  if (desktop) return <DesktopSettingsPages app="mail" pages={pages}>{content}</DesktopSettingsPages>
   return (
     <SettingsDialog
       open={open}
@@ -338,17 +367,7 @@ export function MailSettings({
         close: t.close,
       }}
     >
-      {page === "account" && <AccountSettings user={user} />}
-      {page === "mailboxes" && <AccountsPage />}
-      {page === "signatures" && <SignatureSettings />}
-      {page === "notifications" && <NotificationSettings />}
-      {page === "ai" && <AiSettings />}
-      {page === "features" && <FeatureSettings />}
-      {page === "sidebar" && <SidebarSettings onArrange={onCustomizeSidebar} />}
-      {page === "appearance" && <AppearanceSettings />}
-      {page === "about" && <AboutSettings />}
-      {page === "privacy" && <PrivacySettings />}
-      {page === "connections" && <ConnectionSettings />}
+      {content(page)}
     </SettingsDialog>
   )
 }

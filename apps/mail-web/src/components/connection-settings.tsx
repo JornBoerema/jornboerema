@@ -108,8 +108,11 @@ function Disconnect() {
   )
 }
 
-/** Services linked once, so mail goes there in one click. Moneybird for now. */
-export function ConnectionSettings() {
+/**
+ * Services linked once, so mail goes there in one click. Moneybird for now.
+ * `title` names the part in the desktop app, where every app's connections share a page.
+ */
+export function ConnectionSettings({ title }: { title?: string }) {
   const t = useI18n().t.connections
   useConnectResult()
   const connections = useConnections()
@@ -129,7 +132,7 @@ export function ConnectionSettings() {
 
   return (
     <>
-      <SettingsSection title={t.title} description={t.description}>
+      <SettingsSection title={title ?? t.title} description={t.description}>
         {connections.isError && <SettingsRow title={t.loadFailed} destructive />}
         {connections.isSuccess && (
           <SettingsRow title="Moneybird" description={description}>

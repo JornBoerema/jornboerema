@@ -2,6 +2,8 @@ import * as React from "react"
 import { DEFAULT_LANGUAGE, isLanguage, LOCALES, type Language, type Messages } from "./index"
 
 const STORAGE_KEY = "evido.language"
+/** Sent in this window when the language changes: other apps in the same window follow. */
+const CHANGE_EVENT = "evido:language"
 
 /** "auto" follows the browser; otherwise the stored choice. */
 export type LanguagePreference = Language | "auto"
@@ -23,6 +25,20 @@ function storedPreference(): LanguagePreference {
 export function currentLanguage(): Language {
   const preference = storedPreference()
   return preference === "auto" ? browserLanguage() : preference
+}
+
+function subscribe(onChange: () => void) {
+  window.addEventListener(CHANGE_EVENT, onChange)
+  window.addEventListener("storage", onChange)
+  return () => {
+    window.removeEventListener(CHANGE_EVENT, onChange)
+    window.removeEventListener("storage", onChange)
+  }
+}
+
+/** The current language, following changes; for code outside an app's provider. */
+export function useCurrentLanguage(): Language {
+  return React.useSyncExternalStore(subscribe, currentLanguage)
 }
 
 type I18nState<M> = {
@@ -51,14 +67,21 @@ export function createI18n<M extends Messages>(dictionaries: Record<Language, M>
       const onStorage = (event: StorageEvent) => {
         if (event.key === STORAGE_KEY) setPreferenceState(storedPreference())
       }
+      // Another app in this window (the desktop app holds several).
+      const onChange = () => setPreferenceState(storedPreference())
       window.addEventListener("storage", onStorage)
-      return () => window.removeEventListener("storage", onStorage)
+      window.addEventListener(CHANGE_EVENT, onChange)
+      return () => {
+        window.removeEventListener("storage", onStorage)
+        window.removeEventListener(CHANGE_EVENT, onChange)
+      }
     }, [])
 
     const setPreference = React.useCallback((next: LanguagePreference) => {
       if (next === "auto") localStorage.removeItem(STORAGE_KEY)
       else localStorage.setItem(STORAGE_KEY, next)
       setPreferenceState(next)
+      window.dispatchEvent(new Event(CHANGE_EVENT))
     }, [])
 
     const value = React.useMemo(

@@ -1,14 +1,17 @@
+import { Settings01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@evido/ui/components/tooltip"
 import { cn } from "@evido/ui/lib/utils"
+
+const isMac = navigator.userAgent.includes("Mac")
 
 export type RailApp = { id: string; name: string; icon: IconSvgElement; shortcut?: string }
 
 /**
  * The strip along the left of the window with every Even app. On macOS the
  * window buttons sit at its top; at its foot "restart to update" (once a new
- * version is ready) and the open app's settings. Apps still to come show
+ * version is ready) and the settings of every app. Apps still to come show
  * greyed out.
  */
 export function AppRail({
@@ -16,14 +19,15 @@ export function AppRail({
   upcoming,
   active,
   onSelect,
-  menuSlot,
+  settingsLabel,
+  onSettings,
 }: {
   apps: RailApp[]
   upcoming: RailApp[]
   active: string
   onSelect: (id: string) => void
-  /** Where the open app puts its settings button. */
-  menuSlot: (element: HTMLElement | null) => void
+  settingsLabel: string
+  onSettings: () => void
 }) {
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={400}>
@@ -43,7 +47,17 @@ export function AppRail({
         </div>
         <div className="app-rail-foot">
           <UpdateButton />
-          <div ref={menuSlot} className="app-rail-menu" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" className="app-rail-button" aria-label={settingsLabel} aria-keyshortcuts="Meta+Comma Control+Comma" onClick={onSettings}>
+                <HugeiconsIcon icon={Settings01Icon} strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10}>
+              <span>{settingsLabel}</span>
+              <span className="app-rail-hint">{isMac ? "⌘," : "Ctrl+,"}</span>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </nav>
     </TooltipProvider>

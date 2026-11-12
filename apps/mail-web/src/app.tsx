@@ -10,6 +10,7 @@ import { cn } from "@evido/ui/lib/utils"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { MailSettings } from "@/components/mail-settings"
+import { useDesktopSettings } from "@evido/ui/components/desktop-settings"
 import { useInvoices, useParcels, usePreferencesSync, useSenders } from "@/lib/preferences"
 import { MailSpotlight } from "@/components/mail-spotlight"
 import { ShortcutsSpotlight } from "@/components/shortcuts-spotlight"
@@ -83,6 +84,9 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     setComposeHidden(false)
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(returnedFromProvider)
+  // In the desktop app one window holds every app's settings.
+  const desktopSettings = useDesktopSettings("mail")
+  const openSettings = () => (desktopSettings ? desktopSettings.open() : setSettingsOpen(true))
   const [editingSidebar, setEditingSidebar] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -141,7 +145,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
       const key = event.key.toLowerCase()
       if (key === ",") {
         event.preventDefault()
-        setSettingsOpen(true)
+        openSettings()
       }
       if (key === "k") {
         // In the editor ⌘K makes a link; other dialogs keep their own keys.
@@ -234,7 +238,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
         setComposeHidden(false)
       } else startCompose(null)
     },
-    onSettings: () => setSettingsOpen(true),
+    onSettings: openSettings,
     editingSidebar,
     // Arranged in place: the settings make way, and a collapsed sidebar opens for it.
     onCustomizeSidebar: () => {
@@ -281,7 +285,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
         onOpenChange={setShortcutsOpen}
         onCompose={navigation.onCompose}
         onSearch={() => setSearchOpen(true)}
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={openSettings}
       />
       <MailSpotlight
         open={searchOpen}

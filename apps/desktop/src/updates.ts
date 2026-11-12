@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { getVersion } from "@tauri-apps/api/app"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
-import { currentLanguage } from "@evido/i18n/react"
+import { useCurrentLanguage } from "@evido/i18n/react"
 import type { DesktopApp, DesktopTexts } from "@evido/ui/components/desktop-app"
 
 const TEXTS: Record<"en" | "nl", DesktopTexts> = {
@@ -62,6 +62,7 @@ const install = () => invoke<void>("install_update")
 export function useDesktopApp(): DesktopApp | null {
   const [version, setVersion] = useState<string | null>(null)
   const [ready, setReady] = useState<string | null>(null)
+  const language = useCurrentLanguage()
   useEffect(() => {
     void getVersion().then(setVersion)
     void invoke<string | null>("ready_update").then((found) => found && setReady(found))
@@ -76,9 +77,9 @@ export function useDesktopApp(): DesktopApp | null {
             ready,
             check: () => check().then((found) => (found && setReady(found), found)),
             install,
-            texts: TEXTS[currentLanguage()] ?? TEXTS.en,
+            texts: TEXTS[language] ?? TEXTS.en,
           }
         : null,
-    [version, ready]
+    [version, ready, language]
   )
 }
