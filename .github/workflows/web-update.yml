@@ -93,5 +93,12 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           npx -y "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+          # A Sensitive variable comes down as "[SENSITIVE]"; Vite would bake that
+          # into the bundle and the app would load blank. VITE_* values are public
+          # anyway, so they must be stored as plain (Config) variables in Vercel.
+          if grep -E '^VITE_[A-Z0-9_]*="?\[SENSITIVE\]' .vercel/.env.production.local; then
+            echo "::error::These VITE_* variables are Sensitive in Vercel; re-add them with --no-sensitive." >&2
+            exit 1
+          fi
           npx -y "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
           npx -y "$VERCEL_CLI" deploy --prebuilt --prod --token="$VERCEL_TOKEN"
