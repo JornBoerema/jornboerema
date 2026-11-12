@@ -44,25 +44,37 @@ impl MailView {
                     .child(folder_name(self.folder)),
             )
             .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .when(self.loading, |el| {
-                        el.child(div().text_xs().text_color(theme::faint()).child("Laden…"))
-                    })
-                    .child(
-                        div()
-                            .id("refresh")
-                            .text_xs()
-                            .px_2()
-                            .py_1()
-                            .rounded_md()
-                            .text_color(theme::muted())
-                            .hover(|el| el.bg(theme::hover()).text_color(theme::foreground()))
-                            .child("Vernieuwen")
-                            .on_click(cx.listener(|this, _, _, cx| this.load(true, cx))),
-                    ),
+                div().flex().items_center().gap_2().child(
+                    div()
+                        .id("refresh")
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .size(px(28.))
+                        .rounded_md()
+                        .text_color(theme::muted())
+                        .hover(|el| el.bg(theme::hover()).text_color(theme::foreground()))
+                        .map(|el| {
+                            if self.loading {
+                                // Turns while a page loads.
+                                el.child(
+                                    theme::icon("loader-circle")
+                                        .size(px(15.))
+                                        .text_color(theme::faint())
+                                        .with_animation(
+                                            "loading",
+                                            Animation::new(std::time::Duration::from_millis(900)).repeat(),
+                                            |icon, delta| {
+                                                icon.with_transformation(Transformation::rotate(percentage(delta)))
+                                            },
+                                        ),
+                                )
+                            } else {
+                                el.child(theme::icon("refresh-cw").size(px(15.)).text_color(theme::muted()))
+                            }
+                        })
+                        .on_click(cx.listener(|this, _, _, cx| this.load(true, cx))),
+                ),
             );
         let body = if let Some(error) = self.error.clone().filter(|_| count == 0) {
             div()
@@ -169,10 +181,10 @@ fn row(
                                 .child(who),
                         )
                         .when(thread.is_starred, |el| {
-                            el.child(div().text_xs().text_color(theme::starred()).child("★"))
+                            el.child(theme::icon("star").size(px(13.)).text_color(theme::starred()))
                         })
                         .when(thread.has_attachments, |el| {
-                            el.child(div().text_xs().text_color(theme::faint()).child("📎"))
+                            el.child(theme::icon("paperclip").size(px(13.)).text_color(theme::faint()))
                         })
                         .child(
                             div()

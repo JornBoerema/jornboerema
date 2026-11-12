@@ -88,6 +88,7 @@ impl MailView {
             .when(self.folder != Folder::Archive, |el| {
                 el.child(tool(
                     "archive",
+                    "archive",
                     "Archiveren",
                     "E",
                     cx.listener(|this, _, _, cx| this.act(Action::Archive, cx)),
@@ -95,18 +96,21 @@ impl MailView {
             })
             .child(tool(
                 "star",
+                if starred { "star-off" } else { "star" },
                 if starred { "Ster weg" } else { "Ster" },
                 "S",
                 cx.listener(move |this, _, _, cx| this.act(if starred { Action::Unstar } else { Action::Star }, cx)),
             ))
             .child(tool(
                 "unread",
+                "mail",
                 "Ongelezen",
                 "⇧U",
                 cx.listener(|this, _, _, cx| this.act(Action::Unread, cx)),
             ))
             .when(self.folder != Folder::Trash, |el| {
                 el.child(tool(
+                    "trash",
                     "trash",
                     "Prullenbak",
                     "#",
@@ -118,6 +122,7 @@ impl MailView {
                 |el| {
                     el.child(tool(
                         "inbox",
+                        "archive-restore",
                         "Naar inbox",
                         "",
                         cx.listener(|this, _, _, cx| this.act(Action::Inbox, cx)),
@@ -135,6 +140,7 @@ impl MailView {
                 )
                 .child(tool(
                     "images",
+                    "image",
                     "Tonen",
                     "",
                     cx.listener(move |this, _, _, cx| {
@@ -179,8 +185,11 @@ impl MailView {
     }
 }
 
+/// A toolbar action: icon, name and shortcut. Not icon-only with a tooltip:
+/// the mail's webview draws over GPUI overlays, so a tooltip would vanish under it.
 fn tool(
     id: &'static str,
+    icon: &'static str,
     label: &'static str,
     key: &'static str,
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
@@ -190,14 +199,17 @@ fn tool(
         .flex()
         .items_center()
         .gap_1p5()
+        .h(px(28.))
         .px_2()
-        .py_1()
         .rounded_md()
         .text_xs()
         .text_color(theme::muted())
         .hover(|el| el.bg(theme::hover()).text_color(theme::foreground()))
+        .child(theme::icon(icon).size(px(15.)).text_color(theme::muted()))
         .child(label)
-        .child(div().text_color(theme::faint()).child(key))
+        .when(!key.is_empty(), |el| {
+            el.child(div().text_color(theme::faint()).child(key))
+        })
         .on_click(on_click)
 }
 

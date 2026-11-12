@@ -2,6 +2,7 @@
 //! of a webview. An experiment next to apps/desktop, which it does not replace.
 
 mod api;
+mod assets;
 mod auth;
 mod email;
 mod mail;
@@ -208,7 +209,7 @@ impl Render for Even {
 }
 
 fn main() {
-    gpui_kit::application().run(|cx| {
+    gpui_kit::application().with_assets(assets::Assets).run(|cx| {
         gpui_kit::init(cx);
         mail::bind_keys(cx);
         cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);

@@ -1,6 +1,14 @@
 //! Even's dark theme, from the design tokens in packages/ui (oklch, converted).
 
-use gpui_kit::{rgb, rgba, Rgba};
+use gpui_kit::{prelude::*, px, rgb, rgba, svg, Rgba, SharedString, Svg};
+
+/// A Lucide icon from gpui-kit's assets, 16 points unless sized otherwise.
+pub fn icon(name: &str) -> Svg {
+    svg()
+        .path(SharedString::from(format!("icons/{name}.svg")))
+        .size(px(16.))
+        .flex_none()
+}
 
 pub fn background() -> Rgba {
     rgb(0x0a0a0a)

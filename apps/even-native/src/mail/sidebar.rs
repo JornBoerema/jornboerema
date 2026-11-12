@@ -13,6 +13,7 @@ impl MailView {
                 .id(SharedString::from(format!("folder-{folder:?}")))
                 .flex()
                 .items_center()
+                .gap_2p5()
                 .h(px(30.))
                 .px_2p5()
                 .rounded_md()
@@ -21,6 +22,11 @@ impl MailView {
                 .when(!active, |el| {
                     el.text_color(theme::muted()).hover(|el| el.bg(theme::hover()))
                 })
+                .child(theme::icon(folder_icon(folder)).text_color(if active {
+                    theme::foreground()
+                } else {
+                    theme::muted()
+                }))
                 .child(folder_name(folder))
                 .on_click(cx.listener(move |this, _, _, cx| this.show_folder(folder, cx)))
         });
@@ -55,6 +61,17 @@ impl MailView {
             .child(div().flex().flex_col().gap_0p5().px_2().children(folders))
             .child(div().flex_1())
             .child(div().flex().flex_col().gap_1p5().p_4().children(accounts))
+    }
+}
+
+fn folder_icon(folder: Folder) -> &'static str {
+    match folder {
+        Folder::Inbox => "inbox",
+        Folder::Starred => "star",
+        Folder::Sent => "send",
+        Folder::Archive => "archive",
+        Folder::Spam => "octagon-alert",
+        Folder::Trash => "trash",
     }
 }
 
