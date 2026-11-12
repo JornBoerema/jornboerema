@@ -19,7 +19,7 @@
     "db:deploy:prod": "pnpm --filter @evido/db db:deploy:prod",
     "db:studio": "pnpm --filter @evido/db db:studio",
     "dev:capture": "pnpm --filter @evido/capture-desktop app",
-    "dev:desktop": "pnpm --filter @evido/desktop app"
+    "dev:desktop": "turbo dev app --filter=@evido/api --filter=@evido/auth-web --filter=@evido/desktop"
   },
   "devDependencies": {
     "prettier": "^3.9.10",
