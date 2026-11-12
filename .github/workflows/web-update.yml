@@ -1,0 +1,97 @@
+# Puts the web apps live. Pushing to main deploys nothing (Vercel's own Git
+# builds are off in each app's vercel.json); an update does, made with
+# `pnpm web:update`, which checks everything locally and pushes a `web-vN` tag.
+#
+# Only apps changed since the previous web-v tag are built: here, on GitHub's
+# free runners, and handed to Vercel ready-made (`vercel deploy --prebuilt`), so
+# Vercel bills no build minutes. The API goes first, so the apps never call an
+# endpoint that isn't live yet.
+#
+# Secret: VERCEL_TOKEN, a Vercel access token for the team.
+name: Update web apps
+
+on:
+  push:
+    tags: ["web-v*"]
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: "'affected' (since the previous update), 'all', or package names separated by commas"
+        default: affected
+
+# One update at a time, and never cut one off halfway.
+concurrency:
+  group: web-update
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: team_XMBssRBkvmEYHszjKgWSKYOf
+  VERCEL_CLI: vercel@65.15.0
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.plan.outputs.api }}
+      web: ${{ steps.plan.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - id: plan
+        env:
+          CHOICE: ${{ inputs.apps || 'affected' }}
+        run: node scripts/web-plan.mjs "$CHOICE" >> "$GITHUB_OUTPUT"
+
+  api:
+    needs: plan
+    if: needs.plan.outputs.api != ''
+    runs-on: ubuntu-latest
+    name: deploy @evido/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Build and deploy
+        env:
+          VERCEL_PROJECT_ID: ${{ needs.plan.outputs.api }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx -y "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx -y "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+          npx -y "$VERCEL_CLI" deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+  web:
+    needs: [plan, api]
+    # After the API, unless that failed; also when there was no API to deploy.
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.web != '[]' && needs.api.result != 'failure' && needs.api.result != 'cancelled'
+    runs-on: ubuntu-latest
+    name: deploy ${{ matrix.package }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.web) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Build and deploy
+        env:
+          VERCEL_PROJECT_ID: ${{ matrix.project }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx -y "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx -y "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+          npx -y "$VERCEL_CLI" deploy --prebuilt --prod --token="$VERCEL_TOKEN"

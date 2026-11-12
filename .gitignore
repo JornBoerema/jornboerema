@@ -48,3 +48,4 @@ apps/*/src-tauri/target
 
 # Agent worktrees
 .claude/worktrees/
+.vercel

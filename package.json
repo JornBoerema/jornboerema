@@ -11,6 +11,8 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "check": "turbo typecheck test build",
+    "web:update": "node scripts/web-update.mjs",
     "db:generate": "pnpm --filter @evido/db db:generate",
     "db:migrate": "pnpm --filter @evido/db db:migrate",
     "db:deploy": "pnpm --filter @evido/db db:deploy",
