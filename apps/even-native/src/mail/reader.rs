@@ -69,9 +69,10 @@ impl MailView {
                     .child("Kies een gesprek"),
             );
         };
-        let thread = &self.threads[index];
+        let thread = &self.rows()[index];
         let id = thread.id.clone();
         let starred = thread.is_starred;
+        let folder = self.list_folder();
         let conversation = match self.reading.get(&id) {
             Some(Reading::Ready(conversation)) => Some(conversation.clone()),
             _ => None,
@@ -85,7 +86,7 @@ impl MailView {
             .h(px(TITLE_BAR))
             .flex_none()
             .px_4()
-            .when(self.folder != Folder::Archive, |el| {
+            .when(folder != Folder::Archive, |el| {
                 el.child(tool(
                     "archive",
                     "archive",
@@ -108,7 +109,7 @@ impl MailView {
                 "⇧U",
                 cx.listener(|this, _, _, cx| this.act(Action::Unread, cx)),
             ))
-            .when(self.folder != Folder::Trash, |el| {
+            .when(folder != Folder::Trash, |el| {
                 el.child(tool(
                     "trash",
                     "trash",
@@ -117,18 +118,15 @@ impl MailView {
                     cx.listener(|this, _, _, cx| this.act(Action::Trash, cx)),
                 ))
             })
-            .when(
-                matches!(self.folder, Folder::Archive | Folder::Spam | Folder::Trash),
-                |el| {
-                    el.child(tool(
-                        "inbox",
-                        "archive-restore",
-                        "Naar inbox",
-                        "",
-                        cx.listener(|this, _, _, cx| this.act(Action::Inbox, cx)),
-                    ))
-                },
-            )
+            .when(matches!(folder, Folder::Archive | Folder::Spam | Folder::Trash), |el| {
+                el.child(tool(
+                    "inbox",
+                    "archive-restore",
+                    "Naar inbox",
+                    "",
+                    cx.listener(|this, _, _, cx| this.act(Action::Inbox, cx)),
+                ))
+            })
             .child(div().flex_1())
             .when(images_hidden, |el| {
                 let id = id.clone();

@@ -13,8 +13,21 @@ macro_rules! icons {
 }
 
 icons!(
-    "archive", "archive-restore", "image", "inbox", "loader-circle", "mail", "octagon-alert", "paperclip",
-    "refresh-cw", "send", "star", "star-off", "trash",
+    "archive",
+    "archive-restore",
+    "image",
+    "inbox",
+    "loader-circle",
+    "mail",
+    "octagon-alert",
+    "paperclip",
+    "refresh-cw",
+    "search",
+    "send",
+    "star",
+    "star-off",
+    "trash",
+    "x",
 );
 
 /// Ours first; gpui-kit's own set for what its components need.

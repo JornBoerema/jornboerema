@@ -18,5 +18,10 @@ content policy that runs only our own script, remote images blocked until asked
 for, `cid:` images inlined, links opened in the browser. Keys: J/K or arrows, E
 archive, S star, Shift+U unread, # trash, Cmd+R refresh, Esc close.
 
+Search: / or Cmd+F, type, Enter. The synced matches show at once, the mailboxes'
+own search (through the text too) joins them; hits outside the synced inbox open
+through the account's conversation endpoint, as in the web app. Esc goes back to
+the folder.
+
 Not yet: collapsing quoted text, downloading attachments, writing and
-replying, search, the other sidebar views (parcels, invoices, senders).
+replying, the other sidebar views (parcels, invoices, senders).

@@ -9,16 +9,21 @@ use crate::theme;
 use super::*;
 
 impl MailView {
-    fn render_rows(&mut self, range: Range<usize>, _: &mut Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
-        // Nearly at the end of what is loaded: fetch the next page.
-        if range.end + 20 >= self.threads.len() {
+    pub(super) fn render_rows(
+        &mut self,
+        range: Range<usize>,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        // Nearly at the end of what is loaded: fetch the next page. Results come in one go.
+        if self.search.is_none() && range.end + 20 >= self.threads.len() {
             self.load(false, cx);
         }
         let several = self.accounts.len() > 1;
         let colors: HashMap<&str, usize> = self.accounts.iter().map(|a| (a.id.as_str(), a.color)).collect();
         range
             .filter_map(|index| {
-                let thread = self.threads.get(index)?;
+                let thread = self.rows().get(index)?;
                 let open = self.open.as_deref() == Some(thread.id.as_str());
                 let color = several
                     .then(|| colors.get(thread.account_id.as_str()).copied())
@@ -28,7 +33,14 @@ impl MailView {
             .collect()
     }
 
-    pub(super) fn render_list(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_list(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let field = self.render_search_field(window, cx);
+        if let Some(search) = &self.search {
+            return pane()
+                .child(self.render_search_header(search, cx))
+                .child(field)
+                .child(self.render_results(search, cx));
+        }
         let count = self.threads.len();
         let header = div()
             .flex()
@@ -97,17 +109,20 @@ impl MailView {
                 .px_2()
                 .into_any_element()
         };
-        div()
-            .flex()
-            .flex_col()
-            .w(px(380.))
-            .flex_none()
-            .h_full()
-            .border_r_1()
-            .border_color(theme::border())
-            .child(header)
-            .child(body)
+        pane().child(header).child(field).child(body)
     }
+}
+
+/// The list's column, whether it shows a folder or search results.
+fn pane() -> Div {
+    div()
+        .flex()
+        .flex_col()
+        .w(px(380.))
+        .flex_none()
+        .h_full()
+        .border_r_1()
+        .border_color(theme::border())
 }
 
 fn row(
