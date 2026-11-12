@@ -504,7 +504,13 @@ function ParcelRow({
   const threadId = canReport(shipment.thread?.id) ? shipment.thread?.id : undefined
   const [reporting, setReporting] = useState(false)
   return (
-    <li className="group relative" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
+    <li
+      className={cn(
+        "group relative",
+        // Arrived parcels stay quiet; only the one under the pointer comes forward.
+        compact && !selected && "opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100"
+      )}
+      onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
       <button
         type="button"
         aria-current={selected ? "true" : undefined}
@@ -1366,7 +1372,7 @@ export function InboxPage({
                     <p className="text-muted-foreground">{strings.parcels.allArrived}</p>
                   </div>
                   <h3 className="pr-4 pb-1 pl-10 text-xs text-muted-foreground">{strings.parcels.recentlyDelivered}</h3>
-                  <ul className="flex flex-col gap-0.5 px-2 pb-2 opacity-70 transition-opacity hover:opacity-100">
+                  <ul className="flex flex-col gap-0.5 px-2 pb-2">
                     {allParcels.map((shipment, index) => (
                       <ParcelRow
                         key={`${shipment.trackingCode ?? shipment.thread?.id ?? index}`}
