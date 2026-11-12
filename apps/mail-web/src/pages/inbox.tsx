@@ -1342,22 +1342,31 @@ export function InboxPage({
             <>
               {shipments.isPending && <ListSkeleton />}
               {shipments.isError && <p className="p-4 text-sm text-destructive">{strings.parcels.loadFailed}</p>}
-              {shipments.isSuccess && parcelRows.length === 0 && (
-                // Only delivered ones, hidden: say so, with the way to see them right here.
-                <div className="flex flex-col items-start gap-3 p-4 pl-8 text-sm text-muted-foreground">
-                  <p>
-                    {!shipments.data?.complete
-                      ? strings.parcels.stillReading
-                      : deliveredCount > 0
-                        ? strings.parcels.nothingOnTheWay
-                        : strings.parcels.empty}
-                  </p>
-                  {deliveredCount > 0 && (
-                    <Button variant="outline" size="sm" onClick={() => setShowDelivered(true)}>
-                      {strings.parcels.showDeliveredCount(deliveredCount)}
-                    </Button>
-                  )}
-                </div>
+              {shipments.isSuccess && parcelRows.length === 0 && (deliveredCount === 0 || !shipments.data?.complete) && (
+                <p className="p-4 pl-8 text-sm text-muted-foreground">
+                  {shipments.data?.complete ? strings.parcels.empty : strings.parcels.stillReading}
+                </p>
+              )}
+              {shipments.isSuccess && parcelRows.length === 0 && deliveredCount > 0 && shipments.data?.complete && (
+                // Nothing on its way: say so, and show what arrived lately instead of an empty list.
+                <>
+                  <div className="flex flex-col gap-0.5 px-2 pt-2 pb-4 pl-8 text-sm">
+                    <p className="font-medium">{strings.parcels.nothingOnTheWay}</p>
+                    <p className="text-muted-foreground">{strings.parcels.allArrived}</p>
+                  </div>
+                  <h3 className="px-2 pb-1 pl-8 text-xs text-muted-foreground">{strings.parcels.recentlyDelivered}</h3>
+                  <ul className="flex flex-col gap-0.5 px-2 pb-2 opacity-70 transition-opacity hover:opacity-100">
+                    {allParcels.map((shipment, index) => (
+                      <ParcelRow
+                        key={`${shipment.trackingCode ?? shipment.thread?.id ?? index}`}
+                        shipment={shipment}
+                        selected={!!open && shipment.thread?.id === open.id}
+                        onOpen={onOpen}
+                        onHover={(hovering) => prefetch.onHover(hovering && shipment.thread ? shipment.thread.id : null)}
+                      />
+                    ))}
+                  </ul>
+                </>
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
                 {parcelRows.map((shipment, index) => (
