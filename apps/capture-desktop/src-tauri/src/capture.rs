@@ -12,21 +12,18 @@ pub struct Capture {
     pub scale_factor: f32,
 }
 
-/// The monitor under the given point (physical or logical), or the primary one.
+/// The monitor under a point in global screen coordinates (logical points on
+/// macOS, physical pixels on Windows; see `screen_point` in lib.rs), or the
+/// primary one.
 fn monitor_at(x: f64, y: f64) -> Result<Monitor, String> {
     let monitors = Monitor::all().map_err(|e| e.to_string())?;
-    let contains = |m: &Monitor, px: f64, py: f64| -> bool {
+    let contains = |m: &Monitor| -> bool {
         let (Ok(mx), Ok(my), Ok(w), Ok(h)) = (m.x(), m.y(), m.width(), m.height()) else { return false };
-        px >= mx as f64 && py >= my as f64 && px < (mx as f64 + w as f64) && py < (my as f64 + h as f64)
+        x >= mx as f64 && y >= my as f64 && x < (mx as f64 + w as f64) && y < (my as f64 + h as f64)
     };
-    // Cursor positions are physical on some platforms and logical on others: try both.
     monitors
         .iter()
-        .find(|m| contains(m, x, y))
-        .or_else(|| monitors.iter().find(|m| {
-            let scale = m.scale_factor().unwrap_or(1.0) as f64;
-            contains(m, x / scale, y / scale)
-        }))
+        .find(|m| contains(m))
         .or_else(|| monitors.iter().find(|m| m.is_primary().unwrap_or(false)))
         .or_else(|| monitors.first())
         .cloned()
@@ -48,7 +45,7 @@ fn capture_monitor(monitor: &Monitor) -> Result<Capture, String> {
     Ok(Capture { image, png, scale_factor })
 }
 
-/// Captures the whole monitor the cursor is on.
+/// Captures the whole monitor the cursor is on (global screen coordinates).
 pub fn fullscreen(cursor: (f64, f64)) -> Result<Capture, String> {
     capture_monitor(&monitor_at(cursor.0, cursor.1)?)
 }

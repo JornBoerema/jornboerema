@@ -121,11 +121,49 @@ fn show_permission_window(app: &AppHandle) {
     }
 }
 
+/// Global screen coordinates as the capture backend uses them: logical points
+/// on macOS, physical pixels elsewhere. Tauri's own physical coordinates can't
+/// be compared across monitors on macOS: the cursor is scaled by the primary
+/// monitor's factor, each monitor's frame by its own, so with a Retina laptop
+/// next to a regular display the cursor seemed to be on no screen at all.
+#[cfg(target_os = "macos")]
+fn cursor_point(app: &AppHandle) -> Option<(f64, f64)> {
+    let cursor = app.cursor_position().ok()?;
+    let scale = app.primary_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
+    Some((cursor.x / scale, cursor.y / scale))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn cursor_point(app: &AppHandle) -> Option<(f64, f64)> {
+    app.cursor_position().ok().map(|c| (c.x, c.y))
+}
+
+/// A monitor's frame (x, y, width, height) in the same coordinates as `cursor_point`.
+fn monitor_rect(monitor: &tauri::Monitor) -> (f64, f64, f64, f64) {
+    let (pos, size) = (monitor.position(), monitor.size());
+    let scale = if cfg!(target_os = "macos") { monitor.scale_factor() } else { 1.0 };
+    (pos.x as f64 / scale, pos.y as f64 / scale, size.width as f64 / scale, size.height as f64 / scale)
+}
+
+fn rect_contains((x, y, w, h): (f64, f64, f64, f64), (px, py): (f64, f64)) -> bool {
+    px >= x && py >= y && px < x + w && py < y + h
+}
+
+/// The monitor the mouse is on, or the primary one.
+fn monitor_under_cursor(app: &AppHandle) -> Option<tauri::Monitor> {
+    let cursor = cursor_point(app);
+    app.available_monitors()
+        .unwrap_or_default()
+        .into_iter()
+        .find(|m| cursor.is_some_and(|c| rect_contains(monitor_rect(m), c)))
+        .or_else(|| app.primary_monitor().ok().flatten())
+}
+
 fn capture_fullscreen(app: &AppHandle) {
     if !ensure_permission(app) {
         return;
     }
-    let cursor = app.cursor_position().map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
+    let cursor = cursor_point(app).unwrap_or((0.0, 0.0));
     let app = app.clone();
     // Capturing and PNG encoding take a moment; keep the shortcut handler free.
     std::thread::spawn(move || match capture::fullscreen(cursor) {
@@ -203,7 +241,6 @@ fn show_preview(app: &AppHandle, capture: Capture, saved: Option<std::path::Path
     if let Some(path) = &saved {
         url.push_str(&format!("&path={}", urlencoding::encode(&path.to_string_lossy())));
     }
-    let cursor = app.cursor_position().ok();
     let app = app.clone();
     let _ = app.clone().run_on_main_thread(move || {
         // One preview at a time: a new capture replaces the previous one.
@@ -212,9 +249,7 @@ fn show_preview(app: &AppHandle, capture: Capture, saved: Option<std::path::Path
                 let _ = window.close();
             }
         }
-        let monitor = cursor
-            .and_then(|c| app.monitor_from_point(c.x, c.y).ok().flatten())
-            .or_else(|| app.primary_monitor().ok().flatten());
+        let monitor = monitor_under_cursor(&app);
         let (x, y) = match monitor {
             Some(monitor) => {
                 let (area, scale) = (monitor.work_area(), monitor.scale_factor());
@@ -307,22 +342,23 @@ fn start_overlay(app: &AppHandle, mode: OverlayMode) {
     // A new selection replaces any overlay that is still around.
     close_overlay_windows(app);
     let monitors = app.available_monitors().unwrap_or_default();
-    let cursor = app.cursor_position().ok();
+    let cursor = cursor_point(app);
     let app = app.clone();
     std::thread::spawn(move || {
         let windows = if mode == OverlayMode::Window { capture::list_windows() } else { Vec::new() };
         let mut frozen = Vec::new();
         for monitor in monitors {
             let (pos, size, scale) = (monitor.position(), monitor.size(), monitor.scale_factor());
-            let centre = (pos.x as f64 + size.width as f64 / 2.0, pos.y as f64 + size.height as f64 / 2.0);
-            match capture::monitor_containing(centre.0, centre.1) {
-                Ok(capture) => frozen.push((capture, *pos, *size, scale)),
+            let rect = monitor_rect(&monitor);
+            let under_cursor = cursor.is_some_and(|c| rect_contains(rect, c));
+            match capture::monitor_containing(rect.0 + rect.2 / 2.0, rect.1 + rect.3 / 2.0) {
+                Ok(capture) => frozen.push((capture, *pos, *size, scale, under_cursor)),
                 Err(error) => eprintln!("Capture failed: {error}"),
             }
         }
         let app_for_windows = app.clone();
         let _ = app.run_on_main_thread(move || {
-            for (capture, pos, size, scale) in frozen {
+            for (capture, pos, size, scale, under_cursor) in frozen {
                 let id = uuid::Uuid::new_v4().simple().to_string();
                 app_for_windows.state::<Captures>().0.lock().unwrap().insert(id.clone(), capture);
                 if mode == OverlayMode::Window {
@@ -330,10 +366,6 @@ fn start_overlay(app: &AppHandle, mode: OverlayMode) {
                     app_for_windows.state::<OverlayTargets>().0.lock().unwrap().insert(id.clone(), targets);
                 }
                 let mode_param = if mode == OverlayMode::Window { "&mode=window" } else { "" };
-                let under_cursor = cursor.is_some_and(|c| {
-                    c.x >= pos.x as f64 && c.y >= pos.y as f64
-                        && c.x < pos.x as f64 + size.width as f64 && c.y < pos.y as f64 + size.height as f64
-                });
                 let label = format!("{OVERLAY_PREFIX}{id}");
                 let built = WebviewWindowBuilder::new(&app_for_windows, &label, WebviewUrl::App(format!("index.html?overlay={id}{mode_param}").into()))
                     .title("Even vastleggen")
