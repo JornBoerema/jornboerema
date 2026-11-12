@@ -1,4 +1,6 @@
+import { useEffect } from "react"
 import { useParams } from "react-router"
+import { appOrigin } from "@evido/auth/client"
 import { useQuery } from "@tanstack/react-query"
 import type { WorkspaceData } from "@evido/todo-core/workspace"
 import { apiFetch } from "@/lib/api"
@@ -25,6 +27,11 @@ export function SharedListPage() {
     },
     retry: (count, error) => !(error instanceof Unavailable) && count < 2,
   })
+  // Notes moved to Even noteren; links shared before then still point here.
+  const isNote = query.data?.lists[0]?.kind === "note"
+  useEffect(() => {
+    if (isNote) window.location.replace(new URL(`/shared/${token}`, appOrigin("notes")).toString())
+  }, [isNote, token])
   if (query.error instanceof Unavailable)
     return (
       <main className="account-content">
@@ -36,6 +43,6 @@ export function SharedListPage() {
       </main>
     )
   if (query.isError) return <PageError onRetry={() => void query.refetch()} />
-  if (!query.data) return <PageLoading />
+  if (!query.data || isNote) return <PageLoading />
   return <WorkspaceApp initialData={query.data} realtimeEnabled={false} shareToken={token} />
 }

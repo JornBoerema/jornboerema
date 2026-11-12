@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" class="h-full antialiased">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Your notes, in every workspace." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>Even noteren</title>
+    <!-- Apply the saved theme before first paint. Mirrors @evido/ui/lib/theme. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("evido.theme")
+          var d = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+          document.documentElement.classList.add(d ? "dark" : "light")
+          document.documentElement.style.colorScheme = d ? "dark" : "light"
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body class="min-h-full">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

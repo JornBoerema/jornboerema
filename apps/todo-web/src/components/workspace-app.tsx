@@ -1,9 +1,7 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
 import {
-  Download,
-  Note,
   Home,
   SidebarToggle,
   CloudCheck,
@@ -37,6 +35,7 @@ import { Sortable } from "@/components/sortable";
 import { ShareListDialog } from "@/components/share-list-dialog";
 import type { TodoList, TodoMail } from "@evido/todo-core/workspace";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { appOrigin } from "@evido/auth/client";
 import { useI18n } from "@/i18n";
 import { cn } from "@evido/ui/lib/utils";
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar";
@@ -82,13 +81,11 @@ import {
 } from "@evido/ui/components/empty";
 import { Alert, AlertTitle, AlertDescription } from "@evido/ui/components/alert";
 
-const NoteEditor = lazy(() => import("@/components/note-editor"));
-
 type Editor = {
   type: "create-list" | "update-todo";
   id?: string;
   value: string;
-  kind?: "todo" | "note" | "board";
+  kind?: "todo" | "board";
 };
 type Deletion =
   | { type: "delete-list" | "delete-todo"; id: string; title: string }
@@ -119,9 +116,8 @@ export function WorkspaceApp({
   );
   const { data, run, pending, online, connection, error, refresh, unavailable } =
     useWorkspace(user?.id ?? "guest", activeWorkspace?.id ?? "", initialData, realtimeEnabled, shareToken);
-  const listEndpoint = shareToken
-    ? `/api/shared/${shareToken}`
-    : `/api/workspace?workspaceId=${encodeURIComponent(activeWorkspace?.id ?? "")}`;
+  // Notes live in Even noteren; this app has the task lists and boards.
+  const lists = data.lists.filter((list) => list.kind !== "note");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const selectedId = searchParams.get("list");
@@ -133,12 +129,21 @@ export function WorkspaceApp({
   const listScroller = useScrollFade<HTMLDivElement>();
   const pageScroller = useScrollFade<HTMLDivElement>();
   const taskInput = useRef<HTMLInputElement>(null);
-  const noteDownload = useRef<(() => void) | null>(null);
-  const noteSave = useRef<(() => Promise<boolean>) | null>(null);
   const showDashboard = !shareToken && !selectedId;
-  const selected = showDashboard ? undefined : data.lists.find((l) => l.id === selectedId) ?? data.lists[0];
-  async function showOverview() {
-    if (noteSave.current && !(await noteSave.current())) return;
+  const selected = showDashboard ? undefined : lists.find((l) => l.id === selectedId) ?? lists[0];
+  // An old link to a note (?list=<note>) opens it in Even noteren. Only on the
+  // web: the desktop app keeps its own (in-memory) address and has notes in the rail.
+  const movedNoteId = !shareToken && selectedId && data.lists.some((l) => l.id === selectedId && l.kind === "note")
+    && new URLSearchParams(window.location.search).get("list") === selectedId ? selectedId : null;
+  const workspaceId = activeWorkspace?.id;
+  useEffect(() => {
+    if (!movedNoteId) return;
+    const url = new URL("/", appOrigin("notes"));
+    if (workspaceId) url.searchParams.set("workspace", workspaceId);
+    url.searchParams.set("note", movedNoteId);
+    window.location.replace(url.toString());
+  }, [movedNoteId, workspaceId]);
+  function showOverview() {
     const next = new URLSearchParams(window.location.search);
     next.delete("list");
     next.delete("issue");
@@ -146,8 +151,7 @@ export function WorkspaceApp({
     setTaskTitle("");
   }
   const activeListId = selected?.id;
-  async function selectList(id: string) {
-    if (noteSave.current && !(await noteSave.current())) return;
+  function selectList(id: string) {
     const next = new URLSearchParams(window.location.search);
     if (next.get("list") !== id) {
       next.set("list", id);
@@ -158,13 +162,13 @@ export function WorkspaceApp({
   }
   useEffect(() => {
     // Wait for mutations to settle before replacing a missing/deleted selection.
-    if (pending || selectedId === (activeListId ?? null)) return;
+    if (pending || movedNoteId || selectedId === (activeListId ?? null)) return;
     const url = new URL(window.location.href);
     if (url.pathname !== "/" || url.searchParams.get("list") !== selectedId) return;
     if (activeListId) url.searchParams.set("list", activeListId);
     else url.searchParams.delete("list");
     navigate({ search: url.searchParams.toString() }, { replace: true });
-  }, [activeListId, selectedId, pending, navigate]);
+  }, [activeListId, selectedId, pending, movedNoteId, navigate]);
   useEffect(() => {
     document.title = selected?.name ? t.pageTitle(selected.name) : t.overviewTitle;
   }, [selected?.name, t]);
@@ -175,7 +179,7 @@ export function WorkspaceApp({
   const isBoard = selected?.kind === "board";
   const isSimple = (selected?.kind ?? "todo") === "todo";
   const canClearDone = isSimple && canEditTasks && doneCount > 0;
-  const hasListMenu = selected?.kind === "note" || canClearDone || selected?.role === "owner";
+  const hasListMenu = canClearDone || selected?.role === "owner";
   // Saving happens in the background; only offline (or a broken link) blocks editing.
   const disabled = !online || (!!shareToken && error);
   function addTask(event: React.FormEvent) {
@@ -224,14 +228,14 @@ export function WorkspaceApp({
         <div className="sidebar-brand-row"><Brand /></div>
         <div className="list-navigation sidebar-sections">
           <div className="sidebar-top">
-            <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
+            <ListSpotlight lists={lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
             <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>{t.sidebar.overview}</span></button>
           </div>
-          {(["todo", "board", "note"] as const).map((kind) => {
-            const sectionLists = data.lists.filter((list) => (list.kind ?? "todo") === kind);
-            const Icon = kind === "note" ? Note : kind === "board" ? Kanban : ListTodo;
-            const heading = kind === "note" ? t.sidebar.notes : kind === "board" ? bt.sidebar.boards : t.sidebar.lists;
-            const newLabel = kind === "note" ? t.sidebar.newNote : kind === "board" ? bt.sidebar.newBoard : t.sidebar.newList;
+          {(["todo", "board"] as const).map((kind) => {
+            const sectionLists = lists.filter((list) => (list.kind ?? "todo") === kind);
+            const Icon = kind === "board" ? Kanban : ListTodo;
+            const heading = kind === "board" ? bt.sidebar.boards : t.sidebar.lists;
+            const newLabel = kind === "board" ? bt.sidebar.newBoard : t.sidebar.newList;
             return <section className="sidebar-list-section" key={kind} aria-labelledby={`sidebar-${kind}`}>
               <div className="sidebar-heading">
                 <h2 id={`sidebar-${kind}`}>{heading}</h2>
@@ -242,7 +246,7 @@ export function WorkspaceApp({
                   {(list) => <button className={cn("list-link", selected?.id === list.id && "is-selected")} onClick={() => selectList(list.id)} aria-current={selected?.id === list.id ? "page" : undefined}>
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
                     <span className="truncate">{list.name}</span>
-                    {kind !== "note" && (() => {
+                    {(() => {
                       // Only show a count when there is something left to do.
                       const open = data.todos.filter((item) => item.listId === list.id && !item.completed && !item.parentId).length;
                       return open > 0 && <span className="list-count">{open}</span>;
@@ -295,7 +299,7 @@ export function WorkspaceApp({
             )}
             <span role="status">{connectionText}</span>
           </button>
-        <div ref={pageScroller} className={cn("task-content", showDashboard && "dashboard-content scroll-fade", selected?.kind === "note" && "note-content", isBoard && "board-content")}>
+        <div ref={pageScroller} className={cn("task-content", showDashboard && "dashboard-content scroll-fade", isBoard && "board-content")}>
           {(!online || error) && (
             <Alert>
               <AlertTitle>
@@ -306,7 +310,7 @@ export function WorkspaceApp({
               </AlertDescription>
             </Alert>
           )}
-          {showDashboard ? <WorkspaceDashboard data={data} name={user?.name ?? ""} workspace={activeWorkspace} onSelect={selectList} onCreate={(kind) => setEditor({ type: "create-list", value: "", kind })} run={run} disabled={disabled} /> : selected ? (
+          {showDashboard ? <WorkspaceDashboard data={{ ...data, lists }} name={user?.name ?? ""} workspace={activeWorkspace} onSelect={selectList} onCreate={(kind) => setEditor({ type: "create-list", value: "", kind })} run={run} disabled={disabled} /> : selected ? (
             <>
               <div className="task-heading">
                 <div className="min-w-0 flex-1">
@@ -325,8 +329,8 @@ export function WorkspaceApp({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={selected.kind === "note" ? t.list.shareNote : isBoard ? bt.list.share : t.list.shareList}
-                    title={selected.kind === "note" ? t.list.shareNote : isBoard ? bt.list.share : t.list.shareList}
+                    aria-label={isBoard ? bt.list.share : t.list.shareList}
+                    title={isBoard ? bt.list.share : t.list.shareList}
                     disabled={disabled}
                     onClick={() => setSharingList(selected)}
                   >
@@ -346,7 +350,6 @@ export function WorkspaceApp({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
-                      {selected.kind === "note" && <DropdownMenuItem onSelect={() => noteDownload.current?.()}><Download aria-hidden="true" />{t.list.downloadMarkdown}</DropdownMenuItem>}
                       {canClearDone && (
                         <DropdownMenuItem onSelect={() => setDeletion({ type: "clear-done", listId: selected.id, count: doneCount })}>
                           <CheckCheck aria-hidden="true" />
@@ -366,7 +369,7 @@ export function WorkspaceApp({
                             }
                           >
                             <Trash2 />
-                            {selected.kind === "note" ? t.list.deleteNote : isBoard ? bt.list.delete : t.list.deleteList}
+                            {isBoard ? bt.list.delete : t.list.deleteList}
                           </DropdownMenuItem>
                         </>
                       ) : null}
@@ -375,8 +378,7 @@ export function WorkspaceApp({
                 </DropdownMenu>}
                 </div>}
               </div>
-              {selected.kind === "note" ? <Suspense fallback={<p className="text-sm text-muted-foreground">{t.list.loadingNote}</p>}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense>
-              : isBoard ? <BoardView key={selected.id} list={selected} data={data} run={run} disabled={disabled} readOnly={!canEditTasks}
+              {isBoard ? <BoardView key={selected.id} list={selected} data={data} run={run} disabled={disabled} readOnly={!canEditTasks}
                   shareToken={shareToken} userId={user?.id} canUpload={!shareToken && !!user} /> : <>
               {canEditTasks && (
                 <form className="task-composer" onSubmit={addTask}>
@@ -498,18 +500,18 @@ export function WorkspaceApp({
           <DialogHeader>
             <DialogTitle>
               {editor?.type === "create-list"
-                ? editor.kind === "note" ? t.editor.newNote : editor.kind === "board" ? bt.editor.newBoard : t.editor.newList
+                ? editor.kind === "board" ? bt.editor.newBoard : t.editor.newList
                 : t.editor.editTask}
             </DialogTitle>
             <DialogDescription>
               {editor?.type === "update-todo"
                 ? t.editor.editTaskDescription
-                : editor?.kind === "note" ? t.editor.noteDescription : editor?.kind === "board" ? bt.editor.boardDescription : t.editor.listDescription}
+                : editor?.kind === "board" ? bt.editor.boardDescription : t.editor.listDescription}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={saveEditor} className="flex flex-col gap-5">
             <FieldGroup>
-              {editor?.type === "create-list" && editor.kind !== "note" && (
+              {editor?.type === "create-list" && (
                 <Field>
                   <FieldLabel id="list-kind-label">{bt.kinds.label}</FieldLabel>
                   {/* Two kinds of task lists: the simple one stays the default. */}
@@ -533,7 +535,7 @@ export function WorkspaceApp({
                 <FieldLabel htmlFor="editor-value">
                   {editor?.type === "update-todo"
                     ? t.editor.task
-                    : editor?.kind === "note" ? t.editor.noteTitle : editor?.kind === "board" ? bt.editor.boardName : t.editor.listName}
+                    : editor?.kind === "board" ? bt.editor.boardName : t.editor.listName}
                 </FieldLabel>
                 <Input
                   id="editor-value"
@@ -548,7 +550,7 @@ export function WorkspaceApp({
                   required
                   placeholder={
                     editor?.type === "create-list"
-                      ? editor.kind === "note" ? t.editor.notePlaceholder : editor.kind === "board" ? bt.editor.boardPlaceholder : t.editor.listPlaceholder
+                      ? editor.kind === "board" ? bt.editor.boardPlaceholder : t.editor.listPlaceholder
                       : undefined
                   }
                 />
@@ -567,7 +569,7 @@ export function WorkspaceApp({
                 disabled={disabled || !editor?.value.trim()}
               >
                 {editor?.type === "create-list"
-                    ? editor.kind === "note" ? t.editor.createNote : editor.kind === "board" ? bt.editor.createBoard : t.editor.createList
+                    ? editor.kind === "board" ? bt.editor.createBoard : t.editor.createList
                     : t.editor.save}
               </Button>
             </DialogFooter>

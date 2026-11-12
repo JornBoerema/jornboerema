@@ -67,6 +67,7 @@ export function trustedOrigins() {
     ...DESKTOP_ORIGINS,
     process.env.AUTH_UI_URL ?? "",
     process.env.MAIL_WEB_URL ?? "",
+    process.env.NOTES_WEB_URL ?? "",
     process.env.ADMIN_WEB_URL ?? "",
   ]
     .map((origin) => origin.trim().replace(/\/$/, ""))

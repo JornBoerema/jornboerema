@@ -17,6 +17,7 @@
     "@evido/auth": "workspace:*",
     "@evido/i18n": "workspace:*",
     "@evido/mail-web": "workspace:*",
+    "@evido/notes-web": "workspace:*",
     "@evido/todo-web": "workspace:*",
     "@evido/ui": "workspace:*",
     "@hugeicons/core-free-icons": "^4.4.0",

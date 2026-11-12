@@ -13,6 +13,7 @@ import { keepMailOnDisk } from "./mail-storage"
 setWebOrigins({
   todo: import.meta.env.VITE_TODO_WEB_URL,
   mail: import.meta.env.VITE_MAIL_WEB_URL,
+  notes: import.meta.env.VITE_NOTES_WEB_URL,
   auth: import.meta.env.VITE_AUTH_URL,
 })
 

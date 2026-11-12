@@ -4,4 +4,5 @@ interface ImportMetaEnv {
   readonly VITE_AUTH_URL: string
   readonly VITE_TODO_WEB_URL: string
   readonly VITE_MAIL_WEB_URL: string
+  readonly VITE_NOTES_WEB_URL: string
 }

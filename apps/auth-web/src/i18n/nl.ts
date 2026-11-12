@@ -29,7 +29,7 @@ export const nl: typeof en = {
     },
     register: {
       title: "Eén account, alle apps",
-      description: "Maak een account voor Even doen, Even mailen en de Even-desktopapp.",
+      description: "Maak een account voor Even doen, Even mailen, Even noteren en de Even-desktopapp.",
       action: "Account maken",
     },
     forgot: {
@@ -122,13 +122,15 @@ export const nl: typeof en = {
   account: {
     pageTitle: "Je account",
     title: "Je account",
-    description: "Eén account voor Even doen, Even mailen en de Even-desktopapp.",
+    description: "Eén account voor Even doen, Even mailen, Even noteren en de Even-desktopapp.",
     apps: "Apps",
     open: "Openen",
     appTodo: "Even doen",
     appTodoHelp: "Je eigen lijsten, één taak tegelijk.",
     appMail: "Even mailen",
     appMailHelp: "Al je mailboxen op één plek.",
+    appNotes: "Even noteren",
+    appNotesHelp: "Je notities, in elke workspace.",
     appDesktop: "Even voor desktop",
     appDesktopHelp: "Mail en lijsten samen, voor macOS en Windows.",
     download: "Downloaden",

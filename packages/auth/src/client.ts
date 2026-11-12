@@ -38,7 +38,7 @@ export function authHeaders(): Record<string, string> {
 }
 
 /** The Evido web apps, and the account site that holds every sign-in screen. */
-export type WebApp = "todo" | "mail" | "auth"
+export type WebApp = "todo" | "mail" | "notes" | "auth"
 
 let webOrigins: Partial<Record<WebApp, string>> = {}
 
@@ -59,21 +59,29 @@ export const webUrl = (path: string, app: WebApp = "todo") =>
 
 const isLocal = (hostname: string) => hostname === "localhost" || hostname === "127.0.0.1"
 
-/** In development the account site runs on this port. */
-const LOCAL_AUTH_PORT = 3005
+/** Each web app's subdomain, and the port it runs on in development. */
+const SIBLINGS: Record<WebApp, { subdomain: string; port: number }> = {
+  todo: { subdomain: "todo", port: 3000 },
+  mail: { subdomain: "mail", port: 3004 },
+  notes: { subdomain: "notes", port: 3006 },
+  auth: { subdomain: "auth", port: 3005 },
+}
 
 /**
- * The account site: auth.<domain> next to this app (todo.jornboerema.nl and
- * jornboerema.nl both use auth.jornboerema.nl), or set with setWebOrigins.
+ * Another Even web app next to this one: <app>.<domain> (todo.jornboerema.nl
+ * and jornboerema.nl both find notes.jornboerema.nl), or set with setWebOrigins.
  */
-export function authOrigin() {
-  if (webOrigins.auth) return webOrigins.auth
+export function appOrigin(app: WebApp) {
+  if (webOrigins[app]) return webOrigins[app]
   const { protocol, hostname } = window.location
-  if (isLocal(hostname)) return `http://localhost:${LOCAL_AUTH_PORT}`
+  if (isLocal(hostname)) return `http://localhost:${SIBLINGS[app].port}`
   const labels = hostname.split(".")
   const domain = labels.length > 2 ? labels.slice(1).join(".") : hostname
-  return `${protocol}//auth.${domain}`
+  return `${protocol}//${SIBLINGS[app].subdomain}.${domain}`
 }
+
+/** The account site: auth.<domain> next to this app, or set with setWebOrigins. */
+export const authOrigin = () => appOrigin("auth")
 
 /** A page on the account site. */
 export const authUrl = (path: string, params: Record<string, string> = {}) => {

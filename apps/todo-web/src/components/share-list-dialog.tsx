@@ -79,7 +79,7 @@ export function ShareListDialog({
     >
       <DialogContent className="max-h-[90dvh] grid-cols-[minmax(0,1fr)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{list.kind === "note" ? t.shareNote : t.shareList}</DialogTitle>
+          <DialogTitle>{t.shareList}</DialogTitle>
           <DialogDescription>
             {t.description(workspaceName, list.name)}
           </DialogDescription>

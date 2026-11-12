@@ -10,6 +10,7 @@ import {
 import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
 import { authClient, TodoEmbed } from "@evido/todo-web/embed"
+import { NotesEmbed } from "@evido/notes-web/embed"
 import { Toaster } from "@evido/ui/components/sonner"
 import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/app-switcher"
 import { DesktopSettingsProvider, useDesktopSettings } from "@evido/ui/components/desktop-settings"
@@ -24,7 +25,7 @@ import { hideSplash } from "./splash"
 import { useDesktopApp } from "./updates"
 import { useWindowDragging } from "./window"
 
-type AppId = "mail" | "todo"
+type AppId = "mail" | "todo" | "notes"
 
 const isMac = navigator.userAgent.includes("Mac")
 
@@ -32,12 +33,12 @@ const isMac = navigator.userAgent.includes("Mac")
 const APP_LIST: { id: AppId; name: string; icon: IconSvgElement }[] = [
   { id: "mail", name: "Even mailen", icon: Mail01Icon },
   { id: "todo", name: "Even doen", icon: CheckmarkSquare02Icon },
+  { id: "notes", name: "Even noteren", icon: Note01Icon },
 ]
 /** Shown in the rail, greyed out, until they join APP_LIST. */
 const UPCOMING = [
   { id: "plan", name: "Even plannen", icon: Calendar03Icon },
   { id: "hours", name: "Even uren", icon: Clock01Icon },
-  { id: "notes", name: "Even noteren", icon: Note01Icon },
   { id: "chat", name: "Even chatten", icon: BubbleChatIcon },
 ]
 const APPS: (SwitchableApp & { id: AppId })[] = APP_LIST.map((app, index) => ({
@@ -137,6 +138,13 @@ function Apps() {
                 <div className="desktop-pane" hidden={active !== "todo"}>
                   <Activity mode={running("todo") ? "visible" : "hidden"}>
                     <TodoEmbed />
+                  </Activity>
+                </div>
+              )}
+              {opened.includes("notes") && (
+                <div className="desktop-pane" hidden={active !== "notes"}>
+                  <Activity mode={running("notes") ? "visible" : "hidden"}>
+                    <NotesEmbed />
                   </Activity>
                 </div>
               )}

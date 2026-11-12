@@ -10,6 +10,7 @@ import {
   LaptopIcon,
   Logout03Icon,
   Mail01Icon,
+  Note01Icon,
   SmartPhone01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
@@ -89,6 +90,7 @@ function Apps() {
   const apps: { title: string; help: string; href: string; icon: IconSvgElement; action: string; actionIcon: IconSvgElement }[] = [
     { title: t.appTodo, help: t.appTodoHelp, href: links.todo, icon: CheckmarkSquare02Icon, action: t.open, actionIcon: ArrowUpRight01Icon },
     { title: t.appMail, help: t.appMailHelp, href: links.mail, icon: Mail01Icon, action: t.open, actionIcon: ArrowUpRight01Icon },
+    { title: t.appNotes, help: t.appNotesHelp, href: links.notes, icon: Note01Icon, action: t.open, actionIcon: ArrowUpRight01Icon },
     { title: t.appDesktop, help: t.appDesktopHelp, href: links.download, icon: ComputerIcon, action: t.download, actionIcon: Download04Icon },
   ]
   return (

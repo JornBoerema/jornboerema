@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Note, Plus, UserAdd } from "@/components/icons";
+import { Plus, UserAdd } from "@/components/icons";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@evido/ui/components/avatar";
 import { Button } from "@evido/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@evido/ui/components/card";
@@ -17,18 +17,10 @@ const MAX_AVATARS = 5;
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
 
-/** First meaningful line of a note, without Markdown and without repeating its title. */
-function excerpt(markdown: string, title: string) {
-  const plain = (line: string) =>
-    line.trim().replace(/^(#{1,6}\s+|[-*+]\s+(\[[ xX]\]\s+)?|>\s+|\d+\.\s+)/, "").replace(/[*_`~]/g, "").trim();
-  const same = (line: string) => line.toLocaleLowerCase() === title.trim().toLocaleLowerCase();
-  return markdown.split("\n").map(plain).find((line) => line && !same(line)) ?? "";
-}
-
-/** Overview as a grid of widgets: numbers, progress, in progress, members, notes. */
+/** Overview as a grid of widgets: numbers, progress, in progress, members. */
 export function WorkspaceDashboard({ data, name, workspace, onSelect, onCreate, run, disabled }: {
   data: WorkspaceData; name: string; workspace?: WorkspaceSummary; onSelect: (id: string) => void;
-  onCreate: (kind: "todo" | "note") => void; run: (command: Command) => Promise<boolean>; disabled: boolean;
+  onCreate: (kind: "todo") => void; run: (command: Command) => Promise<boolean>; disabled: boolean;
 }) {
   const { t: { workspace: wt }, locale } = useI18n();
   const t = wt.dashboard;
@@ -44,7 +36,6 @@ export function WorkspaceDashboard({ data, name, workspace, onSelect, onCreate, 
   const firstName = name.trim().split(/\s+/)[0];
 
   const taskLists = data.lists.filter((list) => (list.kind ?? "todo") === "todo");
-  const notes = data.lists.filter((list) => list.kind === "note");
   const listIds = new Set(taskLists.map((list) => list.id));
   const tasks = data.todos.filter((item) => listIds.has(item.listId));
   const open = tasks.filter((item) => !item.completed);
@@ -73,7 +64,7 @@ export function WorkspaceDashboard({ data, name, workspace, onSelect, onCreate, 
 
     {!data.lists.length ? <Empty className="py-10">
       <EmptyHeader><EmptyTitle>{t.emptyTitle}</EmptyTitle><EmptyDescription>{t.emptyBody}</EmptyDescription></EmptyHeader>
-      <EmptyContent><div className="flex flex-wrap justify-center gap-2"><Button disabled={disabled} onClick={() => onCreate("todo")}><Plus data-icon="inline-start" />{t.createTaskList}</Button><Button variant="outline" disabled={disabled} onClick={() => onCreate("note")}>{t.createNoteCta}</Button></div></EmptyContent>
+      <EmptyContent><div className="flex flex-wrap justify-center gap-2"><Button disabled={disabled} onClick={() => onCreate("todo")}><Plus data-icon="inline-start" />{t.createTaskList}</Button></div></EmptyContent>
     </Empty> : <div className="widgets">
       <dl className="widget-stats" aria-label={t.stats.label}>
         {stats.map((stat) => (
@@ -131,29 +122,6 @@ export function WorkspaceDashboard({ data, name, workspace, onSelect, onCreate, 
 
       {workspace && <MembersWidget workspace={workspace} />}
 
-      <Card size="sm" className="widget">
-        <CardHeader>
-          <CardTitle>{t.notes}</CardTitle>
-          <CardAction>
-            <Button variant="ghost" size="icon-sm" aria-label={t.newNote} title={t.newNote} disabled={disabled} onClick={() => onCreate("note")}><Plus /></Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          {notes.length ? <ul className="flex flex-col">
-            {notes.slice(0, 5).map((note) => (
-              <li key={note.id}>
-                <button type="button" className="widget-note" onClick={() => onSelect(note.id)}>
-                  <Note className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate">{note.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">{excerpt(note.note?.markdown ?? "", note.name) || t.emptyNote}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul> : <p className="widget-empty">{t.notesEmpty}</p>}
-        </CardContent>
-      </Card>
     </div>}
   </div>;
 }

@@ -27,7 +27,7 @@ export const en = {
     },
     register: {
       title: "One account, every app",
-      description: "Create an account for Even doen, Even mailen and the Even desktop app.",
+      description: "Create an account for Even doen, Even mailen, Even noteren and the Even desktop app.",
       action: "Create account",
     },
     forgot: {
@@ -120,13 +120,15 @@ export const en = {
   account: {
     pageTitle: "Your account",
     title: "Your account",
-    description: "One account for Even doen, Even mailen and the Even desktop app.",
+    description: "One account for Even doen, Even mailen, Even noteren and the Even desktop app.",
     apps: "Apps",
     open: "Open",
     appTodo: "Even doen",
     appTodoHelp: "Your own lists, one task at a time.",
     appMail: "Even mailen",
     appMailHelp: "All your mailboxes in one place.",
+    appNotes: "Even noteren",
+    appNotesHelp: "Your notes, in every workspace.",
     appDesktop: "Even for desktop",
     appDesktopHelp: "Mail and lists together, for macOS and Windows.",
     download: "Download",

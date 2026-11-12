@@ -5,6 +5,7 @@ export const WEB_APPS = {
   "@evido/home": "prj_m9FcwxCVCNdUHp28bWMG9r1ddhAV", // jornboerema, jornboerema.nl
   "@evido/mail-web": "prj_N88wedpFccIvJ56i1muKPTEMLJiF", // even-mailen, mail.jornboerema.nl
   "@evido/todo-web": "prj_ggZUEEAiHreEmlKndlzQAsSsAu1i", // even-doen, todo.jornboerema.nl
+  "@evido/notes-web": "prj_0MFm6WlK4w1pGWh3pAwZMmnfImbL", // even-noteren, notes.jornboerema.nl
   "@evido/capture-web": "prj_jQfymOhV9MsEi3qQ3TbTcmECjDEK", // even-vastleggen, capture.jornboerema.nl
 }
 

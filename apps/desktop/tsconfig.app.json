@@ -20,6 +20,7 @@
       "@/*": ["./src/*"],
       "@evido/mail-web/embed": ["./src/embeds/mail.d.ts"],
       "@evido/todo-web/embed": ["./src/embeds/todo.d.ts"],
+      "@evido/notes-web/embed": ["./src/embeds/notes.d.ts"],
       "@evido/ui/*": ["../../packages/ui/src/*"]
     }
   },

@@ -84,6 +84,7 @@ export class GithubError extends Error {
 const PROJECTS = [
   { project: "@evido/mail-web", vercel: "even-mailen", name: "Even mailen", kind: "web" },
   { project: "@evido/todo-web", vercel: "even-doen", name: "Even doen", kind: "web" },
+  { project: "@evido/notes-web", vercel: "even-noteren", name: "Even noteren", kind: "web" },
   { project: "@evido/capture-web", vercel: "even-vastleggen", name: "Even vastleggen (web)", kind: "web" },
   { project: "@evido/home", vercel: "jornboerema", name: "jornboerema.nl", kind: "web" },
   { project: "@evido/auth-web", vercel: "jornboerema-auth", name: "Account", kind: "web" },
