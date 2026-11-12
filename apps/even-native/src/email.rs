@@ -101,26 +101,33 @@ fn text_to_html(text: &str) -> String {
     .into_owned()
 }
 
+/// The app's own look around the mail. Each mail body sits in its own shadow
+/// root, so its styles can't reach this, nor another message in the thread.
 const STYLE: &str = r#"
 :root{color-scheme:dark}
-html,body{margin:0!important;background:#0f0f0f!important;color:#fafafa;height:auto!important}
+html,body{margin:0;background:#0f0f0f;color:#fafafa}
 body{padding:4px 24px 40px;font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-h1.even-subject{font-size:20px;font-weight:600;line-height:1.3;margin:4px 0 16px;color:#fafafa}
+h1.even-subject{font-size:20px;font-weight:600;line-height:1.3;margin:4px 0 16px}
 section.even-message{border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:16px;margin:0 0 12px}
 .even-head{display:flex;justify-content:space-between;gap:16px;margin-bottom:12px}
-.even-from{font-weight:600;font-size:14px;color:#fafafa}
-.even-to{font-size:12px;color:#a1a1a1;margin-top:2px}
-.even-date{flex:none;font-size:12px;color:#a1a1a1}
+.even-from{font-weight:600}
+.even-to,.even-date{font-size:12px;color:#a1a1a1}
+.even-to{margin-top:2px}
+.even-date{flex:none}
 .even-body{overflow-x:auto;overflow-wrap:anywhere}
-.even-body img{max-width:100%;height:auto}
-.even-text{white-space:pre-wrap}
-.even-text a,.even-plain a,.even-plain a *{color:#8fb3ff!important}
-.even-plain,.even-plain *{color:#e4e4e1!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}
+.even-text{white-space:pre-wrap;color:#e4e4e1}
+.even-text a{color:#8fb3ff}
 .even-paper{background:#fff;color:#111;border-radius:8px;padding:12px}
+.even-plain{color:#e4e4e1}
 .even-files{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .even-file{font-size:12px;color:#a1a1a1;background:#262626;border-radius:6px;padding:4px 8px}
-.even-images{font-size:12px;color:#a1a1a1;margin:0 0 12px}
 "#;
+
+/// Inside every mail's shadow root.
+const MAIL_STYLE: &str = ":host{display:block}img{max-width:100%;height:auto}";
+
+/// Plain mail in the dark theme: its colours were chosen for white paper, so they give way.
+const PLAIN_STYLE: &str = "*{color:inherit!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}a,a *{color:#8fb3ff!important}";
 
 /// Sends the app's shortcuts on, so J and K keep working after a click in the mail.
 const KEYS: &str = r#"
@@ -162,8 +169,11 @@ pub fn document(subject: &str, parts: &[Part], allow_images: bool, nonce: &str) 
         out.push_str(&format!(r#"</div><div class="even-date">{}</div></div>"#, escape(&part.date)));
         match &part.body {
             Body::Html { html, paper } => {
-                let look = if *paper { "even-paper" } else { "even-plain" };
-                out.push_str(&format!(r#"<div class="even-body {look}">{html}</div>"#));
+                let (look, extra) = if *paper { ("even-paper", "") } else { ("even-plain", PLAIN_STYLE) };
+                // Declarative shadow DOM: no script needed, and the mail's CSS stays inside.
+                out.push_str(&format!(
+                    r#"<div class="even-body {look}"><template shadowrootmode="open"><style>{MAIL_STYLE}{extra}</style>{html}</template></div>"#
+                ));
             }
             Body::Text(text) => {
                 out.push_str(&format!(r#"<div class="even-body even-text">{}</div>"#, text_to_html(text)));
@@ -222,6 +232,20 @@ mod tests {
         let html = text_to_html("See https://even.nl/x. <b>");
         assert!(html.contains(r#"<a href="https://even.nl/x""#));
         assert!(html.contains("&lt;b&gt;"));
+    }
+
+    #[test]
+    fn mail_html_gets_its_own_shadow_root() {
+        let parts = [Part {
+            from: "A".into(),
+            to: String::new(),
+            date: "1".into(),
+            body: Body::Html { html: "<style>body{background:#fff}</style><p>x</p>".into(), paper: false },
+            attachments: vec![],
+        }];
+        let doc = document("S", &parts, false, "n");
+        let shadow = doc.find(r#"<template shadowrootmode="open">"#).unwrap();
+        assert!(doc.find("body{background:#fff}").unwrap() > shadow);
     }
 
     #[test]
