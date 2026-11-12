@@ -608,7 +608,7 @@ export function ConversationPage({
           )}
           {thread.isError && <p className="py-4 text-sm text-destructive">{t.loadFailed}</p>}
           {blockedImages && (
-            <div className="mt-3 flex items-center justify-between gap-4 rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+            <div className="mt-3 flex items-center justify-between gap-4 rounded-lg bg-muted px-3 py-1.5 text-xs text-muted-foreground">
               <p>{t.imagesBlocked}</p>
               <Button size="xs" variant="ghost" className="text-foreground" onClick={() => setShowImagesOnce(true)}>
                 {t.showImages}
