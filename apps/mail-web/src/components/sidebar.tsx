@@ -3,7 +3,8 @@ import { useInvoices, useParcels, useSenders, useSidebarLayout } from "@/lib/pre
 import type { NavItem, SidebarLayout } from "@evido/mail-core/sidebar"
 import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import {
   Add01Icon,
   Alert02Icon,
@@ -355,6 +356,7 @@ export function Sidebar({
   const desktop = useInDesktop()
   const layout = useSidebarLayout()
   const placeLabels = usePlaceLabels()
+  const lifted = useLifted(editingSidebar)
   // While writing, only New message is current; closing it gives the selection back.
   const places = usePlaces({
     accountId,
@@ -371,138 +373,167 @@ export function Sidebar({
     onSelectFolder,
   })
   return (
-    // One panel for both: its width animates, and the full sidebar and the rail fade into each other.
-    <aside
-      id="list-sidebar"
-      className={cn(
-        "list-sidebar mail-sidebar max-lg:hidden!",
-        sidebar.collapsed && "is-collapsed",
-        // Above the veil the editor puts over the rest.
-        editingSidebar && "z-50"
+    <>
+      {createPortal(
+        // While the sidebar is arranged, everything else steps back: blurred, dimmed and out of reach.
+        <div
+          aria-hidden="true"
+          className={cn(
+            "fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 motion-reduce:transition-none",
+            editingSidebar ? "opacity-100" : "pointer-events-none opacity-0",
+            // Blurring costs even unseen: only while it shows or fades.
+            lifted ? "backdrop-blur-[3px]" : "invisible"
+          )}
+        />,
+        document.body
       )}
-      aria-label={t.shell.sidebar}
-    >
-      <div className="sidebar-full" inert={sidebar.collapsed}>
-        <div className="sidebar-brand-row">
-          <AppSwitcher menu={<AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />}>
-            <Brand />
-          </AppSwitcher>
-          <IconTip label={t.shell.collapse} shortcut="⌘B">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="mail-collapse"
-              aria-label={t.shell.collapse}
-              aria-keyshortcuts="Meta+B Control+B"
-              aria-expanded={true}
-              aria-controls="list-sidebar"
-              onClick={sidebar.toggle}
-            >
-              <HugeiconsIcon icon={PanelLeftOpenIcon} strokeWidth={2} aria-hidden="true" />
-            </Button>
-          </IconTip>
-        </div>
-        <div className="list-navigation sidebar-sections">
-          <div className="sidebar-top">
-            {/* Apart from the folders: writing is an action, not a place. */}
-            <button
-              type="button"
-              className={cn("list-link mb-3", composing && "is-selected")}
-              aria-current={composing ? "page" : undefined}
-              aria-keyshortcuts="C"
-              onClick={onCompose}
-            >
-              <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-              <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
-              <kbd className="nav-kbd">C</kbd>
-            </button>
-            {editingSidebar ? (
-              <SidebarEditor icons={PLACE_ICONS} labels={placeLabels} onDone={onDoneEditingSidebar} />
-            ) : (
-              <>
-                {layout.main.map((id) => places[id].shown && <PlaceLink key={id} place={places[id]} />)}
-                <MorePlaces
-                  places={layout.more.map((id) => places[id]).filter((place) => place.shown)}
-                  onCustomize={onCustomizeSidebar}
-                />
-              </>
-            )}
-          </div>
-          <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
-            <div className="sidebar-heading">
-              <h2 id="sidebar-mailboxes">{t.shell.mailboxes}</h2>
+      {/* One panel for both: its width animates, and the full sidebar and the rail fade into each other. */}
+      <aside
+        id="list-sidebar"
+        className={cn(
+          "list-sidebar mail-sidebar max-lg:hidden!",
+          sidebar.collapsed && "is-collapsed",
+          // Above the veil, until it has faded out again.
+          lifted && "z-50"
+        )}
+        aria-label={t.shell.sidebar}
+      >
+        <div className="sidebar-full" inert={sidebar.collapsed}>
+          <div className="sidebar-brand-row">
+            <AppSwitcher menu={<AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />}>
+              <Brand />
+            </AppSwitcher>
+            <IconTip label={t.shell.collapse} shortcut="⌘B">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="sidebar-add"
-                aria-label={t.inbox.connect}
-                onClick={onSettings}
+                className="mail-collapse"
+                aria-label={t.shell.collapse}
+                aria-keyshortcuts="Meta+B Control+B"
+                aria-expanded={true}
+                aria-controls="list-sidebar"
+                onClick={sidebar.toggle}
               >
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
+                <HugeiconsIcon icon={PanelLeftOpenIcon} strokeWidth={2} aria-hidden="true" />
               </Button>
-            </div>
-            <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
-              {accounts.map((account) => {
-                const selected = !composing && view === "inbox" && account.id === accountId
-                const active = account.status === "active"
-                return (
-                  <button
-                    key={account.id}
-                    type="button"
-                    className={cn("list-link", selected && "is-selected")}
-                    aria-current={selected ? "page" : undefined}
-                    title={active ? account.email : t.inbox.reconnectNeeded}
-                    onClick={() => onSelectAccount(account.id)}
-                  >
-                    {active ? (
-                      <span className="flex size-4 shrink-0 items-center justify-center">
-                        <AccountDot color={account.color} className="size-2.5" />
-                      </span>
-                    ) : (
-                      <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
-                    )}
-                    <span className="truncate">{account.email}</span>
-                  </button>
-                )
-              })}
-            </nav>
-          </section>
-        </div>
-        <UpdateButton />
-        {/* In the desktop app these sit in the brand's menu. */}
-        {!desktop && (
-          <div className="sidebar-footer">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
-                  <span className="workspace-avatar" aria-hidden="true">
-                    {initialOf(user)}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col text-left">
-                    <span className="truncate">{user.name || user.email}</span>
-                    <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
-                  </span>
-                  <HugeiconsIcon
-                    icon={UnfoldMoreIcon}
-                    strokeWidth={2}
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                </button>
-              </DropdownMenuTrigger>
-              <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} />
-            </DropdownMenu>
+            </IconTip>
           </div>
-        )}
-      </div>
-      <SidebarRail
-        {...{ accounts, accountId, user, sidebar, view, draftWaiting, composing }}
-        {...{ onSelectAccount, onCompose, onSettings, onShortcuts }}
-        places={places}
-        layout={layout}
-      />
-    </aside>
+          <div className="list-navigation sidebar-sections">
+            <div className="sidebar-top">
+              {/* Apart from the folders: writing is an action, not a place. */}
+              <button
+                type="button"
+                className={cn("list-link mb-3", composing && "is-selected")}
+                aria-current={composing ? "page" : undefined}
+                aria-keyshortcuts="C"
+                onClick={onCompose}
+              >
+                <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                <span>{draftWaiting ? t.inbox.resumeDraft : t.inbox.compose}</span>
+                <kbd className="nav-kbd">C</kbd>
+              </button>
+              {editingSidebar ? (
+                <SidebarEditor icons={PLACE_ICONS} labels={placeLabels} onDone={onDoneEditingSidebar} />
+              ) : (
+                <>
+                  {layout.main.map((id) => places[id].shown && <PlaceLink key={id} place={places[id]} />)}
+                  <MorePlaces
+                    places={layout.more.map((id) => places[id]).filter((place) => place.shown)}
+                    onCustomize={onCustomizeSidebar}
+                  />
+                </>
+              )}
+            </div>
+            <section className="sidebar-list-section" aria-labelledby="sidebar-mailboxes">
+              <div className="sidebar-heading">
+                <h2 id="sidebar-mailboxes">{t.shell.mailboxes}</h2>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="sidebar-add"
+                  aria-label={t.inbox.connect}
+                  onClick={onSettings}
+                >
+                  <HugeiconsIcon icon={Add01Icon} strokeWidth={2} aria-hidden="true" />
+                </Button>
+              </div>
+              <nav aria-label={t.shell.mailboxes} className="sidebar-section-links">
+                {accounts.map((account) => {
+                  const selected = !composing && view === "inbox" && account.id === accountId
+                  const active = account.status === "active"
+                  return (
+                    <button
+                      key={account.id}
+                      type="button"
+                      className={cn("list-link", selected && "is-selected")}
+                      aria-current={selected ? "page" : undefined}
+                      title={active ? account.email : t.inbox.reconnectNeeded}
+                      onClick={() => onSelectAccount(account.id)}
+                    >
+                      {active ? (
+                        <span className="flex size-4 shrink-0 items-center justify-center">
+                          <AccountDot color={account.color} className="size-2.5" />
+                        </span>
+                      ) : (
+                        <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className={NAV_ICON} aria-hidden="true" />
+                      )}
+                      <span className="truncate">{account.email}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+            </section>
+          </div>
+          <UpdateButton />
+          {/* In the desktop app these sit in the brand's menu. */}
+          {!desktop && (
+            <div className="sidebar-footer">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="workspace-switcher" aria-label={t.shell.account(user.email)}>
+                    <span className="workspace-avatar" aria-hidden="true">
+                      {initialOf(user)}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col text-left">
+                      <span className="truncate">{user.name || user.email}</span>
+                      <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+                    </span>
+                    <HugeiconsIcon
+                      icon={UnfoldMoreIcon}
+                      strokeWidth={2}
+                      className="size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </DropdownMenuTrigger>
+                <AccountMenuContent onSettings={onSettings} onShortcuts={onShortcuts} />
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+        <SidebarRail
+          {...{ accounts, accountId, user, sidebar, view, draftWaiting, composing }}
+          {...{ onSelectAccount, onCompose, onSettings, onShortcuts }}
+          places={places}
+          layout={layout}
+        />
+      </aside>
+    </>
   )
+}
+
+/** The veil's fade, in ms: the sidebar stays above it until it is gone. */
+const VEIL_FADE = 200
+
+/** Whether the sidebar sits above the veil: at once when editing starts, until the fade is over when it ends. */
+function useLifted(editing: boolean) {
+  const [lifted, setLifted] = useState(editing)
+  useEffect(() => {
+    if (editing) return setLifted(true)
+    const timer = window.setTimeout(() => setLifted(false), VEIL_FADE)
+    return () => window.clearTimeout(timer)
+  }, [editing])
+  return editing || lifted
 }
 
 const initialOf = (user: { name: string; email: string }) => (user.name || user.email).trim().charAt(0).toUpperCase()

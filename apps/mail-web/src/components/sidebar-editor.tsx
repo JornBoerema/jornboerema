@@ -202,14 +202,6 @@ export function SidebarEditor({
         </SortableContext>
       </DndContext>
       {createPortal(
-        // Everything but the sidebar and this bar steps back, blurred and dimmed, and can't be clicked meanwhile.
-        <div
-          aria-hidden="true"
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px] duration-200 animate-in fade-in-0 motion-reduce:animate-none"
-        />,
-        document.body
-      )}
-      {createPortal(
         <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2">
           <div
             role="region"
