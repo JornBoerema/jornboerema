@@ -1,6 +1,6 @@
 {
   "name": "@evido/desktop",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "type": "module",
   "private": true,
   "description": "Even: Even mailen and Even doen in one desktop app for macOS and Windows (Tauri 2 + React).",
