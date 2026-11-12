@@ -16,9 +16,57 @@
         } catch (e) {}
       })()
     </script>
+    <!-- The splash: the Even mark from the first paint until the session is known (see splash.ts). -->
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        background: #fff;
+        transition: opacity 220ms ease;
+      }
+      .dark #splash {
+        background: oklch(0.145 0 0);
+      }
+      #splash.leaving {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash svg {
+        width: 72px;
+        height: 72px;
+        animation: splash-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+      @keyframes splash-in {
+        from {
+          opacity: 0;
+          transform: scale(0.92);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash svg {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body class="h-full overflow-hidden">
     <div id="root" class="h-full"></div>
+    <div id="splash" data-tauri-drag-region aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+        <defs>
+          <linearGradient id="splash-fill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ffb070" />
+            <stop offset="0.55" stop-color="#f07a2b" />
+            <stop offset="1" stop-color="#c94d12" />
+          </linearGradient>
+        </defs>
+        <rect width="32" height="32" rx="8" fill="url(#splash-fill)" />
+        <circle cx="23.5" cy="23.5" r="3" fill="#fff4ea" />
+      </svg>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

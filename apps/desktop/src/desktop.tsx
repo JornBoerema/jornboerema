@@ -20,6 +20,7 @@ import { cn } from "@evido/ui/lib/utils"
 import { forgetMailOnDisk } from "./mail-storage"
 import { AppRail } from "./rail"
 import { SignIn } from "./sign-in"
+import { hideSplash } from "./splash"
 import { useDesktopApp } from "./updates"
 import { useWindowDragging } from "./window"
 
@@ -169,6 +170,9 @@ function Gate() {
   useEffect(() => {
     if (signedOut) void forgetMailOnDisk()
   }, [signedOut])
+  useEffect(() => {
+    if (!isPending) hideSplash()
+  }, [isPending])
   if (isPending) return <div className="desktop-loading" data-tauri-drag-region />
   if (!data) return <SignIn mac={isMac} />
   return <Apps />
