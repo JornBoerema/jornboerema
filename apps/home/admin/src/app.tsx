@@ -1,18 +1,21 @@
 import { useState } from "react"
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query"
-import { BrowserRouter, Link, Navigate, Outlet, Route, Routes } from "react-router"
-import { Shield02Icon } from "@hugeicons/core-free-icons"
+import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes } from "react-router"
+import { DashboardSquare01Icon, Logout03Icon, Shield02Icon, UserGroupIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { AuthForm } from "@evido/ui/components/auth-form"
+import { Avatar, AvatarFallback, AvatarImage } from "@evido/ui/components/avatar"
 import { Button } from "@evido/ui/components/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@evido/ui/components/empty"
 import { Toaster } from "@evido/ui/components/sonner"
 import { ThemeProvider } from "@evido/ui/lib/theme"
+import { cn } from "@evido/ui/lib/utils"
 import { I18nProvider, useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { authClient, signOut } from "@/lib/auth-client"
 import { AppPage } from "@/pages/app"
-import { AppsPage } from "@/pages/apps"
+import { AppsPage, type AppSummary } from "@/pages/apps"
+import { DashboardPage } from "@/pages/dashboard"
 
 function Brand() {
   const t = useI18n().t.shell
@@ -79,21 +82,63 @@ function Shell() {
         </main>
       </div>
     )
+  return <Layout email={session.data.user.email} name={session.data.user.name} image={session.data.user.image ?? null} />
+}
+
+function Layout({ email, name, image }: { email: string; name: string; image: string | null }) {
+  const { t } = useI18n()
+  const apps = useQuery({ queryKey: ["admin-apps"], queryFn: () => api<{ apps: AppSummary[] }>("/api/admin/apps") })
+  const requests = apps.data?.apps.reduce((sum, app) => sum + app.requests, 0) ?? 0
+  const link = ({ isActive }: { isActive: boolean }) => cn("list-link", isActive && "is-selected")
   return (
-    <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-        <Link to="/" className="rounded-lg focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none">
-          <Brand />
-        </Link>
-        <div className="flex min-w-0 items-center gap-3 text-sm text-muted-foreground">
-          <span className="truncate max-sm:hidden">{session.data.user.email}</span>
-          <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-            {t.signOut}
+    <div className="admin-shell">
+      <aside className="list-sidebar admin-sidebar" aria-label={t.nav.label}>
+        <div className="sidebar-brand-row">
+          <Link to="/" className="rounded-lg focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none">
+            <Brand />
+          </Link>
+        </div>
+        <nav className="list-navigation admin-nav" aria-label={t.nav.label}>
+          <NavLink to="/" end className={link}>
+            <HugeiconsIcon icon={DashboardSquare01Icon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
+            <span>{t.nav.dashboard}</span>
+          </NavLink>
+          <NavLink to="/apps" className={link}>
+            <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
+            <span>{t.nav.apps}</span>
+            {requests > 0 && (
+              <span className="admin-nav-badge" aria-label={t.apps.requests(requests)}>
+                {requests}
+              </span>
+            )}
+          </NavLink>
+        </nav>
+        <div className="sidebar-footer admin-account">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Avatar className="size-7">
+              {image && <AvatarImage src={image} alt="" />}
+              <AvatarFallback className="text-[11px]">{(name || email).slice(0, 1).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-col leading-tight max-md:hidden">
+              <span className="truncate text-[13px] font-medium">{name || email}</span>
+              <span className="truncate text-xs text-muted-foreground">{email}</span>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t.shell.signOut}
+            title={t.shell.signOut}
+            onClick={() => void signOut()}
+          >
+            <HugeiconsIcon icon={Logout03Icon} strokeWidth={2} aria-hidden="true" />
           </Button>
         </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
-        <Outlet />
+      </aside>
+      <main className="admin-main">
+        <div className="admin-content">
+          <Outlet />
+        </div>
       </main>
     </div>
   )
@@ -109,7 +154,8 @@ export function App() {
             <Routes>
               <Route path="login" element={<Login />} />
               <Route element={<Shell />}>
-                <Route index element={<AppsPage />} />
+                <Route index element={<DashboardPage />} />
+                <Route path="apps" element={<AppsPage />} />
                 <Route path="apps/:app" element={<AppPage />} />
               </Route>
               <Route path="*" element={<Navigate replace to="/" />} />

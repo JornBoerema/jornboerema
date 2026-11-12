@@ -1,0 +1,99 @@
+/* The admin layout: the shared Evido sidebar beside a scrolling page. */
+.admin-shell {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--background);
+}
+.admin-sidebar {
+  height: calc(100dvh - 16px);
+}
+.admin-nav {
+  flex: 1;
+}
+.admin-nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.admin-account {
+  gap: 8px;
+  padding: 10px 2px 0 6px;
+  border-top: 1px solid var(--sidebar-border);
+}
+.admin-main {
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.admin-content {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 40px 64px;
+}
+
+/* Phones and narrow windows: the sidebar becomes a bar across the top. */
+@media (max-width: 767px) {
+  .admin-shell {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: auto;
+    height: auto;
+    margin: 8px;
+    padding: 8px 8px 8px 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+  .admin-sidebar .sidebar-brand-row {
+    padding: 0 8px 0 0;
+  }
+  .admin-sidebar .brand {
+    font-size: 17px;
+  }
+  .admin-nav {
+    flex-direction: row;
+    overflow: visible;
+  }
+  .admin-nav .list-link {
+    width: auto;
+    gap: 6px;
+  }
+  .admin-nav .list-link > svg {
+    display: none;
+  }
+  .admin-nav-badge {
+    margin-left: 2px;
+  }
+  .admin-account {
+    margin-top: 0;
+    margin-left: auto;
+    padding: 0;
+    border-top: 0;
+  }
+  .admin-main {
+    overflow: visible;
+  }
+  .admin-content {
+    padding: 20px 16px 48px;
+  }
+}

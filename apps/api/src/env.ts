@@ -12,6 +12,9 @@ export const env = {
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
+  /** The repo the admin dashboard reports on, and a read-only token so GitHub doesn't rate-limit it. */
+  githubRepo: process.env.GITHUB_REPO ?? "JornBoerema/jornboerema",
+  githubToken: process.env.GITHUB_TOKEN ?? "",
   trustedOrigins: trustedOrigins(),
   realtimeEnabled: !!process.env.ABLY_API_KEY,
 }

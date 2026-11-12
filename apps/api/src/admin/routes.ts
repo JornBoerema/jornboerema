@@ -8,6 +8,7 @@ import { languageOf, msg } from "../i18n"
 import { forgetAccess, hasAppAccess, isAdmin, requestAccess, requireAdmin } from "../lib/access"
 import { APPS, findApp } from "../lib/apps"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
+import { GithubError, getStatus } from "./status"
 
 /** Asked by the apps themselves: may this user come in, and if not, ask for it. */
 export const accessRoutes = new Hono<AppEnv>()
@@ -43,6 +44,17 @@ adminRoutes.use("*", requireSession, requireAdmin)
 adminRoutes.get("/me", (c) => {
   const user = c.get("session").user
   return c.json({ admin: isAdmin(user), name: user.name, email: user.email }, 200, noStore)
+})
+
+/** Builds, GitHub Actions and the version of every app. */
+adminRoutes.get("/status", async (c) => {
+  try {
+    return c.json({ ...(await getStatus()), tokenConfigured: Boolean(env.githubToken) }, 200, noStore)
+  } catch (error) {
+    const code = error instanceof GithubError ? error.code : "github_unavailable"
+    console.error("[admin] status", error)
+    return c.json({ error: code, tokenConfigured: Boolean(env.githubToken) }, 502, noStore)
+  }
 })
 
 adminRoutes.get("/apps", async (c) => {

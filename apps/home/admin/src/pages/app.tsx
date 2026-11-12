@@ -116,15 +116,15 @@ export function AppPage() {
     onError: (error) => toast.error(errorText(error)),
   })
 
-  if (detail.isError) return <p className="pt-6 text-sm text-destructive">{t.loadFailed}</p>
+  if (detail.isError) return <p className="text-sm text-destructive">{t.loadFailed}</p>
   if (!detail.data) return null
   const { app, members, invites, requests } = detail.data
 
   return (
-    <div className="flex flex-col gap-8 pt-2">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <div className="flex flex-col gap-3">
         <Link
-          to="/"
+          to="/apps"
           className="-ml-1 flex w-fit items-center gap-1 rounded-lg px-1 text-sm text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} aria-hidden="true" className="size-4" />
