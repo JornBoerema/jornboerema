@@ -24,6 +24,10 @@ import {
   Flag02Icon,
   PinIcon,
   PinOffIcon,
+  Invoice02Icon,
+  CleanIcon,
+  PackageIcon,
+  File01Icon,
 } from "@hugeicons/core-free-icons"
 import { MailboxFilter } from "@/components/mailbox-filter"
 import { canPin, usePin, usePinned } from "@/lib/pins"
@@ -57,6 +61,7 @@ import {
 } from "@evido/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import {
+  FOLDER_ICONS,
   MailMenu,
   type MailNavigation,
 } from "@/components/sidebar"
@@ -97,6 +102,7 @@ import {
   type SyncStatus,
 } from "@/lib/mail"
 import { EmptyPane } from "@/components/empty-pane"
+import { ListEmpty } from "@/components/list-empty"
 import { EmptyTrashButton } from "@/components/empty-trash"
 import { isDestructive, MOVE_ICONS, moveLabel } from "@/lib/thread-actions"
 import { ComposePage } from "@/pages/compose"
@@ -1283,13 +1289,15 @@ export function InboxPage({
               {invoiceList.isPending && <ListSkeleton />}
               {invoiceList.isError && <p className="p-4 pl-8 text-sm text-destructive">{strings.invoices.loadFailed}</p>}
               {invoiceList.isSuccess && invoiceRows.length === 0 && (
-                <p className="p-4 pl-8 text-sm text-muted-foreground">
-                  {!invoiceList.data?.complete
-                    ? strings.invoices.stillReading
-                    : allInvoices.length === 0
-                      ? strings.invoices.empty
-                      : strings.invoices.nothingHere}
-                </p>
+                !invoiceList.data?.complete ? (
+                  <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.invoices.stillReading}</p>
+                ) : allInvoices.length === 0 ? (
+                  <ListEmpty icon={Invoice02Icon} title={strings.invoices.emptyTitle}>
+                    {strings.invoices.empty}
+                  </ListEmpty>
+                ) : (
+                  <ListEmpty icon={Invoice02Icon} title={strings.invoices.nothingHere} />
+                )
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
                 {invoiceRows.map((invoice, index) => (
@@ -1311,7 +1319,9 @@ export function InboxPage({
               {senders.isPending && <ListSkeleton />}
               {senders.isError && <p className="p-4 pl-8 text-sm text-destructive">{strings.senders.loadFailed}</p>}
               {senders.isSuccess && senders.data.senders.length === 0 && (
-                <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.senders.empty}</p>
+                <ListEmpty icon={CleanIcon} title={strings.senders.emptyTitle}>
+                  {strings.senders.empty}
+                </ListEmpty>
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
                 {senders.data?.senders.map((sender) => (
@@ -1435,9 +1445,13 @@ export function InboxPage({
               {shipments.isPending && <ListSkeleton />}
               {shipments.isError && <p className="p-4 text-sm text-destructive">{strings.parcels.loadFailed}</p>}
               {shipments.isSuccess && parcelRows.length === 0 && (deliveredCount === 0 || !shipments.data?.complete) && (
-                <p className="p-4 pl-8 text-sm text-muted-foreground">
-                  {shipments.data?.complete ? strings.parcels.empty : strings.parcels.stillReading}
-                </p>
+                shipments.data?.complete ? (
+                  <ListEmpty icon={PackageIcon} title={strings.parcels.emptyTitle}>
+                    {strings.parcels.empty}
+                  </ListEmpty>
+                ) : (
+                  <p className="p-4 pl-8 text-sm text-muted-foreground">{strings.parcels.stillReading}</p>
+                )
               )}
               {shipments.isSuccess && parcelRows.length === 0 && deliveredCount > 0 && shipments.data?.complete && (
                 // Nothing on its way: say so, and show what arrived lately instead of an empty list.
@@ -1490,9 +1504,9 @@ export function InboxPage({
                 </p>
               )}
               {drafts.isSuccess && draftRows.length === 0 && (
-                <p className="p-4 text-sm text-muted-foreground">
+                <ListEmpty icon={File01Icon} title={strings.drafts.emptyTitle}>
                   {strings.drafts.empty}
-                </p>
+                </ListEmpty>
               )}
               <ul className="flex flex-col gap-0.5 px-2 pb-2">
                 {draftRows.map((draft) => (
@@ -1537,15 +1551,16 @@ export function InboxPage({
                   )}
                   {list.isSuccess &&
                     !loadingAccounts &&
-                    rows.length === 0 && (
-                      <p className="p-4 text-sm text-muted-foreground">
-                        {folder
-                          ? strings.folders.empty
-                          : syncStatus === "syncing"
-                            ? t.firstSync
-                            : t.empty}
-                      </p>
-                    )}
+                    rows.length === 0 &&
+                    (folder ? (
+                      <ListEmpty icon={FOLDER_ICONS[folder]} title={strings.folders.empty} />
+                    ) : syncStatus === "syncing" ? (
+                      <p className="p-4 text-sm text-muted-foreground">{t.firstSync}</p>
+                    ) : (
+                      <ListEmpty icon={InboxIcon} title={t.emptyTitle}>
+                        {t.empty}
+                      </ListEmpty>
+                    ))}
                   <ThreadList
                     rows={rows}
                     scroller={scroller}
