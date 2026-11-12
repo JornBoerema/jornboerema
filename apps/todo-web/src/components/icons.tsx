@@ -37,6 +37,8 @@ import {
   LeftToRightListBulletIcon,
   Cancel01Icon,
   Layers01Icon,
+  ArrowExpandIcon,
+  ArrowShrinkIcon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 
@@ -90,3 +92,5 @@ export const User = appIcon(UserIcon);
 export const ListView = appIcon(LeftToRightListBulletIcon);
 export const X = appIcon(Cancel01Icon);
 export const Layers = appIcon(Layers01Icon);
+export const Maximize = appIcon(ArrowExpandIcon);
+export const Minimize = appIcon(ArrowShrinkIcon);

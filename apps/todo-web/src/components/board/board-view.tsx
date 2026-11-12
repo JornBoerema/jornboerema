@@ -3,9 +3,7 @@ import { useSearchParams } from "react-router";
 import { sortIssues, type Command, type Todo, type TodoList, type WorkspaceData } from "@evido/todo-core/workspace";
 import { defaultStatus, sortStatuses, type BoardMember, type BoardProject, type BoardStatus } from "@evido/todo-core/board";
 import { Button } from "@evido/ui/components/button";
-import { Input } from "@evido/ui/components/input";
-import { Textarea } from "@evido/ui/components/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@evido/ui/components/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -18,7 +16,11 @@ import {
 } from "@evido/ui/components/dropdown-menu";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@evido/ui/components/empty";
 import { cn } from "@evido/ui/lib/utils";
-import { Kanban, Layers, ListView, Paperclip, Plus, User } from "@/components/icons";
+import { Kanban, Layers, ListView, Maximize, Minimize, Paperclip, Plus, User, X } from "@/components/icons";
+import { Switch } from "@evido/ui/components/switch";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { AttachmentTooLarge, uploadAttachment } from "@/lib/attachments";
 import { useI18n } from "@/i18n";
 import {
   AssigneeMenu,
@@ -178,7 +180,7 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
       {filtered && all.length > 0 && !visible.length && <p className="board-filter-empty">{t.empty.filtered}</p>}
 
       {creating && (
-        <NewIssueDialog list={list} statuses={statuses} projects={projects} members={members} run={run} disabled={disabled}
+        <NewIssueDialog list={list} statuses={statuses} projects={projects} members={members} run={run} disabled={disabled} canUpload={canUpload}
           initialStatusId={creating.statusId} initialProjectId={projectFilter !== "all" && projectFilter !== "none" ? projectFilter : undefined}
           onClose={() => setCreating(null)} />
       )}
@@ -328,27 +330,34 @@ function IssueList({ columns, data, locked, run, onOpen, onCreate }: ViewProps) 
   );
 }
 
-function NewIssueDialog({ list, statuses, projects, members, run, disabled, initialStatusId, initialProjectId, onClose }: {
-  list: TodoList; statuses: BoardStatus[]; projects: BoardProject[]; members: BoardMember[]; run: Run; disabled: boolean;
+function NewIssueDialog({ list, statuses, projects, members, run, disabled, canUpload, initialStatusId, initialProjectId, onClose }: {
+  list: TodoList; statuses: BoardStatus[]; projects: BoardProject[]; members: BoardMember[]; run: Run; disabled: boolean; canUpload: boolean;
   initialStatusId?: string; initialProjectId?: string; onClose: () => void;
 }) {
   const { t: { board: t } } = useI18n();
+  const client = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [statusId, setStatusId] = useState(initialStatusId ?? defaultStatus(statuses)?.id);
   const [priority, setPriority] = useState(0);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [projectId, setProjectId] = useState<string | null>(initialProjectId ?? null);
-  const titleInput = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [expanded, setExpanded] = useState(false);
+  const [more, setMore] = useState(false);
+  const titleInput = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const status = statuses.find((s) => s.id === statusId);
   const project = projects.find((p) => p.id === projectId);
   const assignees = members.filter((m) => assigneeIds.includes(m.id));
-  function submit(event: React.FormEvent) {
-    event.preventDefault();
+  function submit(event?: React.FormEvent) {
+    event?.preventDefault();
     if (!title.trim() || disabled) return;
+    const id = crypto.randomUUID();
+    const attach = files;
     void run({
       type: "create-issue",
-      id: crypto.randomUUID(),
+      id,
       listId: list.id,
       title: title.trim(),
       ...(description.trim() ? { description: description.trim() } : {}),
@@ -356,42 +365,88 @@ function NewIssueDialog({ list, statuses, projects, members, run, disabled, init
       priority,
       assigneeIds,
       projectId,
+    }).then(async (saved) => {
+      // Files need the issue on the server first.
+      if (!saved || !attach.length) return;
+      for (const file of attach)
+        await uploadAttachment(id, file).catch((error) =>
+          toast.error(error instanceof AttachmentTooLarge ? t.attachments.tooLarge(file.name) : t.attachments.failed(file.name)));
+      await client.invalidateQueries({ queryKey: ["workspace"] });
     });
-    onClose();
+    if (!more) return onClose();
+    // "Create more": keep the properties, start a fresh title.
+    setTitle("");
+    setDescription("");
+    setFiles([]);
+    titleInput.current?.focus();
   }
+  const chip = "new-issue-chip";
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xl" onOpenAutoFocus={(event) => { event.preventDefault(); titleInput.current?.focus(); }}>
-        <DialogHeader>
-          <DialogTitle>{t.issue.newTitle}</DialogTitle>
-          <DialogDescription>{t.issue.dialogDescription}</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <Input ref={titleInput} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={500} required
-            placeholder={t.issue.titlePlaceholder} aria-label={t.issue.titleLabel} className="h-11 text-base font-medium" />
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={50000} rows={4}
-            placeholder={t.issue.descriptionPlaceholder} aria-label={t.issue.descriptionLabel} />
-          <div className="flex flex-wrap gap-2">
-            <StatusMenu statuses={statuses} value={statusId} onChange={setStatusId}>
-              <Button type="button" variant="outline" size="sm"><StatusIcon status={status} />{status?.name}</Button>
-            </StatusMenu>
-            <PriorityMenu value={priority} onChange={setPriority}>
-              <Button type="button" variant="outline" size="sm"><PriorityIcon priority={priority} />{t.priority.name(priority)}</Button>
-            </PriorityMenu>
-            {members.length > 0 && <AssigneeMenu members={members} value={assigneeIds} onChange={setAssigneeIds}>
-              <Button type="button" variant="outline" size="sm">
-                {assignees.length ? <AvatarStack members={assignees} size={16} /> : <User className="size-3.5" aria-hidden="true" />}
-                {assignees.length === 1 ? assignees[0].name || assignees[0].email : assignees.length ? `${assignees.length}` : t.properties.noAssignees}
+      <DialogContent showCloseButton={false}
+        className={cn("new-issue-dialog top-[14vh] translate-y-0 gap-0 p-0 sm:max-w-[680px] data-open:zoom-in-[0.98]", expanded && "is-expanded sm:max-w-[920px]")}
+        onOpenAutoFocus={(event) => { event.preventDefault(); titleInput.current?.focus(); }}>
+        <form onSubmit={submit} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) submit(event); }}>
+          <header className="new-issue-header">
+            <span className="new-issue-crumb"><Kanban className="size-3.5" aria-hidden="true" /><span className="truncate">{list.name}</span></span>
+            <span className="text-muted-foreground" aria-hidden="true">›</span>
+            <DialogTitle className="new-issue-heading">{t.issue.newTitle}</DialogTitle>
+            <DialogDescription className="sr-only">{t.issue.dialogDescription}</DialogDescription>
+            <span className="ml-auto flex items-center gap-0.5">
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={expanded ? t.issue.collapse : t.issue.expand} title={expanded ? t.issue.collapse : t.issue.expand} onClick={() => setExpanded(!expanded)}>
+                {expanded ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
               </Button>
-            </AssigneeMenu>}
-            <ProjectMenu projects={projects} value={projectId ?? undefined} onChange={setProjectId}>
-              <Button type="button" variant="outline" size="sm"><ProjectDot project={project} /><span className="max-w-40 truncate">{project?.name ?? t.properties.noProject}</span></Button>
-            </ProjectMenu>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={t.issue.close} onClick={onClose}><X /></Button>
+            </span>
+          </header>
+          <div className="new-issue-body">
+            <textarea ref={titleInput} rows={1} value={title} maxLength={500} required className="new-issue-title"
+              placeholder={t.issue.titlePlaceholder} aria-label={t.issue.titleLabel}
+              onChange={(e) => setTitle(e.target.value.replace(/\n/g, " "))}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) e.preventDefault(); }} />
+            <textarea rows={expanded ? 10 : 3} value={description} maxLength={50000} className="new-issue-description"
+              placeholder={t.issue.descriptionPlaceholder} aria-label={t.issue.descriptionLabel}
+              onChange={(e) => setDescription(e.target.value)} />
+            <div className="new-issue-chips">
+              <StatusMenu statuses={statuses} value={statusId} onChange={setStatusId}>
+                <button type="button" className={chip}><StatusIcon status={status} />{status?.name}</button>
+              </StatusMenu>
+              <PriorityMenu value={priority} onChange={setPriority}>
+                <button type="button" className={cn(chip, !priority && "is-empty")}><PriorityIcon priority={priority} />{priority ? t.priority.name(priority) : t.properties.priority}</button>
+              </PriorityMenu>
+              {members.length > 0 && <AssigneeMenu members={members} value={assigneeIds} onChange={setAssigneeIds}>
+                <button type="button" className={cn(chip, !assignees.length && "is-empty")}>
+                  {assignees.length ? <AvatarStack members={assignees} size={16} /> : <User className="size-3.5" aria-hidden="true" />}
+                  <span className="max-w-40 truncate">{assignees.length === 1 ? assignees[0].name || assignees[0].email : assignees.length ? t.properties.assigneeCount(assignees.length) : t.properties.assignee}</span>
+                </button>
+              </AssigneeMenu>}
+              <ProjectMenu projects={projects} value={projectId ?? undefined} onChange={setProjectId}>
+                <button type="button" className={cn(chip, !project && "is-empty")}><ProjectDot project={project} /><span className="max-w-40 truncate">{project?.name ?? t.properties.project}</span></button>
+              </ProjectMenu>
+            </div>
+            {files.length > 0 && (
+              <ul className="new-issue-files">
+                {files.map((file, index) => (
+                  <li key={`${file.name}-${index}`} className="new-issue-file">
+                    <Paperclip className="size-3.5" aria-hidden="true" />
+                    <span className="truncate">{file.name}</span>
+                    <button type="button" aria-label={t.attachments.remove(file.name)} onClick={() => setFiles(files.filter((_, i) => i !== index))}><X className="size-3" /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>{t.issue.cancel}</Button>
-            <Button type="submit" disabled={disabled || !title.trim()}>{t.issue.create}</Button>
-          </DialogFooter>
+          <footer className="new-issue-footer">
+            {canUpload && <>
+              <Button type="button" variant="ghost" size="icon-sm" className="rounded-full" aria-label={t.attachments.add} title={t.attachments.add} onClick={() => fileInput.current?.click()}><Paperclip /></Button>
+              <input ref={fileInput} type="file" multiple hidden onChange={(e) => { if (e.target.files) setFiles([...files, ...e.target.files]); e.target.value = ""; }} />
+            </>}
+            <label className="new-issue-more">
+              <Switch size="sm" checked={more} onCheckedChange={setMore} />
+              {t.issue.createMore}
+            </label>
+            <Button type="submit" size="sm" disabled={disabled || !title.trim()} title="⌘↵">{t.issue.create}</Button>
+          </footer>
         </form>
       </DialogContent>
     </Dialog>
