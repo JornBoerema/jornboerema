@@ -46,6 +46,9 @@ export const settings = {
     title: "Your Even account",
     description: "Name, email address, password and signed-in devices, for every Even app.",
     manage: "Manage account",
+    signOut: "Sign out",
+    signOutDescription: "Of this app on this device.",
+    signingOut: "Signing out…",
   },
   appearance: {
     theme: "Theme",

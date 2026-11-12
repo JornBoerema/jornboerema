@@ -1,7 +1,8 @@
 import { AccountSiteSection } from "@evido/ui/components/account-site"
 import { useI18n } from "@/i18n"
+import { useSignOut } from "@/components/workspace-switcher"
 
 /** Name, e-mail, password and devices live on the account site, shared by every Even app. */
 export function AccountSettings({ user }: { user: { name: string; email: string } }) {
-  return <AccountSiteSection user={user} texts={useI18n().t.settings.account} />
+  return <AccountSiteSection user={user} texts={useI18n().t.settings.account} onSignOut={useSignOut()} />
 }

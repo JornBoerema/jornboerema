@@ -13,6 +13,9 @@ export const en = {
     title: "Your Even account",
     description: "Name, email address, password and signed-in devices, for every Even app.",
     manage: "Manage account",
+    signOut: "Sign out",
+    signOutDescription: "Of this app on this device.",
+    signingOut: "Signing out…",
   },
   shell: {
     noConnection: "There is no connection. Please try again.",

@@ -1,7 +1,7 @@
 import { useLaterCounts } from "@/lib/later"
 import { useInvoices, useParcels, useSenders, useSidebarLayout } from "@/lib/preferences"
 import type { NavItem, SidebarLayout } from "@evido/mail-core/sidebar"
-import { DesktopAppMenu, useInDesktop } from "@evido/ui/components/app-switcher"
+import { DesktopSettingsButton, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
 import {
@@ -385,9 +385,7 @@ export function Sidebar({
       <div className="sidebar-full" inert={sidebar.collapsed}>
         <div className="sidebar-brand-row">
           <Brand />
-          <DesktopAppMenu app="mail" label={t.shell.settings}>
-            <AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />
-          </DesktopAppMenu>
+          <DesktopSettingsButton app="mail" label={t.shell.settings} onOpen={onSettings} />
           {/* The desktop app keeps the sidebar open. */}
           {!desktop && (
             <IconTip label={t.shell.collapse} shortcut="⌘B">
@@ -473,7 +471,7 @@ export function Sidebar({
           </section>
         </div>
         <UpdateButton />
-        {/* In the desktop app these sit behind the rail's settings button. */}
+        {/* In the desktop app the rail's settings button opens settings; signing out is on their account page. */}
         {!desktop && (
           <div className="sidebar-footer">
             <DropdownMenu>
@@ -533,7 +531,7 @@ function AccountMenuContent({
   )
 }
 
-/** Settings, shortcuts and sign-out: the account menu on the web, the rail's settings menu in the desktop app. */
+/** Settings, shortcuts and sign-out: the account menu on the web. */
 function AccountMenuItems({ onSettings, onShortcuts }: { onSettings: () => void; onShortcuts: () => void }) {
   const t = useI18n().t
   return (

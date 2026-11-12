@@ -1,4 +1,4 @@
-import { DesktopAppMenu, useInDesktop } from "@evido/ui/components/app-switcher";
+import { DesktopSettingsButton } from "@evido/ui/components/app-switcher";
 import { UpdateButton } from "@evido/ui/components/desktop-app";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -23,7 +23,7 @@ import {
 } from "@/components/icons";
 import { BoardView } from "@/components/board/board-view";
 import { ListSpotlight } from "@/components/list-spotlight";
-import { WorkspaceSettings } from "@/components/settings/workspace-settings";
+import { useSettings, WorkspaceSettings } from "@/components/settings/workspace-settings";
 import { useWorkspaceMenu, WorkspaceSwitcher } from "@/components/workspace-switcher";
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces";
 import {
@@ -113,8 +113,8 @@ export function WorkspaceApp({
   shareToken?: string;
 }) {
   const { t: { workspace: t, board: bt } } = useI18n();
-  // Workspaces, settings and sign-out: the footer menu on the web, the rail's settings menu in the desktop app.
-  const desktop = useInDesktop();
+  // Workspaces, settings and sign-out: the footer menu; in the desktop app only workspaces, as the rail opens settings.
+  const settings = useSettings();
   const workspaceMenu = useWorkspaceMenu(
     user && activeWorkspace && onSelectWorkspace
       ? { user, workspaces, active: activeWorkspace, onSelect: onSelectWorkspace }
@@ -263,8 +263,8 @@ export function WorkspaceApp({
           })}
         </div>
         <UpdateButton />
-        {/* Workspace, settings and sign-out live in one menu at the bottom; in the desktop app, behind the rail's settings button. */}
-        {user && activeWorkspace && onSelectWorkspace && !desktop && (
+        {/* Workspace, settings and sign-out live in one menu at the bottom; in the desktop app only the workspaces. */}
+        {user && activeWorkspace && onSelectWorkspace && (
           <div className="sidebar-footer">
             <WorkspaceSwitcher user={user} active={activeWorkspace} items={workspaceMenu.items} />
           </div>
@@ -273,7 +273,7 @@ export function WorkspaceApp({
           <WorkspaceSettings user={user} workspaces={workspaces} activeWorkspace={activeWorkspace} onSelectWorkspace={onSelectWorkspace} board={{ data, run, disabled }} />
         )}
         {workspaceMenu.dialog}
-        {workspaceMenu.items && <DesktopAppMenu app="todo" label={t.switcher.settings}>{workspaceMenu.items}</DesktopAppMenu>}
+        {user && activeWorkspace && <DesktopSettingsButton app="todo" label={t.switcher.settings} onOpen={() => settings.open("account")} />}
       </aside>}
       <main id="tasks" className="workspace-main" tabIndex={-1}>
       {!shareToken && <Button ref={sidebarExpand} variant="ghost" size="icon" className="sidebar-corner-toggle"

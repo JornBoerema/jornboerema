@@ -47,6 +47,9 @@ export const settings: typeof en = {
     title: "Je Even-account",
     description: "Naam, e-mailadres, wachtwoord en ingelogde apparaten, voor alle Even-apps.",
     manage: "Account beheren",
+    signOut: "Uitloggen",
+    signOutDescription: "Uit deze app op dit apparaat.",
+    signingOut: "Uitloggen…",
   },
   appearance: {
     theme: "Thema",

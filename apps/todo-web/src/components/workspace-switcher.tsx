@@ -8,6 +8,7 @@ import { useWorkspaceCommand } from "@/lib/workspaces"
 import { useI18n } from "@/i18n"
 import { Check, ChevronsUpDown, LogOut, Plus, Settings } from "@/components/icons"
 import { useSettings } from "@/components/settings/workspace-settings"
+import { useInDesktop } from "@evido/ui/components/app-switcher"
 import { Button } from "@evido/ui/components/button"
 import { Input } from "@evido/ui/components/input"
 import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field"
@@ -37,14 +38,33 @@ type WorkspaceMenuProps = {
   onSelect: (id: string) => void
 }
 
+/** Signs out and goes to the sign-in page; says so when it did not work, and throws. */
+export function useSignOut() {
+  const navigate = useNavigate()
+  const client = useQueryClient()
+  const { t: { workspace: { switcher: t } } } = useI18n()
+  return async () => {
+    try {
+      const result = await authClient.signOut()
+      if (result.error) throw new Error()
+    } catch (error) {
+      toast.error(t.signOutFailed)
+      throw error
+    }
+    client.clear()
+    navigate("/login", { replace: true })
+  }
+}
+
 /**
  * Switch workspace, open settings, sign out: the items, and the dialog for a
  * new workspace. The dialog lives outside the menu, which closes before it opens.
+ * In the desktop app, whose rail opens settings (with signing out), only workspaces.
  */
 export function useWorkspaceMenu(props: WorkspaceMenuProps | null) {
-  const navigate = useNavigate()
-  const client = useQueryClient()
   const settings = useSettings()
+  const desktop = useInDesktop()
+  const signOutNow = useSignOut()
   const { t: { workspace: { switcher: t } } } = useI18n()
   const command = useWorkspaceCommand(props?.user.id ?? "")
   const [creating, setCreating] = useState(false)
@@ -77,12 +97,8 @@ export function useWorkspaceMenu(props: WorkspaceMenuProps | null) {
   async function signOut() {
     setSigningOut(true)
     try {
-      const result = await authClient.signOut()
-      if (result.error) throw new Error()
-      client.clear()
-      navigate("/login", { replace: true })
+      await signOutNow()
     } catch {
-      toast.error(t.signOutFailed)
       setSigningOut(false)
     }
   }
@@ -108,18 +124,22 @@ export function useWorkspaceMenu(props: WorkspaceMenuProps | null) {
           {t.newWorkspace}
         </DropdownMenuItem>
       </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuGroup>
-        <DropdownMenuItem onSelect={() => settings.open("account")}>
-          <Settings aria-hidden="true" />
-          {t.settings}
-          <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()}>
-          <LogOut aria-hidden="true" />
-          {signingOut ? t.signingOut : t.signOut}
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
+      {!desktop && (
+        <>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem onSelect={() => settings.open("account")}>
+            <Settings aria-hidden="true" />
+            {t.settings}
+            <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()}>
+            <LogOut aria-hidden="true" />
+            {signingOut ? t.signingOut : t.signOut}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        </>
+      )}
     </>
   )
 

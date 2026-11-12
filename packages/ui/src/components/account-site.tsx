@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { authUrl } from "@evido/auth/client"
@@ -39,10 +39,34 @@ export type AccountSiteTexts = {
   title: string
   description: string
   manage: string
+  signOut: string
+  signOutDescription: string
+  signingOut: string
 }
 
-/** The account behind an app, managed on the account site: name, e-mail, password, devices. */
-export function AccountSiteSection({ user, texts }: { user: { name: string; email: string }; texts: AccountSiteTexts }) {
+/**
+ * The account behind an app, managed on the account site: name, e-mail,
+ * password, devices. Signing out of this app happens here too.
+ */
+export function AccountSiteSection({
+  user,
+  texts,
+  onSignOut,
+}: {
+  user: { name: string; email: string }
+  texts: AccountSiteTexts
+  /** Resolves once signed out; throws (after telling why) when it did not work. */
+  onSignOut: () => Promise<void>
+}) {
+  const [signingOut, setSigningOut] = useState(false)
+  const signOut = async () => {
+    setSigningOut(true)
+    try {
+      await onSignOut()
+    } catch {
+      setSigningOut(false)
+    }
+  }
   return (
     <SettingsSection title={texts.title} description={texts.description}>
       <SettingsRow
@@ -54,6 +78,11 @@ export function AccountSiteSection({ user, texts }: { user: { name: string; emai
             {texts.manage}
             <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.75} aria-hidden="true" data-icon="inline-end" />
           </a>
+        </Button>
+      </SettingsRow>
+      <SettingsRow title={texts.signOut} description={texts.signOutDescription}>
+        <Button variant="outline" disabled={signingOut} onClick={() => void signOut()}>
+          {signingOut ? texts.signingOut : texts.signOut}
         </Button>
       </SettingsRow>
     </SettingsSection>
