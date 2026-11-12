@@ -116,8 +116,8 @@ function PlaceRow({
   )
 }
 
-/** How long the bar and the veil take to leave. */
-const LEAVE_MS = 200
+/** How long the bar takes to slide out and the veil to fade. */
+const LEAVE_MS = 250
 
 /**
  * The sidebar while it is being arranged: every place in one list to drag,
@@ -146,6 +146,13 @@ export function SidebarEditor({
   // Closing first lets the bar slide away and the veil fade, then hands back.
   const [closing, setClosing] = useState(false)
   const close = () => setClosing(true)
+  // In place below the screen first, then up: two frames, so the start is painted.
+  const [entered, setEntered] = useState(false)
+  useEffect(() => {
+    let frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => setEntered(true))))
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  const shown = entered && !closing
   useEffect(() => {
     if (!closing) return
     const timer = window.setTimeout(onDone, LEAVE_MS)
@@ -217,8 +224,8 @@ export function SidebarEditor({
         <div
           aria-hidden="true"
           className={cn(
-            "fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px] duration-200 fill-mode-forwards motion-reduce:animate-none",
-            closing ? "animate-out fade-out-0" : "animate-in fade-in-0"
+            "fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px] transition-opacity duration-250 motion-reduce:transition-none",
+            shown ? "opacity-100" : "opacity-0"
           )}
         />,
         document.body
@@ -230,11 +237,11 @@ export function SidebarEditor({
             aria-label={t.title}
             inert={closing}
             className={cn(
-              "duration-200 ease-out fill-mode-forwards motion-reduce:animate-none",
-              // From below the window's edge: its own height (h-14) and the gap under it (bottom-6).
-              closing
-                ? "animate-out fade-out-0 slide-out-to-bottom-20 ease-in"
-                : "animate-in fade-in-0 slide-in-from-bottom-20"
+              "transition-transform motion-reduce:transition-none",
+              shown
+                ? "translate-y-0 duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                : // Fully off the screen: its own height, the gap under it and its shadow.
+                  "translate-y-[calc(100%+3rem)] duration-250 ease-in"
             )}
           >
             <div
