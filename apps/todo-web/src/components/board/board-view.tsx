@@ -133,10 +133,10 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
                 {filterCount > 0 && <span className="board-tool-count">{filterCount}</span>}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-52">
+            <DropdownMenuContent align="start" className="board-menu min-w-44">
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger><Folder className="size-3.5" aria-hidden="true" />{t.toolbar.project}</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-80 min-w-48">
+                <DropdownMenuSubContent className="board-menu max-h-80 min-w-40">
                   <DropdownMenuRadioGroup value={projectFilter} onValueChange={setProjectFilter}>
                     <DropdownMenuRadioItem value="all">{t.toolbar.allProjects}</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="none"><ProjectDot />{t.toolbar.noProject}</DropdownMenuRadioItem>
@@ -146,7 +146,7 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
               </DropdownMenuSub>
               {members.length > 0 && <DropdownMenuSub>
                 <DropdownMenuSubTrigger><User className="size-3.5" aria-hidden="true" />{t.toolbar.assignee}</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-80 min-w-48">
+                <DropdownMenuSubContent className="board-menu max-h-80 min-w-40">
                   <DropdownMenuRadioGroup value={assigneeFilter} onValueChange={setAssigneeFilter}>
                     <DropdownMenuRadioItem value="all">{t.toolbar.everyone}</DropdownMenuRadioItem>
                     {userId && <DropdownMenuRadioItem value="me">{t.toolbar.mine}</DropdownMenuRadioItem>}

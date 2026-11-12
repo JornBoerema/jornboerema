@@ -616,3 +616,9 @@ a.todo-mail:focus-visible {
 .new-issue-file button:hover { background: color-mix(in oklab, var(--foreground) 10%, transparent); color: var(--foreground); }
 .new-issue-footer { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; border-top: 1px solid var(--border); }
 .new-issue-more { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12.5px; color: var(--muted-foreground); cursor: pointer; }
+
+/* Toolbar menus: small, like the toolbar itself. */
+.board-menu { padding: 4px; border-radius: 12px; }
+.board-menu [role^="menuitem"] { min-height: 26px; padding-top: 3px; padding-bottom: 3px; gap: 8px; border-radius: 7px; font-size: 12.5px; }
+.board-menu [role^="menuitem"] svg:not([class*="size-"]) { width: 14px; height: 14px; }
+.board-menu [data-slot="dropdown-menu-separator"] { margin: 3px 0; }
