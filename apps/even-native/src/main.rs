@@ -6,6 +6,7 @@ mod assets;
 mod auth;
 mod email;
 mod mail;
+mod quote;
 mod store;
 mod theme;
 

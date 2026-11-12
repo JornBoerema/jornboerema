@@ -77,6 +77,9 @@ pub struct ThreadsPage {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Attachment {
+    /// Empty for some providers' parts; those can't be downloaded.
+    #[serde(default)]
+    pub id: String,
     pub name: String,
     pub size: u64,
 }

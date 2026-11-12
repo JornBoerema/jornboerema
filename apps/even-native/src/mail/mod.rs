@@ -13,9 +13,10 @@ use gpui_webview::WebView;
 
 use crate::api::{Account, Action, Client, Folder, Thread, Unauthorized};
 use crate::store::Store;
-use crate::theme;
+use crate::{email, theme};
 
 mod conversation;
+mod download;
 mod list;
 mod reader;
 mod sidebar;
@@ -74,12 +75,18 @@ pub struct MailView {
     shown: Option<(String, bool)>,
     /// Conversations whose remote images the user asked to see.
     images: HashSet<String>,
+    /// Numbers each document the webview loads, so a download asked for in
+    /// one that was replaced since is dropped.
+    view: u64,
+    /// How a download went, for the reader's toolbar; `true` when it failed.
+    status: Option<(SharedString, bool)>,
+    status_serial: u64,
     /// Lets only our own script run in the mail document.
     nonce: String,
-    /// Shortcuts pressed while the mail has focus, sent on by its script.
-    keys: UnboundedSender<String>,
+    /// Messages from that script: shortcuts pressed while the mail has focus, and downloads.
+    ipc: UnboundedSender<String>,
     _poll: Task<()>,
-    _keys: Task<()>,
+    _ipc: Task<()>,
 }
 
 impl MailView {
@@ -93,10 +100,10 @@ impl MailView {
                 break;
             }
         });
-        let (keys, mut pressed) = unbounded::<String>();
-        let keys_task = cx.spawn(async move |this, cx| {
-            while let Some(key) = pressed.next().await {
-                if this.update(cx, |this, cx| this.key(&key, cx)).is_err() {
+        let (ipc, mut received) = unbounded::<String>();
+        let ipc_task = cx.spawn(async move |this, cx| {
+            while let Some(raw) = received.next().await {
+                if this.update(cx, |this, cx| this.message(&raw, cx)).is_err() {
                     break;
                 }
             }
@@ -118,10 +125,13 @@ impl MailView {
             webview: None,
             shown: None,
             images: HashSet::new(),
+            view: 0,
+            status: None,
+            status_serial: 0,
             nonce: random_nonce(),
-            keys,
+            ipc,
             _poll: poll,
-            _keys: keys_task,
+            _ipc: ipc_task,
         };
         view.load_accounts(cx);
         view.load(true, cx);
@@ -421,6 +431,15 @@ impl MailView {
         }
         self.cache_thread(&id, cx);
         cx.notify();
+    }
+
+    /// A message from our script in the mail document.
+    fn message(&mut self, raw: &str, cx: &mut Context<Self>) {
+        match email::parse_message(raw) {
+            Some(email::Message::Key(key)) => self.key(&key, cx),
+            Some(email::Message::Download { view, part, file }) => self.download(view, part, file, cx),
+            None => {}
+        }
     }
 
     /// A shortcut pressed inside the mail document.
