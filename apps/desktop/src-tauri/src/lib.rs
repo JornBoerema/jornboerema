@@ -58,7 +58,7 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true)
-        .traffic_light_position(tauri::LogicalPosition::new(12.0, 28.0));
+        .traffic_light_position(tauri::LogicalPosition::new(12.0, 21.0));
     builder.build()
 }
 
