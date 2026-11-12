@@ -59,12 +59,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-latest
+          # The Macs build on the user's own Mac (a runner with the label
+          # even-mac, in ~/actions-runner-even), which never queues. Only
+          # this tag-started workflow uses it, so no pull request reaches it.
+          - runner: [self-hosted, even-mac]
             target: aarch64-apple-darwin
             bundle: dmg/*.dmg
             asset: Even-mac-apple-silicon.dmg
             config: --config src-tauri/tauri.macos-release.conf.json
-          - runner: macos-latest
+          - runner: [self-hosted, even-mac]
             target: x86_64-apple-darwin
             bundle: dmg/*.dmg
             asset: Even-mac-intel.dmg
