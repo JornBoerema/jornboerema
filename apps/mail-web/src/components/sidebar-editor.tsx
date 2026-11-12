@@ -116,6 +116,9 @@ function PlaceRow({
   )
 }
 
+/** How long the bar and the veil take to leave. */
+const LEAVE_MS = 200
+
 /**
  * The sidebar while it is being arranged: every place in one list to drag,
  * More and Hidden as the breaks between, an eye on each to hide or show it.
@@ -140,15 +143,23 @@ export function SidebarEditor({
   )
   const changed = JSON.stringify(draft) !== JSON.stringify(saved)
   const isDefault = JSON.stringify(draft) === JSON.stringify(DEFAULT_SIDEBAR)
+  // Closing first lets the bar slide away and the veil fade, then hands back.
+  const [closing, setClosing] = useState(false)
+  const close = () => setClosing(true)
+  useEffect(() => {
+    if (!closing) return
+    const timer = window.setTimeout(onDone, LEAVE_MS)
+    return () => window.clearTimeout(timer)
+  }, [closing, onDone])
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       // A drag in progress takes Escape for itself.
-      if (event.key === "Escape" && !document.querySelector("[aria-pressed='true'][aria-roledescription]")) onDone()
+      if (event.key === "Escape" && !document.querySelector("[aria-pressed='true'][aria-roledescription]")) setClosing(true)
     }
     document.addEventListener("keydown", keydown)
     return () => document.removeEventListener("keydown", keydown)
-  }, [onDone])
+  }, [])
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
@@ -167,7 +178,7 @@ export function SidebarEditor({
   }
   const save = () => {
     if (changed) setSidebar(isDefault ? null : draft)
-    onDone()
+    close()
   }
 
   return (
@@ -202,23 +213,45 @@ export function SidebarEditor({
         </SortableContext>
       </DndContext>
       {createPortal(
+        // Everything but the sidebar and this bar steps back: blurred, dimmed and out of reach.
+        <div
+          aria-hidden="true"
+          className={cn(
+            "fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px] duration-200 fill-mode-forwards motion-reduce:animate-none",
+            closing ? "animate-out fade-out-0" : "animate-in fade-in-0"
+          )}
+        />,
+        document.body
+      )}
+      {createPortal(
         <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2">
           <div
             role="region"
             aria-label={t.title}
-            className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md"
+            inert={closing}
+            className={cn(
+              "duration-200 ease-out fill-mode-forwards motion-reduce:animate-none",
+              // From below the window's edge: its own height (h-14) and the gap under it (bottom-6).
+              closing
+                ? "animate-out fade-out-0 slide-out-to-bottom-20 ease-in"
+                : "animate-in fade-in-0 slide-in-from-bottom-20"
+            )}
           >
-            <p className="min-w-0 truncate text-muted-foreground">{t.help}</p>
-            <div className="flex shrink-0 items-center gap-1.5">
-              {!isDefault && (
-                <Button variant="ghost" onClick={() => setDraft(DEFAULT_SIDEBAR)}>
-                  {t.reset}
+            <div
+              className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md"
+            >
+              <p className="min-w-0 truncate text-muted-foreground">{t.help}</p>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {!isDefault && (
+                  <Button variant="ghost" onClick={() => setDraft(DEFAULT_SIDEBAR)}>
+                    {t.reset}
+                  </Button>
+                )}
+                <Button variant="outline" onClick={close}>
+                  {t.cancel}
                 </Button>
-              )}
-              <Button variant="outline" onClick={onDone}>
-                {t.cancel}
-              </Button>
-              <Button onClick={save}>{t.save}</Button>
+                <Button onClick={save}>{t.save}</Button>
+              </div>
             </div>
           </div>
         </div>,
