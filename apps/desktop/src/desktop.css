@@ -1,39 +1,145 @@
-/* The Even desktop window: the chosen app fills it; its brand switches apps. */
+/* The Even desktop window: the app rail on the left, the chosen app beside it. */
 body {
   background: var(--background);
 }
 .desktop-app {
+  --rail-width: 72px;
   position: relative;
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
+}
+.desktop-stage {
+  position: relative;
+  min-width: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+/* The apps' sidebars sit flush against the rail, which holds the gap. */
+.desktop-stage .list-sidebar {
+  margin-left: 0;
+}
+.desktop-stage .workspace-shell {
+  grid-template-columns: 256px minmax(0, 1fr);
+}
+.desktop-stage .workspace-shell.sidebar-collapsed {
+  grid-template-columns: 0px minmax(0, 1fr);
+}
+.desktop-stage .workspace-shell.shared-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.desktop-stage .workspace-shell.mail-shell.sidebar-collapsed {
+  grid-template-columns: 52px minmax(0, 1fr);
+}
+/* Even doen's collapsed brand comes in from the rail's edge. */
+.desktop-stage .collapsed-brand {
+  left: 20px;
 }
 
 .desktop-loading {
   height: 100dvh;
 }
 
-/* macOS: the window buttons sit in the top-left corner of the sidebar, as in
-   Mail and Notes, so what was there moves down below them. */
-.mac .mail-sidebar .sidebar-full,
-.mac .workspace-shell:not(.shared-workspace) > .list-sidebar {
-  padding-top: 38px;
+/* The rail: the window's own colour, so the apps' panels float beside it. */
+.app-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 0;
+  padding: 16px 0 18px;
+  user-select: none;
 }
-.mac .mail-sidebar .sidebar-rail {
-  padding-top: 40px;
+/* On macOS the window buttons sit across its top. */
+.mac .app-rail {
+  padding-top: 52px;
 }
-/* The collapsed mail rail holds the three buttons whole, with as much room
-   on either side as above them. */
-.mac .workspace-shell.mail-shell.sidebar-collapsed {
-  grid-template-columns: 96px minmax(0, 1fr);
+.app-rail-apps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
-.mac .mail-shell.sidebar-collapsed .list-sidebar.mail-sidebar,
-.mac .mail-sidebar .sidebar-rail {
-  width: 80px;
+.app-rail-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--muted-foreground);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
 }
-/* Even doen's collapsed brand moves out from under the buttons. */
-.mac .collapsed-brand {
-  left: 92px;
+.app-rail-button > svg {
+  width: 20px;
+  height: 20px;
 }
+.app-rail-button:hover {
+  background: color-mix(in oklch, var(--foreground) 6%, transparent);
+  color: var(--foreground);
+}
+.app-rail-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+/* The open app looks like the panels: raised, with the accent on its sign. */
+.app-rail-button.is-selected {
+  background: var(--sidebar);
+  color: var(--primary);
+  box-shadow:
+    0 0 0 1px var(--sidebar-border),
+    0 1px 3px color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+/* A short bar on the window's edge marks it too. */
+.app-rail-button::before {
+  content: "";
+  position: absolute;
+  left: calc((var(--rail-width) - 40px) / -2);
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+  translate: 0 -50%;
+  transition: height 180ms ease;
+}
+.app-rail-button.is-selected::before {
+  height: 18px;
+}
+.app-rail-button.is-upcoming {
+  opacity: 0.38;
+  cursor: default;
+}
+.app-rail-button.is-upcoming:hover {
+  background: none;
+  color: var(--muted-foreground);
+  opacity: 0.55;
+}
+.app-rail-divider {
+  width: 20px;
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border);
+}
+.app-rail-hint {
+  opacity: 0.6;
+}
+.app-rail-mark {
+  width: 22px;
+  height: 22px;
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-rail-button,
+  .app-rail-button::before {
+    transition: none;
+  }
+}
+
 .desktop-sign-in.mac .auth-layout > header {
   padding-top: 44px;
 }

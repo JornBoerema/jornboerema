@@ -1,5 +1,10 @@
 import { Activity, useEffect, useState } from "react"
-import { CheckmarkSquare02Icon, Mail01Icon } from "@hugeicons/core-free-icons"
+import {
+  BubbleChatIcon,
+  CheckmarkSquare02Icon,
+  LockPasswordIcon,
+  Mail01Icon,
+} from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
 import { authClient, TodoEmbed } from "@evido/todo-web/embed"
@@ -9,6 +14,7 @@ import { DesktopProvider } from "@evido/ui/components/desktop-app"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { cn } from "@evido/ui/lib/utils"
 import { forgetMailOnDisk } from "./mail-storage"
+import { AppRail } from "./rail"
 import { SignIn } from "./sign-in"
 import { useDesktopApp } from "./updates"
 import { useWindowDragging } from "./window"
@@ -17,10 +23,15 @@ type AppId = "mail" | "todo"
 
 const isMac = navigator.userAgent.includes("Mac")
 
-/** In menu order; ⌘1, ⌘2, … follow it. Even chatten and Even inloggen join later. */
+/** In rail order; ⌘1, ⌘2, … follow it. */
 const APP_LIST: { id: AppId; name: string; icon: IconSvgElement }[] = [
   { id: "mail", name: "Even mailen", icon: Mail01Icon },
   { id: "todo", name: "Even doen", icon: CheckmarkSquare02Icon },
+]
+/** Shown in the rail, greyed out, until they join APP_LIST. */
+const UPCOMING = [
+  { id: "chat", name: "Even chatten", icon: BubbleChatIcon },
+  { id: "passwords", name: "Even inloggen", icon: LockPasswordIcon },
 ]
 const APPS: (SwitchableApp & { id: AppId })[] = APP_LIST.map((app, index) => ({
   ...app,
@@ -75,13 +86,16 @@ function Apps() {
     <DesktopProvider value={desktop}>
       <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select }}>
         <div className={cn("desktop-app", isMac && "mac")}>
-          {/* Mail stays mounted from the start, so new mail notifies from any app. */}
-          <MailEmbed active={active === "mail"} />
-          {opened.includes("todo") && (
-            <Activity mode={active === "todo" ? "visible" : "hidden"}>
-              <TodoEmbed />
-            </Activity>
-          )}
+          <AppRail apps={APPS} upcoming={UPCOMING} active={active} onSelect={select} />
+          <div className="desktop-stage">
+            {/* Mail stays mounted from the start, so new mail notifies from any app. */}
+            <MailEmbed active={active === "mail"} />
+            {opened.includes("todo") && (
+              <Activity mode={active === "todo" ? "visible" : "hidden"}>
+                <TodoEmbed />
+              </Activity>
+            )}
+          </div>
         </div>
       </AppSwitcherProvider>
     </DesktopProvider>
