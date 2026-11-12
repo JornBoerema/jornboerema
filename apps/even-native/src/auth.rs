@@ -94,7 +94,12 @@ impl Attempt {
             .append_pair("port", &port.to_string())
             .append_pair("state", &state)
             .append_pair("challenge", &challenge_for(&verifier));
-        Ok(Self { listener, verifier, state, url: url.to_string() })
+        Ok(Self {
+            listener,
+            verifier,
+            state,
+            url: url.to_string(),
+        })
     }
 
     /// Waits for the browser, then trades the code for a session token.
@@ -172,7 +177,9 @@ mod tests {
     fn pkce_values_fit_the_api() {
         let verifier = random_value(48);
         assert_eq!(verifier.len(), 64);
-        assert!(verifier.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+        assert!(verifier
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
         // RFC 7636, appendix B.
         assert_eq!(
             challenge_for("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
@@ -184,9 +191,14 @@ mod tests {
     fn callback_hands_over_the_query() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
-        client.write_all(b"GET /callback?code=abc&state=xyz HTTP/1.1\r\n\r\n").unwrap();
+        client
+            .write_all(b"GET /callback?code=abc&state=xyz HTTP/1.1\r\n\r\n")
+            .unwrap();
         let (server, _) = listener.accept().unwrap();
-        assert_eq!(answer(server, "https://auth.example.nl/desktop/done").as_deref(), Some("code=abc&state=xyz"));
+        assert_eq!(
+            answer(server, "https://auth.example.nl/desktop/done").as_deref(),
+            Some("code=abc&state=xyz")
+        );
         let mut response = String::new();
         client.read_to_string(&mut response).unwrap();
         assert!(response.starts_with("HTTP/1.1 302"));

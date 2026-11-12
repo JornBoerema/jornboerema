@@ -41,7 +41,9 @@ pub fn starred() -> Rgba {
 }
 
 /// Mailbox colours, the same eight as the web's account dots.
-const ACCOUNT_COLORS: [u32; 8] = [0x3e96ea, 0xeba002, 0xed5c9e, 0x26b76e, 0x9d6fe3, 0x14bbc2, 0xe9483d, 0x88909c];
+const ACCOUNT_COLORS: [u32; 8] = [
+    0x3e96ea, 0xeba002, 0xed5c9e, 0x26b76e, 0x9d6fe3, 0x14bbc2, 0xe9483d, 0x88909c,
+];
 
 pub fn account(color: usize) -> Rgba {
     rgb(ACCOUNT_COLORS[color % ACCOUNT_COLORS.len()])

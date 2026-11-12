@@ -32,7 +32,10 @@ struct Even {
 impl Even {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut even = Self {
-            screen: Screen::SignIn { waiting: false, error: None },
+            screen: Screen::SignIn {
+                waiting: false,
+                error: None,
+            },
             cancel: Arc::new(AtomicBool::new(false)),
             _signed_out: None,
         };
@@ -53,7 +56,10 @@ impl Even {
     fn sign_out(&mut self, cx: &mut Context<Self>) {
         auth::forget_token();
         self._signed_out = None;
-        self.screen = Screen::SignIn { waiting: false, error: None };
+        self.screen = Screen::SignIn {
+            waiting: false,
+            error: None,
+        };
         cx.notify();
     }
 
@@ -61,7 +67,10 @@ impl Even {
         let attempt = match auth::Attempt::start() {
             Ok(attempt) => attempt,
             Err(error) => {
-                self.screen = Screen::SignIn { waiting: false, error: Some(error.to_string().into()) };
+                self.screen = Screen::SignIn {
+                    waiting: false,
+                    error: Some(error.to_string().into()),
+                };
                 cx.notify();
                 return;
             }
@@ -70,7 +79,10 @@ impl Even {
         let cancel = Arc::new(AtomicBool::new(false));
         self.cancel = cancel.clone();
         cx.open_url(&attempt.url);
-        self.screen = Screen::SignIn { waiting: true, error: None };
+        self.screen = Screen::SignIn {
+            waiting: true,
+            error: None,
+        };
         cx.notify();
         let task = cx.background_executor().spawn(async move { attempt.finish(cancel) });
         cx.spawn_in(window, async move |this, cx| {
@@ -86,7 +98,10 @@ impl Even {
                     }
                     Err(error) if error.to_string() == "cancelled" => {}
                     Err(error) => {
-                        this.screen = Screen::SignIn { waiting: false, error: Some(error.to_string().into()) };
+                        this.screen = Screen::SignIn {
+                            waiting: false,
+                            error: Some(error.to_string().into()),
+                        };
                         cx.notify();
                     }
                 }
@@ -97,7 +112,10 @@ impl Even {
 
     fn cancel_sign_in(&mut self, cx: &mut Context<Self>) {
         self.cancel.store(true, Ordering::SeqCst);
-        self.screen = Screen::SignIn { waiting: false, error: None };
+        self.screen = Screen::SignIn {
+            waiting: false,
+            error: None,
+        };
         cx.notify();
     }
 
@@ -112,8 +130,14 @@ impl Even {
                 .rounded_md()
                 .text_sm()
                 .font_weight(FontWeight::MEDIUM)
-                .when(primary, |el| el.bg(theme::primary()).text_color(rgb(0xffffff)).hover(|el| el.opacity(0.9)))
-                .when(!primary, |el| el.text_color(theme::muted()).hover(|el| el.bg(theme::hover())))
+                .when(primary, |el| {
+                    el.bg(theme::primary())
+                        .text_color(rgb(0xffffff))
+                        .hover(|el| el.opacity(0.9))
+                })
+                .when(!primary, |el| {
+                    el.text_color(theme::muted()).hover(|el| el.bg(theme::hover()))
+                })
                 .child(label)
         };
         div()
@@ -129,14 +153,24 @@ impl Even {
                     .flex_col()
                     .gap_4()
                     .w(px(340.))
-                    .child(div().text_2xl().font_weight(FontWeight::SEMIBOLD).child("Welkom bij Even"))
+                    .child(
+                        div()
+                            .text_2xl()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("Welkom bij Even"),
+                    )
                     .child(div().text_sm().text_color(theme::muted()).child(if waiting {
                         "Rond het inloggen af in je browser."
                     } else {
                         "Log in met je Even-account. Dat gaat via je browser."
                     }))
                     .when_some(error, |el, error| {
-                        el.child(div().text_sm().text_color(theme::danger()).child(format!("Inloggen is niet gelukt: {error}")))
+                        el.child(
+                            div()
+                                .text_sm()
+                                .text_color(theme::danger())
+                                .child(format!("Inloggen is niet gelukt: {error}")),
+                        )
                     })
                     .map(|el| {
                         if waiting {
@@ -144,7 +178,10 @@ impl Even {
                                 button("again", "Browser opnieuw openen", true)
                                     .on_click(cx.listener(|this, _, window, cx| this.start_sign_in(window, cx))),
                             )
-                            .child(button("cancel", "Annuleren", false).on_click(cx.listener(|this, _, _, cx| this.cancel_sign_in(cx))))
+                            .child(
+                                button("cancel", "Annuleren", false)
+                                    .on_click(cx.listener(|this, _, _, cx| this.cancel_sign_in(cx))),
+                            )
                         } else {
                             el.child(
                                 button("sign-in", "Inloggen via je browser", true)

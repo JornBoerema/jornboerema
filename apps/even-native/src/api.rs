@@ -43,7 +43,10 @@ pub struct Address {
 
 impl Address {
     pub fn label(&self) -> &str {
-        self.name.as_deref().filter(|name| !name.is_empty()).unwrap_or(&self.email)
+        self.name
+            .as_deref()
+            .filter(|name| !name.is_empty())
+            .unwrap_or(&self.email)
     }
 }
 
@@ -194,7 +197,11 @@ impl Client {
             .timeout(Duration::from_secs(30))
             .user_agent(concat!("Even-native/", env!("CARGO_PKG_VERSION")))
             .build();
-        Self { agent, base: api_url(), token }
+        Self {
+            agent,
+            base: api_url(),
+            token,
+        }
     }
 
     fn get(&self, path: &str) -> ureq::Request {
@@ -242,7 +249,10 @@ impl Client {
         match response {
             Ok(response) => {
                 let mut bytes = Vec::new();
-                response.into_reader().take(MAX_ATTACHMENT_BYTES).read_to_end(&mut bytes)?;
+                response
+                    .into_reader()
+                    .take(MAX_ATTACHMENT_BYTES)
+                    .read_to_end(&mut bytes)?;
                 Ok(bytes)
             }
             Err(ureq::Error::Status(401, _)) => Err(Unauthorized.into()),

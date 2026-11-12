@@ -21,7 +21,10 @@ pub struct Part {
 
 pub enum Body {
     /// Sanitized HTML; `paper` when the mail paints its own backgrounds.
-    Html { html: String, paper: bool },
+    Html {
+        html: String,
+        paper: bool,
+    },
     Text(String),
 }
 
@@ -29,11 +32,25 @@ fn sanitizer() -> ammonia::Builder<'static> {
     let mut builder = ammonia::Builder::default();
     builder
         .add_tags(["style", "font", "center"])
-        .clean_content_tags(HashSet::from(["script", "noscript", "iframe", "object", "embed", "template"]))
+        .clean_content_tags(HashSet::from([
+            "script", "noscript", "iframe", "object", "embed", "template",
+        ]))
         .rm_tags(["form", "input", "button", "textarea", "select", "option"])
         .add_generic_attributes([
-            "style", "class", "align", "valign", "bgcolor", "width", "height", "border", "cellpadding",
-            "cellspacing", "color", "face", "size", "dir",
+            "style",
+            "class",
+            "align",
+            "valign",
+            "bgcolor",
+            "width",
+            "height",
+            "border",
+            "cellpadding",
+            "cellspacing",
+            "color",
+            "face",
+            "size",
+            "dir",
         ])
         .add_url_schemes(["cid", "data"])
         .link_rel(Some("noopener noreferrer"));
@@ -54,7 +71,8 @@ pub fn has_remote_images(sanitized: &str) -> bool {
 }
 
 static BGCOLOR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(?i)\bbgcolor\s*=\s*["']?([^"'\s>]+)"#).unwrap());
-static BACKGROUND: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(?i)background(?:-color)?\s*:\s*([^;"'}]+)"#).unwrap());
+static BACKGROUND: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)background(?:-color)?\s*:\s*([^;"'}]+)"#).unwrap());
 static PLAIN_BACKGROUND: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)^(none|transparent|inherit|initial|unset|white|#fff|#ffffff|rgba?\(\s*255\s*,\s*255\s*,\s*255\s*(,\s*1(\.0*)?\s*)?\))$")
         .unwrap()
@@ -150,12 +168,20 @@ pub fn document(subject: &str, parts: &[Part], allow_images: bool, nonce: &str) 
         "default-src 'none'; style-src 'unsafe-inline'; img-src data:{}; font-src data:; script-src 'nonce-{nonce}'; form-action 'none'; base-uri 'none'",
         if allow_images { " https:" } else { "" }
     );
-    let mut out = String::with_capacity(parts.iter().map(|p| match &p.body {
-        Body::Html { html, .. } => html.len(),
-        Body::Text(text) => text.len(),
-    }).sum::<usize>() + 4096);
+    let mut out = String::with_capacity(
+        parts
+            .iter()
+            .map(|p| match &p.body {
+                Body::Html { html, .. } => html.len(),
+                Body::Text(text) => text.len(),
+            })
+            .sum::<usize>()
+            + 4096,
+    );
     out.push_str(r#"<!doctype html><html><head><meta charset="utf-8">"#);
-    out.push_str(&format!(r#"<meta http-equiv="Content-Security-Policy" content="{policy}">"#));
+    out.push_str(&format!(
+        r#"<meta http-equiv="Content-Security-Policy" content="{policy}">"#
+    ));
     out.push_str(r#"<meta name="referrer" content="no-referrer"><style>"#);
     out.push_str(STYLE);
     out.push_str("</style></head><body>");
@@ -166,17 +192,27 @@ pub fn document(subject: &str, parts: &[Part], allow_images: bool, nonce: &str) 
         if !part.to.is_empty() {
             out.push_str(&format!(r#"<div class="even-to">{}</div>"#, escape(&part.to)));
         }
-        out.push_str(&format!(r#"</div><div class="even-date">{}</div></div>"#, escape(&part.date)));
+        out.push_str(&format!(
+            r#"</div><div class="even-date">{}</div></div>"#,
+            escape(&part.date)
+        ));
         match &part.body {
             Body::Html { html, paper } => {
-                let (look, extra) = if *paper { ("even-paper", "") } else { ("even-plain", PLAIN_STYLE) };
+                let (look, extra) = if *paper {
+                    ("even-paper", "")
+                } else {
+                    ("even-plain", PLAIN_STYLE)
+                };
                 // Declarative shadow DOM: no script needed, and the mail's CSS stays inside.
                 out.push_str(&format!(
                     r#"<div class="even-body {look}"><template shadowrootmode="open"><style>{MAIL_STYLE}{extra}</style>{html}</template></div>"#
                 ));
             }
             Body::Text(text) => {
-                out.push_str(&format!(r#"<div class="even-body even-text">{}</div>"#, text_to_html(text)));
+                out.push_str(&format!(
+                    r#"<div class="even-body even-text">{}</div>"#,
+                    text_to_html(text)
+                ));
             }
         }
         if !part.attachments.is_empty() {
@@ -240,7 +276,10 @@ mod tests {
             from: "A".into(),
             to: String::new(),
             date: "1".into(),
-            body: Body::Html { html: "<style>body{background:#fff}</style><p>x</p>".into(), paper: false },
+            body: Body::Html {
+                html: "<style>body{background:#fff}</style><p>x</p>".into(),
+                paper: false,
+            },
             attachments: vec![],
         }];
         let doc = document("S", &parts, false, "n");
@@ -250,7 +289,13 @@ mod tests {
 
     #[test]
     fn the_policy_follows_the_image_choice() {
-        let parts = [Part { from: "A".into(), to: String::new(), date: "1".into(), body: Body::Text("x".into()), attachments: vec![] }];
+        let parts = [Part {
+            from: "A".into(),
+            to: String::new(),
+            date: "1".into(),
+            body: Body::Text("x".into()),
+            attachments: vec![],
+        }];
         assert!(document("S", &parts, false, "n").contains("img-src data:;"));
         assert!(document("S", &parts, true, "n").contains("img-src data: https:;"));
         assert!(document("S", &parts, false, "n").contains("script-src 'nonce-n'"));
