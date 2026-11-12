@@ -231,6 +231,7 @@ export const workspace: typeof en = {
     newWorkspace: "Nieuwe workspace",
     settings: "Instellingen",
     signingOut: "Uitloggen…",
+    downloadDesktop: "Even voor desktop downloaden",
     signOut: "Uitloggen",
     dialogDescription: "Bijvoorbeeld voor werk of je huishouden. Daarna kun je leden uitnodigen.",
     name: "Naam",

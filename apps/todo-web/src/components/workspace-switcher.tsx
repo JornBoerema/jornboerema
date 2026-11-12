@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n"
 import { Check, ChevronsUpDown, LogOut, Plus, Settings } from "@/components/icons"
 import { useSettings } from "@/components/settings/workspace-settings"
 import { useInDesktop } from "@evido/ui/components/app-switcher"
+import { DesktopDownloadItem } from "@evido/ui/components/desktop-download"
 import { Button } from "@evido/ui/components/button"
 import { Input } from "@evido/ui/components/input"
 import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field"
@@ -133,6 +134,10 @@ export function useWorkspaceMenu(props: WorkspaceMenuProps | null) {
             {t.settings}
             <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
           </DropdownMenuItem>
+          <DesktopDownloadItem label={t.downloadDesktop} />
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
           <DropdownMenuItem disabled={signingOut} onSelect={() => void signOut()}>
             <LogOut aria-hidden="true" />
             {signingOut ? t.signingOut : t.signOut}

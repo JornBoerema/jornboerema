@@ -45,6 +45,7 @@ export const nl: typeof en = {
     sidebarPage: "Sidebar",
     customizeSidebar: "Sidebar indelen",
     signOut: "Uitloggen",
+    downloadDesktop: "Even voor desktop downloaden",
   },
   signatures: {
     pick: "Handtekening",

@@ -2,6 +2,7 @@ import { useLaterCounts } from "@/lib/later"
 import { useInvoices, useParcels, useSenders, useSidebarLayout } from "@/lib/preferences"
 import type { NavItem, SidebarLayout } from "@evido/mail-core/sidebar"
 import { useInDesktop } from "@evido/ui/components/app-switcher"
+import { DesktopDownloadItem } from "@evido/ui/components/desktop-download"
 import { useState, type ReactNode } from "react"
 import {
   Add01Icon,
@@ -543,6 +544,7 @@ function AccountMenuItems({ onSettings, onShortcuts }: { onSettings: () => void;
         {t.shortcuts.title}
         <DropdownMenuShortcut>?</DropdownMenuShortcut>
       </DropdownMenuItem>
+      <DesktopDownloadItem label={t.shell.downloadDesktop} />
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => void signOut()}>
         <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />

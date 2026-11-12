@@ -230,6 +230,7 @@ export const workspace = {
     newWorkspace: "New workspace",
     settings: "Settings",
     signingOut: "Signing out…",
+    downloadDesktop: "Download Even for desktop",
     signOut: "Sign out",
     dialogDescription: "For example for work or your household. You can invite members afterwards.",
     name: "Name",

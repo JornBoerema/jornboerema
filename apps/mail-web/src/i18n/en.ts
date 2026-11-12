@@ -44,6 +44,7 @@ export const en = {
     sidebarPage: "Sidebar",
     customizeSidebar: "Arrange sidebar",
     signOut: "Sign out",
+    downloadDesktop: "Download Even for desktop",
   },
   signatures: {
     pick: "Signature",
