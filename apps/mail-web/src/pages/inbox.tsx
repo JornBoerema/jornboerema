@@ -488,11 +488,14 @@ function ParcelRow({
   selected,
   onOpen,
   onHover,
+  compact = false,
 }: {
   shipment: MailShipmentView
   selected: boolean
   onOpen: (thread: MailThreadView) => void
   onHover: (hovering: boolean) => void
+  /** One line, without the status: for arrived parcels under a heading that already says so. */
+  compact?: boolean
 }) {
   const { t, locale } = useI18n()
   const p = t.parcels
@@ -509,12 +512,18 @@ function ParcelRow({
         onClick={() => shipment.thread && onOpen(shipment.thread)}
         className={cn(
           // The same inset as mail lines, whose gutter holds the unread dot and checkbox.
-          "flex w-full flex-col gap-0.5 rounded-lg py-2 pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
+          "flex w-full flex-col gap-0.5 rounded-lg pr-2.5 pl-8 text-left text-sm transition-colors outline-none select-none focus-visible:bg-accent",
+          compact ? "py-1.5" : "py-2",
           selected ? "bg-accent" : "group-hover:bg-accent/60"
         )}
       >
         <span className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
+          <span className={cn("min-w-0 flex-1 truncate", !compact && "font-medium")}>
+            {title}
+            {compact && shipment.merchant && shipment.carrier && (
+              <span className="text-muted-foreground"> · {CARRIER_NAMES[shipment.carrier]}</span>
+            )}
+          </span>
           <time
             className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", (url || threadId) && UNDER_ACTIONS)}
             dateTime={shipment.receivedAt}
@@ -522,10 +531,12 @@ function ParcelRow({
             {shortDate(shipment.receivedAt, locale)}
           </time>
         </span>
-        <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-          <Status shipment={shipment} />
-          {shipment.merchant && shipment.carrier && <span className="truncate">· {CARRIER_NAMES[shipment.carrier]}</span>}
-        </span>
+        {!compact && (
+          <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+            <Status shipment={shipment} />
+            {shipment.merchant && shipment.carrier && <span className="truncate">· {CARRIER_NAMES[shipment.carrier]}</span>}
+          </span>
+        )}
       </button>
       <RowActions
         actions={[
@@ -1350,16 +1361,17 @@ export function InboxPage({
               {shipments.isSuccess && parcelRows.length === 0 && deliveredCount > 0 && shipments.data?.complete && (
                 // Nothing on its way: say so, and show what arrived lately instead of an empty list.
                 <>
-                  <div className="flex flex-col gap-0.5 px-2 pt-2 pb-4 pl-8 text-sm">
+                  <div className="flex flex-col gap-0.5 pt-2 pr-4 pb-4 pl-10 text-sm">
                     <p className="font-medium">{strings.parcels.nothingOnTheWay}</p>
                     <p className="text-muted-foreground">{strings.parcels.allArrived}</p>
                   </div>
-                  <h3 className="px-2 pb-1 pl-8 text-xs text-muted-foreground">{strings.parcels.recentlyDelivered}</h3>
+                  <h3 className="pr-4 pb-1 pl-10 text-xs text-muted-foreground">{strings.parcels.recentlyDelivered}</h3>
                   <ul className="flex flex-col gap-0.5 px-2 pb-2 opacity-70 transition-opacity hover:opacity-100">
                     {allParcels.map((shipment, index) => (
                       <ParcelRow
                         key={`${shipment.trackingCode ?? shipment.thread?.id ?? index}`}
                         shipment={shipment}
+                        compact
                         selected={!!open && shipment.thread?.id === open.id}
                         onOpen={onOpen}
                         onHover={(hovering) => prefetch.onHover(hovering && shipment.thread ? shipment.thread.id : null)}
