@@ -374,7 +374,12 @@ export function Sidebar({
     // One panel for both: its width animates, and the full sidebar and the rail fade into each other.
     <aside
       id="list-sidebar"
-      className={cn("list-sidebar mail-sidebar max-lg:hidden!", sidebar.collapsed && "is-collapsed")}
+      className={cn(
+        "list-sidebar mail-sidebar max-lg:hidden!",
+        sidebar.collapsed && "is-collapsed",
+        // Above the veil the editor puts over the rest.
+        editingSidebar && "z-50"
+      )}
       aria-label={t.shell.sidebar}
     >
       <div className="sidebar-full" inert={sidebar.collapsed}>
