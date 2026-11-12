@@ -30,6 +30,13 @@ import {
   PaintBoardIcon,
   UserAdd01Icon,
   UserGroupIcon,
+  KanbanIcon,
+  Attachment01Icon,
+  Folder01Icon,
+  UserIcon,
+  LeftToRightListBulletIcon,
+  Cancel01Icon,
+  Layers01Icon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 
@@ -76,3 +83,10 @@ export const Sun = appIcon(Sun03Icon);
 export const Moon = appIcon(Moon02Icon);
 export const Monitor = appIcon(ComputerIcon);
 export const Palette = appIcon(PaintBoardIcon);
+export const Kanban = appIcon(KanbanIcon);
+export const Paperclip = appIcon(Attachment01Icon);
+export const Folder = appIcon(Folder01Icon);
+export const User = appIcon(UserIcon);
+export const ListView = appIcon(LeftToRightListBulletIcon);
+export const X = appIcon(Cancel01Icon);
+export const Layers = appIcon(Layers01Icon);

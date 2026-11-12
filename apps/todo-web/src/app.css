@@ -444,3 +444,132 @@ a.todo-mail:focus-visible {
 
 /* Sidebar lists can be dragged; rows keep the sidebar background while moving. */
 .sidebar-sortable-item { border-radius: var(--radius-lg); background: var(--sidebar); }
+
+/* ─── Advanced boards (Linear-style) ─────────────────────────────────────── */
+.board-content { max-width: none; padding-left: 32px; padding-right: 0; }
+.board-content > .task-heading { padding-right: 32px; margin-bottom: 12px; }
+.board-content > [data-slot="alert"] { margin-right: 32px; }
+.board { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.board-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 32px 14px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.board-summary { font-size: 13px; color: var(--muted-foreground); }
+.board-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.board-segment { display: inline-flex; padding: 2px; border-radius: 999px; background: var(--muted); }
+.board-segment button { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12.5px; color: var(--muted-foreground); }
+.board-segment button.is-active { background: var(--background); color: var(--foreground); box-shadow: 0 1px 2px #0000001a; }
+.board-filter { max-width: 200px; }
+.board-filter.is-active { border-color: var(--ring); }
+.board-filter-empty { padding: 24px 32px 0 0; font-size: 13px; color: var(--muted-foreground); text-align: center; }
+
+.kanban { display: flex; gap: 12px; flex: 1; min-height: 0; overflow-x: auto; padding: 0 32px 24px 0; scroll-snap-type: x proximity; }
+.kanban-column { display: flex; flex-direction: column; flex: 0 0 288px; min-height: 0; border-radius: 14px; background: color-mix(in oklab, var(--muted) 55%, transparent); scroll-snap-align: start; transition: background-color 120ms ease, box-shadow 120ms ease; }
+.kanban-column.is-drop-target { box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--ring) 60%, transparent); }
+.kanban-column-header { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; }
+.kanban-column-header h2, .issue-list-header h2 { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kanban-count { font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.kanban-cards { display: flex; flex-direction: column; gap: 6px; padding: 2px 8px 12px; overflow-y: auto; min-height: 60px; scrollbar-width: thin; }
+.kanban-slot { display: flex; flex-direction: column; gap: 6px; }
+.kanban-drop-line { height: 2px; border-radius: 2px; background: var(--primary); margin: -4px 4px; }
+.kanban-empty { display: grid; place-items: center; height: 64px; border: 1px dashed var(--border); border-radius: 10px; font-size: 12px; color: var(--muted-foreground); }
+.kanban-empty.is-drop-target { border-color: var(--primary); color: var(--foreground); }
+
+.issue-card { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 10px 12px; text-align: left; border-radius: 10px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 1px 1px #00000008; transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease; }
+.issue-card:hover { border-color: color-mix(in oklab, var(--foreground) 22%, var(--border)); }
+.issue-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.issue-card[draggable="true"] { cursor: grab; }
+.issue-card.is-dragging { opacity: 0.4; }
+.issue-card-top { display: flex; align-items: center; justify-content: space-between; min-height: 18px; }
+.issue-number { font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.issue-card-title { font-size: 13.5px; line-height: 1.4; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.issue-card.is-complete .issue-card-title { color: var(--muted-foreground); }
+.issue-card-chips, .issue-row-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.issue-card-chips:empty { display: none; }
+.issue-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 160px; height: 22px; padding: 0 7px; border: 1px solid var(--border); border-radius: 999px; font-size: 11.5px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+
+.issue-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 32px 32px 0; }
+.issue-list section + section { margin-top: 8px; }
+.issue-list-header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 6px 0 12px; border-radius: 8px; background: var(--muted); }
+.issue-row { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 8px 0 10px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.issue-row:hover { background: color-mix(in oklab, var(--muted) 50%, transparent); }
+.issue-row-icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; }
+.issue-row-icon:hover:not(:disabled) { background: var(--muted); }
+.issue-row-title { display: flex; flex: 1; min-width: 0; height: 40px; align-items: center; text-align: left; font-size: 13.5px; }
+.issue-row.is-complete .issue-row-title { color: var(--muted-foreground); }
+.issue-row-meta { flex-wrap: nowrap; }
+@media (max-width: 700px) {
+  .board-content { padding-left: 16px; }
+  .board-content > .task-heading, .board-toolbar, .kanban, .issue-list { padding-right: 16px; }
+  .kanban-column { flex-basis: 82vw; }
+  .issue-row-meta { display: none; }
+}
+
+/* Kind choice when creating a list */
+.kind-choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.kind-option { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; text-align: left; border: 1px solid var(--border); border-radius: 14px; transition: border-color 120ms ease, background-color 120ms ease; }
+.kind-option:hover { background: color-mix(in oklab, var(--muted) 50%, transparent); }
+.kind-option.is-checked { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.kind-option > svg { color: var(--muted-foreground); margin-bottom: 2px; }
+.kind-option.is-checked > svg { color: var(--primary); }
+.kind-option-title { font-size: 14px; font-weight: 600; }
+.kind-option-help { font-size: 12px; line-height: 1.45; color: var(--muted-foreground); }
+@media (max-width: 480px) { .kind-choice { grid-template-columns: minmax(0, 1fr); } }
+
+/* Issue detail */
+.issue-dialog[data-slot="dialog-content"] { display: flex; flex-direction: column; gap: 0; width: min(1040px, calc(100vw - 32px)); max-width: none; height: min(760px, calc(100dvh - 48px)); padding: 0; overflow: hidden; }
+.issue-dropzone { position: absolute; inset: 8px; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 2px dashed var(--primary); border-radius: 16px; background: color-mix(in oklab, var(--background) 88%, transparent); font-size: 14px; font-weight: 500; pointer-events: none; }
+.issue-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 48px; padding: 0 12px 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.issue-crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.issue-crumb-link { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; border-radius: 6px; padding: 2px 4px; }
+.issue-crumb-link:hover { color: var(--foreground); background: var(--muted); }
+.issue-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; flex: 1; min-height: 0; }
+.issue-main { overflow-y: auto; padding: 28px 40px 40px; scrollbar-width: thin; }
+.issue-title-field { width: 100%; resize: none; field-sizing: content; font-size: 22px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; background: transparent; outline: none; border-radius: 8px; padding: 2px 0; }
+.issue-title-field:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent); }
+.issue-prose { min-height: 120px; padding: 12px 0 24px; font-size: 14.5px; line-height: 1.7; }
+.issue-prose-loading { min-height: 120px; }
+.issue-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 8px; }
+.issue-section + .issue-section { margin-top: 24px; }
+.issue-section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.issue-section-heading h3 { display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 600; }
+.issue-section-heading h3 span { font-weight: 400; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.issue-empty-note { font-size: 13px; color: var(--muted-foreground); }
+.sub-issue-list, .attachment-list { display: flex; flex-direction: column; }
+.sub-issue, .attachment { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 6px; border-radius: 8px; }
+.sub-issue:hover, .attachment:hover { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+.sub-issue-toggle { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; }
+.sub-issue-toggle:hover:not(:disabled) { background: var(--muted); }
+.sub-issue-title { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; height: 36px; text-align: left; font-size: 13.5px; }
+.sub-issue.is-complete .sub-issue-title > span:last-child { color: var(--muted-foreground); text-decoration: line-through; text-decoration-color: color-mix(in oklab, var(--muted-foreground) 50%, transparent); }
+.sub-issue-form { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
+.sub-issue-form input { flex: 1; min-width: 0; height: 32px; background: transparent; outline: none; font-size: 13.5px; }
+.attachment-name { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 8px; height: 36px; align-items: center; text-align: left; font-size: 13.5px; }
+.attachment-name:hover > span:first-child { text-decoration: underline; text-underline-offset: 3px; }
+.attachment-size { flex-shrink: 0; font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.issue-props { display: flex; flex-direction: column; gap: 2px; padding: 20px 16px; border-left: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 35%, transparent); overflow-y: auto; }
+.issue-prop { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; min-height: 36px; }
+.issue-prop-label { font-size: 12.5px; color: var(--muted-foreground); }
+.issue-prop-value { display: flex; align-items: center; gap: 8px; min-width: 0; height: 32px; padding: 0 8px; margin-left: -8px; border-radius: 8px; font-size: 13px; text-align: left; }
+.issue-prop-value:hover:not(:disabled) { background: var(--muted); }
+.issue-prop-value:disabled { cursor: default; }
+.issue-prop-static { font-size: 13px; }
+@media (max-width: 760px) {
+  .issue-dialog[data-slot="dialog-content"] { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; }
+  .issue-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow-y: auto; }
+  .issue-props { order: -1; border-left: 0; border-bottom: 1px solid var(--border); padding: 12px 20px; }
+  .issue-main { overflow: visible; padding: 20px; }
+}
+
+/* Board settings */
+.status-settings { display: flex; flex-direction: column; gap: 16px; padding: 12px; }
+.status-group-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 4px; }
+.status-group-heading h4 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.status-group ul { display: flex; flex-direction: column; gap: 2px; }
+.status-setting-row, .project-setting-row { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 2px 4px; border-radius: 10px; }
+.status-setting-row:hover, .project-setting-row:hover { background: color-mix(in oklab, var(--muted) 55%, transparent); }
+.status-usage { flex-shrink: 0; font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.settings-swatch-button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; }
+.settings-swatch-button:hover:not(:disabled) { background: var(--muted); }
+.project-settings { display: flex; flex-direction: column; gap: 2px; padding: 8px; }
+.project-setting-row { gap: 10px; padding: 6px 4px; }
+.project-progress { display: flex; align-items: center; gap: 8px; width: 150px; flex-shrink: 0; font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+.project-progress [data-slot="progress"] { flex: 1; }
+@media (max-width: 560px) { .project-progress { display: none; } }

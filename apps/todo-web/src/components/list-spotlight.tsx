@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@evido/ui/components/dialog";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@evido/ui/components/command";
-import { Note, Home, ListTodo } from "@/components/icons";
+import { Note, Home, ListTodo, Kanban } from "@/components/icons";
 import type { TodoList } from "@evido/todo-core/workspace";
 import { useI18n } from "@/i18n";
 
@@ -9,7 +9,7 @@ const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u0
 export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
   lists: TodoList[]; selectedId?: string; onSelect: (id: string) => void; onOverview: () => void;
 }) {
-  const { t: { workspace: { spotlight: t } } } = useI18n();
+  const { t: { workspace: { spotlight: t }, board: { sidebar: { boards } } } } = useI18n();
   const [open, setOpen] = useState(false);
   const previousFocus = useRef<HTMLElement | null>(null);
   const navigating = useRef(false);
@@ -51,11 +51,11 @@ export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
           <CommandGroup>
             <CommandItem value="overview" keywords={t.overviewKeywords.split(" ")} data-checked={!selectedId} onSelect={() => choose()}><Home /><span>{t.overview}</span></CommandItem>
           </CommandGroup>
-          {(["todo", "note"] as const).map((kind) => {
+          {(["todo", "board", "note"] as const).map((kind) => {
             const matches = lists.filter((list) => (list.kind ?? "todo") === kind);
-            const Icon = kind === "note" ? Note : ListTodo;
-            return matches.length > 0 && <CommandGroup key={kind} heading={kind === "note" ? t.notes : t.taskLists}>
-              {matches.map((list) => <CommandItem key={list.id} value={list.id} keywords={[list.name, kind === "note" ? t.notesKeyword : t.tasksKeyword]} data-checked={list.id === selectedId} onSelect={() => choose(list.id)}>
+            const Icon = kind === "note" ? Note : kind === "board" ? Kanban : ListTodo;
+            return matches.length > 0 && <CommandGroup key={kind} heading={kind === "note" ? t.notes : kind === "board" ? boards : t.taskLists}>
+              {matches.map((list) => <CommandItem key={list.id} value={list.id} keywords={[list.name, kind === "note" ? t.notesKeyword : kind === "board" ? boards : t.tasksKeyword]} data-checked={list.id === selectedId} onSelect={() => choose(list.id)}>
                 <Icon /><span className="spotlight-name">{list.name}</span>
                 {list.id === selectedId && <span className="sr-only">{t.current}</span>}
               </CommandItem>)}

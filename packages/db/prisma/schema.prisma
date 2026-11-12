@@ -46,6 +46,8 @@ model User {
   mailInvoices           MailInvoice[]
   mailRecognitionReports MailRecognitionReport[]
   connections            Connection[]
+  todoAssignments        TodoAssignee[]
+  todoAttachments        TodoAttachment[]
 
   @@map("user")
 }
@@ -287,6 +289,17 @@ model OauthClientAssertion {
 enum ListKind {
   todo
   note
+  /// Advanced board: issues with statuses, projects, priority and more.
+  board
+}
+
+/// Like Linear's workflow state types; drive board columns and "done" counts.
+enum StatusCategory {
+  backlog
+  unstarted
+  started
+  completed
+  canceled
 }
 
 enum WorkspaceRole {
@@ -309,6 +322,8 @@ model Workspace {
   members     WorkspaceMember[]
   invitations WorkspaceInvitation[]
   lists       List[]
+  statuses    WorkspaceStatus[]
+  projects    Project[]
 
   @@map("workspaces")
 }
@@ -379,8 +394,98 @@ model Todo {
   createdAt  DateTime  @default(now()) @map("created_at")
   mail       TodoMail?
 
+  // ── Board issues only (lists of kind "board"); null/empty on simple lists. ──
+  /// Per-list sequence shown as #12.
+  number      Int?
+  description String           @default("")
+  statusId    String?          @map("status_id")
+  status      WorkspaceStatus? @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  projectId   String?          @map("project_id")
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// 0 none, 1 urgent, 2 high, 3 medium, 4 low (Linear's order).
+  priority    Int              @default(0)
+  parentId    String?          @map("parent_id")
+  parent      Todo?            @relation("SubTodos", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Todo[]           @relation("SubTodos")
+  assignees   TodoAssignee[]
+  attachments TodoAttachment[]
+
   @@index([listId], map: "todos_list_idx")
+  @@index([parentId], map: "todos_parent_idx")
   @@map("todos")
+}
+
+/// A board column, shared by all boards in the workspace.
+model WorkspaceStatus {
+  id          String         @id
+  workspaceId String         @map("workspace_id")
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  category    StatusCategory
+  /// Hex colour, e.g. #f2994a.
+  color       String
+  position    Int            @default(0)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  todos       Todo[]
+
+  @@index([workspaceId], map: "workspace_statuses_workspace_idx")
+  @@map("workspace_statuses")
+}
+
+model Project {
+  id          String    @id
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  description String    @default("")
+  color       String
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  todos       Todo[]
+
+  @@index([workspaceId], map: "projects_workspace_idx")
+  @@map("projects")
+}
+
+model TodoAssignee {
+  todoId String @map("todo_id")
+  todo   Todo   @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([todoId, userId])
+  @@index([userId], map: "todo_assignees_user_idx")
+  @@map("todo_assignees")
+}
+
+/// A file on a board issue, stored in chunks like mail uploads.
+model TodoAttachment {
+  id          String   @id
+  todoId      String   @map("todo_id")
+  todo        Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  /// Who uploaded it; kept when they leave.
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name        String
+  contentType String   @map("content_type")
+  size        Int
+  /// Set once every chunk arrived; incomplete files are hidden and cleaned up.
+  complete    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  chunks      TodoAttachmentChunk[]
+
+  @@index([todoId], map: "todo_attachments_todo_idx")
+  @@map("todo_attachments")
+}
+
+model TodoAttachmentChunk {
+  attachmentId String         @map("attachment_id")
+  attachment   TodoAttachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  index        Int
+  data         Bytes
+
+  @@id([attachmentId, index])
+  @@map("todo_attachment_chunks")
 }
 
 /// A conversation pinned to the top of the inbox. Ours alone: Gmail and Outlook don't pin.

@@ -92,6 +92,7 @@ import {
   UploadNotFoundError,
   UploadTooLargeError,
 } from "./uploads-server"
+import { dropIncompleteAttachments } from "../todo/attachments-server"
 import {
   authorizeCron,
   authorizeGmailWebhook,
@@ -1214,8 +1215,10 @@ mailRoutes.post("/webhook/gmail", async (c) => {
 mailRoutes.get("/cron/watches", async (c) => {
   if (!authorizeCron(c.req.header("authorization"))) return c.body(null, 401)
   const dropped = await dropOldUploads()
+  // Daily housekeeping for the todo app rides along on this cron.
+  const droppedAttachments = await dropIncompleteAttachments()
   const overdue = await catchUp()
-  return c.json({ ...(await renewWatches()), droppedUploads: dropped, overdue }, 200, noStore)
+  return c.json({ ...(await renewWatches()), droppedUploads: dropped, droppedAttachments, overdue }, 200, noStore)
 })
 
 mailRoutes.patch("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {

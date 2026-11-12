@@ -14,6 +14,8 @@ export const settings = {
     workspaceGroup: "Workspace settings",
     general: "General",
     members: "Members",
+    statuses: "Statuses",
+    projects: "Projects",
   },
   // Search terms, separated by " | " (both languages so either finds the page).
   keywords: {
@@ -22,6 +24,8 @@ export const settings = {
     connections: "mcp | chatgpt | ai | koppelingen",
     general: "workspace | name | delete | leave | naam | verwijderen | verlaten | algemeen",
     members: "workspace | invite | roles | admin | uitnodigen | rollen | beheerder | leden",
+    statuses: "statuses | workflow | columns | board | linear | statussen | kolommen | bord",
+    projects: "projects | board | linear | projecten | bord",
   },
   roles: {
     owner: "Owner",

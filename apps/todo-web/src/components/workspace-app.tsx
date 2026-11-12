@@ -19,7 +19,9 @@ import {
   RefreshCw,
   Share,
   Trash2,
+  Kanban,
 } from "@/components/icons";
+import { BoardView } from "@/components/board/board-view";
 import { ListSpotlight } from "@/components/list-spotlight";
 import { WorkspaceSettings } from "@/components/settings/workspace-settings";
 import { useWorkspaceMenu, WorkspaceSwitcher } from "@/components/workspace-switcher";
@@ -88,7 +90,7 @@ type Editor = {
   type: "create-list" | "update-todo";
   id?: string;
   value: string;
-  kind?: "todo" | "note";
+  kind?: "todo" | "note" | "board";
 };
 type Deletion =
   | { type: "delete-list" | "delete-todo"; id: string; title: string }
@@ -110,7 +112,7 @@ export function WorkspaceApp({
   realtimeEnabled: boolean;
   shareToken?: string;
 }) {
-  const { t: { workspace: t } } = useI18n();
+  const { t: { workspace: t, board: bt } } = useI18n();
   // Workspaces, settings and sign-out: the footer menu on the web, the brand's menu in the desktop app.
   const desktop = useInDesktop();
   const workspaceMenu = useWorkspaceMenu(
@@ -142,6 +144,7 @@ export function WorkspaceApp({
     if (noteSave.current && !(await noteSave.current())) return;
     const next = new URLSearchParams(window.location.search);
     next.delete("list");
+    next.delete("issue");
     navigate({ search: next.toString() });
     setTaskTitle("");
   }
@@ -151,6 +154,7 @@ export function WorkspaceApp({
     const next = new URLSearchParams(window.location.search);
     if (next.get("list") !== id) {
       next.set("list", id);
+      next.delete("issue");
       navigate({ search: next.toString() });
     }
     setTaskTitle("");
@@ -171,7 +175,9 @@ export function WorkspaceApp({
   const canEditTasks = selected?.role !== "viewer";
   const remaining = items.filter((t) => !t.completed).length;
   const doneCount = items.length - remaining;
-  const canClearDone = selected?.kind !== "note" && canEditTasks && doneCount > 0;
+  const isBoard = selected?.kind === "board";
+  const isSimple = (selected?.kind ?? "todo") === "todo";
+  const canClearDone = isSimple && canEditTasks && doneCount > 0;
   const hasListMenu = selected?.kind === "note" || canClearDone || selected?.role === "owner";
   // Saving happens in the background; only offline (or a broken link) blocks editing.
   const disabled = !online || (!!shareToken && error);
@@ -224,22 +230,24 @@ export function WorkspaceApp({
             <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
             <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>{t.sidebar.overview}</span></button>
           </div>
-          {(["todo", "note"] as const).map((kind) => {
+          {(["todo", "board", "note"] as const).map((kind) => {
             const sectionLists = data.lists.filter((list) => (list.kind ?? "todo") === kind);
-            const Icon = kind === "note" ? Note : ListTodo;
+            const Icon = kind === "note" ? Note : kind === "board" ? Kanban : ListTodo;
+            const heading = kind === "note" ? t.sidebar.notes : kind === "board" ? bt.sidebar.boards : t.sidebar.lists;
+            const newLabel = kind === "note" ? t.sidebar.newNote : kind === "board" ? bt.sidebar.newBoard : t.sidebar.newList;
             return <section className="sidebar-list-section" key={kind} aria-labelledby={`sidebar-${kind}`}>
               <div className="sidebar-heading">
-                <h2 id={`sidebar-${kind}`}>{kind === "note" ? t.sidebar.notes : t.sidebar.lists}</h2>
-                <Button variant="ghost" size="icon-sm" className="sidebar-add" aria-label={kind === "note" ? t.sidebar.newNote : t.sidebar.newList} title={kind === "note" ? t.sidebar.newNote : t.sidebar.newList} onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}><Plus /></Button>
+                <h2 id={`sidebar-${kind}`}>{heading}</h2>
+                <Button variant="ghost" size="icon-sm" className="sidebar-add" aria-label={newLabel} title={newLabel} onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}><Plus /></Button>
               </div>
-              <nav aria-label={kind === "note" ? t.sidebar.notes : t.sidebar.taskLists}>
+              <nav aria-label={kind === "todo" ? t.sidebar.taskLists : heading}>
                 <Sortable className="sidebar-section-links" items={sectionLists} label={(list) => list.name} keyboard="content" itemClassName="sidebar-sortable-item" disabled={disabled} onMove={(move) => run({ type: "move-list", ...move })}>
                   {(list) => <button className={cn("list-link", selected?.id === list.id && "is-selected")} onClick={() => selectList(list.id)} aria-current={selected?.id === list.id ? "page" : undefined}>
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
                     <span className="truncate">{list.name}</span>
                     {kind !== "note" && (() => {
                       // Only show a count when there is something left to do.
-                      const open = data.todos.filter((item) => item.listId === list.id && !item.completed).length;
+                      const open = data.todos.filter((item) => item.listId === list.id && !item.completed && !item.parentId).length;
                       return open > 0 && <span className="list-count">{open}</span>;
                     })()}
                   </button>}
@@ -247,7 +255,7 @@ export function WorkspaceApp({
                 {!sectionLists.length && (
                   <button className="list-link is-ghost" onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}>
                     <Plus className="size-4 shrink-0" aria-hidden="true" />
-                    <span>{kind === "note" ? t.sidebar.newNote : t.sidebar.newList}</span>
+                    <span>{newLabel}</span>
                   </button>
                 )}
               </nav>
@@ -262,7 +270,7 @@ export function WorkspaceApp({
           </div>
         )}
         {user && activeWorkspace && onSelectWorkspace && (
-          <WorkspaceSettings user={user} workspaces={workspaces} activeWorkspace={activeWorkspace} onSelectWorkspace={onSelectWorkspace} />
+          <WorkspaceSettings user={user} workspaces={workspaces} activeWorkspace={activeWorkspace} onSelectWorkspace={onSelectWorkspace} board={{ data, run, disabled }} />
         )}
         {workspaceMenu.dialog}
       </aside>}
@@ -291,7 +299,7 @@ export function WorkspaceApp({
             )}
             <span role="status">{connectionText}</span>
           </button>
-        <div ref={pageScroller} className={cn("task-content", showDashboard && "dashboard-content scroll-fade", selected?.kind === "note" && "note-content")}>
+        <div ref={pageScroller} className={cn("task-content", showDashboard && "dashboard-content scroll-fade", selected?.kind === "note" && "note-content", isBoard && "board-content")}>
           {(!online || error) && (
             <Alert>
               <AlertTitle>
@@ -310,7 +318,7 @@ export function WorkspaceApp({
                     disabled={disabled || selected.role !== "owner"}
                     onSave={(name) => run({ type: "rename-list", id: selected.id, name })} />
                   {selected.role === "viewer" && <p>{t.list.readOnly}</p>}
-                  {selected.kind !== "note" && <p className="list-summary">
+                  {isSimple && <p className="list-summary">
                     <span>{remaining === 0 && items.length > 0
                       ? t.list.allDone
                       : t.list.tasksToDo(remaining)}</span>
@@ -321,8 +329,8 @@ export function WorkspaceApp({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={selected.kind === "note" ? t.list.shareNote : t.list.shareList}
-                    title={selected.kind === "note" ? t.list.shareNote : t.list.shareList}
+                    aria-label={selected.kind === "note" ? t.list.shareNote : isBoard ? bt.list.share : t.list.shareList}
+                    title={selected.kind === "note" ? t.list.shareNote : isBoard ? bt.list.share : t.list.shareList}
                     disabled={disabled}
                     onClick={() => setSharingList(selected)}
                   >
@@ -362,7 +370,7 @@ export function WorkspaceApp({
                             }
                           >
                             <Trash2 />
-                            {selected.kind === "note" ? t.list.deleteNote : t.list.deleteList}
+                            {selected.kind === "note" ? t.list.deleteNote : isBoard ? bt.list.delete : t.list.deleteList}
                           </DropdownMenuItem>
                         </>
                       ) : null}
@@ -371,7 +379,9 @@ export function WorkspaceApp({
                 </DropdownMenu>}
                 </div>}
               </div>
-              {selected.kind === "note" ? <Suspense fallback={<p className="text-sm text-muted-foreground">{t.list.loadingNote}</p>}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense> : <>
+              {selected.kind === "note" ? <Suspense fallback={<p className="text-sm text-muted-foreground">{t.list.loadingNote}</p>}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense>
+              : isBoard ? <BoardView key={selected.id} list={selected} data={data} run={run} disabled={disabled} readOnly={!canEditTasks}
+                  shareToken={shareToken} userId={user?.id} canUpload={!shareToken && !!user} /> : <>
               {canEditTasks && (
                 <form className="task-composer" onSubmit={addTask}>
                   <FieldGroup>
@@ -492,22 +502,42 @@ export function WorkspaceApp({
           <DialogHeader>
             <DialogTitle>
               {editor?.type === "create-list"
-                ? editor.kind === "note" ? t.editor.newNote : t.editor.newList
+                ? editor.kind === "note" ? t.editor.newNote : editor.kind === "board" ? bt.editor.newBoard : t.editor.newList
                 : t.editor.editTask}
             </DialogTitle>
             <DialogDescription>
               {editor?.type === "update-todo"
                 ? t.editor.editTaskDescription
-                : editor?.kind === "note" ? t.editor.noteDescription : t.editor.listDescription}
+                : editor?.kind === "note" ? t.editor.noteDescription : editor?.kind === "board" ? bt.editor.boardDescription : t.editor.listDescription}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={saveEditor} className="flex flex-col gap-5">
             <FieldGroup>
+              {editor?.type === "create-list" && editor.kind !== "note" && (
+                <Field>
+                  <FieldLabel id="list-kind-label">{bt.kinds.label}</FieldLabel>
+                  {/* Two kinds of task lists: the simple one stays the default. */}
+                  <div className="kind-choice" role="radiogroup" aria-labelledby="list-kind-label">
+                    {(["todo", "board"] as const).map((kind) => {
+                      const Icon = kind === "board" ? Kanban : ListTodo;
+                      const checked = (editor.kind ?? "todo") === kind;
+                      return (
+                        <button key={kind} type="button" role="radio" aria-checked={checked} className={cn("kind-option", checked && "is-checked")}
+                          onClick={() => setEditor({ ...editor, kind })}>
+                          <Icon className="size-5" aria-hidden="true" />
+                          <span className="kind-option-title">{bt.kinds[kind]}</span>
+                          <span className="kind-option-help">{kind === "board" ? bt.kinds.boardHelp : bt.kinds.todoHelp}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+              )}
               <Field>
                 <FieldLabel htmlFor="editor-value">
                   {editor?.type === "update-todo"
                     ? t.editor.task
-                    : editor?.kind === "note" ? t.editor.noteTitle : t.editor.listName}
+                    : editor?.kind === "note" ? t.editor.noteTitle : editor?.kind === "board" ? bt.editor.boardName : t.editor.listName}
                 </FieldLabel>
                 <Input
                   id="editor-value"
@@ -522,7 +552,7 @@ export function WorkspaceApp({
                   required
                   placeholder={
                     editor?.type === "create-list"
-                      ? editor.kind === "note" ? t.editor.notePlaceholder : t.editor.listPlaceholder
+                      ? editor.kind === "note" ? t.editor.notePlaceholder : editor.kind === "board" ? bt.editor.boardPlaceholder : t.editor.listPlaceholder
                       : undefined
                   }
                 />
@@ -541,7 +571,7 @@ export function WorkspaceApp({
                 disabled={disabled || !editor?.value.trim()}
               >
                 {editor?.type === "create-list"
-                    ? editor.kind === "note" ? t.editor.createNote : t.editor.createList
+                    ? editor.kind === "note" ? t.editor.createNote : editor.kind === "board" ? bt.editor.createBoard : t.editor.createList
                     : t.editor.save}
               </Button>
             </DialogFooter>

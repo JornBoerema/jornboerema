@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router"
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
 import { SettingsDialog, type SettingsPage } from "@evido/ui/components/settings-dialog"
 import { AboutSettings, useAboutPage } from "@evido/ui/components/desktop-app"
-import { Palette, Settings, Share, UserCircle, Users } from "@/components/icons"
+import { Folder, Kanban, Palette, Settings, Share, UserCircle, Users } from "@/components/icons"
+import { ProjectsSettings, StatusesSettings, type BoardSettingsProps } from "./board-settings"
 import { AppearanceSettings } from "./appearance-settings"
 import { useI18n } from "@/i18n"
 import { AccountSettings } from "./account-settings"
@@ -35,11 +36,14 @@ export function WorkspaceSettings({
   workspaces,
   activeWorkspace,
   onSelectWorkspace,
+  board,
 }: {
   user: { id: string; name: string; email: string }
   workspaces: WorkspaceSummary[]
   activeWorkspace: WorkspaceSummary
   onSelectWorkspace: (id: string) => void
+  /** The open workspace's data, for the board settings (statuses, projects). */
+  board: Omit<BoardSettingsProps, "workspaceId">
 }) {
   const { page, open, close, setPage } = useSettings()
   useEffect(() => {
@@ -91,6 +95,20 @@ export function WorkspaceSettings({
       group: s.pages.workspaceGroup,
       keywords: words(s.keywords.members),
     },
+    {
+      id: "statuses",
+      label: s.pages.statuses,
+      icon: <Kanban aria-hidden="true" />,
+      group: s.pages.workspaceGroup,
+      keywords: words(s.keywords.statuses),
+    },
+    {
+      id: "projects",
+      label: s.pages.projects,
+      icon: <Folder aria-hidden="true" />,
+      group: s.pages.workspaceGroup,
+      keywords: words(s.keywords.projects),
+    },
     // Only in the desktop app: its version and updates.
     ...(about ? [about] : []),
   ]
@@ -120,6 +138,10 @@ export function WorkspaceSettings({
           isLast={workspaces.length === 1}
           onGone={() => onSelectWorkspace(workspaces.find((w) => w.id !== activeWorkspace.id)!.id)}
         />
+      ) : active === "statuses" ? (
+        <StatusesSettings workspaceId={activeWorkspace.id} {...board} />
+      ) : active === "projects" ? (
+        <ProjectsSettings workspaceId={activeWorkspace.id} {...board} />
       ) : (
         <WorkspaceMembersSettings userId={user.id} workspace={activeWorkspace} />
       )}

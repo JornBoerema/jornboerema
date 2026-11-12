@@ -12,6 +12,7 @@ import type { Language } from "@evido/i18n"
 import { env } from "../env"
 import { KeyedError, translate } from "../i18n"
 import { NotFoundError, SHARE_TOKEN } from "./workspace-server"
+import { ensureStatuses } from "./board-server"
 
 /** Message is a translation key (see ../i18n.ts). */
 export class WorkspaceError extends KeyedError {}
@@ -32,7 +33,7 @@ export async function listWorkspaces(
     })
   let memberships = await read()
   if (!memberships.length) {
-    await createWorkspace(getDb(), userId, randomUUID(), translate(language, "personalWorkspace"))
+    await createWorkspace(getDb(), userId, randomUUID(), translate(language, "personalWorkspace"), language)
     memberships = await read()
   }
   return memberships.map((m) => ({
@@ -43,7 +44,7 @@ export async function listWorkspaces(
   }))
 }
 
-async function createWorkspace(tx: Tx, userId: string, id: string, name: string) {
+async function createWorkspace(tx: Tx, userId: string, id: string, name: string, language: Language) {
   await tx.workspace.create({
     data: {
       id,
@@ -51,6 +52,7 @@ async function createWorkspace(tx: Tx, userId: string, id: string, name: string)
       members: { create: { id: randomUUID(), userId, role: "owner" } },
     },
   })
+  await ensureStatuses(tx, id, language)
 }
 
 /** Locks the workspace row and returns the caller's membership. */
@@ -104,7 +106,7 @@ export async function changeWorkspace(
   language: Language = "en"
 ): Promise<{ recipients: string[]; mail?: Email }> {
   if (command.type === "create") {
-    await createWorkspace(getDb(), userId, command.id, command.name)
+    await createWorkspace(getDb(), userId, command.id, command.name, language)
     return { recipients: [userId] }
   }
   return getDb().$transaction(async (tx) => {
@@ -242,7 +244,7 @@ export async function acceptInvitation(userId: string, token: string, language: 
     if (!invite.acceptedAt) {
       // New users get their own personal workspace next to the shared one.
       if (!(await tx.workspaceMember.count({ where: { userId } })))
-        await createWorkspace(tx, userId, randomUUID(), translate(language, "personalWorkspace"))
+        await createWorkspace(tx, userId, randomUUID(), translate(language, "personalWorkspace"), language)
       if (!member)
         await tx.workspaceMember.create({
           data: { id: randomUUID(), workspaceId: workspace.id, userId, role: invite.role },

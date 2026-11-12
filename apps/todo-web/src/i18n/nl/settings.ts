@@ -16,6 +16,8 @@ export const settings: typeof en = {
     workspaceGroup: "Workspace-instellingen",
     general: "Algemeen",
     members: "Leden",
+    statuses: "Statussen",
+    projects: "Projecten",
   },
   keywords: {
     account: "profiel | naam | e-mail | wachtwoord | verwijderen | profile | email | password",
@@ -23,6 +25,8 @@ export const settings: typeof en = {
     connections: "mcp | chatgpt | ai | connections",
     general: "workspace | naam | verwijderen | verlaten | general",
     members: "workspace | uitnodigen | rollen | beheerder | members | invite",
+    statuses: "statussen | workflow | kolommen | bord | linear | statuses | columns",
+    projects: "projecten | bord | linear | projects | board",
   },
   roles: {
     owner: "Eigenaar",

@@ -18,6 +18,14 @@ import {
   readWorkspace,
 } from "./workspace-server"
 import { changeSharing, readSharing } from "./sharing-server"
+import { z } from "zod"
+import { ATTACHMENT_CHUNK_BYTES, MAX_ATTACHMENT_BYTES } from "@evido/todo-core/board"
+import {
+  completeAttachment,
+  createAttachment,
+  putAttachmentChunk,
+  readAttachment,
+} from "./attachments-server"
 import {
   acceptInvitation,
   changeWorkspace,
@@ -67,12 +75,90 @@ todoRoutes.post("/workspace", requireTrustedOrigin, commandLimit, requireSession
   if (!result.success)
     return c.json({ error: validationMessage(c, result.error.issues[0]?.message) }, 400)
   try {
-    const recipients = await executeCommand(c.get("session").user.id, result.data)
+    const recipients = await executeCommand(c.get("session").user.id, result.data, languageOf(c))
     // An unavailable realtime provider must not undo or misreport a committed write.
     defer(() => notifyWorkspaceUsers(recipients))
     return c.json({ ok: true })
   } catch (error) {
     return commandFailure(c, error, "listOrTaskGone")
+  }
+})
+
+// ─── Board attachments (chunked, like mail uploads) ─────────────────────────
+
+const attachmentBody = z.object({
+  todoId: z.uuid(),
+  name: z.string().trim().min(1).max(255),
+  contentType: z.string().max(200),
+  size: z.number().int().min(0).max(MAX_ATTACHMENT_BYTES),
+})
+
+todoRoutes.post(
+  "/todo-attachments",
+  requireTrustedOrigin,
+  bodyLimit({ maxSize: 4096, onError: tooLarge }),
+  requireSession,
+  async (c) => {
+    const body = attachmentBody.safeParse(await jsonBody(c))
+    if (!body.success) return c.json({ error: msg(c, "attachmentTooLarge") }, 400)
+    try {
+      return c.json(await createAttachment(c.get("session").user.id, body.data), 200, noStore)
+    } catch (error) {
+      return commandFailure(c, error, "listOrTaskGone")
+    }
+  }
+)
+
+// Raw bytes, one chunk per request, so no request comes near Vercel's 4.5 MB limit.
+todoRoutes.put("/todo-attachments/:id/chunks/:index", requireTrustedOrigin, requireSession, async (c) => {
+  const index = Number(c.req.param("index"))
+  if (!Number.isInteger(index)) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  try {
+    const bytes = new Uint8Array(await c.req.arrayBuffer())
+    if (bytes.length > ATTACHMENT_CHUNK_BYTES) return c.json({ error: msg(c, "requestTooLarge") }, 413)
+    await putAttachmentChunk(c.get("session").user.id, c.req.param("id"), index, bytes)
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return commandFailure(c, error, "listOrTaskGone")
+  }
+})
+
+todoRoutes.post("/todo-attachments/:id/complete", requireTrustedOrigin, requireSession, async (c) => {
+  try {
+    const recipients = await completeAttachment(c.get("session").user.id, c.req.param("id"))
+    defer(() => notifyWorkspaceUsers(recipients))
+    return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return commandFailure(c, error, "listOrTaskGone")
+  }
+})
+
+function sendFile(file: { name: string; contentType: string; bytes: Buffer }) {
+  // Always a download, never rendered on the API's origin.
+  return new Response(new Uint8Array(file.bytes), {
+    headers: {
+      ...noStore,
+      "Content-Type": file.contentType || "application/octet-stream",
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+    },
+  })
+}
+
+todoRoutes.get("/todo-attachments/:id", requireSession, async (c) => {
+  try {
+    return sendFile(await readAttachment({ userId: c.get("session").user.id }, c.req.param("id")))
+  } catch (error) {
+    return commandFailure(c, error, "listOrTaskGone")
+  }
+})
+
+todoRoutes.get("/shared/:token/attachments/:id", async (c) => {
+  try {
+    return sendFile(await readAttachment({ shareToken: c.req.param("token") }, c.req.param("id")))
+  } catch (error) {
+    return commandFailure(c, error, "linkUnavailable")
   }
 })
 
