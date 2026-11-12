@@ -394,9 +394,10 @@ function Sessions({ current }: { current: string }) {
     queryKey: SESSIONS,
     queryFn: async () => {
       const result = await authClient.listSessions()
-      if (result.error) throw new Error()
+      if (result.error) throw new Error(result.error.code ?? "")
       return [...result.data].sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
     },
+    retry: false,
   })
   const refresh = () => void queryClient.invalidateQueries({ queryKey: SESSIONS })
   const revoke = useMutation({
@@ -419,8 +420,34 @@ function Sessions({ current }: { current: string }) {
   const when = (date: Date | string) =>
     new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(date))
   const list = sessions.data ?? []
+  // Better Auth lists devices only for a session signed in within the last day.
+  const notFresh = sessions.error?.message === "SESSION_NOT_FRESH"
   return (
     <SettingsSection title={t.sessions} description={t.sessionsHelp}>
+      {sessions.isPending && <SettingsRow title={t.loadingSessions} />}
+      {sessions.isError && (
+        <SettingsRow
+          title={notFresh ? t.confirmTitle : all.common.failed}
+          description={notFresh ? t.confirmDescription : undefined}
+        >
+          {notFresh ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await authClient.signOut()
+                window.location.assign("/login?returnTo=%2F")
+              }}
+            >
+              {t.signInAgain}
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => void sessions.refetch()}>
+              {t.retry}
+            </Button>
+          )}
+        </SettingsRow>
+      )}
       {list.map((session) => {
         const device = describe(session.userAgent, t)
         const isCurrent = session.token === current
