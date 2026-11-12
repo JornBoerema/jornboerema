@@ -147,7 +147,7 @@ function Apps() {
   )
 }
 
-/** The rail; its settings button opens the window at the open app's own pages. */
+/** The rail; its settings button opens the window at its first page, the account. */
 function Rail({ active, onSelect, settingsLabel }: { active: AppId; onSelect: (app: string) => void; settingsLabel: string }) {
   const settings = useDesktopSettings(active)
   return (

@@ -66,10 +66,10 @@ export function DesktopSettingsProvider({
   }
   const pages = [...shared, ...own]
 
-  // The asked-for page, the app's first own page, or the first page there is.
+  // The asked-for page; without one, the first page (the account).
   const wanted = target.page
     ? (registered[target.app] ?? []).find((page) => page.id === target.page)
-    : (registered[target.app] ?? []).find((page) => page.group)
+    : undefined
   const activeKey = wanted
     ? keyOf(target.app, wanted)
     : pages.some((page) => page.id === target.page)
