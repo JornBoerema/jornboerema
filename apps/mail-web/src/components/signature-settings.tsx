@@ -157,7 +157,7 @@ function SignatureEditor({ signature, onBack }: { signature: MailSignature; onBa
           if (event.target.value.trim()) saveName(event.target.value.trim())
         }}
       />
-      <div className="rounded-2xl bg-card ring-1 ring-border">
+      <div className="rounded-lg bg-card ring-1 ring-border">
         <Suspense fallback={<div className="min-h-48" />}>
           <RichTextEditor
             autoFocus

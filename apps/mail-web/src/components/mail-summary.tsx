@@ -11,7 +11,7 @@ import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"
 import { useFindCodes, useSummaries } from "@/lib/preferences"
 
-const CARD = "mb-3 rounded-xl border bg-muted/40 px-4 py-3"
+const CARD = "mb-3 rounded-lg border bg-muted/40 px-4 py-3"
 
 function CodeCard({ code }: { code: string }) {
   const t = useI18n().t.conversation

@@ -225,7 +225,7 @@ function FormatMenu({
       shouldShow={shouldShow}
       options={MENU_OPTIONS}
     >
-      <div className="flex items-center gap-0.5 rounded-xl border bg-popover p-1 text-popover-foreground shadow-md">
+      <div className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
         {linkOpen ? (
           <input
             autoFocus

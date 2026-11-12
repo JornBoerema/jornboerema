@@ -62,7 +62,7 @@ export function MailboxFilter({
           </Button>
         </DropdownMenuTrigger>
       </MaybeTip>
-      <DropdownMenuContent align="end" sideOffset={6} className="w-64 rounded-xl p-1">
+      <DropdownMenuContent align="end" sideOffset={6} className="w-64 p-1">
         <DropdownMenuLabel className="px-2 pt-1.5 pb-1 text-xs font-normal text-muted-foreground">{t.showFrom}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={accountId} onValueChange={onChange}>
           <DropdownMenuRadioItem value="" className={ITEM}>

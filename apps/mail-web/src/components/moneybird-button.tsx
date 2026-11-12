@@ -111,7 +111,7 @@ export function MoneybirdButton({ threadId, messages, subject }: { threadId: str
             />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={6} className="max-w-72 min-w-52 rounded-xl p-1">
+        <DropdownMenuContent align="end" sideOffset={6} className="max-w-72 min-w-52 p-1">
           {files.length > 1 && (
             <>
               <DropdownMenuLabel className="px-2 text-xs text-muted-foreground">{t.file}</DropdownMenuLabel>

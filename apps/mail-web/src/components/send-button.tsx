@@ -69,7 +69,7 @@ export function SendButton({
           align="end"
           side="top"
           sideOffset={6}
-          className="min-w-44 rounded-xl p-1"
+          className="min-w-44 p-1"
         >
           <DropdownMenuItem
             className="min-h-7 gap-2.5 rounded-lg px-2 py-1 text-[13px]"

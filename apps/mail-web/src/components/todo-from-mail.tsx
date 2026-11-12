@@ -185,7 +185,7 @@ export function TodoDialog({
               <DropdownMenuContent
                 align="start"
                 sideOffset={6}
-                className="max-h-72 w-60 rounded-xl p-1"
+                className="max-h-72 w-60 p-1"
                 onCloseAutoFocus={(event) => {
                   event.preventDefault()
                   field.current?.focus()
@@ -239,7 +239,7 @@ export function LinkedTodos({ threadId }: { threadId: string }) {
   const todos = data?.todos ?? []
   if (!enabled || todos.length === 0) return null
   return (
-    <section className="mb-3 flex flex-col rounded-xl border bg-muted/40 p-1" aria-label={t.linked}>
+    <section className="mb-3 flex flex-col rounded-lg border bg-muted/40 p-1" aria-label={t.linked}>
       {todos.map((todo) => (
         <a
           key={todo.id}

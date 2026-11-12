@@ -43,7 +43,7 @@ export function SignaturePicker({ choice }: { choice: SignatureChoice }) {
           </Button>
         </DropdownMenuTrigger>
       </IconTip>
-      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-52 rounded-xl p-1">
+      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-52 p-1">
         <DropdownMenuLabel>{t.pick}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={choice.value ?? NONE}

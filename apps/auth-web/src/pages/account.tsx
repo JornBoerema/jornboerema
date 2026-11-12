@@ -284,7 +284,7 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState("")
   return (
     <form
-      className="flex flex-col gap-4 rounded-xl bg-muted/50 p-4"
+      className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4"
       onSubmit={(event) => {
         event.preventDefault()
         const data = new FormData(event.currentTarget)
