@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth"
 import { bearer, jwt } from "better-auth/plugins"
 import { mcp } from "@better-auth/mcp"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
+import { desktopSignIn } from "./desktop-sign-in"
 import { getDb, Prisma } from "@evido/db"
 import { authEmails, queueEmail } from "@evido/email"
 import { pickLanguage } from "@evido/i18n"
@@ -64,6 +65,7 @@ export function trustedOrigins() {
   const origins = [
     ...(process.env.TRUSTED_ORIGINS ?? "").split(","),
     ...DESKTOP_ORIGINS,
+    process.env.AUTH_UI_URL ?? "",
     process.env.MAIL_WEB_URL ?? "",
     process.env.ADMIN_WEB_URL ?? "",
   ]
@@ -74,7 +76,7 @@ export function trustedOrigins() {
 
 function createAuth() {
   const baseURL = required("BETTER_AUTH_URL").replace(/\/$/, "")
-  // The web app that hosts the login and OAuth consent screens.
+  // The account site (auth.jornboerema.nl): login, OAuth consent and account screens.
   const authUiUrl = required("AUTH_UI_URL").replace(/\/$/, "")
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN
 
@@ -92,6 +94,7 @@ function createAuth() {
       jwt(),
       // The desktop app can't keep a cookie for the API, so it sends the session as a bearer token.
       bearer(),
+      desktopSignIn(),
       mcp({
         loginPage: `${authUiUrl}/login`,
         consentPage: `${authUiUrl}/connect`,
@@ -139,6 +142,8 @@ function createAuth() {
         "/change-email": { window: 60, max: 3 },
         "/delete-user": { window: 60, max: 5 },
         "/send-verification-email": { window: 60, max: 3 },
+        "/desktop/code": { window: 60, max: 10 },
+        "/desktop/token": { window: 60, max: 10 },
       },
     },
   })

@@ -74,7 +74,7 @@ export function AuthForm({
   mode: AuthMode;
   client: EvidoAuthClient;
   texts: AuthTexts;
-  /** An internal path to continue to after signing in. */
+  /** Where to continue after signing in: a path here, or an app's absolute URL. */
   returnTo?: string;
 }) {
   const copy = t;
@@ -142,7 +142,9 @@ export function AuthForm({
         return;
       if (mode === "register" || mode === "forgot") setSent(true);
       else {
-        navigate(mode === "reset" ? authHref("/login?passwordReset=1") : returnTo);
+        if (mode === "reset") navigate(authHref("/login?passwordReset=1"));
+        else if (/^https?:\/\//.test(returnTo)) window.location.assign(returnTo);
+        else navigate(returnTo);
       }
     } catch {
       setError(t.noConnection);

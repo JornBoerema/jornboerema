@@ -1,0 +1,20 @@
+/* The account site. Design tokens come from @evido/ui/globals.css, the sign-in pages from auth.css. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+.account-main {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding: 16px 24px 96px;
+}
