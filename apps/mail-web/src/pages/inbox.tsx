@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { motion } from "motion/react"
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -159,6 +160,8 @@ function ThreadRow({
   pinned,
   onPin,
   position,
+  divider,
+  measure,
 }: {
   thread: MailThreadView
   /** Only set when several mailboxes share the list. */
@@ -186,19 +189,21 @@ function ThreadRow({
   onPin?: (pinned: boolean) => void
   /** Its place in the list: when that changes, the row glides there. */
   position: number
+  /** A quiet line below it, between what is pinned and the rest of the inbox. */
+  divider?: boolean
+  /** Hands the row to the list's virtualizer, which measures its height. */
+  measure?: (element: HTMLElement | null) => void
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
-  const row = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    if (selected) row.current?.scrollIntoView({ block: "nearest" })
-  }, [selected])
   const unread = !thread.isRead
   const icon = cn("size-3.5 shrink-0 text-muted-foreground", UNDER_ACTIONS)
   const actions = strings.conversation
 
   return (
     <motion.li
+      ref={measure}
+      data-index={position}
       // Glides to a new place, such as the top when pinned, but only when the order changes.
       layout="position"
       layoutDependency={position}
@@ -208,7 +213,6 @@ function ThreadRow({
       onMouseLeave={() => onHover(false)}
     >
       <button
-        ref={row}
         type="button"
         aria-current={selected ? "true" : undefined}
         onClick={(event) => {
@@ -332,7 +336,69 @@ function ThreadRow({
           })),
         ]}
       />
+      {divider && <span aria-hidden="true" className="mx-2.5 mt-1.5 mb-1 block border-t" />}
     </motion.li>
+  )
+}
+
+/** About one row of two lines; the virtualizer measures each one after it renders. */
+const ROW_ESTIMATE = 58
+
+/**
+ * The conversations, drawn only around what is in view, so a long inbox scrolls
+ * as smoothly as a short one. Rows stay in the normal flow, padded above and below
+ * for what is left out, so a row that moves still glides to its new place.
+ */
+function ThreadList({
+  rows,
+  scroller,
+  openIndex,
+  renderRow,
+}: {
+  rows: MailThreadView[]
+  /** The element that scrolls the list. */
+  scroller: HTMLElement | null
+  /** Where the open conversation sits, or -1: J and K keep it in view. */
+  openIndex: number
+  renderRow: (thread: MailThreadView, index: number, measure: (element: HTMLElement | null) => void) => ReactNode
+}) {
+  const list = useRef<HTMLUListElement>(null)
+  // What sits above the list inside the scroller, such as a notice.
+  const [margin, setMargin] = useState(0)
+  useLayoutEffect(() => {
+    setMargin(list.current?.offsetTop ?? 0)
+  })
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scroller,
+    estimateSize: () => ROW_ESTIMATE,
+    getItemKey: (index) => rows[index]?.id ?? index,
+    gap: 2,
+    overscan: 10,
+    scrollMargin: margin,
+    // Rows render with the next frame instead of blocking the scroll.
+    useFlushSync: false,
+  })
+  useEffect(() => {
+    if (openIndex >= 0) virtualizer.scrollToIndex(openIndex, { align: "auto" })
+  }, [openIndex, virtualizer])
+
+  const items = virtualizer.getVirtualItems()
+  const first = items[0]
+  const last = items[items.length - 1]
+  const above = first ? first.start - margin : 0
+  const below = last ? Math.max(0, virtualizer.getTotalSize() - (last.end - margin)) : 0
+  return (
+    <ul
+      ref={list}
+      className="flex flex-col gap-0.5 px-2"
+      style={{ paddingTop: above, paddingBottom: below + 8 }}
+    >
+      {items.map((item) => {
+        const thread = rows[item.index]
+        return thread ? renderRow(thread, item.index, virtualizer.measureElement) : null
+      })}
+    </ul>
   )
 }
 
@@ -841,7 +907,16 @@ export function InboxPage({
 }) {
   const { t: strings, locale } = useI18n()
   const t = strings.inbox
-  const listScroller = useScrollFade<HTMLDivElement>()
+  const scrollFade = useScrollFade<HTMLDivElement>()
+  // The scroller as state too, so the virtualized list knows what scrolls it.
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null)
+  const listScroller = useCallback(
+    (element: HTMLDivElement | null) => {
+      scrollFade(element)
+      setScroller(element)
+    },
+    [scrollFade]
+  )
   const showDrafts = navigation.view === "drafts"
   const showParcels = navigation.view === "parcels"
   const showSnoozed = navigation.view === "snoozed"
@@ -1471,11 +1546,15 @@ export function InboxPage({
                             : t.empty}
                       </p>
                     )}
-                  <ul className="flex flex-col gap-0.5 px-2 pb-2">
-                    {rows.map((thread, index) => (
-                      <Fragment key={thread.id}>
+                  <ThreadList
+                    rows={rows}
+                    scroller={scroller}
+                    openIndex={position}
+                    renderRow={(thread, index, measure) => (
                       <ThreadRow
                         key={thread.id}
+                        measure={measure}
+                        divider={pinned.length > 0 && index === onTop.length - 1 && index < rows.length - 1}
                         thread={thread}
                         mailbox={
                           !accountId && accounts.length > 1
@@ -1508,13 +1587,8 @@ export function InboxPage({
                             : runAction({ id: thread.id, action })
                         }
                       />
-                      {/* A quiet line between what is pinned and the rest of the inbox. */}
-                      {pinned.length > 0 && index === onTop.length - 1 && index < rows.length - 1 && (
-                        <li aria-hidden="true" className="mx-2.5 my-1 border-t" />
-                      )}
-                      </Fragment>
-                    ))}
-                  </ul>
+                    )}
+                  />
                   {list.hasNextPage && (
                     <LoadMore
                       loading={list.isFetchingNextPage}
