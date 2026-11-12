@@ -25,11 +25,13 @@ function appAlias(): Plugin {
 /** Where a production build talks to, whatever a local .env says; development reads apps/desktop/.env. */
 const PRODUCTION = {
   VITE_API_URL: "https://api.jornboerema.nl",
+  VITE_AUTH_URL: "https://auth.jornboerema.nl",
   VITE_TODO_WEB_URL: "https://todo.jornboerema.nl",
   VITE_MAIL_WEB_URL: "https://mail.jornboerema.nl",
 }
 const DEVELOPMENT = {
   VITE_API_URL: "http://localhost:4000",
+  VITE_AUTH_URL: "http://localhost:3005",
   VITE_TODO_WEB_URL: "http://localhost:3000",
   VITE_MAIL_WEB_URL: "http://localhost:3004",
 }

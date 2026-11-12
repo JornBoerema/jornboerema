@@ -1,12 +1,9 @@
-import { auth } from "./auth.nl"
 import type { Dictionary } from "./en"
 
 export const nl: Dictionary = {
-  auth,
   shell: {
     brand: "Beheer",
     signOut: "Uitloggen",
-    noConnection: "Geen verbinding met de server.",
     notAdminTitle: "Geen beheerdersrechten",
     notAdminBody: (email: string) => `Je bent ingelogd als ${email}, en dat is geen beheerdersaccount.`,
     otherAccount: "Log in met een ander account",

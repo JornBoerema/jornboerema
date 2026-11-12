@@ -2,13 +2,13 @@ import { Activity, useEffect, useState } from "react"
 import { CheckmarkSquare02Icon, Mail01Icon } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
-import { authClient, TodoEmbed, TodoSignIn } from "@evido/todo-web/embed"
+import { authClient, TodoEmbed } from "@evido/todo-web/embed"
 import { Toaster } from "@evido/ui/components/sonner"
 import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/app-switcher"
 import { DesktopProvider } from "@evido/ui/components/desktop-app"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { cn } from "@evido/ui/lib/utils"
-import { Brand } from "./brand"
+import { SignIn } from "./sign-in"
 import { useDesktopApp } from "./updates"
 import { useWindowDragging } from "./window"
 
@@ -90,12 +90,7 @@ function Apps() {
 function Gate() {
   const { data, isPending } = authClient.useSession()
   if (isPending) return <div className="desktop-loading" data-tauri-drag-region />
-  if (!data)
-    return (
-      <div className={cn("desktop-sign-in", isMac && "mac")}>
-        <TodoSignIn brand={<Brand />} />
-      </div>
-    )
+  if (!data) return <SignIn mac={isMac} />
   return <Apps />
 }
 

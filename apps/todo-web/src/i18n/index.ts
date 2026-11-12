@@ -5,7 +5,7 @@ import { nl } from "./nl"
 export type TodoMessages = typeof en
 
 /**
- * `const { t, locale } = useI18n()` then `t.auth.login.title`.
+ * `const { t, locale } = useI18n()` then `t.settings.account.manage`.
  * Texts live per namespace in ./en/*.ts (source) and ./nl/*.ts (typed
  * against English, so missing keys fail the typecheck).
  */

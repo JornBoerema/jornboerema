@@ -1,3 +1,4 @@
+mod sign_in;
 mod updates;
 
 use tauri::webview::NewWindowResponse;
@@ -22,7 +23,7 @@ fn open_outside(app: &AppHandle, url: &Url) {
     }
 }
 
-fn show(window: &WebviewWindow) {
+pub(crate) fn show(window: &WebviewWindow) {
     let _ = window.unminimize();
     let _ = window.show();
     let _ = window.set_focus();
@@ -72,7 +73,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updates::UpdateState::default())
-        .invoke_handler(tauri::generate_handler![updates::ready_update, updates::check_for_update, updates::install_update])
+        .invoke_handler(tauri::generate_handler![
+            updates::ready_update,
+            updates::check_for_update,
+            updates::install_update,
+            sign_in::listen_for_sign_in,
+            sign_in::cancel_sign_in
+        ])
         .setup(|app| {
             create_main_window(app.handle())?;
             updates::watch(app.handle());

@@ -7,6 +7,7 @@ Monorepo (Turborepo + pnpm) voor de Evido-apps. Alle apps delen één account (B
 ```
 apps/
   api/          Hono API (Node): /api/auth/*, todo-endpoints, /mcp, OAuth-discovery
+  auth-web/     auth.jornboerema.nl — inloggen, registreren, wachtwoord herstellen, OAuth-toestemming en het accountportaal
   todo-web/     Even doen — Vite + React SPA (react-router, TanStack Query)
   home/         jornboerema.nl — minimale statische pagina met links naar de apps
   mail-web/     Even mailen — Vite + React SPA: Gmail- en Outlook-mailboxen koppelen
@@ -30,8 +31,9 @@ Vereist Node 22.12+ en pnpm 11.
 pnpm install
 cp .env.example .env                       # vul in, zie hieronder
 cp apps/todo-web/.env.example apps/todo-web/.env
+cp apps/auth-web/.env.example apps/auth-web/.env
 pnpm db:deploy                             # migraties toepassen
-pnpm dev:todo                              # API op :4000, web op :3000
+pnpm dev:todo                              # API op :4000, accountsite op :3005, web op :3000
 ```
 
 ### Omgevingsvariabelen (`.env` in de root)
@@ -44,7 +46,7 @@ pnpm dev:todo                              # API op :4000, web op :3000
 | `BETTER_AUTH_URL` | Publieke origin van de API, lokaal `http://localhost:4000` |
 | `BETTER_AUTH_SECRET` | `openssl rand -hex 32` |
 | `TRUSTED_ORIGINS` | Web-apps die de API met cookies mogen aanroepen (komma-gescheiden) |
-| `AUTH_UI_URL` | Web-app met login- en toestemmingsscherm (OAuth/MCP) |
+| `AUTH_UI_URL` | De accountsite (`apps/auth-web`): login, OAuth/MCP-toestemming en accountportaal; wordt automatisch vertrouwd |
 | `TODO_WEB_URL` | Origin van de todo-webapp (links in uitnodigingsmails) |
 | `MAIL_WEB_URL` | Origin van de mail-webapp (OAuth-callback keert hier terug); ook toevoegen aan `TRUSTED_ORIGINS` |
 | `MAIL_TOKEN_KEY` | Versleutelt mailbox-tokens (`openssl rand -hex 32`). Kwijt = alle mailboxen opnieuw koppelen |
@@ -83,8 +85,10 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 ## Auth-architectuur
 
 - De API is de enige Better Auth-server. Web-apps praten er rechtstreeks mee met `credentials: "include"`; CORS staat alleen `TRUSTED_ORIGINS` toe en schrijfverzoeken controleren de `Origin`.
-- Lokaal delen `localhost:3000` en `localhost:4000` dezelfde site, dus cookies werken. In productie draaien API en apps op subdomeinen van één domein (bv. `api.evido.nl`, `todo.evido.nl`) met `AUTH_COOKIE_DOMAIN`.
-- Tauri en Expo krijgen later Better Auth's bearer/expo-plugin.
+- Alle inlogschermen staan op de accountsite `auth.jornboerema.nl` (`apps/auth-web`, lokaal `:3005`). De apps hebben geen eigen loginformulier: hun `/login`, `/signup`, `/forgot-password` en `/reset-password` sturen door met `?returnTo=<app-URL>`. De accountsite stuurt alleen terug naar zichzelf en naar apps op hetzelfde domein (`isAllowedReturn` in `@evido/auth/client`).
+- Lokaal delen alle `localhost`-poorten dezelfde cookie. In productie draaien API en apps op subdomeinen van één domein (`api.`, `auth.`, `todo.`, `mail.jornboerema.nl`) met `AUTH_COOKIE_DOMAIN`.
+- Het accountportaal (`/` op de accountsite) beheert naam, e-mail, wachtwoord, ingelogde apparaten en account verwijderen. De instellingen van de apps linken ernaar.
+- Desktop (Even): de knop "Inloggen via je browser" opent `auth.jornboerema.nl/desktop` met een PKCE-challenge en een poort op `127.0.0.1`. Na bevestigen stuurt de accountsite een eenmalige code (2 minuten geldig) naar de app, die hem met de verifier inwisselt via `POST /api/auth/desktop/token` (`packages/auth/src/desktop-sign-in.ts`). De app krijgt een eigen sessie als bearer-token.
 - MCP: `${BETTER_AUTH_URL}/mcp`, OAuth met PKCE via de Better Auth MCP-plugin. Login en toestemming lopen via `AUTH_UI_URL`.
 
 ## Workspaces (todo)
@@ -119,11 +123,12 @@ Componenten komen in `packages/ui/src/components` en worden geïmporteerd als `@
 
 ## Deployen op Vercel
 
-Twee Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig voor de gedeelde login-cookie), bijvoorbeeld:
+Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig voor de gedeelde login-cookie), bijvoorbeeld:
 
 | Project | Root Directory | Domein |
 | --- | --- | --- |
 | `evido-api` | `apps/api` | `api.jornboerema.nl` |
+| `evido-auth` | `apps/auth-web` | `auth.jornboerema.nl` |
 | `evido-todo` | `apps/todo-web` | `todo.jornboerema.nl` |
 | `even-mailen` | `apps/mail-web` | `mail.jornboerema.nl` |
 | `evido-home` | `apps/home` | `jornboerema.nl` (geen env vars nodig) |
@@ -138,7 +143,7 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `BETTER_AUTH_URL` | `https://api.jornboerema.nl` |
 | `BETTER_AUTH_SECRET` | `openssl rand -hex 32` (productie-geheim) |
 | `TRUSTED_ORIGINS` | `https://todo.jornboerema.nl` |
-| `AUTH_UI_URL` | `https://todo.jornboerema.nl` |
+| `AUTH_UI_URL` | `https://auth.jornboerema.nl` |
 | `TODO_WEB_URL` | `https://todo.jornboerema.nl` |
 | `AUTH_COOKIE_DOMAIN` | `.jornboerema.nl` |
 | `MAIL_WEB_URL` | `https://mail.jornboerema.nl` |
@@ -149,7 +154,7 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `ABLY_API_KEY` | optioneel |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` (gebruikt de pnpm-versie uit `packageManager`) |
 
-**Environment variables — `evido-todo`**
+**Environment variables — `evido-todo` en `evido-auth`**
 
 | Variabele | Waarde |
 | --- | --- |

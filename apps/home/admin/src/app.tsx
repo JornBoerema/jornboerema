@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes } from "react-router"
 import { DashboardSquare01Icon, Logout03Icon, Shield02Icon, UserGroupIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { AuthForm } from "@evido/ui/components/auth-form"
+import { ToAccountSite } from "@evido/ui/components/account-site"
 import { Avatar, AvatarFallback, AvatarImage } from "@evido/ui/components/avatar"
 import { Button } from "@evido/ui/components/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@evido/ui/components/empty"
@@ -26,21 +26,6 @@ function Brand() {
         {t.brand}
         <span className="text-primary">.</span>
       </span>
-    </div>
-  )
-}
-
-function Login() {
-  const { t } = useI18n()
-  return (
-    <div className="auth-layout">
-      <header>
-        <Brand />
-      </header>
-      <main className="auth-main">
-        <AuthForm mode="login" client={authClient} texts={{ ...t.auth, noConnection: t.shell.noConnection }} />
-      </main>
-      <footer>{t.auth.layout.tagline}</footer>
     </div>
   )
 }
@@ -152,7 +137,8 @@ export function App() {
         <QueryClientProvider client={client}>
           <BrowserRouter basename="/admin">
             <Routes>
-              <Route path="login" element={<Login />} />
+              {/* Signing in happens on the account site (auth.jornboerema.nl). */}
+              <Route path="login" element={<ToAccountSite path="/login" home="/admin/" />} />
               <Route element={<Shell />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="apps" element={<AppsPage />} />

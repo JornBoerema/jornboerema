@@ -1,7 +1,5 @@
-import { auth } from "./auth.en"
 
 export const en = {
-  auth,
   access: {
     title: "Even mailen is invite-only for now",
     body: (email: string) => `You're signed in as ${email}. Ask for access and you'll get an email as soon as you can come in.`,
@@ -12,40 +10,9 @@ export const en = {
     signOut: "Sign in with that one",
   },
   account: {
-    profile: "Profile",
-    profileHelp: "Your name, as it shows in your Evido apps.",
-    name: "Name",
-    profileSaved: "Your profile has been updated.",
-    signIn: "Sign-in",
-    signInHelp: "For signing in and emails about your account. Your connected mailboxes don't change.",
-    email: "Email address",
-    emailHelp: "Your new address becomes active once you confirm it by email.",
-    change: "Change",
-    emailSent: (email: string) =>
-      `Confirm the change via the email sent to ${email}. Until then your current address stays active.`,
-    password: "Password",
-    passwordHelpBefore: "We'll send a reset link to ",
-    passwordHelpAfter: ".",
-    resetSent: "The reset link has been sent. Check your inbox and spam folder.",
-    sent: "Sent",
-    sendResetLink: "Send reset link",
-    dangerZone: "Danger zone",
-    deleteAccount: "Delete account",
-    deleteHelp:
-      "Deletes your Evido account: your connected mailboxes, signatures and everything this app keeps for them. Your mail itself stays with Gmail or Outlook. Even doen and Even vastleggen use the same account, so your data there goes too.",
-    deleteTitle: "Delete your account permanently?",
-    deleteDescription:
-      "This disconnects all your mailboxes and deletes your account in every Evido app, including Even doen. Your mail stays with Gmail or Outlook. Enter your password to confirm.",
-    currentPassword: "Current password",
-    deleteFailed: "Deleting didn't work. Check your password and try again.",
-    deleting: "Deleting…",
-    deletePermanently: "Delete permanently",
-    delete: "Delete",
-    cancel: "Cancel",
-    save: "Save",
-    saving: "Saving…",
-    sending: "Sending…",
-    failed: "That didn't work. Please try again.",
+    title: "Your Even account",
+    description: "Name, email address, password and signed-in devices, for every Even app.",
+    manage: "Manage account",
   },
   shell: {
     noConnection: "There is no connection. Please try again.",

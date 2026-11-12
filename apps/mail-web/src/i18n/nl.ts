@@ -1,8 +1,6 @@
-import { auth } from "./auth.nl"
 import type { en } from "./en"
 
 export const nl: typeof en = {
-  auth,
   access: {
     title: "Even mailen is voorlopig op uitnodiging",
     body: (email: string) => `Je bent ingelogd als ${email}. Vraag toegang aan, dan krijg je een mail zodra je erin kunt.`,
@@ -13,40 +11,9 @@ export const nl: typeof en = {
     signOut: "Log daarmee in",
   },
   account: {
-    profile: "Profiel",
-    profileHelp: "Je naam, zoals die in je Evido-apps staat.",
-    name: "Naam",
-    profileSaved: "Je profiel is bijgewerkt.",
-    signIn: "Inloggen",
-    signInHelp: "Voor inloggen en e-mails over je account. Je gekoppelde mailboxen veranderen niet.",
-    email: "E-mailadres",
-    emailHelp: "Je nieuwe adres wordt actief zodra je het via e-mail bevestigt.",
-    change: "Wijzigen",
-    emailSent: (email: string) =>
-      `Bevestig de wijziging via de e-mail aan ${email}. Tot die tijd blijft je huidige adres actief.`,
-    password: "Wachtwoord",
-    passwordHelpBefore: "We sturen een herstellink naar ",
-    passwordHelpAfter: ".",
-    resetSent: "De herstellink is verstuurd. Bekijk je inbox en eventueel je spammap.",
-    sent: "Verstuurd",
-    sendResetLink: "Stuur herstellink",
-    dangerZone: "Gevarenzone",
-    deleteAccount: "Account verwijderen",
-    deleteHelp:
-      "Verwijdert je Evido-account: je gekoppelde mailboxen, handtekeningen en alles wat deze app daarvoor bewaart. Je mail zelf blijft bij Gmail of Outlook. Even doen en Even vastleggen gebruiken hetzelfde account, dus je gegevens daar verdwijnen ook.",
-    deleteTitle: "Je account definitief verwijderen?",
-    deleteDescription:
-      "Hiermee ontkoppel je al je mailboxen en verwijder je je account in alle Evido-apps, ook Even doen. Je mail blijft bij Gmail of Outlook. Vul je wachtwoord in om te bevestigen.",
-    currentPassword: "Huidig wachtwoord",
-    deleteFailed: "Verwijderen is niet gelukt. Controleer je wachtwoord en probeer het opnieuw.",
-    deleting: "Verwijderen…",
-    deletePermanently: "Definitief verwijderen",
-    delete: "Verwijderen",
-    cancel: "Annuleren",
-    save: "Opslaan",
-    saving: "Opslaan…",
-    sending: "Versturen…",
-    failed: "Dit is niet gelukt. Probeer het opnieuw.",
+    title: "Je Even-account",
+    description: "Naam, e-mailadres, wachtwoord en ingelogde apparaten, voor alle Even-apps.",
+    manage: "Account beheren",
   },
   shell: {
     noConnection: "Er is geen verbinding. Probeer het opnieuw.",

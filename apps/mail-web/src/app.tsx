@@ -23,8 +23,7 @@ import { useNewMailNotifications, useUnreadTitle } from "@/lib/notifications"
 import { useSignatures } from "@/lib/signatures"
 import { isWaiting } from "@/lib/undo"
 import { InboxPage } from "@/pages/inbox"
-import { AuthPage } from "@/pages/auth"
-import { AuthLayout } from "@/pages/auth-layout"
+import { ToAccountSite } from "@evido/ui/components/account-site"
 import { AccessGate } from "@/components/access-gate"
 import { TooltipProvider } from "@evido/ui/components/tooltip"
 import { MotionConfig } from "motion/react"
@@ -331,12 +330,11 @@ export function App() {
             <BrowserRouter>
               <Routes>
                 <Route index element={<Root />} />
-                <Route element={<AuthLayout />}>
-                  <Route path="login" element={<AuthPage mode="login" />} />
-                  <Route path="signup" element={<AuthPage mode="register" />} />
-                  <Route path="forgot-password" element={<AuthPage mode="forgot" />} />
-                  <Route path="reset-password" element={<AuthPage mode="reset" />} />
-                </Route>
+                {/* Signing in happens on the account site (auth.jornboerema.nl). */}
+                <Route path="login" element={<ToAccountSite path="/login" />} />
+                <Route path="signup" element={<ToAccountSite path="/signup" />} />
+                <Route path="forgot-password" element={<ToAccountSite path="/forgot-password" />} />
+                <Route path="reset-password" element={<ToAccountSite path="/reset-password" />} />
                 <Route path="*" element={<Navigate replace to="/" />} />
               </Routes>
             </BrowserRouter>

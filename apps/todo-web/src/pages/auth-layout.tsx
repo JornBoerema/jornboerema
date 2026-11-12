@@ -7,7 +7,7 @@ export function AuthLayout() {
   return (
     <div className="auth-layout">
       <header>
-        <Link to="/login" aria-label={t.homeLabel}>
+        <Link to="/" aria-label={t.homeLabel}>
           <Brand />
         </Link>
       </header>

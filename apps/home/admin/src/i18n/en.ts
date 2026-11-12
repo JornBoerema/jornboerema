@@ -1,11 +1,8 @@
-import { auth } from "./auth.en"
 
 export const en = {
-  auth,
   shell: {
     brand: "Admin",
     signOut: "Sign out",
-    noConnection: "No connection to the server.",
     notAdminTitle: "No admin access",
     notAdminBody: (email: string) => `You're signed in as ${email}, which isn't an admin account.`,
     otherAccount: "Sign in with another account",

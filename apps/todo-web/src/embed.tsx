@@ -1,10 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MotionConfig } from "motion/react"
-import { MemoryRouter, Outlet, Route, Routes } from "react-router"
+import { MemoryRouter, Route, Routes } from "react-router"
 import { I18nProvider } from "./i18n"
 import { HomePage } from "./pages/home"
-import { AuthPage } from "./pages/auth"
 import "./app.css"
 
 export { authClient } from "./lib/auth-client"
@@ -24,7 +23,7 @@ function useQueryClient() {
 
 /**
  * Even doen inside the Even desktop app. The desktop app provides the theme,
- * the toaster and the sign-in screens; this keeps its own router and cache.
+ * the toaster and signing in (through the browser); this keeps its own router and cache.
  */
 export function TodoEmbed() {
   const client = useQueryClient()
@@ -39,39 +38,6 @@ export function TodoEmbed() {
             </Routes>
           </MemoryRouter>
         </MotionConfig>
-      </QueryClientProvider>
-    </I18nProvider>
-  )
-}
-
-/** The web layout without the Even doen brand and tagline: the desktop app brings its own. */
-function SignInLayout({ brand }: { brand: ReactNode }) {
-  return (
-    <div className="auth-layout">
-      <header data-tauri-drag-region>{brand}</header>
-      <main className="auth-main">
-        <Outlet />
-      </main>
-    </div>
-  )
-}
-
-/** The sign-in, sign-up and forgot-password screens, for the desktop app. */
-export function TodoSignIn({ brand }: { brand: ReactNode }) {
-  const client = useQueryClient()
-  return (
-    <I18nProvider>
-      <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route element={<SignInLayout brand={brand} />}>
-              <Route path="login" element={<AuthPage mode="login" />} />
-              <Route path="signup" element={<AuthPage mode="register" />} />
-              <Route path="forgot-password" element={<AuthPage mode="forgot" />} />
-            </Route>
-            <Route path="*" element={null} />
-          </Routes>
-        </MemoryRouter>
       </QueryClientProvider>
     </I18nProvider>
   )

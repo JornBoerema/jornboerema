@@ -5,8 +5,8 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "dev:todo": "turbo dev --filter=@evido/api --filter=@evido/todo-web",
-    "dev:mail": "turbo dev --filter=@evido/api --filter=@evido/mail-web",
+    "dev:todo": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/todo-web",
+    "dev:mail": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/mail-web",
     "lint": "turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
