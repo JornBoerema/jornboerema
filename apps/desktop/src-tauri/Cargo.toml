@@ -25,3 +25,5 @@ tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Even mailen's cache on disk (mail_cache.rs); bundled, so no system SQLite is needed.
+rusqlite = { version = "0.42", features = ["bundled"] }

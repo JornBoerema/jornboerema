@@ -7,7 +7,7 @@ export const authClient = createEvidoAuthClient(API_URL, { language: currentLang
 /** Signs out and reloads, so nothing of this user stays in memory or in the browser. */
 export async function signOut() {
   const { clearMailCache } = await import("@/lib/cache")
-  clearMailCache()
+  await clearMailCache()
   await authClient.signOut()
   window.location.assign("/login")
 }

@@ -8,6 +8,7 @@ import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/ap
 import { DesktopProvider } from "@evido/ui/components/desktop-app"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import { cn } from "@evido/ui/lib/utils"
+import { forgetMailOnDisk } from "./mail-storage"
 import { SignIn } from "./sign-in"
 import { useDesktopApp } from "./updates"
 import { useWindowDragging } from "./window"
@@ -88,7 +89,12 @@ function Apps() {
 }
 
 function Gate() {
-  const { data, isPending } = authClient.useSession()
+  const { data, isPending, error } = authClient.useSession()
+  // Only when the API says there is no session; offline, the cache is what shows.
+  const signedOut = !isPending && !data && !error
+  useEffect(() => {
+    if (signedOut) void forgetMailOnDisk()
+  }, [signedOut])
   if (isPending) return <div className="desktop-loading" data-tauri-drag-region />
   if (!data) return <SignIn mac={isMac} />
   return <Apps />

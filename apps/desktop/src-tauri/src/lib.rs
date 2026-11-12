@@ -1,3 +1,4 @@
+mod mail_cache;
 mod sign_in;
 mod updates;
 mod window_size;
@@ -85,9 +86,17 @@ pub fn run() {
             updates::check_for_update,
             updates::install_update,
             sign_in::listen_for_sign_in,
-            sign_in::cancel_sign_in
+            sign_in::cancel_sign_in,
+            mail_cache::mail_cache_get,
+            mail_cache::mail_cache_set,
+            mail_cache::mail_cache_remove,
+            mail_cache::mail_cache_thread,
+            mail_cache::mail_cache_put_thread,
+            mail_cache::mail_cache_clear
         ])
         .setup(|app| {
+            // Before the window, so the mail's first reads find it.
+            app.manage(mail_cache::MailCache::open(app.handle()));
             create_main_window(app.handle())?;
             updates::watch(app.handle());
             Ok(())

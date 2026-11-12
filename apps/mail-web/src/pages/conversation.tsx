@@ -52,7 +52,7 @@ import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail, w
 import { useTheme } from "@evido/ui/lib/theme"
 import { useScrollFade } from "@evido/ui/hooks/use-scroll-fade"
 import { useHotkeys } from "@/lib/hotkeys"
-import { canReportSpam, conversationUrl, moveActions, STARRED, threadQuery, useThreadAction } from "@/lib/mail"
+import { canReportSpam, conversationUrl, moveActions, STARRED, threadQuery, useStoredThread, useThreadAction } from "@/lib/mail"
 import { DANGER, isDestructive, MOVE_ICONS, MOVE_KEYS, moveLabel } from "@/lib/thread-actions"
 import { useAlwaysShowImages } from "@/lib/preferences"
 import { IconTip } from "@/components/icon-tip"
@@ -465,9 +465,11 @@ export function ConversationPage({
   const [prefill, setPrefill] = useState<string | null>(null)
   const replyDraft = savedReply?.mode === replyMode ? savedReply : null
   const { mutate: runAction } = useThreadAction()
-  // Often already here: rows load their conversation when hovered. Bodies stay in
-  // memory for a few minutes and are never written to disk.
+  // Often already here: rows load their conversation when hovered. On the web
+  // bodies stay in memory for a few minutes and never reach the disk; the
+  // desktop app keeps opened ones on the computer (see lib/cache).
   const thread = useQuery(threadQuery(id))
+  useStoredThread(id)
 
   const opened = thread.isSuccess
   const needsRead = !summary.isRead

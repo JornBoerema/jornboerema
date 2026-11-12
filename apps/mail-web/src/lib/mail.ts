@@ -24,6 +24,7 @@ import { useI18n } from "@/i18n"
 import { formatMoment, SCHEDULED_KEY, SNOOZES_KEY } from "@/lib/later"
 import { api, ApiError, errorText } from "@/lib/api"
 import { UndoneError, waitForUndo } from "@/lib/undo"
+import { keepsThreads, readStoredThread } from "@/lib/cache"
 
 export const ACCOUNTS_KEY = ["mail-accounts"]
 export const MESSAGES_KEY = ["mail-messages"]
@@ -348,6 +349,28 @@ export const threadQuery = (id: string) => ({
   staleTime: 60 * 1000,
   gcTime: THREAD_MEMORY_MS,
 })
+
+/**
+ * In the desktop app: a conversation kept from an earlier visit shows at once,
+ * marked old so the fresh copy that is loading replaces it. Offline, the kept
+ * copy stays.
+ */
+export function useStoredThread(id: string) {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!keepsThreads()) return
+    const { queryKey } = threadQuery(id)
+    if (queryClient.getQueryData(queryKey)) return
+    let current = true
+    void readStoredThread<MailThreadDetail>(id).then((kept) => {
+      if (current && kept && !queryClient.getQueryData(queryKey))
+        queryClient.setQueryData(queryKey, kept, { updatedAt: 0 })
+    })
+    return () => {
+      current = false
+    }
+  }, [id, queryClient])
+}
 
 /**
  * Loads conversations before they're opened, so opening one is instant: the row

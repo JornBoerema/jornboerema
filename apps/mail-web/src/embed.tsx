@@ -9,6 +9,8 @@ import { I18nProvider } from "@/i18n"
 import { Root } from "./app"
 import "./mail.css"
 
+export { setMailStorage, type MailStorage } from "./lib/cache"
+
 /** Mail lost its session; the desktop app starts again at its sign-in screen. */
 function SignedOut() {
   useEffect(() => window.location.reload(), [])
