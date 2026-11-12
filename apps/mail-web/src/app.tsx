@@ -16,7 +16,7 @@ import { ShortcutsSpotlight } from "@/components/shortcuts-spotlight"
 import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
 import { I18nProvider, useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
-import { persistMailCache } from "@/lib/cache"
+import { forgetSignedOutUser, persistMailCache } from "@/lib/cache"
 import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
 import { linkedThread, useAccounts, useMailRealtime, useMailSync, useUnread } from "@/lib/mail"
 import { useNewMailNotifications, useUnreadTitle } from "@/lib/notifications"
@@ -300,9 +300,11 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
 
 /** The signed-in app, or a redirect to sign in. Also used by the desktop app. */
 export function Root() {
-  const { data, isPending } = authClient.useSession()
+  const { data, isPending, error: sessionError } = authClient.useSession()
   const location = useLocation()
   if (isPending) return null
+  // Signed out elsewhere (on the account site, say): nothing of the last user stays here.
+  if (!data && !sessionError) forgetSignedOutUser()
   if (data)
     return (
       <AccessGate user={data.user}>

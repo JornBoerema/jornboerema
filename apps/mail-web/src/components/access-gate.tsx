@@ -9,10 +9,10 @@ import { Brand } from "@/components/brand"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { signOut } from "@/lib/auth-client"
+import { ACCESS_KEY as KEY } from "@/lib/cache"
 
 type Access = { access: boolean; requested: boolean }
 
-const KEY = "evido.mail.access"
 const ACCESS_QUERY = ["mail-access"]
 
 /** Who was let in on this device, so the app opens at once while it is checked again. */

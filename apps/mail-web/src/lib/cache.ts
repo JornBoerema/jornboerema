@@ -60,3 +60,16 @@ export function clearMailCache() {
     // Nothing kept, then.
   }
 }
+
+/** Who was let in on this device (see the access gate). */
+export const ACCESS_KEY = "evido.mail.access"
+
+/** What a signed-out browser shouldn't keep: the cached mail and who was let in. */
+export function forgetSignedOutUser() {
+  clearMailCache()
+  try {
+    localStorage.removeItem(ACCESS_KEY)
+  } catch {
+    // Blocked storage has nothing to clear.
+  }
+}

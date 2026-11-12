@@ -7,17 +7,7 @@
     <meta name="description" content="Sign in to Even and manage your account." />
     <meta name="robots" content="noindex, nofollow" />
     <title>Even account</title>
-    <!-- Apply the saved theme before first paint. Mirrors @evido/ui/lib/theme. -->
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem("evido.theme")
-          var d = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
-          document.documentElement.classList.add(d ? "dark" : "light")
-          document.documentElement.style.colorScheme = d ? "dark" : "light"
-        } catch (e) {}
-      })()
-    </script>
+    <script src="/theme.js"></script>
   </head>
   <body class="min-h-full">
     <div id="root"></div>
