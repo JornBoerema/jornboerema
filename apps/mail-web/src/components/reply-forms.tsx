@@ -29,7 +29,7 @@ import { clearReplyDraft, saveReplyDraft, type ReplyDraft } from "@/lib/reply-dr
 const RichTextEditor = lazy(() => import("@/components/rich-text-editor"))
 
 const JSON_HEADERS = { "Content-Type": "application/json" }
-const FORM = "flex max-h-[60dvh] flex-col overflow-hidden rounded-2xl border bg-background shadow-sm"
+const FORM = "flex max-h-[60dvh] flex-col overflow-hidden rounded-xl border bg-background shadow-sm"
 const addressLabel = (address: MailAddress) => address.name ?? address.email
 
 function Actions({ canSend, onClose }: { canSend: boolean; onClose: () => void }) {

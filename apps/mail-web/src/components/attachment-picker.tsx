@@ -176,7 +176,7 @@ export function AttachmentList({
               <li
                 key={file.key}
                 className={cn(
-                  "group relative flex h-11 max-w-60 min-w-0 items-center gap-2.5 overflow-hidden rounded-xl border bg-muted/40 pr-1.5 pl-2 duration-200 animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none",
+                  "group relative flex h-11 max-w-60 min-w-0 items-center gap-2.5 overflow-hidden rounded-lg border bg-muted/40 pr-1.5 pl-2 duration-200 animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none",
                   file.failed && "border-destructive/40"
                 )}
               >

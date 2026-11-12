@@ -245,7 +245,7 @@ export function SidebarEditor({
             )}
           >
             <div
-              className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md"
+              className="flex h-14 items-center justify-between gap-3 rounded-xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md"
             >
               <p className="min-w-0 truncate text-muted-foreground">{t.help}</p>
               <div className="flex shrink-0 items-center gap-1.5">

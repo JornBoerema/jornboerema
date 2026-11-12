@@ -204,7 +204,7 @@ export function AddressRow({
           id={listId}
           role="listbox"
           aria-label={t.suggestions}
-          className="absolute top-full left-23 z-30 -mt-1 w-[min(22rem,calc(100%-6rem))] rounded-xl border bg-popover p-1 text-popover-foreground shadow-md"
+          className="absolute top-full left-23 z-30 -mt-1 w-[min(22rem,calc(100%-6rem))] rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
         >
           {suggestions.map((contact, index) => (
             <li

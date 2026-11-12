@@ -497,7 +497,7 @@ function ComposeForm({
                 }}
               />
             </Suspense>
-            <div className="sticky bottom-4 z-10 mx-4 mb-4 shrink-0 rounded-2xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
+            <div className="sticky bottom-4 z-10 mx-4 mb-4 shrink-0 rounded-xl border bg-background/90 px-2.5 py-2 shadow-sm backdrop-blur-md">
               <AttachmentList files={files} onRemove={attach.remove} className="mb-2 border-b px-0.5 pt-0.5 pb-2.5" />
               <AiPrompt writer={writer} className="mb-2 border-b px-1 pt-0.5 pb-2.5" />
               <div className="flex min-h-10 items-center justify-between gap-3">

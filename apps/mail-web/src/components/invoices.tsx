@@ -85,7 +85,7 @@ export function InvoiceCard({
   const invoice = data?.invoice
   if (!candidate || !invoice) return null
   return (
-    <section className="mb-3 flex items-center gap-4 rounded-xl border bg-muted/40 px-4 py-3" aria-label={t.title}>
+    <section className="mb-3 flex items-center gap-4 rounded-lg border bg-muted/40 px-4 py-3" aria-label={t.title}>
       <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
         <HugeiconsIcon icon={Invoice02Icon} strokeWidth={1.75} aria-hidden="true" className="size-4.5" />
       </span>

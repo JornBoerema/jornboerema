@@ -668,7 +668,7 @@ export function ConversationPage({
                       setReplyMode("reply")
                     }}
                   />
-                  <div className="flex h-14 items-center justify-between gap-3 rounded-2xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
+                  <div className="flex h-14 items-center justify-between gap-3 rounded-xl border bg-background/90 pr-2.5 pl-4 text-sm shadow-sm backdrop-blur-md">
                     <p className="hidden min-w-0 items-center gap-1.5 @2xl:flex">
                       <span className="shrink-0 text-muted-foreground">{t.messageCount(messages.length)} ·</span>
                       {account && <AccountDot color={account.color} />}

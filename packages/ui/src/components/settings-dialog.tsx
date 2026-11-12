@@ -115,7 +115,7 @@ function SettingsDialog({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={labels.search}
-              className="h-9 w-full rounded-lg bg-background pr-3 pl-9 text-sm ring-1 ring-border outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9 w-full rounded-md bg-background pr-3 pl-9 text-sm ring-1 ring-border outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             />
           </label>
           {/* Padding keeps the active item's ring inside the scroll clip. */}
@@ -134,7 +134,7 @@ function SettingsDialog({
                     aria-current={page.id === active?.id ? "page" : undefined}
                     onClick={() => onActivePageChange(page.id)}
                     className={cn(
-                      "flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors [&_svg]:size-4 [&_svg]:shrink-0",
+                      "flex shrink-0 items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors [&_svg]:size-4 [&_svg]:shrink-0",
                       // The active item keeps its own look on hover.
                       page.id === active?.id
                         ? "bg-background font-medium text-foreground shadow-xs ring-1 ring-border"
@@ -203,7 +203,7 @@ function SettingsSection({
           <p className="text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      <div className="divide-y overflow-hidden rounded-2xl bg-card ring-1 ring-border">
+      <div className="divide-y overflow-hidden rounded-lg bg-card ring-1 ring-border">
         {children}
       </div>
     </section>
