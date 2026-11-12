@@ -39,6 +39,7 @@ import {
   Layers01Icon,
   ArrowExpandIcon,
   ArrowShrinkIcon,
+  FilterIcon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 
@@ -94,3 +95,4 @@ export const X = appIcon(Cancel01Icon);
 export const Layers = appIcon(Layers01Icon);
 export const Maximize = appIcon(ArrowExpandIcon);
 export const Minimize = appIcon(ArrowShrinkIcon);
+export const Filter = appIcon(FilterIcon);

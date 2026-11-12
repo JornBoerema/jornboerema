@@ -30,6 +30,8 @@ export const board: typeof en = {
     board: "Bord",
     list: "Lijst",
     project: "Project",
+    filter: "Filter",
+    clearFilter: (what: string) => `Filter op ${what.toLowerCase()} wissen`,
     allProjects: "Alle projecten",
     noProject: "Geen project",
     assignee: "Toegewezen aan",

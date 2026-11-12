@@ -8,15 +8,17 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@evido/ui/components/dropdown-menu";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@evido/ui/components/empty";
 import { cn } from "@evido/ui/lib/utils";
-import { Kanban, Layers, ListView, Maximize, Minimize, Paperclip, Plus, User, X } from "@/components/icons";
+import { Filter, Folder, Kanban, Layers, ListView, Maximize, Minimize, Paperclip, Plus, User, X } from "@/components/icons";
 import { Switch } from "@evido/ui/components/switch";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -106,63 +108,80 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
 
   const changeView = (next: View) => { setView(next); writePref(`${prefKey}:view`, next); };
   const filtered = projectFilter !== "all" || assigneeFilter !== "all";
+  const filterCount = Number(projectFilter !== "all") + Number(assigneeFilter !== "all") + Number(showSub);
   const project = projects.find((p) => p.id === projectFilter);
   const assignee = members.find((m) => m.id === assigneeFilter);
 
   return (
     <div className="board">
       <div className="board-toolbar" role="toolbar" aria-label={t.toolbar.view}>
-        <p className="board-summary">{t.summary(open)}</p>
-        <div className="board-toolbar-actions">
-          <div className="board-segment" role="radiogroup" aria-label={t.toolbar.view}>
+        <div className="board-toolbar-group">
+          <div className="board-tabs" role="radiogroup" aria-label={t.toolbar.view}>
             {(["board", "list"] as const).map((option) => (
-              <button key={option} role="radio" aria-checked={view === option} className={cn(view === option && "is-active")} onClick={() => changeView(option)}>
-                {option === "board" ? <Kanban className="size-4" aria-hidden="true" /> : <ListView className="size-4" aria-hidden="true" />}
+              <button key={option} role="radio" aria-checked={view === option} className={cn("board-tool", view === option && "is-active")} onClick={() => changeView(option)}>
+                {option === "board" ? <Kanban className="size-3.5" aria-hidden="true" /> : <ListView className="size-3.5" aria-hidden="true" />}
                 <span>{t.toolbar[option]}</span>
               </button>
             ))}
           </div>
+          <span className="board-toolbar-divider" aria-hidden="true" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("board-filter", projectFilter !== "all" && "is-active")}>
-                <ProjectDot project={project} />
-                <span className="truncate">{projectFilter === "all" ? t.toolbar.allProjects : projectFilter === "none" ? t.toolbar.noProject : project?.name}</span>
-              </Button>
+              <button className={cn("board-tool", filterCount > 0 && "has-value")}>
+                <Filter className="size-3.5" aria-hidden="true" />
+                <span>{t.toolbar.filter}</span>
+                {filterCount > 0 && <span className="board-tool-count">{filterCount}</span>}
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="max-h-80 min-w-48">
-              <DropdownMenuLabel>{t.toolbar.project}</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={projectFilter} onValueChange={setProjectFilter}>
-                <DropdownMenuRadioItem value="all">{t.toolbar.allProjects}</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="none"><ProjectDot />{t.toolbar.noProject}</DropdownMenuRadioItem>
-                {projects.map((p) => <DropdownMenuRadioItem key={p.id} value={p.id}><ProjectDot project={p} /><span className="truncate">{p.name}</span></DropdownMenuRadioItem>)}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {members.length > 0 && <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("board-filter", assigneeFilter !== "all" && "is-active")}>
-                <User className="size-3.5" aria-hidden="true" />
-                <span className="truncate">{assigneeFilter === "all" ? t.toolbar.everyone : assigneeFilter === "me" ? t.toolbar.mine : assigneeFilter === "none" ? t.toolbar.unassigned : assignee?.name}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="max-h-80 min-w-48">
-              <DropdownMenuLabel>{t.toolbar.assignee}</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                <DropdownMenuRadioItem value="all">{t.toolbar.everyone}</DropdownMenuRadioItem>
-                {userId && <DropdownMenuRadioItem value="me">{t.toolbar.mine}</DropdownMenuRadioItem>}
-                <DropdownMenuRadioItem value="none">{t.toolbar.unassigned}</DropdownMenuRadioItem>
-                {members.filter((m) => m.id !== userId).map((m) => <DropdownMenuRadioItem key={m.id} value={m.id}><span className="truncate">{m.name || m.email}</span></DropdownMenuRadioItem>)}
-              </DropdownMenuRadioGroup>
+            <DropdownMenuContent align="start" className="min-w-52">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger><Folder className="size-3.5" aria-hidden="true" />{t.toolbar.project}</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-80 min-w-48">
+                  <DropdownMenuRadioGroup value={projectFilter} onValueChange={setProjectFilter}>
+                    <DropdownMenuRadioItem value="all">{t.toolbar.allProjects}</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="none"><ProjectDot />{t.toolbar.noProject}</DropdownMenuRadioItem>
+                    {projects.map((p) => <DropdownMenuRadioItem key={p.id} value={p.id}><ProjectDot project={p} /><span className="truncate">{p.name}</span></DropdownMenuRadioItem>)}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              {members.length > 0 && <DropdownMenuSub>
+                <DropdownMenuSubTrigger><User className="size-3.5" aria-hidden="true" />{t.toolbar.assignee}</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-80 min-w-48">
+                  <DropdownMenuRadioGroup value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                    <DropdownMenuRadioItem value="all">{t.toolbar.everyone}</DropdownMenuRadioItem>
+                    {userId && <DropdownMenuRadioItem value="me">{t.toolbar.mine}</DropdownMenuRadioItem>}
+                    <DropdownMenuRadioItem value="none">{t.toolbar.unassigned}</DropdownMenuRadioItem>
+                    {members.filter((m) => m.id !== userId).map((m) => <DropdownMenuRadioItem key={m.id} value={m.id}><span className="truncate">{m.name || m.email}</span></DropdownMenuRadioItem>)}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>}
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem checked={showSub} onCheckedChange={(checked) => { setShowSub(checked); writePref(`${prefKey}:sub`, checked ? "yes" : "no"); }}>
-                {t.toolbar.showSubIssues}
+                <Layers className="size-3.5" aria-hidden="true" />{t.toolbar.showSubIssues}
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
-          </DropdownMenu>}
-          {!readOnly && <Button size="sm" disabled={disabled} onClick={() => setCreating({})}><Plus data-icon="inline-start" />{t.toolbar.newIssue}</Button>}
+          </DropdownMenu>
+          {/* Active filters as removable chips, like Linear. */}
+          {projectFilter !== "all" && (
+            <span className="board-filter-chip">
+              <ProjectDot project={project} />
+              <span className="truncate">{projectFilter === "none" ? t.toolbar.noProject : project?.name}</span>
+              <button aria-label={t.toolbar.clearFilter(t.toolbar.project)} onClick={() => setProjectFilter("all")}><X className="size-3" /></button>
+            </span>
+          )}
+          {assigneeFilter !== "all" && (
+            <span className="board-filter-chip">
+              <User className="size-3.5" aria-hidden="true" />
+              <span className="truncate">{assigneeFilter === "me" ? t.toolbar.mine : assigneeFilter === "none" ? t.toolbar.unassigned : assignee?.name}</span>
+              <button aria-label={t.toolbar.clearFilter(t.toolbar.assignee)} onClick={() => setAssigneeFilter("all")}><X className="size-3" /></button>
+            </span>
+          )}
+        </div>
+        <div className="board-toolbar-group">
+          <span className="board-summary">{t.summary(open)}</span>
+          {!readOnly && <button className="board-tool is-primary" disabled={disabled} onClick={() => setCreating({})}><Plus className="size-3.5" aria-hidden="true" /><span>{t.toolbar.newIssue}</span></button>}
         </div>
       </div>
-
       {!all.length ? (
         <Empty className="py-16">
           <EmptyHeader>

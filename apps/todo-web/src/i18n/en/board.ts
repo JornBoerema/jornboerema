@@ -30,6 +30,8 @@ export const board = {
     board: "Board",
     list: "List",
     project: "Project",
+    filter: "Filter",
+    clearFilter: (what: string) => `Clear ${what.toLowerCase()} filter`,
     allProjects: "All projects",
     noProject: "No project",
     assignee: "Assignee",
