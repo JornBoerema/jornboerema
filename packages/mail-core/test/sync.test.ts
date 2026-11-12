@@ -156,7 +156,7 @@ describe("gmail sync", () => {
   })
 
   it("does not treat other failures as an expired cursor", async () => {
-    stubRoutes([[/\/history\?/, 503, {}]])
+    stubRoutes([[/\/history\?/, 400, {}]])
     await expect(syncGmailPage("t", { cursor: v2({ historyId: "1", backfill: false }), since })).rejects.toBeInstanceOf(
       ProviderError
     )
@@ -182,6 +182,25 @@ const delta = (folder: string) => `${GRAPH_BASE}/me/mailFolders/${folder}/messag
 const cursorOf = (links: Record<string, string>, pending: string[]) => JSON.stringify({ v: 2, links, pending })
 
 describe("outlook sync", () => {
+  it("asks again after a passing server fault", async () => {
+    vi.useFakeTimers()
+    let calls = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        calls++
+        return calls === 1
+          ? new Response(JSON.stringify({ error: { code: "UnknownError" } }), { status: 503 })
+          : new Response(JSON.stringify({ value: [graphMessage("a")], "@odata.nextLink": next("inbox") }), { status: 200 })
+      })
+    )
+    const page = syncOutlookPage("t", { cursor: null, since })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect((await page).upserts).toHaveLength(1)
+    expect(calls).toBe(2)
+    vi.useRealTimers()
+  })
+
   it("starts with the inbox, from the window, with immutable ids", async () => {
     const requests = stubRoutes([[/\/delta/, 200, { value: [graphMessage("a")], "@odata.nextLink": next("inbox") }]])
     const page = await syncOutlookPage("t", { cursor: null, since })

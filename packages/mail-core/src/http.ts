@@ -56,17 +56,24 @@ async function ensureOk(response: Response, url: string) {
 const RETRY_DELAYS_MS = [1000, 2000, 4000]
 const MAX_RETRY_WAIT_MS = 8000
 
+/** The provider had a passing fault (Graph answers 503 now and then); asking again usually works. */
+const isServerHiccup = (error: unknown) =>
+  error instanceof ProviderError && [500, 502, 503, 504].includes(error.status ?? 0)
+
 /**
  * Tries again when the provider refuses for being busy. A refused request was not
- * carried out, so this is safe for sends too. Other failures pass straight through.
+ * carried out, so this is safe for sends too. Reads and deletes, which can be
+ * repeated safely, also try again after a passing server fault (`idempotent`).
+ * Other failures pass straight through.
  */
-export async function withRateLimitRetry<T>(request: () => Promise<T>): Promise<T> {
+export async function withRateLimitRetry<T>(request: () => Promise<T>, { idempotent = false } = {}): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await request()
     } catch (error) {
       const delay = RETRY_DELAYS_MS[attempt]
-      if (!isRateLimited(error) || delay === undefined) throw error
+      const retry = isRateLimited(error) || (idempotent && isServerHiccup(error))
+      if (!retry || delay === undefined) throw error
       const asked = (error as ProviderError).retryAfterMs ?? 0
       if (asked > MAX_RETRY_WAIT_MS) throw error
       await new Promise((resolve) => setTimeout(resolve, Math.max(delay, asked)))
@@ -87,7 +94,7 @@ export function getJson<T>(
     })
     await ensureOk(response, url)
     return (await response.json()) as T
-  })
+  }, { idempotent: true })
 }
 
 /** For reading attachments, which are far larger than ordinary API answers. */
@@ -134,7 +141,7 @@ export async function deleteResource(url: string, accessToken: string, headers?:
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     if (response.status !== 404) await ensureOk(response, url)
-  })
+  }, { idempotent: true })
 }
 
 /** Runs `work` over `items` a few at a time, keeping providers within their rate limits. */

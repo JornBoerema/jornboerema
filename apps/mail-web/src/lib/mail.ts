@@ -33,6 +33,8 @@ const ACTION_KEY = ["mail-thread-action"]
 
 /** Only a safety net: new mail normally arrives through webhooks and a realtime signal. */
 const SYNC_INTERVAL_MS = 5 * 60 * 1000
+/** After a failed round: try again this soon, before saying anything. */
+const SYNC_RETRY_MS = 30 * 1000
 const BUSY_RETRY_MS = 3 * 1000
 
 export type SyncStatus = "idle" | "syncing" | "failed"
@@ -268,6 +270,10 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
     const ids = key.split(",")
     let stopped = false
     let running = false
+    // Rounds failed in a row. One failure is often a passing hiccup (a Mac waking
+    // up, a provider fault), so only a second one in a row shows the warning.
+    let failedRounds = 0
+    let retry: number | undefined
 
     async function syncOne(id: string) {
       while (!stopped) {
@@ -290,7 +296,11 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
       const failures = results.flatMap((result) => (result.status === "rejected" ? [result.reason] : []))
       if (failures.some((error) => error instanceof ApiError && error.status === 409))
         void queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY })
-      setStatus(failures.length > 0 ? "failed" : "idle")
+      failedRounds = failures.length > 0 ? failedRounds + 1 : 0
+      setStatus(failedRounds >= 2 ? "failed" : "idle")
+      window.clearTimeout(retry)
+      // A lasting fault (a mailbox to reconnect) waits for the normal rounds again.
+      if (failedRounds > 0 && failedRounds < 3) retry = window.setTimeout(() => void run(), SYNC_RETRY_MS)
     }
 
     void run()
@@ -300,6 +310,7 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
     return () => {
       stopped = true
       window.clearInterval(timer)
+      window.clearTimeout(retry)
       document.removeEventListener("visibilitychange", onVisible)
     }
   }, [key, queryClient])
