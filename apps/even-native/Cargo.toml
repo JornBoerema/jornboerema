@@ -1,0 +1,29 @@
+[package]
+name = "even-native"
+version = "0.1.0"
+description = "Even, built natively in Rust with GPUI: an experiment next to the Tauri app."
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "even-native"
+path = "src/main.rs"
+
+[dependencies]
+gpui-kit = "0.9.1"
+anyhow = "1"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+html2text = "0.14"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+ureq = { version = "2", features = ["json"] }
+url = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
