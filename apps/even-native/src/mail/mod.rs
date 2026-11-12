@@ -19,28 +19,46 @@ mod conversation;
 mod download;
 mod list;
 mod reader;
+mod search;
 mod sidebar;
 
 use conversation::{prepare, random_nonce, short_date, Reading};
+use gpui_kit::component::input::InputState;
+use search::Search;
 use sidebar::folder_name;
 
 actions!(
     mail,
-    [Next, Previous, Archive, ToggleStar, MarkUnread, Trash, Refresh, Close]
+    [
+        Next,
+        Previous,
+        Archive,
+        ToggleStar,
+        MarkUnread,
+        Trash,
+        Refresh,
+        Close,
+        FocusSearch
+    ]
 );
+
+/// Single keys would otherwise fire while typing in the search field.
+const NOT_TYPING: &str = "Mail && !Input";
 
 pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
-        KeyBinding::new("j", Next, Some("Mail")),
-        KeyBinding::new("down", Next, Some("Mail")),
-        KeyBinding::new("k", Previous, Some("Mail")),
-        KeyBinding::new("up", Previous, Some("Mail")),
-        KeyBinding::new("e", Archive, Some("Mail")),
-        KeyBinding::new("s", ToggleStar, Some("Mail")),
-        KeyBinding::new("shift-u", MarkUnread, Some("Mail")),
-        KeyBinding::new("#", Trash, Some("Mail")),
+        KeyBinding::new("j", Next, Some(NOT_TYPING)),
+        KeyBinding::new("down", Next, Some(NOT_TYPING)),
+        KeyBinding::new("k", Previous, Some(NOT_TYPING)),
+        KeyBinding::new("up", Previous, Some(NOT_TYPING)),
+        KeyBinding::new("e", Archive, Some(NOT_TYPING)),
+        KeyBinding::new("s", ToggleStar, Some(NOT_TYPING)),
+        KeyBinding::new("shift-u", MarkUnread, Some(NOT_TYPING)),
+        KeyBinding::new("#", Trash, Some(NOT_TYPING)),
         KeyBinding::new("cmd-r", Refresh, Some("Mail")),
-        KeyBinding::new("escape", Close, Some("Mail")),
+        KeyBinding::new("escape", Close, Some(NOT_TYPING)),
+        KeyBinding::new("/", FocusSearch, Some(NOT_TYPING)),
+        KeyBinding::new("cmd-f", FocusSearch, Some("Mail")),
     ]);
 }
 
@@ -85,8 +103,15 @@ pub struct MailView {
     nonce: String,
     /// Messages from that script: shortcuts pressed while the mail has focus, and downloads.
     ipc: UnboundedSender<String>,
+    search_input: Entity<InputState>,
+    /// Results instead of the folder while set.
+    search: Option<Search>,
+    /// Bumped on every search, so a slow older answer can't replace a newer one.
+    search_generation: u64,
+    found: UniformListScrollHandle,
     _poll: Task<()>,
     _ipc: Task<()>,
+    _search_events: Subscription,
 }
 
 impl MailView {
@@ -101,13 +126,17 @@ impl MailView {
             }
         });
         let (ipc, mut received) = unbounded::<String>();
-        let ipc_task = cx.spawn(async move |this, cx| {
+        let ipc_task = cx.spawn_in(window, async move |this, cx| {
             while let Some(raw) = received.next().await {
-                if this.update(cx, |this, cx| this.message(&raw, cx)).is_err() {
+                if this
+                    .update_in(cx, |this, window, cx| this.message(&raw, window, cx))
+                    .is_err()
+                {
                     break;
                 }
             }
         });
+        let (search_input, search_events) = Self::search_field(window, cx);
         let mut view = Self {
             client,
             store,
@@ -130,8 +159,13 @@ impl MailView {
             status_serial: 0,
             nonce: random_nonce(),
             ipc,
+            search_input,
+            search: None,
+            search_generation: 0,
+            found: UniformListScrollHandle::new(),
             _poll: poll,
             _ipc: ipc_task,
+            _search_events: search_events,
         };
         view.load_accounts(cx);
         view.load(true, cx);
@@ -297,19 +331,53 @@ impl MailView {
         self.load(true, cx);
     }
 
+    /// What the list shows: the search results while searching, else the folder.
+    fn rows(&self) -> &[Thread] {
+        match &self.search {
+            Some(search) => &search.hits,
+            None => &self.threads,
+        }
+    }
+
+    fn rows_mut(&mut self) -> &mut Vec<Thread> {
+        match &mut self.search {
+            Some(search) => &mut search.hits,
+            None => &mut self.threads,
+        }
+    }
+
+    /// Which folder's rules apply to the list: results act as the inbox does,
+    /// so archiving or trashing a hit takes it out of them.
+    fn list_folder(&self) -> Folder {
+        if self.search.is_some() {
+            Folder::Inbox
+        } else {
+            self.folder
+        }
+    }
+
+    fn scroll(&self) -> &UniformListScrollHandle {
+        if self.search.is_some() {
+            &self.found
+        } else {
+            &self.list
+        }
+    }
+
     fn position(&self) -> Option<usize> {
         let open = self.open.as_deref()?;
-        self.threads.iter().position(|thread| thread.id == open)
+        self.rows().iter().position(|thread| thread.id == open)
     }
 
     fn open_at(&mut self, index: usize, cx: &mut Context<Self>) {
-        let Some(thread) = self.threads.get(index) else { return };
+        let Some(thread) = self.rows().get(index) else { return };
         let id = thread.id.clone();
         let unread = !thread.is_read;
         self.open = Some(id.clone());
-        self.list.scroll_to_item(index, ScrollStrategy::Nearest);
+        self.scroll().scroll_to_item(index, ScrollStrategy::Nearest);
         if unread {
-            self.threads[index].is_read = true;
+            self.rows_mut()[index].is_read = true;
+            self.mirror(&id, Action::Read);
             self.send(&id, Action::Read, cx);
             self.cache_thread(&id, cx);
         }
@@ -318,7 +386,7 @@ impl MailView {
         }
         // The neighbours are where J and K go next: have them ready.
         for neighbour in [index + 1, index.wrapping_sub(1)] {
-            if let Some(thread) = self.threads.get(neighbour) {
+            if let Some(thread) = self.rows().get(neighbour) {
                 if !self.reading.contains_key(&thread.id) {
                     self.read(thread.id.clone(), cx);
                 }
@@ -332,7 +400,7 @@ impl MailView {
         let client = self.client.clone();
         let fetch_id = id.clone();
         let subject = self
-            .threads
+            .rows()
             .iter()
             .find(|thread| thread.id == id)
             .map(|thread| thread.subject.clone())
@@ -409,21 +477,21 @@ impl MailView {
     /// Acts on the open conversation. One that leaves the list opens the next one, as in Gmail.
     fn act(&mut self, action: Action, cx: &mut Context<Self>) {
         let Some(index) = self.position() else { return };
-        let id = self.threads[index].id.clone();
+        let id = self.rows()[index].id.clone();
         self.send(&id, action, cx);
-        let thread = &mut self.threads[index];
-        match action {
-            Action::Star => thread.is_starred = true,
-            Action::Unstar => thread.is_starred = false,
-            Action::Unread => thread.is_read = false,
-            Action::Read => thread.is_read = true,
-            _ => {}
-        }
-        if action.leaves(self.folder) {
-            self.threads.remove(index);
+        apply(&mut self.rows_mut()[index], action);
+        self.mirror(&id, action);
+        if action.leaves(self.list_folder()) {
+            match &mut self.search {
+                Some(search) => search.remove(index),
+                None => {
+                    self.threads.remove(index);
+                }
+            }
             self.open = None;
-            if !self.threads.is_empty() {
-                self.open_at(index.min(self.threads.len() - 1), cx);
+            let left = self.rows().len();
+            if left > 0 {
+                self.open_at(index.min(left - 1), cx);
             }
         } else if action == Action::Unread {
             // "Not now": close it, so it stays unread.
@@ -434,34 +502,65 @@ impl MailView {
     }
 
     /// A message from our script in the mail document.
-    fn message(&mut self, raw: &str, cx: &mut Context<Self>) {
+    fn message(&mut self, raw: &str, window: &mut Window, cx: &mut Context<Self>) {
         match email::parse_message(raw) {
-            Some(email::Message::Key(key)) => self.key(&key, cx),
+            Some(email::Message::Key(key)) => self.key(&key, window, cx),
             Some(email::Message::Download { view, part, file }) => self.download(view, part, file, cx),
             None => {}
         }
     }
 
+    /// A search hit that is also in the folder behind the results changes there too.
+    fn mirror(&mut self, id: &str, action: Action) {
+        if self.search.is_none() {
+            return;
+        }
+        let Some(index) = self.threads.iter().position(|thread| thread.id == id) else {
+            return;
+        };
+        if action.leaves(self.folder) {
+            self.threads.remove(index);
+        } else {
+            apply(&mut self.threads[index], action);
+        }
+    }
+
+    /// Cmd+R: the search again while searching, else the folder.
+    fn refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match &self.search {
+            Some(search) => self.search_for(search.query.clone(), window, cx),
+            None => self.load(true, cx),
+        }
+    }
+
+    /// Esc: closes the conversation first, then the search.
+    fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.open.is_none() && self.search.is_some() {
+            self.end_search(window, cx);
+        } else {
+            self.open = None;
+            cx.notify();
+        }
+    }
+
     /// A shortcut pressed inside the mail document.
-    fn key(&mut self, key: &str, cx: &mut Context<Self>) {
+    fn key(&mut self, key: &str, window: &mut Window, cx: &mut Context<Self>) {
         match key {
             "j" => self.step(1, cx),
             "k" => self.step(-1, cx),
-            "e" if self.folder != Folder::Archive => self.act(Action::Archive, cx),
+            "e" if self.list_folder() != Folder::Archive => self.act(Action::Archive, cx),
             "s" => self.toggle_star(cx),
             "shift-u" => self.act(Action::Unread, cx),
-            "#" if self.folder != Folder::Trash => self.act(Action::Trash, cx),
-            "cmd-r" => self.load(true, cx),
-            "Escape" => {
-                self.open = None;
-                cx.notify();
-            }
+            "#" if self.list_folder() != Folder::Trash => self.act(Action::Trash, cx),
+            "cmd-r" => self.refresh(window, cx),
+            "/" | "cmd-f" => self.focus_search(window, cx),
+            "Escape" => self.close(window, cx),
             _ => {}
         }
     }
 
     fn toggle_star(&mut self, cx: &mut Context<Self>) {
-        let starred = self.position().map(|i| self.threads[i].is_starred);
+        let starred = self.position().map(|i| self.rows()[i].is_starred);
         if let Some(starred) = starred {
             self.act(if starred { Action::Unstar } else { Action::Star }, cx)
         }
@@ -472,9 +571,20 @@ impl MailView {
             Some(index) => index as isize + by,
             None => 0,
         };
-        if next >= 0 && (next as usize) < self.threads.len() {
+        if next >= 0 && (next as usize) < self.rows().len() {
             self.open_at(next as usize, cx);
         }
+    }
+}
+
+/// What an action changes on the line itself; moves are up to the list.
+fn apply(thread: &mut Thread, action: Action) {
+    match action {
+        Action::Star => thread.is_starred = true,
+        Action::Unstar => thread.is_starred = false,
+        Action::Unread => thread.is_read = false,
+        Action::Read => thread.is_read = true,
+        _ => {}
     }
 }
 
@@ -492,24 +602,22 @@ impl Render for MailView {
             .on_action(cx.listener(|this, _: &Next, _, cx| this.step(1, cx)))
             .on_action(cx.listener(|this, _: &Previous, _, cx| this.step(-1, cx)))
             .on_action(cx.listener(|this, _: &Archive, _, cx| {
-                if this.folder != Folder::Archive {
+                if this.list_folder() != Folder::Archive {
                     this.act(Action::Archive, cx)
                 }
             }))
             .on_action(cx.listener(|this, _: &ToggleStar, _, cx| this.toggle_star(cx)))
             .on_action(cx.listener(|this, _: &MarkUnread, _, cx| this.act(Action::Unread, cx)))
             .on_action(cx.listener(|this, _: &Trash, _, cx| this.act(Action::Trash, cx)))
-            .on_action(cx.listener(|this, _: &Refresh, _, cx| this.load(true, cx)))
-            .on_action(cx.listener(|this, _: &Close, _, cx| {
-                this.open = None;
-                cx.notify();
-            }))
+            .on_action(cx.listener(|this, _: &Refresh, window, cx| this.refresh(window, cx)))
+            .on_action(cx.listener(|this, _: &Close, window, cx| this.close(window, cx)))
+            .on_action(cx.listener(|this, _: &FocusSearch, window, cx| this.focus_search(window, cx)))
             .flex()
             .size_full()
             .bg(theme::background())
             .text_color(theme::foreground())
             .child(self.render_sidebar(cx))
-            .child(self.render_list(cx))
+            .child(self.render_list(window, cx))
             .child(self.render_reader(window, cx))
     }
 }

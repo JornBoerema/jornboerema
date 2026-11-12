@@ -45,3 +45,6 @@ apps/*/src-tauri/target
 
 # Trigger.dev local dev state
 .trigger
+
+# Agent worktrees
+.claude/worktrees/

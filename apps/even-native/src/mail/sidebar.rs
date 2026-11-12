@@ -28,7 +28,12 @@ impl MailView {
                     theme::muted()
                 }))
                 .child(folder_name(folder))
-                .on_click(cx.listener(move |this, _, _, cx| this.show_folder(folder, cx)))
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    if this.search.is_some() {
+                        this.end_search(window, cx);
+                    }
+                    this.show_folder(folder, cx)
+                }))
         });
         let accounts = self.accounts.iter().map(|account| {
             div()

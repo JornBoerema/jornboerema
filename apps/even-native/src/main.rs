@@ -223,6 +223,8 @@ impl Render for Even {
 fn main() {
     gpui_kit::application().with_assets(assets::Assets).run(|cx| {
         gpui_kit::init(cx);
+        // The components (the search field) start light; Even is dark throughout.
+        gpui_kit::component::theme::Theme::change(gpui_kit::component::theme::ThemeMode::Dark, None, cx);
         mail::bind_keys(cx);
         cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
         cx.on_action(|_: &Quit, cx| cx.quit());

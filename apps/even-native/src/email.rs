@@ -187,10 +187,10 @@ document.addEventListener('keydown', function (e) {
   var t = e.target;
   if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
   var key = null;
-  if (e.metaKey && !e.ctrlKey && !e.altKey && e.key === 'r') key = 'cmd-r';
+  if (e.metaKey && !e.ctrlKey && !e.altKey && (e.key === 'r' || e.key === 'f')) key = 'cmd-' + e.key;
   else if (!e.metaKey && !e.ctrlKey && !e.altKey) {
     if (e.shiftKey && (e.key === 'U' || e.key === 'u')) key = 'shift-u';
-    else if (['j', 'k', 'e', 's', '#', 'Escape'].indexOf(e.key) >= 0) key = e.key;
+    else if (['j', 'k', 'e', 's', '#', '/', 'Escape'].indexOf(e.key) >= 0) key = e.key;
   }
   if (key) { e.preventDefault(); window.ipc.postMessage('key:' + key); }
 });

@@ -21,5 +21,9 @@ Keys: J/K or arrows, E archive, S star, Shift+U unread, # trash, Cmd+R refresh,
 Esc close. It opens with the mail it saw last (a SQLite cache next to the
 session, deleted on sign-out) and fetches fresh in the background.
 
-Not yet: writing and replying, search, the other sidebar views (parcels,
-invoices, senders).
+Search: / or Cmd+F, type, Enter. The synced matches show at once, the mailboxes'
+own search (through the text too) joins them; hits outside the synced inbox open
+through the account's conversation endpoint, as in the web app. Esc goes back to
+the folder.
+
+Not yet: writing and replying, the other sidebar views (parcels, invoices, senders).
