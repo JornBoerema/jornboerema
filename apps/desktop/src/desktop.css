@@ -3,7 +3,7 @@ body {
   background: var(--background);
 }
 .desktop-app {
-  --rail-width: 72px;
+  --rail-width: 80px;
   position: relative;
   display: grid;
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
@@ -16,12 +16,13 @@ body {
   height: 100dvh;
   overflow: hidden;
 }
-/* The apps' sidebars sit flush against the rail, which holds the gap. */
+/* The rail holds most of the gap before the apps' sidebars; a little stays,
+   so their edge is not cut off. */
 .desktop-stage .list-sidebar {
-  margin-left: 0;
+  margin-left: 4px;
 }
 .desktop-stage .workspace-shell {
-  grid-template-columns: 256px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 .desktop-stage .workspace-shell.sidebar-collapsed {
   grid-template-columns: 0px minmax(0, 1fr);
@@ -30,7 +31,7 @@ body {
   grid-template-columns: minmax(0, 1fr);
 }
 .desktop-stage .workspace-shell.mail-shell.sidebar-collapsed {
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
 }
 /* Even doen's collapsed brand comes in from the rail's edge. */
 .desktop-stage .collapsed-brand {
@@ -118,12 +119,6 @@ body {
   background: none;
   color: var(--muted-foreground);
   opacity: 0.55;
-}
-.app-rail-divider {
-  width: 20px;
-  height: 1px;
-  margin: 6px 0;
-  background: var(--border);
 }
 .app-rail-hint {
   opacity: 0.6;

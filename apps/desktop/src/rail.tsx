@@ -32,7 +32,6 @@ export function AppRail({
               onClick={() => onSelect(app.id)}
             />
           ))}
-          {upcoming.length > 0 && <span className="app-rail-divider" aria-hidden="true" />}
           {upcoming.map((app) => (
             <RailButton key={app.id} app={app} upcoming />
           ))}
