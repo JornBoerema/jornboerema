@@ -1,7 +1,6 @@
 //! Signing in through the browser, as the Tauri app does: the account site
 //! hands a one-time code to http://127.0.0.1:<port>/callback, and the app
-//! redeems it with its PKCE verifier for a session token of its own. The token
-//! lives in the system keychain.
+//! redeems it with its PKCE verifier for a session token of its own.
 
 use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -18,31 +17,50 @@ use sha2::{Digest, Sha256};
 
 use crate::api::{api_url, auth_url};
 
-const KEYCHAIN_SERVICE: &str = "nl.jornboerema.even-native";
-const KEYCHAIN_USER: &str = "session";
-
 /// How long a sign-in waits for the browser.
 const WAIT: Duration = Duration::from_secs(10 * 60);
 
-fn keychain() -> Option<keyring::Entry> {
-    keyring::Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_USER).ok()
+/// The session lives in a file only this user can read, as the Tauri app keeps
+/// it in its webview storage. Not the keychain: macOS asks for the password
+/// there again after every build of an unsigned app.
+fn session_file() -> Option<std::path::PathBuf> {
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("APPDATA"))?;
+    let dir = std::path::PathBuf::from(home);
+    #[cfg(target_os = "macos")]
+    let dir = dir.join("Library/Application Support/nl.jornboerema.even-native");
+    #[cfg(not(target_os = "macos"))]
+    let dir = dir.join("even-native");
+    Some(dir.join("session"))
 }
 
 pub fn stored_token() -> Option<String> {
-    keychain()?.get_password().ok().filter(|token| !token.is_empty())
+    let token = std::fs::read_to_string(session_file()?).ok()?;
+    let token = token.trim().to_string();
+    (!token.is_empty()).then_some(token)
 }
 
 pub fn store_token(token: &str) {
-    if let Some(entry) = keychain() {
-        if let Err(error) = entry.set_password(token) {
-            eprintln!("Could not keep the session in the keychain: {error}");
+    let Some(path) = session_file() else { return };
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    match options.open(&path) {
+        Ok(mut file) => {
+            if let Err(error) = file.write_all(token.as_bytes()) {
+                eprintln!("Could not keep the session: {error}");
+            }
         }
+        Err(error) => eprintln!("Could not keep the session: {error}"),
     }
 }
 
 pub fn forget_token() {
-    if let Some(entry) = keychain() {
-        let _ = entry.delete_credential();
+    if let Some(path) = session_file() {
+        let _ = std::fs::remove_file(path);
     }
 }
 

@@ -3,6 +3,7 @@
 
 mod api;
 mod auth;
+mod email;
 mod mail;
 mod theme;
 

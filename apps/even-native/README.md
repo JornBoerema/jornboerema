@@ -11,10 +11,12 @@ EVEN_API_URL=http://localhost:4000 EVEN_AUTH_URL=http://localhost:3005 cargo run
 
 Needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 
-What it does: sign in through the browser (the same PKCE flow as the Tauri app,
-session in the keychain), the folders, a virtualized conversation list that pages
-in as you scroll, and the open conversation as text. Keys: J/K or arrows, E
+What it does: sign in through the browser (the same PKCE flow as the Tauri app),
+the folders, a virtualized conversation list that pages in as you scroll, and the
+open conversation as HTML in a system webview: sanitized with ammonia, behind a
+content policy that runs only our own script, remote images blocked until asked
+for, `cid:` images inlined, links opened in the browser. Keys: J/K or arrows, E
 archive, S star, Shift+U unread, # trash, Cmd+R refresh, Esc close.
 
-Not yet: HTML mail as designed (bodies show as text), images, writing and
+Not yet: collapsing quoted text, downloading attachments, writing and
 replying, search, the other sidebar views (parcels, invoices, senders).

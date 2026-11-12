@@ -1,14 +1,19 @@
 //! Even mailen: folders, the conversation list and the open conversation.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::sync::Arc;
 
+use base64::Engine as _;
 use chrono::{Datelike, Local};
+use futures::channel::mpsc::{unbounded, UnboundedSender};
+use futures::StreamExt as _;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
+use gpui_webview::WebView;
 
-use crate::api::{Account, Action, Client, Folder, Message, Thread, Unauthorized};
+use crate::api::{Account, Action, Client, Folder, Message, Thread, ThreadDetail, Unauthorized};
+use crate::email::{self, Body, Part};
 use crate::theme;
 
 actions!(
@@ -40,18 +45,17 @@ const TITLE_BAR: f32 = 52.;
 pub struct SignedOut;
 impl EventEmitter<SignedOut> for MailView {}
 
-/// A message as the reader shows it: its body already turned into text.
-struct ShownMessage {
-    from: SharedString,
-    to: SharedString,
-    date: SharedString,
-    body: SharedString,
-    attachments: Vec<SharedString>,
+/// A conversation as the reader shows it, prepared off the UI thread:
+/// sanitized, with its inline images in place.
+struct Conversation {
+    subject: String,
+    parts: Vec<Part>,
+    remote_images: bool,
 }
 
 enum Reading {
     Loading,
-    Ready(Arc<Vec<ShownMessage>>),
+    Ready(Arc<Conversation>),
     Failed(SharedString),
 }
 
@@ -69,7 +73,18 @@ pub struct MailView {
     open: Option<String>,
     reading: HashMap<String, Reading>,
     list: UniformListScrollHandle,
+    /// The mail itself, in a system webview: GPUI can't lay out mail HTML.
+    webview: Option<Entity<WebView>>,
+    /// Which conversation the webview holds, and whether with images.
+    shown: Option<(String, bool)>,
+    /// Conversations whose remote images the user asked to see.
+    images: HashSet<String>,
+    /// Lets only our own script run in the mail document.
+    nonce: String,
+    /// Shortcuts pressed while the mail has focus, sent on by its script.
+    keys: UnboundedSender<String>,
     _poll: Task<()>,
+    _keys: Task<()>,
 }
 
 impl MailView {
@@ -81,6 +96,14 @@ impl MailView {
             cx.background_executor().timer(std::time::Duration::from_secs(60)).await;
             if this.update(cx, |this, cx| this.refresh_quietly(cx)).is_err() {
                 break;
+            }
+        });
+        let (keys, mut pressed) = unbounded::<String>();
+        let keys_task = cx.spawn(async move |this, cx| {
+            while let Some(key) = pressed.next().await {
+                if this.update(cx, |this, cx| this.key(&key, cx)).is_err() {
+                    break;
+                }
             }
         });
         let mut view = Self {
@@ -96,7 +119,13 @@ impl MailView {
             open: None,
             reading: HashMap::new(),
             list: UniformListScrollHandle::new(),
+            webview: None,
+            shown: None,
+            images: HashSet::new(),
+            nonce: random_nonce(),
+            keys,
             _poll: poll,
+            _keys: keys_task,
         };
         view.load_accounts(cx);
         view.load(true, cx);
@@ -252,15 +281,21 @@ impl MailView {
         self.reading.insert(id.clone(), Reading::Loading);
         let client = self.client.clone();
         let fetch_id = id.clone();
-        // Fetching and turning HTML into text both stay off the UI thread.
+        let subject = self
+            .threads
+            .iter()
+            .find(|thread| thread.id == id)
+            .map(|thread| thread.subject.clone())
+            .unwrap_or_default();
+        // Fetching, sanitizing and fetching inline images all stay off the UI thread.
         let task = cx.background_executor().spawn(async move {
-            client.thread(&fetch_id).map(|detail| detail.messages.iter().map(shown).collect::<Vec<_>>())
+            client.thread(&fetch_id).map(|detail| prepare(&client, &fetch_id, subject, detail))
         });
         cx.spawn(async move |this, cx| {
             let result = task.await;
             let _ = this.update(cx, |this, cx| {
                 let reading = match result {
-                    Ok(messages) => Reading::Ready(Arc::new(messages)),
+                    Ok(conversation) => Reading::Ready(Arc::new(conversation)),
                     Err(error) if error.downcast_ref::<Unauthorized>().is_some() => {
                         cx.emit(SignedOut);
                         return;
@@ -310,6 +345,31 @@ impl MailView {
             self.open = None;
         }
         cx.notify();
+    }
+
+    /// A shortcut pressed inside the mail document.
+    fn key(&mut self, key: &str, cx: &mut Context<Self>) {
+        match key {
+            "j" => self.step(1, cx),
+            "k" => self.step(-1, cx),
+            "e" if self.folder != Folder::Archive => self.act(Action::Archive, cx),
+            "s" => self.toggle_star(cx),
+            "shift-u" => self.act(Action::Unread, cx),
+            "#" if self.folder != Folder::Trash => self.act(Action::Trash, cx),
+            "cmd-r" => self.load(true, cx),
+            "Escape" => {
+                self.open = None;
+                cx.notify();
+            }
+            _ => {}
+        }
+    }
+
+    fn toggle_star(&mut self, cx: &mut Context<Self>) {
+        let starred = self.position().map(|i| self.threads[i].is_starred);
+        if let Some(starred) = starred {
+            self.act(if starred { Action::Unstar } else { Action::Star }, cx)
+        }
     }
 
     fn step(&mut self, by: isize, cx: &mut Context<Self>) {
@@ -440,9 +500,55 @@ impl MailView {
             .child(body)
     }
 
-    fn render_reader(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    /// The webview, built the first time a conversation shows.
+    fn webview(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<Entity<WebView>> {
+        if self.webview.is_none() {
+            let keys = self.keys.clone();
+            let builder = wry::WebViewBuilder::new()
+                .with_background_color((15, 15, 15, 255))
+                .with_html("<html><body style=\"background:#0f0f0f\"></body></html>")
+                .with_ipc_handler(move |request| {
+                    let _ = keys.unbounded_send(request.body().clone());
+                })
+                // The mail never navigates: links open in the browser.
+                .with_navigation_handler(|url| {
+                    if is_outside(&url) {
+                        let _ = open::that_detached(&url);
+                        return false;
+                    }
+                    true
+                })
+                .with_new_window_req_handler(|url, _| {
+                    if is_outside(&url) {
+                        let _ = open::that_detached(&url);
+                    }
+                    wry::NewWindowResponse::Deny
+                });
+            match WebView::build(builder, window, cx) {
+                Ok(webview) => self.webview = Some(cx.new(|_| webview)),
+                Err(error) => {
+                    self.error = Some(format!("De mailweergave start niet: {error}").into());
+                    return None;
+                }
+            }
+        }
+        self.webview.clone()
+    }
+
+    fn hide_webview(&mut self, cx: &mut Context<Self>) {
+        if let Some(webview) = &self.webview {
+            webview.update(cx, |webview, _| {
+                if webview.visible() {
+                    webview.hide();
+                }
+            });
+        }
+    }
+
+    fn render_reader(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let shell = div().flex().flex_col().flex_1().min_w_0().h_full().bg(theme::panel());
         let Some(index) = self.position() else {
+            self.hide_webview(cx);
             return shell.child(
                 div()
                     .flex()
@@ -455,8 +561,14 @@ impl MailView {
             );
         };
         let thread = &self.threads[index];
+        let id = thread.id.clone();
         let starred = thread.is_starred;
-        let leaves_with_archive = self.folder != Folder::Archive;
+        let conversation = match self.reading.get(&id) {
+            Some(Reading::Ready(conversation)) => Some(conversation.clone()),
+            _ => None,
+        };
+        let images_allowed = self.images.contains(&id);
+        let images_hidden = conversation.as_ref().is_some_and(|c| c.remote_images) && !images_allowed;
         let toolbar = div()
             .flex()
             .items_center()
@@ -464,7 +576,7 @@ impl MailView {
             .h(px(TITLE_BAR))
             .flex_none()
             .px_4()
-            .when(leaves_with_archive, |el| {
+            .when(self.folder != Folder::Archive, |el| {
                 el.child(tool("archive", "Archiveren", "E", cx.listener(|this, _, _, cx| this.act(Action::Archive, cx))))
             })
             .child(tool(
@@ -479,45 +591,54 @@ impl MailView {
             })
             .when(matches!(self.folder, Folder::Archive | Folder::Spam | Folder::Trash), |el| {
                 el.child(tool("inbox", "Naar inbox", "", cx.listener(|this, _, _, cx| this.act(Action::Inbox, cx))))
-            });
-        let content: AnyElement = match self.reading.get(&thread.id) {
-            None | Some(Reading::Loading) => div()
-                .p_6()
-                .text_sm()
-                .text_color(theme::faint())
-                .child("Laden…")
-                .into_any_element(),
-            Some(Reading::Failed(error)) => div()
-                .p_6()
-                .text_sm()
-                .text_color(theme::danger())
-                .child(error.clone())
-                .into_any_element(),
-            Some(Reading::Ready(messages)) => div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                .px_6()
-                .pb_8()
-                .children(messages.iter().enumerate().map(|(i, message)| message_card(i, message)))
-                .into_any_element(),
-        };
-        shell.child(toolbar).child(
-            div()
-                .id(SharedString::from(format!("reader-{}", thread.id)))
-                .flex_1()
-                .overflow_y_scroll()
-                .child(
+            })
+            .child(div().flex_1())
+            .when(images_hidden, |el| {
+                let id = id.clone();
+                el.child(
                     div()
-                        .px_6()
-                        .pt_1()
-                        .pb_4()
-                        .text_xl()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(if thread.subject.is_empty() { "(geen onderwerp)".to_string() } else { thread.subject.clone() }),
+                        .text_xs()
+                        .text_color(theme::faint())
+                        .child("Afbeeldingen verborgen, zodat afzenders je niet volgen."),
                 )
-                .child(content),
-        )
+                .child(tool(
+                    "images",
+                    "Tonen",
+                    "",
+                    cx.listener(move |this, _, _, cx| {
+                        this.images.insert(id.clone());
+                        cx.notify();
+                    }),
+                ))
+            });
+        let Some(conversation) = conversation else {
+            self.hide_webview(cx);
+            let message: AnyElement = match self.reading.get(&id) {
+                Some(Reading::Failed(error)) => div()
+                    .p_6()
+                    .text_sm()
+                    .text_color(theme::danger())
+                    .child(error.clone())
+                    .into_any_element(),
+                _ => div().p_6().text_sm().text_color(theme::faint()).child("Laden…").into_any_element(),
+            };
+            return shell.child(toolbar).child(message);
+        };
+        let Some(webview) = self.webview(window, cx) else {
+            return shell.child(toolbar);
+        };
+        let wanted = (id.clone(), images_allowed);
+        if self.shown.as_ref() != Some(&wanted) {
+            let document = email::document(&conversation.subject, &conversation.parts, images_allowed, &self.nonce);
+            let _ = webview.read(cx).load_html(&document);
+            self.shown = Some(wanted);
+        }
+        webview.update(cx, |webview, _| {
+            if !webview.visible() {
+                webview.show();
+            }
+        });
+        shell.child(toolbar).child(div().flex_1().min_h_0().child(webview))
     }
 }
 
@@ -528,7 +649,7 @@ impl Focusable for MailView {
 }
 
 impl Render for MailView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .key_context("Mail")
             .track_focus(&self.focus)
@@ -539,12 +660,7 @@ impl Render for MailView {
                     this.act(Action::Archive, cx)
                 }
             }))
-            .on_action(cx.listener(|this, _: &ToggleStar, _, cx| {
-                let starred = this.position().map(|i| this.threads[i].is_starred);
-                if let Some(starred) = starred {
-                    this.act(if starred { Action::Unstar } else { Action::Star }, cx)
-                }
-            }))
+            .on_action(cx.listener(|this, _: &ToggleStar, _, cx| this.toggle_star(cx)))
             .on_action(cx.listener(|this, _: &MarkUnread, _, cx| this.act(Action::Unread, cx)))
             .on_action(cx.listener(|this, _: &Trash, _, cx| this.act(Action::Trash, cx)))
             .on_action(cx.listener(|this, _: &Refresh, _, cx| this.load(true, cx)))
@@ -558,7 +674,7 @@ impl Render for MailView {
             .text_color(theme::foreground())
             .child(self.render_sidebar(cx))
             .child(self.render_list(cx))
-            .child(self.render_reader(cx))
+            .child(self.render_reader(window, cx))
     }
 }
 
@@ -676,53 +792,6 @@ fn tool(
         .on_click(on_click)
 }
 
-fn message_card(index: usize, message: &ShownMessage) -> impl IntoElement {
-    div()
-        .id(index)
-        .flex()
-        .flex_col()
-        .gap_3()
-        .p_4()
-        .rounded_lg()
-        .border_1()
-        .border_color(theme::border())
-        .child(
-            div()
-                .flex()
-                .items_start()
-                .justify_between()
-                .gap_4()
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .min_w_0()
-                        .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(message.from.clone()))
-                        .child(div().text_xs().text_color(theme::muted()).truncate().child(message.to.clone())),
-                )
-                .child(div().flex_none().text_xs().text_color(theme::muted()).child(message.date.clone())),
-        )
-        .child(div().text_sm().line_height(rems(1.45)).child(message.body.clone()))
-        .when(!message.attachments.is_empty(), |el| {
-            el.child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_2()
-                    .children(message.attachments.iter().map(|name| {
-                        div()
-                            .px_2()
-                            .py_1()
-                            .rounded_md()
-                            .bg(theme::accent())
-                            .text_xs()
-                            .text_color(theme::muted())
-                            .child(name.clone())
-                    })),
-            )
-        })
-}
-
 fn folder_name(folder: Folder) -> &'static str {
     match folder {
         Folder::Inbox => "Inbox",
@@ -754,22 +823,79 @@ fn long_date(at: chrono::DateTime<chrono::Utc>) -> String {
     format!("{} {} {}, {}", at.day(), MONTHS[at.month0() as usize], at.year(), at.format("%H:%M"))
 }
 
-/// Plain text keeps every mail readable and fast; HTML is turned into text with its links kept.
-fn shown(message: &Message) -> ShownMessage {
-    let text = message.text.as_deref().map(str::trim).filter(|text| !text.is_empty());
-    let body = match (text, message.html.as_deref()) {
-        (Some(text), _) => text.to_string(),
-        (None, Some(html)) => html2text::from_read(html.as_bytes(), 100).unwrap_or_default(),
-        (None, None) => String::new(),
-    };
-    let to: Vec<&str> = message.to.iter().chain(&message.cc).map(|a| a.label()).collect();
-    ShownMessage {
-        from: message.from.as_ref().map(|a| a.label().to_string()).unwrap_or_else(|| "Onbekend".into()).into(),
-        to: if to.is_empty() { SharedString::default() } else { format!("Aan {}", to.join(", ")).into() },
-        date: long_date(message.received_at).into(),
-        body: tidy(&body).into(),
-        attachments: message.attachments.iter().map(|a| format!("{} · {}", a.name, size(a.size)).into()).collect(),
+/// Images inside the mail: the kinds browsers show safely, and not too many or too big.
+const SAFE_INLINE: [&str; 5] = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
+const MAX_INLINE_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_INLINE_IMAGES: usize = 20;
+
+/// Runs on the background executor: sanitizes each body and puts its `cid:` images in place.
+fn prepare(client: &Client, thread_id: &str, subject: String, detail: ThreadDetail) -> Conversation {
+    let mut remote_images = false;
+    let parts = detail
+        .messages
+        .iter()
+        .map(|message| {
+            let html = message.html.as_deref().filter(|html| !html.trim().is_empty());
+            let body = match (html, message.text.as_deref()) {
+                (Some(html), _) => {
+                    let mut clean = email::sanitize(html);
+                    clean = with_inline_images(client, thread_id, message, clean);
+                    remote_images |= email::has_remote_images(&clean);
+                    let paper = email::has_own_background(&clean);
+                    Body::Html { html: clean, paper }
+                }
+                (None, Some(text)) => Body::Text(tidy(text)),
+                (None, None) => Body::Text(String::new()),
+            };
+            let to: Vec<&str> = message.to.iter().chain(&message.cc).map(|a| a.label()).collect();
+            Part {
+                from: message.from.as_ref().map(|a| a.label().to_string()).unwrap_or_else(|| "Onbekend".into()),
+                to: if to.is_empty() { String::new() } else { format!("Aan {}", to.join(", ")) },
+                date: long_date(message.received_at),
+                body,
+                attachments: message.attachments.iter().map(|a| format!("{} · {}", a.name, size(a.size))).collect(),
+            }
+        })
+        .collect();
+    let subject = if subject.is_empty() { "(geen onderwerp)".to_string() } else { subject };
+    Conversation { subject, parts, remote_images }
+}
+
+fn with_inline_images(client: &Client, thread_id: &str, message: &Message, mut html: String) -> String {
+    let wanted = message
+        .inline
+        .iter()
+        .filter(|image| {
+            SAFE_INLINE.contains(&image.content_type.to_ascii_lowercase().as_str())
+                && image.size <= MAX_INLINE_BYTES
+                && html.contains(&format!("cid:{}", image.content_id))
+        })
+        .take(MAX_INLINE_IMAGES)
+        .collect::<Vec<_>>();
+    for image in wanted {
+        if let Ok(bytes) = client.attachment(thread_id, &message.id, &image.id) {
+            let url = format!(
+                "data:{};base64,{}",
+                image.content_type.to_ascii_lowercase(),
+                base64::engine::general_purpose::STANDARD.encode(bytes)
+            );
+            html = html.replace(&format!("cid:{}", image.content_id), &url);
+        }
     }
+    html
+}
+
+/// Links in the mail leave for the browser or the mail app; nothing else may leave the page.
+fn is_outside(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    ["http:", "https:", "mailto:", "tel:"].iter().any(|scheme| lower.starts_with(scheme))
+}
+
+fn random_nonce() -> String {
+    use rand::RngCore as _;
+    let mut bytes = [0u8; 18];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
 
 /// No more than one empty line in a row; newsletters stack them.

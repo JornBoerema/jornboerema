@@ -1,6 +1,7 @@
 //! The Even API, as the web and Tauri apps use it. Blocking calls: run them on
 //! the background executor, never on the UI thread.
 
+use std::io::Read as _;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context as _, Result};
@@ -77,9 +78,20 @@ pub struct Attachment {
     pub size: u64,
 }
 
+/// An image the body refers to as `cid:<content_id>`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InlineImage {
+    pub id: String,
+    pub content_id: String,
+    pub size: u64,
+    pub content_type: String,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
+    pub id: String,
     pub from: Option<Address>,
     #[serde(default)]
     pub to: Vec<Address>,
@@ -90,6 +102,8 @@ pub struct Message {
     pub text: Option<String>,
     #[serde(default)]
     pub attachments: Vec<Attachment>,
+    #[serde(default)]
+    pub inline: Vec<InlineImage>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -220,6 +234,22 @@ impl Client {
         read(self.get(&format!("/api/mail/threads/{}", encode(id))).call())
     }
 
+    /// The bytes of an attachment or inline image.
+    pub fn attachment(&self, thread_id: &str, message_id: &str, attachment_id: &str) -> Result<Vec<u8>> {
+        let response = self
+            .post(&format!("/api/mail/threads/{}/attachment", encode(thread_id)))
+            .send_json(serde_json::json!({ "messageId": message_id, "attachmentId": attachment_id }));
+        match response {
+            Ok(response) => {
+                let mut bytes = Vec::new();
+                response.into_reader().take(MAX_ATTACHMENT_BYTES).read_to_end(&mut bytes)?;
+                Ok(bytes)
+            }
+            Err(ureq::Error::Status(401, _)) => Err(Unauthorized.into()),
+            Err(error) => Err(anyhow!(error)),
+        }
+    }
+
     pub fn act(&self, id: &str, action: Action) -> Result<()> {
         let response = self
             .post(&format!("/api/mail/threads/{}/actions", encode(id)))
@@ -228,6 +258,9 @@ impl Client {
         Ok(())
     }
 }
+
+/// Mail allows 25 MB in all; more than that is not an attachment we asked for.
+const MAX_ATTACHMENT_BYTES: u64 = 30 * 1024 * 1024;
 
 fn encode(segment: &str) -> String {
     url::form_urlencoded::byte_serialize(segment.as_bytes()).collect()
