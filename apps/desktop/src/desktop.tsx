@@ -1,9 +1,11 @@
 import { Activity, useEffect, useState } from "react"
 import {
   BubbleChatIcon,
+  Calendar03Icon,
   CheckmarkSquare02Icon,
-  LockPasswordIcon,
+  Clock01Icon,
   Mail01Icon,
+  Note01Icon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
@@ -30,8 +32,10 @@ const APP_LIST: { id: AppId; name: string; icon: IconSvgElement }[] = [
 ]
 /** Shown in the rail, greyed out, until they join APP_LIST. */
 const UPCOMING = [
+  { id: "plan", name: "Even plannen", icon: Calendar03Icon },
+  { id: "hours", name: "Even uren", icon: Clock01Icon },
+  { id: "notes", name: "Even noteren", icon: Note01Icon },
   { id: "chat", name: "Even chatten", icon: BubbleChatIcon },
-  { id: "passwords", name: "Even inloggen", icon: LockPasswordIcon },
 ]
 const APPS: (SwitchableApp & { id: AppId })[] = APP_LIST.map((app, index) => ({
   ...app,
