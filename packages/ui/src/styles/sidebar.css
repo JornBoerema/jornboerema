@@ -157,43 +157,6 @@
 .workspace-avatar { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; border-radius: 7px; background: var(--primary); color: var(--primary-foreground); font-size: 12px; font-weight: 650; }
 .workspace-avatar.is-small { width: 20px; height: 20px; border-radius: 6px; font-size: 11px; }
 
-/* The brand as a menu of apps, in the desktop app. Its sign, the same as the
-   account menu's, shows once the brand is pointed at or the menu is open. */
-.app-switcher {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: -4px -8px;
-  padding: 4px 8px;
-  border-radius: var(--radius-md);
-  transition: background-color 120ms ease;
-}
-.app-switcher:hover,
-.app-switcher[data-state="open"] {
-  background: color-mix(in oklch, var(--foreground) 6%, transparent);
-}
-.app-switcher:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-.app-switcher-chevron {
-  width: 14px;
-  height: 14px;
-  color: var(--muted-foreground);
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-.app-switcher:hover .app-switcher-chevron,
-.app-switcher:focus-visible .app-switcher-chevron,
-.app-switcher[data-state="open"] .app-switcher-chevron {
-  opacity: 1;
-}
-@media (hover: none) {
-  .app-switcher-chevron {
-    opacity: 1;
-  }
-}
-
 /* "Restart to update" in the desktop app, just above the account menu. */
 .update-button {
   display: flex;

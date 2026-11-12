@@ -57,6 +57,8 @@ function Apps() {
   const [active, setActive] = useState(storedApp)
   // An app mounts the first time it is opened and then stays, hidden, so it
   // keeps its place; while hidden its effects (shortcuts, live updates) stop.
+  // The open app puts its menu (settings, shortcuts, sign out) here, at the rail's foot.
+  const [menuSlot, setMenuSlot] = useState<HTMLElement | null>(null)
   const [opened, setOpened] = useState<AppId[]>(() => [active, "mail"])
 
   const select = (app: string) => {
@@ -84,9 +86,9 @@ function Apps() {
 
   return (
     <DesktopProvider value={desktop}>
-      <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select }}>
+      <AppSwitcherProvider value={{ apps: APPS, active, onSelect: select, menuSlot }}>
         <div className={cn("desktop-app", isMac && "mac")}>
-          <AppRail apps={APPS} upcoming={UPCOMING} active={active} onSelect={select} />
+          <AppRail apps={APPS} upcoming={UPCOMING} active={active} onSelect={select} menuSlot={setMenuSlot} />
           <div className="desktop-stage">
             {/* Mail stays mounted from the start, so new mail notifies from any app. */}
             <MailEmbed active={active === "mail"} />

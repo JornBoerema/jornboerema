@@ -1,7 +1,7 @@
 import { useLaterCounts } from "@/lib/later"
 import { useInvoices, useParcels, useSenders, useSidebarLayout } from "@/lib/preferences"
 import type { NavItem, SidebarLayout } from "@evido/mail-core/sidebar"
-import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher"
+import { DesktopAppMenu, useInDesktop } from "@evido/ui/components/app-switcher"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { useState, type ReactNode } from "react"
 import {
@@ -384,9 +384,10 @@ export function Sidebar({
     >
       <div className="sidebar-full" inert={sidebar.collapsed}>
         <div className="sidebar-brand-row">
-          <AppSwitcher menu={<AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />}>
-            <Brand />
-          </AppSwitcher>
+          <Brand />
+          <DesktopAppMenu app="mail" label={t.shell.settings}>
+            <AccountMenuItems onSettings={onSettings} onShortcuts={onShortcuts} />
+          </DesktopAppMenu>
           <IconTip label={t.shell.collapse} shortcut="⌘B">
             <Button
               variant="ghost"

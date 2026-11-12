@@ -123,10 +123,14 @@ body {
 .app-rail-hint {
   opacity: 0.6;
 }
-.app-rail-mark {
-  width: 22px;
-  height: 22px;
-  opacity: 0.85;
+.app-rail-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.app-rail-menu > .app-rail-button[data-state="open"] {
+  background: color-mix(in oklch, var(--foreground) 6%, transparent);
+  color: var(--foreground);
 }
 @media (prefers-reduced-motion: reduce) {
   .app-rail-button,

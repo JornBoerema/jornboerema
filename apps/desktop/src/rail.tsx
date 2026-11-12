@@ -1,24 +1,27 @@
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@evido/ui/components/tooltip"
 import { cn } from "@evido/ui/lib/utils"
-import { EvenMark } from "./brand"
 
 export type RailApp = { id: string; name: string; icon: IconSvgElement; shortcut?: string }
 
 /**
  * The strip along the left of the window with every Even app. On macOS the
- * window buttons sit at its top. Apps still to come show greyed out.
+ * window buttons sit at its top, the open app's settings at its foot. Apps
+ * still to come show greyed out.
  */
 export function AppRail({
   apps,
   upcoming,
   active,
   onSelect,
+  menuSlot,
 }: {
   apps: RailApp[]
   upcoming: RailApp[]
   active: string
   onSelect: (id: string) => void
+  /** Where the open app puts its settings button. */
+  menuSlot: (element: HTMLElement | null) => void
 }) {
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={400}>
@@ -36,7 +39,7 @@ export function AppRail({
             <RailButton key={app.id} app={app} upcoming />
           ))}
         </div>
-        <EvenMark className="app-rail-mark" />
+        <div ref={menuSlot} className="app-rail-menu" />
       </nav>
     </TooltipProvider>
   )

@@ -1,4 +1,4 @@
-import { AppSwitcher, useInDesktop } from "@evido/ui/components/app-switcher";
+import { DesktopAppMenu, useInDesktop } from "@evido/ui/components/app-switcher";
 import { UpdateButton } from "@evido/ui/components/desktop-app";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -113,7 +113,7 @@ export function WorkspaceApp({
   shareToken?: string;
 }) {
   const { t: { workspace: t, board: bt } } = useI18n();
-  // Workspaces, settings and sign-out: the footer menu on the web, the brand's menu in the desktop app.
+  // Workspaces, settings and sign-out: the footer menu on the web, the rail's settings menu in the desktop app.
   const desktop = useInDesktop();
   const workspaceMenu = useWorkspaceMenu(
     user && activeWorkspace && onSelectWorkspace
@@ -224,7 +224,7 @@ export function WorkspaceApp({
         {t.skipToList}
       </a>
       {!shareToken && <aside id="list-sidebar" className="list-sidebar" aria-label={t.sidebar.label} inert={sidebarCollapsed} aria-hidden={sidebarCollapsed}>
-        <div className="sidebar-brand-row"><AppSwitcher menu={workspaceMenu.items}><Brand /></AppSwitcher></div>
+        <div className="sidebar-brand-row"><Brand /></div>
         <div className="list-navigation sidebar-sections">
           <div className="sidebar-top">
             <ListSpotlight lists={data.lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
@@ -263,7 +263,7 @@ export function WorkspaceApp({
           })}
         </div>
         <UpdateButton />
-        {/* Workspace, settings and sign-out live in one menu at the bottom; in the desktop app, in the brand's. */}
+        {/* Workspace, settings and sign-out live in one menu at the bottom; in the desktop app, behind the rail's settings button. */}
         {user && activeWorkspace && onSelectWorkspace && !desktop && (
           <div className="sidebar-footer">
             <WorkspaceSwitcher user={user} active={activeWorkspace} items={workspaceMenu.items} />
@@ -273,6 +273,7 @@ export function WorkspaceApp({
           <WorkspaceSettings user={user} workspaces={workspaces} activeWorkspace={activeWorkspace} onSelectWorkspace={onSelectWorkspace} board={{ data, run, disabled }} />
         )}
         {workspaceMenu.dialog}
+        {workspaceMenu.items && <DesktopAppMenu app="todo" label={t.switcher.settings}>{workspaceMenu.items}</DesktopAppMenu>}
       </aside>}
       <main id="tasks" className="workspace-main" tabIndex={-1}>
       {!shareToken && <Button ref={sidebarExpand} variant="ghost" size="icon" className="sidebar-corner-toggle"
@@ -282,7 +283,7 @@ export function WorkspaceApp({
           <SidebarToggle className="size-5" aria-hidden="true" />
         </Button>}
         <div className="collapsed-brand" aria-hidden={!sidebarCollapsed && !shareToken}>
-          {shareToken ? <Brand /> : <AppSwitcher menu={workspaceMenu.items}><Brand /></AppSwitcher>}
+          <Brand />
         </div>
           <button
             className="sync-status"
