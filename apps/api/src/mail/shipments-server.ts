@@ -10,7 +10,7 @@ const SCAN_DAYS = 30
 /** A delivered parcel leaves the list after this long. */
 const KEEP_DELIVERED_DAYS = 14
 /** Raised when the reading improves, so shipping mail already read is read again. */
-const READ_VERSION = 4
+const READ_VERSION = 5
 /** Reading mail takes a provider call each; the rest is picked up next time. */
 const SCAN_BUDGET_MS = 8_000
 

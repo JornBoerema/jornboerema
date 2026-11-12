@@ -162,6 +162,18 @@ describe("tying a shop's mail to the carrier's", () => {
     expect(found).toMatchObject({ merchant: "Lotgenootje", orderNumber: "LOTJE175909", trackingCode: "420986074" })
   })
 
+  it("reads DPD's delivery mail, which has no tracking link, by its parcel number", () => {
+    const found = findShipment(
+      mail({
+        subject: "Je pakket is bezorgd.",
+        fromName: "DPD Pakketservice",
+        fromEmail: "notificaties@dpd.nl",
+        html: `<p>Beste Jorn, Jouw pakket is bezorgd.</p><p>Pakketnummer: 06555700281256<br>Pakketreferentie: 186427</p><a href="https://e.dpd.nl/link?id=abc">online</a>`,
+      })
+    )
+    expect(found).toMatchObject({ carrier: "dpd", trackingCode: "06555700281256", orderNumber: "186427", status: "delivered" })
+  })
+
   it("reads bol's order number from its structured data", () => {
     const found = findShipment(
       mail({

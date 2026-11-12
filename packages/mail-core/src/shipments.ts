@@ -232,13 +232,13 @@ export function orderNumberIn(subject: string, raw: string): string | null {
   return null
 }
 
-/** A tracking code a mail spells out: "track en trace code: 420986074", JSON-LD's trackingNumber. */
+/** A tracking code a mail spells out: "track en trace code: 420986074", DPD's "Pakketnummer: 06555700281256", JSON-LD's trackingNumber. */
 function spelledOutCode(raw: string): string | null {
   const match =
     raw.match(new RegExp(`"trackingNumber"\\s*:\\s*"(${REFERENCE})"`, "i")) ??
     raw.match(
       new RegExp(
-        `(?:track(?:\\s*(?:&|en|and)\\s*trace)?|tracking|barcode|zending)[ -]?(?:code|nummer|number|nr)\\s*[:#]?\\s*(${REFERENCE})\\b`,
+        `(?:track(?:\\s*(?:&|en|and)\\s*trace)?|tracking|barcode|zending|pakket|parcel|paket|sendung)[ -]?(?:code|nummer|number|nr)\\s*[:#]?\\s*(${REFERENCE})\\b`,
         "i"
       )
     )
