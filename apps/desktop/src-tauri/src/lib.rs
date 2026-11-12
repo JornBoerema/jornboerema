@@ -1,9 +1,11 @@
 mod sign_in;
 mod updates;
+mod window_size;
 
 use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_window_state::StateFlags;
 
 /// Pages of the app itself: the bundled files, or the Vite server in development.
 fn is_app_url(url: &Url) -> bool {
@@ -32,11 +34,11 @@ pub(crate) fn show(window: &WebviewWindow) {
 fn create_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let navigating = app.clone();
     let opening = app.clone();
+    let size = window_size::load(app);
     let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("Even")
-        .inner_size(1360.0, 860.0)
-        // Narrower, Even mailen hides its sidebar, which holds the window buttons.
-        .min_inner_size(1040.0, 600.0)
+        .inner_size(size.width, size.height)
+        .min_inner_size(window_size::MINIMUM.width, window_size::MINIMUM.height)
         .on_navigation(move |url| {
             if is_app_url(url) {
                 return true;
@@ -68,7 +70,12 @@ pub fn run() {
                 show(&window);
             }
         }))
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // Where the window was, not how big: see window_size for why.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all() - StateFlags::SIZE)
+                .build(),
+        )
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -88,17 +95,28 @@ pub fn run() {
         .on_window_event(|window, event| {
             // On macOS closing the window keeps Even running, as Mail does;
             // the Dock icon brings it back.
-            #[cfg(target_os = "macos")]
             if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
+                    window_size::save(&webview);
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                #[cfg(not(target_os = "macos"))]
+                let _ = api;
             }
-            #[cfg(not(target_os = "macos"))]
-            let _ = (window, event);
         })
         .build(tauri::generate_context!())
         .expect("error while building Even")
         .run(|app, event| {
+            // Quitting (Cmd+Q, or the Dock) skips the window's close.
+            if let RunEvent::ExitRequested { .. } = event {
+                if let Some(window) = app.get_webview_window("main") {
+                    window_size::save(&window);
+                }
+            }
             #[cfg(target_os = "macos")]
             if let RunEvent::Reopen { .. } = event {
                 if let Some(window) = app.get_webview_window("main") {

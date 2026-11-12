@@ -85,5 +85,8 @@ pub fn install_update(app: AppHandle) -> Result<(), String> {
         return Err("No update ready".into());
     };
     update.install(bytes).map_err(|e| e.to_string())?;
+    if let Some(window) = app.get_webview_window("main") {
+        crate::window_size::save(&window);
+    }
     app.restart()
 }
