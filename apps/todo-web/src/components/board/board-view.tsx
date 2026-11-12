@@ -304,9 +304,11 @@ function IssueList({ columns, data, locked, run, onOpen, onCreate }: ViewProps) 
           </header>
           <ul>
             {column.issues.map((issue) => (
-              <li key={issue.id} className={cn("issue-row", issue.completed && "is-complete")}>
+              // The row opens the issue; its own buttons (priority, status, title) keep their action.
+              <li key={issue.id} className={cn("issue-row", issue.completed && "is-complete")}
+                onClick={(event) => { if (!(event.target as HTMLElement).closest("button, [role=menu]")) onOpen(issue.id); }}>
                 <PriorityMenu value={issue.priority ?? 0} disabled={locked} onChange={(priority) => void run({ type: "update-issue", id: issue.id, priority })}>
-                  <button className="issue-row-icon" aria-label={`${t.properties.priority}: ${t.priority.name(issue.priority ?? 0)}`}><PriorityIcon priority={issue.priority ?? 0} /></button>
+                  <button className="issue-row-icon" data-priority={issue.priority ?? 0} aria-label={`${t.properties.priority}: ${t.priority.name(issue.priority ?? 0)}`}><PriorityIcon priority={issue.priority ?? 0} /></button>
                 </PriorityMenu>
                 <span className="issue-number">#{issue.number}</span>
                 <StatusMenu statuses={statuses} value={issue.statusId} disabled={locked} onChange={(statusId) => void run({ type: "update-issue", id: issue.id, statusId })}>
