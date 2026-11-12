@@ -12,12 +12,13 @@ impl MailView {
     /// The webview, built the first time a conversation shows.
     fn webview(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<Entity<WebView>> {
         if self.webview.is_none() {
-            let keys = self.keys.clone();
+            let ipc = self.ipc.clone();
             let builder = wry::WebViewBuilder::new()
                 .with_background_color((15, 15, 15, 255))
                 .with_html("<html><body style=\"background:#0f0f0f\"></body></html>")
+                // Only our nonce'd script can post here; the view still parses and checks each message.
                 .with_ipc_handler(move |request| {
-                    let _ = keys.unbounded_send(request.body().clone());
+                    let _ = ipc.unbounded_send(request.body().clone());
                 })
                 // The mail never navigates: links open in the browser.
                 .with_navigation_handler(|url| {
@@ -130,6 +131,16 @@ impl MailView {
                 },
             )
             .child(div().flex_1())
+            .when_some(self.status.clone(), |el, (status, failed)| {
+                el.child(
+                    div()
+                        .min_w_0()
+                        .truncate()
+                        .text_xs()
+                        .text_color(if failed { theme::danger() } else { theme::faint() })
+                        .child(status),
+                )
+            })
             .when(images_hidden, |el| {
                 let id = id.clone();
                 el.child(
@@ -172,7 +183,14 @@ impl MailView {
         };
         let wanted = (id.clone(), images_allowed);
         if self.shown.as_ref() != Some(&wanted) {
-            let document = email::document(&conversation.subject, &conversation.parts, images_allowed, &self.nonce);
+            self.view += 1;
+            let document = email::document(
+                &conversation.subject,
+                &conversation.parts,
+                images_allowed,
+                &self.nonce,
+                self.view,
+            );
             let _ = webview.read(cx).load_html(&document);
             self.shown = Some(wanted);
         }

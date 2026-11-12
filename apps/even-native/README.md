@@ -15,8 +15,10 @@ What it does: sign in through the browser (the same PKCE flow as the Tauri app),
 the folders, a virtualized conversation list that pages in as you scroll, and the
 open conversation as HTML in a system webview: sanitized with ammonia, behind a
 content policy that runs only our own script, remote images blocked until asked
-for, `cid:` images inlined, links opened in the browser. Keys: J/K or arrows, E
-archive, S star, Shift+U unread, # trash, Cmd+R refresh, Esc close.
+for, `cid:` images inlined, links opened in the browser, the quote of earlier
+mail under a reply folded away, attachments saved to Downloads with a click.
+Keys: J/K or arrows, E archive, S star, Shift+U unread, # trash, Cmd+R refresh,
+Esc close.
 
-Not yet: collapsing quoted text, downloading attachments, writing and
-replying, search, the other sidebar views (parcels, invoices, senders).
+Not yet: writing and replying, search, the other sidebar views (parcels,
+invoices, senders).

@@ -27,6 +27,10 @@ futures = "0.3"
 gpui-webview = "0.9.1"
 open = "5"
 regex = "1"
+# Splits quoted earlier mail off a reply; wry already brings it in.
+kuchikiki = "0.8.8-speedreader"
+# Where downloaded attachments go.
+dirs = "6"
 
 [profile.release]
 lto = "thin"

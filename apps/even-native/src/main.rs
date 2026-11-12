@@ -6,6 +6,7 @@ mod assets;
 mod auth;
 mod email;
 mod mail;
+mod quote;
 mod theme;
 
 use std::sync::atomic::{AtomicBool, Ordering};

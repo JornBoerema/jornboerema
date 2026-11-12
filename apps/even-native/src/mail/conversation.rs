@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use chrono::{Datelike, Local};
 
-use crate::api::{Client, Message, ThreadDetail};
-use crate::email::{self, Body, Part};
+use crate::api::{Attachment, Client, Message, ThreadDetail};
+use crate::email::{self, Body, File, Part};
+use crate::quote;
 
 use super::*;
 
@@ -14,7 +15,14 @@ use super::*;
 pub(super) struct Conversation {
     pub(super) subject: String,
     pub(super) parts: Vec<Part>,
+    /// Per part, what its attachment chips download.
+    pub(super) files: Vec<Files>,
     pub(super) remote_images: bool,
+}
+
+pub(super) struct Files {
+    pub(super) message_id: String,
+    pub(super) attachments: Vec<Attachment>,
 }
 
 pub(super) enum Reading {
@@ -28,24 +36,50 @@ const SAFE_INLINE: [&str; 5] = ["image/png", "image/jpeg", "image/jpg", "image/g
 const MAX_INLINE_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_INLINE_IMAGES: usize = 20;
 
-/// Runs on the background executor: sanitizes each body and puts its `cid:` images in place.
+/// Runs on the background executor: sanitizes each body, splits off the quote of
+/// earlier mail and puts its `cid:` images in place.
 pub(super) fn prepare(client: &Client, thread_id: &str, subject: String, detail: ThreadDetail) -> Conversation {
     let mut remote_images = false;
     let parts = detail
         .messages
         .iter()
-        .map(|message| {
+        .enumerate()
+        .map(|(index, message)| {
+            // The first message quotes nothing in this thread, as in the web app.
+            let quoted = index > 0;
             let html = message.html.as_deref().filter(|html| !html.trim().is_empty());
             let body = match (html, message.text.as_deref()) {
                 (Some(html), _) => {
-                    let mut clean = email::sanitize(html);
-                    clean = with_inline_images(client, thread_id, message, clean);
-                    remote_images |= email::has_remote_images(&clean);
-                    let paper = email::has_own_background(&clean);
-                    Body::Html { html: clean, paper }
+                    // Split before sanitizing, which drops the ids Outlook marks its quote with;
+                    // then each half is sanitized on its own.
+                    let mut pieces = match quoted.then(|| quote::split_html(html)).flatten() {
+                        Some((reply, quote)) => vec![email::sanitize(&reply), email::sanitize(&quote)],
+                        None => vec![email::sanitize(html)],
+                    };
+                    pieces = with_inline_images(client, thread_id, message, pieces);
+                    remote_images |= pieces.iter().any(|piece| email::has_remote_images(piece));
+                    let paper = pieces.iter().any(|piece| email::has_own_background(piece));
+                    let mut pieces = pieces.into_iter();
+                    Body::Html {
+                        html: pieces.next().unwrap_or_default(),
+                        quote: pieces.next(),
+                        paper,
+                    }
                 }
-                (None, Some(text)) => Body::Text(tidy(text)),
-                (None, None) => Body::Text(String::new()),
+                (None, Some(text)) => {
+                    let text = tidy(text);
+                    match quoted.then(|| quote::split_text(&text)).flatten() {
+                        Some((reply, quote)) => Body::Text {
+                            text: reply,
+                            quote: Some(quote),
+                        },
+                        None => Body::Text { text, quote: None },
+                    }
+                }
+                (None, None) => Body::Text {
+                    text: String::new(),
+                    quote: None,
+                },
             };
             let to: Vec<&str> = message.to.iter().chain(&message.cc).map(|a| a.label()).collect();
             Part {
@@ -64,9 +98,20 @@ pub(super) fn prepare(client: &Client, thread_id: &str, subject: String, detail:
                 attachments: message
                     .attachments
                     .iter()
-                    .map(|a| format!("{} · {}", a.name, size(a.size)))
+                    .map(|a| File {
+                        label: format!("{} · {}", a.name, size(a.size)),
+                        downloadable: !a.id.is_empty(),
+                    })
                     .collect(),
             }
+        })
+        .collect();
+    let files = detail
+        .messages
+        .into_iter()
+        .map(|message| Files {
+            message_id: message.id,
+            attachments: message.attachments,
         })
         .collect();
     let subject = if subject.is_empty() {
@@ -77,18 +122,21 @@ pub(super) fn prepare(client: &Client, thread_id: &str, subject: String, detail:
     Conversation {
         subject,
         parts,
+        files,
         remote_images,
     }
 }
 
-fn with_inline_images(client: &Client, thread_id: &str, message: &Message, mut html: String) -> String {
+/// The reply and its quote are separate pieces; an image either refers to is fetched once.
+fn with_inline_images(client: &Client, thread_id: &str, message: &Message, mut pieces: Vec<String>) -> Vec<String> {
     let wanted = message
         .inline
         .iter()
         .filter(|image| {
+            let cid = format!("cid:{}", image.content_id);
             SAFE_INLINE.contains(&image.content_type.to_ascii_lowercase().as_str())
                 && image.size <= MAX_INLINE_BYTES
-                && html.contains(&format!("cid:{}", image.content_id))
+                && pieces.iter().any(|html| html.contains(&cid))
         })
         .take(MAX_INLINE_IMAGES)
         .collect::<Vec<_>>();
@@ -99,10 +147,13 @@ fn with_inline_images(client: &Client, thread_id: &str, message: &Message, mut h
                 image.content_type.to_ascii_lowercase(),
                 base64::engine::general_purpose::STANDARD.encode(bytes)
             );
-            html = html.replace(&format!("cid:{}", image.content_id), &url);
+            let cid = format!("cid:{}", image.content_id);
+            for html in &mut pieces {
+                *html = html.replace(&cid, &url);
+            }
         }
     }
-    html
+    pieces
 }
 
 pub(super) fn random_nonce() -> String {
