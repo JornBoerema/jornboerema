@@ -25,6 +25,7 @@ import {
 import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
+import { report } from "../lib/report"
 import { actOnSender, listSenders, senderConversations } from "./senders-server"
 import { mailChannel, realtimeEnabled, sealChannel } from "../lib/realtime"
 import { every } from "hono/combine"
@@ -255,7 +256,7 @@ function failure(c: Context, error: unknown) {
   if (isRateLimited(error)) return c.json({ error: msg(c, "mailBusy") }, 429)
   if (error instanceof AiBudgetError) return c.json({ error: msg(c, "aiLimitReached"), aiLimit: true }, 429)
   if (error instanceof TooManyError) return c.json({ error: msg(c, error.messageKey) }, 429)
-  console.error("Mail request failed", error instanceof Error ? error.message : "unknown")
+  report("Mail request failed", error)
   return c.json({ error: msg(c, "mailProviderFailed") }, 502)
 }
 
@@ -382,7 +383,7 @@ mailRoutes.get("/callback/:provider", async (c) => {
   } catch (error) {
     if (error instanceof ConnectExpiredError) return fail("expired")
     if (error instanceof MissingScopeError) return fail("missing_scope")
-    console.error("Mail connect failed", error instanceof Error ? error.message : "unknown")
+    report("Mail connect failed", error)
     return fail("failed")
   }
 })

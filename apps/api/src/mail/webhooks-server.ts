@@ -4,6 +4,7 @@ import { mailEmails, sendEmail } from "@evido/email"
 import { ReauthRequiredError } from "@evido/mail-core/provider"
 import { z } from "zod"
 import { defer } from "../lib/defer"
+import { report } from "../lib/report"
 import { notifyMailChanged } from "../lib/realtime"
 import { env } from "../env"
 import { withAccessToken } from "./accounts-server"
@@ -73,7 +74,7 @@ export async function renewWatches() {
         failed++
         const reason = result.reason instanceof Error ? result.reason.message : "unknown"
         reasons.add(reason.slice(0, 200))
-        console.error("Mail watch renewal failed", reason)
+        report("Mail watch renewal failed", result.reason)
       }
     }
   }
@@ -90,7 +91,8 @@ async function syncAndNotify(account: MailAccount) {
     if (result.changed > 0) await notifyMailChanged(account.userId)
   } catch (error) {
     // The cursor kept its place, so the next notification or poll catches up.
-    console.error("Webhook sync failed", error instanceof Error ? error.message : "unknown")
+    // A mailbox that lost access is its owner's to fix, and they were told.
+    if (!(error instanceof ReauthRequiredError)) report("Webhook sync failed", error)
   }
 }
 

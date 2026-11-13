@@ -1,3 +1,7 @@
+import "./instrument"
+import * as Sentry from "@sentry/hono/node"
+import { sentry } from "@sentry/hono/node"
+import { waitUntil } from "@vercel/functions"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
@@ -12,6 +16,13 @@ import { handleMcp } from "./todo/mcp"
 
 export const app = new Hono()
 
+// First, so every route's errors and timings are seen.
+app.use(sentry(app))
+// A function is frozen once it answered: reports still on their way go out first.
+app.use(async (_c, next) => {
+  await next()
+  waitUntil(Sentry.flush(2000))
+})
 app.use(logger())
 app.use(secureHeaders({ crossOriginResourcePolicy: false }))
 app.use(
