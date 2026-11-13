@@ -972,3 +972,15 @@ model MoneybirdExport {
   @@index([userId, senderDomain], map: "moneybird_exports_sender_idx")
   @@map("moneybird_exports")
 }
+
+// ─── Realtime ───────────────────────────────────────────────────────────────
+
+/// One counter per realtime channel ("workspace:<userId>", "mail:<userId>").
+/// Clients hold a Neon Realtime live query on their own row and refetch when it moves.
+model RealtimePing {
+  channel   String   @id
+  version   BigInt   @default(1)
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("realtime_pings")
+}

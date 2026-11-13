@@ -26,7 +26,7 @@ import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
 import { actOnSender, listSenders, senderConversations } from "./senders-server"
-import { getRealtime, mailChannel } from "../lib/realtime"
+import { mailChannel, realtimeEnabled, sealChannel } from "../lib/realtime"
 import { every } from "hono/combine"
 import { requireAppAccess } from "../lib/access"
 import { noStore, requireSession as signedIn, requireTrustedOrigin, type AppEnv } from "../lib/session"
@@ -1186,14 +1186,8 @@ mailRoutes.delete("/uploads/:id", requireTrustedOrigin, requireSession, async (c
 })
 
 mailRoutes.get("/realtime", requireSession, async (c) => {
-  if (!process.env.ABLY_API_KEY) return c.json({ error: msg(c, "realtimeUnavailable") }, 503)
-  const userId = c.get("session").user.id
-  const token = await getRealtime().auth.createTokenRequest({
-    clientId: userId,
-    capability: JSON.stringify({ [mailChannel(userId)]: ["subscribe"] }),
-    ttl: 15 * 60 * 1000,
-  })
-  return c.json(token, 200, noStore)
+  if (!realtimeEnabled()) return c.json({ error: msg(c, "realtimeUnavailable") }, 503)
+  return c.json(await sealChannel(mailChannel(c.get("session").user.id)), 200, noStore)
 })
 
 // Microsoft needs an answer within 3 seconds, so the work happens after responding.

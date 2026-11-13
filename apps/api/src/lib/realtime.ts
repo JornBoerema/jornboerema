@@ -1,27 +1,13 @@
-import { Rest } from "ably"
+import { mailChannel, ping, userChannel } from "@evido/realtime/server"
 
-let client: Rest | undefined
-export function getRealtime() {
-  if (!process.env.ABLY_API_KEY) throw new Error("ABLY_API_KEY ontbreekt.")
-  return (client ??= new Rest(process.env.ABLY_API_KEY))
-}
-export const userChannel = (userId: string) => `workspace:${userId}`
-export const mailChannel = (userId: string) => `mail:${userId}`
+export { mailChannel, realtimeEnabled, sealChannel, userChannel } from "@evido/realtime/server"
 
 /** Tells a user's open tabs to refetch. Carries no mail data. */
 export async function notifyMailChanged(userId: string) {
-  if (!process.env.ABLY_API_KEY) return
-  await getRealtime().channels.get(mailChannel(userId)).publish("changed", { at: Date.now() })
+  await ping([mailChannel(userId)])
 }
 
-/** Tell every affected user's open clients to refetch. Messages carry no data. */
+/** Tell every affected user's open clients to refetch. Carries no data. */
 export async function notifyWorkspaceUsers(userIds: string[]) {
-  if (!process.env.ABLY_API_KEY) return
-  const results = await Promise.allSettled(
-    [...new Set(userIds)].map((id) =>
-      getRealtime().channels.get(userChannel(id)).publish("changed", { at: Date.now() })
-    )
-  )
-  if (results.some((r) => r.status === "rejected"))
-    console.error("Realtime notification failed; clients will reconcile on polling/reconnect.")
+  await ping(userIds.map(userChannel))
 }

@@ -1,4 +1,5 @@
 import { trustedOrigins } from "@evido/auth/server"
+import { realtimeEnabled } from "@evido/realtime/server"
 
 export const env = {
   port: Number(process.env.PORT ?? process.env.API_PORT ?? 4000),
@@ -16,5 +17,5 @@ export const env = {
   githubRepo: process.env.GITHUB_REPO ?? "JornBoerema/jornboerema",
   githubToken: process.env.GITHUB_TOKEN ?? "",
   trustedOrigins: trustedOrigins(),
-  realtimeEnabled: !!process.env.ABLY_API_KEY,
+  realtimeEnabled: realtimeEnabled(),
 }

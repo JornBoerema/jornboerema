@@ -7,7 +7,7 @@ import { workspaceCommand } from "@evido/todo-core/workspaces"
 import { sendEmail } from "@evido/email"
 import { defer } from "../lib/defer"
 import { KeyedError, languageOf, msg, validationMessage, type MessageKey } from "../i18n"
-import { getRealtime, notifyWorkspaceUsers, userChannel } from "../lib/realtime"
+import { notifyWorkspaceUsers, realtimeEnabled, sealChannel, userChannel } from "../lib/realtime"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
 import {
   executeCommand,
@@ -162,17 +162,11 @@ todoRoutes.get("/shared/:token/attachments/:id", async (c) => {
   }
 })
 
-// ─── Realtime token (subscribe-only on the user's own channel) ──────────────
+// ─── Realtime: a sealed live query on the user's own channel ──────────────
 
 todoRoutes.get("/realtime", requireSession, async (c) => {
-  if (!process.env.ABLY_API_KEY) return c.json({ error: msg(c, "realtimeUnavailable") }, 503)
-  const userId = c.get("session").user.id
-  const token = await getRealtime().auth.createTokenRequest({
-    clientId: userId,
-    capability: JSON.stringify({ [userChannel(userId)]: ["subscribe"] }),
-    ttl: 15 * 60 * 1000,
-  })
-  return c.json(token, 200, noStore)
+  if (!realtimeEnabled()) return c.json({ error: msg(c, "realtimeUnavailable") }, 503)
+  return c.json(await sealChannel(userChannel(c.get("session").user.id)), 200, noStore)
 })
 
 // ─── Workspaces ─────────────────────────────────────────────────────────────

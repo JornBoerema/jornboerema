@@ -6,7 +6,7 @@ import {
   type InfiniteData,
   type QueryClient,
 } from "@tanstack/react-query"
-import { Realtime } from "ably"
+import { watchChannel } from "@evido/realtime/client"
 import { toast } from "sonner"
 import {
   HIDDEN_FOLDERS,
@@ -229,26 +229,18 @@ export function useThreadAction() {
 export function useMailRealtime(userId: string) {
   const queryClient = useQueryClient()
   useEffect(() => {
-    const realtime = new Realtime({
-      authCallback: (_params, callback) => {
-        api<Parameters<typeof callback>[1]>("/api/mail/realtime").then(
-          (token) => callback(null, token),
-          (error: unknown) => callback(error instanceof Error ? error.message : String(error), null)
-        )
+    return watchChannel({
+      fetchSubscription: () => api("/api/mail/realtime"),
+      onChange: () => {
+        // A refetch now would bring back a conversation whose move is still waiting.
+        if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
+          void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
+        void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
+        // A snooze that woke, or a scheduled message that went, changes these too.
+        void queryClient.invalidateQueries({ queryKey: SNOOZES_KEY })
+        void queryClient.invalidateQueries({ queryKey: SCHEDULED_KEY })
       },
-      closeOnUnload: true,
     })
-    const channel = realtime.channels.get(`mail:${userId}`)
-    void channel.subscribe("changed", () => {
-      // A refetch now would bring back a conversation whose move is still waiting.
-      if (queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
-        void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
-      void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
-      // A snooze that woke, or a scheduled message that went, changes these too.
-      void queryClient.invalidateQueries({ queryKey: SNOOZES_KEY })
-      void queryClient.invalidateQueries({ queryKey: SCHEDULED_KEY })
-    })
-    return () => realtime.close()
   }, [userId, queryClient])
 }
 

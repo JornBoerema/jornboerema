@@ -17,6 +17,7 @@
   "dependencies": {
     "@evido/auth": "workspace:*",
     "@evido/i18n": "workspace:*",
+    "@evido/realtime": "workspace:*",
     "@evido/todo-core": "workspace:*",
     "@evido/ui": "workspace:*",
     "@hugeicons/core-free-icons": "^4.4.0",
@@ -29,7 +30,6 @@
     "@tiptap/pm": "^3.32.1",
     "@tiptap/react": "^3.32.1",
     "@tiptap/starter-kit": "^3.32.1",
-    "ably": "^2.30.0",
     "better-auth": "^1.7.14",
     "motion": "^14.7.1",
     "react": "^19.3.1",

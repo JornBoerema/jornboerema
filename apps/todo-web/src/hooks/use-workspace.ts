@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
-import { Realtime } from "ably";
+import { watchChannel } from "@evido/realtime/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
@@ -37,11 +37,6 @@ export function useWorkspace(
   const client = useQueryClient();
   const navigate = useNavigate();
   const { t: { workspace: { errors: m } } } = useI18n();
-  // Read inside the realtime effect without reconnecting on a language change.
-  const realtimeError = useRef(m.realtimeUnavailable);
-  useEffect(() => {
-    realtimeError.current = m.realtimeUnavailable;
-  }, [m.realtimeUnavailable]);
   const [connection, setConnection] = useState(
     realtimeEnabled ? "connecting" : "polling",
   );
@@ -110,40 +105,21 @@ export function useWorkspace(
   }, []);
   useEffect(() => {
     if (!realtimeEnabled) return;
-    const realtime = new Realtime({
-      authCallback: (_params, callback) => {
-        apiFetch("/api/realtime")
-          .then(async (response) => {
-            if (!response.ok) throw new Error(realtimeError.current);
-            callback(null, await response.json());
-          })
-          .catch((error: Error) => callback(error.message, null));
-      },
-      autoConnect: false,
-    });
     // Membership changes (invites, removals, renames) arrive on the same channel.
     const refresh = () => {
       void client.invalidateQueries({ queryKey: ["workspace", userId] });
       void client.invalidateQueries({ queryKey: ["workspaces", userId] });
       void client.invalidateQueries({ queryKey: ["workspace-members"] });
     };
-    const changed = () => {
-      setConnection(realtime.connection.state);
-      if (realtime.connection.state === "connected") refresh();
-    };
-    realtime.connection.on(changed);
-    const channel = realtime.channels.get(`workspace:${userId}`);
-    channel.on("attached", refresh);
-    void channel
-      .subscribe("changed", refresh)
-      .catch(() => setConnection("disconnected"));
-    realtime.connect();
-    return () => {
-      channel.unsubscribe();
-      channel.off();
-      realtime.connection.off();
-      realtime.close();
-    };
+    return watchChannel({
+      fetchSubscription: async () => {
+        const response = await apiFetch("/api/realtime");
+        if (!response.ok) throw new Error(`Realtime ${response.status}`);
+        return response.json();
+      },
+      onChange: refresh,
+      onStatus: setConnection,
+    });
   }, [client, userId, realtimeEnabled]);
   async function run(command: Command) {
     if (!navigator.onLine) {

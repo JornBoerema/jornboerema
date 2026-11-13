@@ -54,7 +54,7 @@ pnpm dev:todo                              # API op :4000, accountsite op :3005,
 | `MICROSOFT_MAIL_CLIENT_ID`, `MICROSOFT_MAIL_CLIENT_SECRET` | Entra-app (elke organisatie + persoonlijk), redirect `<API>/api/mail/callback/outlook` |
 | `AUTH_COOKIE_DOMAIN` | Alleen productie: bv. `.evido.nl`, zodat sessies over subdomeinen gedeeld worden |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Resend; afzender moet bij een geverifieerd domein horen |
-| `ABLY_API_KEY` | Optioneel realtime; zonder Ably synchroniseren clients elke 60 s |
+| `NEON_REALTIME_SECRET`, `NEON_REALTIME_URL` | Optioneel realtime via Neon Realtime (live query op `realtime_pings`); zonder synchroniseren clients elke 60 s |
 
 `apps/todo-web/.env` bevat alleen `VITE_API_URL` (publiek).
 
@@ -151,7 +151,7 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `GOOGLE_MAIL_CLIENT_ID` / `_SECRET` | Google-client; redirect `https://api.jornboerema.nl/api/mail/callback/gmail` |
 | `MICROSOFT_MAIL_CLIENT_ID` / `_SECRET` | Entra-app; redirect `https://api.jornboerema.nl/api/mail/callback/outlook` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | zoals lokaal |
-| `ABLY_API_KEY` | optioneel |
+| `NEON_REALTIME_SECRET`, `NEON_REALTIME_URL` | optioneel; van de productie-branch |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` (gebruikt de pnpm-versie uit `packageManager`) |
 
 **Environment variables — `evido-todo` en `evido-auth`**

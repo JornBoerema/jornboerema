@@ -1,0 +1,23 @@
+{
+  "name": "@evido/realtime",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Live 'something changed' pings over Neon Realtime, shared by the API and the web apps.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "exports": {
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts"
+  },
+  "dependencies": {
+    "@evido/db": "workspace:*",
+    "@neon/realtime": "0.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "~6.0.2"
+  }
+}
