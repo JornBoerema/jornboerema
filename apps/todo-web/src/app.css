@@ -544,6 +544,8 @@ a.todo-mail:focus-visible {
 /* "No priority" stays quiet until the row is in use. */
 .issue-row-icon[data-priority="0"] { opacity: 0; }
 .issue-row:hover .issue-row-icon[data-priority="0"], .issue-row-icon[data-priority="0"]:focus-visible, .issue-row-icon[data-priority="0"][data-state="open"] { opacity: 1; }
+/* "#" plus the longest number's digits (see IssueList); the "#" gets a little extra room. */
+.issue-row .issue-number { min-width: calc((var(--issue-number-digits, 1) + 1.5) * 1ch); }
 .issue-row-title { display: flex; flex: 1; min-width: 0; height: 40px; align-items: center; text-align: left; font-size: 13.5px; border-radius: 6px; }
 .issue-row.is-complete .issue-row-title { color: var(--muted-foreground); }
 .issue-row-meta { flex-wrap: nowrap; }

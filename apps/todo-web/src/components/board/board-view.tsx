@@ -358,8 +358,10 @@ function IssueList({ columns, data, locked, run, onOpen, onCreate, onHover }: Vi
   const { t: { board: t } } = useI18n();
   const members = data.members ?? [];
   const statuses = data.statuses ?? [];
+  // Every number gets the width of the longest one, so status and title line up in all rows.
+  const digits = Math.max(1, ...columns.flatMap((column) => column.issues.map((issue) => String(issue.number ?? 0).length)));
   return (
-    <div className="issue-list">
+    <div className="issue-list" style={{ "--issue-number-digits": digits } as React.CSSProperties}>
       {columns.filter((column) => column.issues.length).map((column) => (
         <section key={column.status.id} aria-label={t.column.label(column.status.name, column.issues.length)}>
           <header className="issue-list-header">
