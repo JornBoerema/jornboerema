@@ -4,6 +4,7 @@ import { MotionConfig } from "motion/react"
 import { MemoryRouter, Route, Routes } from "react-router"
 import { I18nProvider } from "./i18n"
 import { HomePage } from "./pages/home"
+import { DesktopSettingsNav } from "./components/settings/workspace-settings"
 import "./app.css"
 
 export { authClient } from "./lib/auth-client"
@@ -39,6 +40,18 @@ export function TodoEmbed() {
           </MemoryRouter>
         </MotionConfig>
       </QueryClientProvider>
+    </I18nProvider>
+  )
+}
+
+/**
+ * The lists' pages in the desktop app's settings. Rendered by the desktop app from
+ * the start, outside the lists, so their pages are there as soon as the window opens.
+ */
+export function TodoSettingsNav() {
+  return (
+    <I18nProvider>
+      <DesktopSettingsNav />
     </I18nProvider>
   )
 }

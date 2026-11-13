@@ -26,7 +26,6 @@ type DesktopSettingsState = {
   openSettings: (app: string, page?: string | null) => void
   close: () => void
   register: (app: string, pages: SettingsPage[]) => void
-  unregister: (app: string) => void
   /** Where each app draws its part of the open page. */
   slots: Record<string, HTMLElement | null>
 }
@@ -79,9 +78,6 @@ export function DesktopSettingsProvider({
   const register = React.useCallback((app: string, list: SettingsPage[]) => {
     setRegistered((current) => ({ ...current, [app]: list }))
   }, [])
-  const unregister = React.useCallback((app: string) => {
-    setRegistered(({ [app]: _, ...rest }) => rest)
-  }, [])
   const openRef = React.useRef(open)
   openRef.current = open
   const openSettings = React.useCallback(
@@ -101,8 +97,8 @@ export function DesktopSettingsProvider({
       setSlots((current) => (current[app] === element ? current : { ...current, [app]: element })))
 
   const state = React.useMemo(
-    () => ({ open, activeKey, openSettings, close, register, unregister, slots }),
-    [open, activeKey, openSettings, close, register, unregister, slots]
+    () => ({ open, activeKey, openSettings, close, register, slots }),
+    [open, activeKey, openSettings, close, register, slots]
   )
   // Every app that has a part in the open page, in rail order.
   const contributors = apps.filter((app) =>
@@ -161,15 +157,15 @@ export function DesktopSettingsPages({
 }) {
   const state = React.useContext(Context)
   const register = state?.register
-  const unregister = state?.unregister
   // Icons are elements, new every render: the ids, labels and groups say when the list changed.
   const signature = pages.map((page) => [page.id, page.label, page.group ?? ""].join("\u0000")).join("\u0001")
   const latest = React.useRef(pages)
   latest.current = pages
+  // Registered pages stay when this unmounts: a hidden app (<Activity>) drops its
+  // effects, and its pages would otherwise leave the window until it runs again.
   React.useEffect(() => {
     register?.(app, latest.current)
   }, [register, app, signature])
-  React.useEffect(() => () => unregister?.(app), [unregister, app])
 
   const slot = state?.slots[app]
   const page = state?.open ? pages.find((item) => keyOf(app, item) === state.activeKey) : undefined

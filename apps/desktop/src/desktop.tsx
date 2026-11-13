@@ -9,7 +9,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
-import { authClient, TodoEmbed } from "@evido/todo-web/embed"
+import { authClient, TodoEmbed, TodoSettingsNav } from "@evido/todo-web/embed"
 import { NotesEmbed } from "@evido/notes-web/embed"
 import { Toaster } from "@evido/ui/components/sonner"
 import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/app-switcher"
@@ -127,6 +127,8 @@ function Apps() {
           onOpenChange={openSettingsWindow}
           labels={texts}
         >
+          {/* Even doen's pages are in the settings from the start, not only once it runs. */}
+          <TodoSettingsNav />
           <div className={cn("desktop-app", isMac && "mac")}>
             <Rail active={active} onSelect={select} settingsLabel={texts.title} />
             <div className="desktop-stage">
