@@ -567,6 +567,25 @@ a.todo-mail:focus-visible {
 .attachment-name { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 8px; height: 36px; align-items: center; text-align: left; font-size: 13.5px; }
 .attachment-name:hover > span:first-child { text-decoration: underline; text-underline-offset: 3px; }
 .attachment-size { flex-shrink: 0; font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+/* Full-screen image attachment: the image fills the window, controls sit on a dark bar. */
+.image-viewer { inset: 0; top: 0; left: 0; translate: none; transform: none; width: 100vw; max-width: none !important; height: 100dvh; padding: 0; gap: 0; border: 0; border-radius: 0; box-shadow: none; background: oklch(0.14 0 0 / 0.96); color: #fff; display: flex; flex-direction: column; }
+.image-viewer-bar { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px 8px 20px; }
+.image-viewer-bar [data-slot="button"] { color: rgb(255 255 255 / 0.8); }
+.image-viewer-bar [data-slot="button"]:hover { color: #fff; background: rgb(255 255 255 / 0.1); }
+.image-viewer-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 500; }
+.image-viewer-count { flex-shrink: 0; font-size: 12px; color: rgb(255 255 255 / 0.6); font-variant-numeric: tabular-nums; }
+.image-viewer-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 72px 32px; }
+.image-viewer-image { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; user-select: none; }
+.image-viewer-note { font-size: 13.5px; color: rgb(255 255 255 / 0.7); }
+.image-viewer-step { position: absolute; top: 50%; translate: 0 -50%; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 999px; color: #fff; background: rgb(255 255 255 / 0.08); transition: background 120ms; }
+.image-viewer-step:hover { background: rgb(255 255 255 / 0.18); }
+.image-viewer-step:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.image-viewer-step.is-prev { left: 16px; }
+.image-viewer-step.is-next { right: 16px; }
+@media (max-width: 700px) {
+  .image-viewer-stage { padding: 0 8px 16px; }
+  .image-viewer-step { top: auto; bottom: 16px; translate: none; }
+}
 .issue-props { display: flex; flex-direction: column; gap: 2px; padding: 20px 16px; border-left: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 35%, transparent); overflow-y: auto; }
 .issue-prop { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; min-height: 36px; }
 .issue-prop-label { font-size: 12.5px; color: var(--muted-foreground); }

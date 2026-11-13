@@ -32,11 +32,18 @@ export async function uploadAttachment(todoId: string, file: File) {
   await ok(await apiFetch(`/api/todo-attachments/${id}/complete`, { method: "POST" }));
 }
 
-/** Fetched with the session (cookie or desktop bearer), then saved like a normal download. */
-export async function downloadAttachment(attachment: { id: string; name: string }, shareToken?: string) {
+/** Image types a browser shows safely in an <img>. */
+export const isImage = (contentType: string) => /^image\/(png|jpe?g|gif|webp|avif|bmp|svg\+xml)$/i.test(contentType);
+
+/** The file's bytes, fetched with the session (cookie or desktop bearer) or a share link. */
+export async function fetchAttachment(attachment: { id: string }, shareToken?: string) {
   const path = shareToken ? `/api/shared/${shareToken}/attachments/${attachment.id}` : `/api/todo-attachments/${attachment.id}`;
-  const blob = await (await ok(await apiFetch(path))).blob();
-  const url = URL.createObjectURL(blob);
+  return (await ok(await apiFetch(path))).blob();
+}
+
+/** Saved like a normal download. */
+export async function downloadAttachment(attachment: { id: string; name: string }, shareToken?: string) {
+  const url = URL.createObjectURL(await fetchAttachment(attachment, shareToken));
   const link = document.createElement("a");
   link.href = url;
   link.download = attachment.name;

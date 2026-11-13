@@ -22,9 +22,10 @@ import {
   AlertDialogTitle,
 } from "@evido/ui/components/alert-dialog";
 import { cn } from "@evido/ui/lib/utils";
-import { Download, Kanban, MoreHorizontal, Paperclip, Plus, Share, Trash2, X } from "@/components/icons";
+import { Download, ImageIcon, Kanban, MoreHorizontal, Paperclip, Plus, Share, Trash2, X } from "@/components/icons";
 import { useI18n } from "@/i18n";
-import { AttachmentTooLarge, downloadAttachment, formatBytes, uploadAttachment } from "@/lib/attachments";
+import { AttachmentTooLarge, downloadAttachment, formatBytes, isImage, uploadAttachment } from "@/lib/attachments";
+import { ImageViewer } from "./image-viewer";
 import {
   AssigneeMenu,
   AvatarStack,
@@ -102,6 +103,8 @@ export function IssueDetail({ issue, list, data, run, readOnly, shareToken, canU
   const [uploads, setUploads] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [viewing, setViewing] = useState<string | null>(null);
+  const images = issue.attachments?.filter((file) => isImage(file.contentType)) ?? [];
   const fileInput = useRef<HTMLInputElement>(null);
   const update = (patch: Omit<Extract<Command, { type: "update-issue" }>, "type" | "id">) => void run({ type: "update-issue", id: issue.id, ...patch });
   const ref = (todo: Todo) => `#${todo.number ?? ""}`;
@@ -128,6 +131,19 @@ export function IssueDetail({ issue, list, data, run, readOnly, shareToken, canU
       toast.success(t.attachments.uploaded(done));
       await client.invalidateQueries({ queryKey: ["workspace"] });
     }
+  }
+
+  /** A pasted screenshot is called "image.png"; give it a name that says when. */
+  function pasted(files: File[]) {
+    const stamp = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const when = `${stamp.getFullYear()}-${pad(stamp.getMonth() + 1)}-${pad(stamp.getDate())} ${pad(stamp.getHours())}.${pad(stamp.getMinutes())}.${pad(stamp.getSeconds())}`;
+    return files.map((file, index) => {
+      if (!/^image\.\w+$/i.test(file.name)) return file;
+      const extension = file.name.split(".").pop();
+      const suffix = files.length > 1 ? ` (${index + 1})` : "";
+      return new File([file], `${t.attachments.pastedName(when)}${suffix}.${extension}`, { type: file.type });
+    });
   }
 
   function toggleChild(child: Todo) {
@@ -197,6 +213,7 @@ export function IssueDetail({ issue, list, data, run, readOnly, shareToken, canU
               <Suspense fallback={<div className="issue-prose-loading" />}>
                 <DescriptionEditor key={issue.id} value={issue.description ?? ""} editable={!readOnly}
                   placeholder={t.issue.descriptionPlaceholder} label={t.issue.descriptionLabel}
+                  onPasteFiles={canUpload && !readOnly ? (files) => void upload(pasted(files)) : undefined}
                   onSave={(description) => {
                     void run({ type: "update-issue", id: issue.id, description }).then((ok) => { if (!ok) toast.error(t.issue.descriptionSaveFailed); });
                   }} />
@@ -248,11 +265,16 @@ export function IssueDetail({ issue, list, data, run, readOnly, shareToken, canU
                 </div>
                 {issue.attachments?.length || uploads.length ? (
                   <ul className="attachment-list">
-                    {issue.attachments?.map((file) => (
+                    {issue.attachments?.map((file) => {
+                      const image = isImage(file.contentType);
+                      const Icon = image ? ImageIcon : Paperclip;
+                      return (
                       <li key={file.id} className="attachment">
-                        <Paperclip className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                        <button className="attachment-name" aria-label={t.attachments.download(file.name)}
-                          onClick={() => void downloadAttachment(file, shareToken).catch(() => toast.error(t.attachments.downloadFailed))}>
+                        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <button className="attachment-name" aria-label={image ? t.attachments.view(file.name) : t.attachments.download(file.name)}
+                          onClick={() => image
+                            ? setViewing(file.id)
+                            : void downloadAttachment(file, shareToken).catch(() => toast.error(t.attachments.downloadFailed))}>
                           <span className="truncate">{file.name}</span>
                           <span className="attachment-size">{formatBytes(file.size, locale)}</span>
                         </button>
@@ -261,7 +283,8 @@ export function IssueDetail({ issue, list, data, run, readOnly, shareToken, canU
                         {!readOnly && !shareToken && <Button variant="ghost" size="icon-sm" aria-label={t.attachments.remove(file.name)}
                           onClick={() => void run({ type: "delete-attachment", id: file.id })}><Trash2 /></Button>}
                       </li>
-                    ))}
+                      );
+                    })}
                     {uploads.map((name, index) => (
                       <li key={`${name}-${index}`} className="attachment is-uploading" aria-live="polite">
                         <Paperclip className="size-4 shrink-0 animate-pulse text-muted-foreground" aria-hidden="true" />
@@ -309,6 +332,9 @@ export function IssueDetail({ issue, list, data, run, readOnly, shareToken, canU
           </div>
         </DialogContent>
       </Dialog>
+      {viewing && images.some((file) => file.id === viewing) && (
+        <ImageViewer images={images} startId={viewing} shareToken={shareToken} onClose={() => setViewing(null)} />
+      )}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>

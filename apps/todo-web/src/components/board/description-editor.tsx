@@ -10,8 +10,10 @@ import TaskItem from "@tiptap/extension-task-item";
  * Markdown description of an issue. Saves a moment after typing stops and on
  * blur; changes from others come in while it isn't being edited.
  */
-export default function DescriptionEditor({ value, onSave, editable, placeholder, label }: {
+export default function DescriptionEditor({ value, onSave, onPasteFiles, editable, placeholder, label }: {
   value: string;
+  /** Pasted files (like a screenshot) go here instead of into the text. */
+  onPasteFiles?: (files: File[]) => void;
   onSave: (markdown: string) => void;
   editable: boolean;
   placeholder: string;
@@ -21,9 +23,11 @@ export default function DescriptionEditor({ value, onSave, editable, placeholder
   const latest = useRef(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const save = useRef(onSave);
+  const paste = useRef(onPasteFiles);
   useEffect(() => {
     save.current = onSave;
-  }, [onSave]);
+    paste.current = onPasteFiles;
+  }, [onSave, onPasteFiles]);
   const flush = (markdown: string) => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
@@ -43,7 +47,16 @@ export default function DescriptionEditor({ value, onSave, editable, placeholder
     content: value,
     contentType: "markdown",
     editable,
-    editorProps: { attributes: { class: "note-prose issue-prose", role: "textbox", "aria-label": label, "aria-multiline": "true" } },
+    editorProps: {
+      attributes: { class: "note-prose issue-prose", role: "textbox", "aria-label": label, "aria-multiline": "true" },
+      handlePaste: (_view, event) => {
+        const files = [...(event.clipboardData?.files ?? [])];
+        if (!files.length || !paste.current) return false;
+        event.preventDefault();
+        paste.current(files);
+        return true;
+      },
+    },
     onUpdate: ({ editor: current }) => {
       latest.current = current.getMarkdown();
       if (timer.current) clearTimeout(timer.current);

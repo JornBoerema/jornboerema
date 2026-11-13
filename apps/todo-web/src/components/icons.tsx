@@ -1,6 +1,9 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Download04Icon,
+  Image01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   Note01Icon,
   SearchIcon,
   Home01Icon,
@@ -77,6 +80,9 @@ export const Search = appIcon(SearchIcon);
 export const Note = appIcon(Note01Icon);
 
 export const Download = appIcon(Download04Icon);
+export const ImageIcon = appIcon(Image01Icon);
+export const ChevronLeft = appIcon(ArrowLeft01Icon);
+export const ChevronRight = appIcon(ArrowRight01Icon);
 
 export const Settings = appIcon(Settings01Icon);
 export const ChevronsUpDown = appIcon(UnfoldMoreIcon);
