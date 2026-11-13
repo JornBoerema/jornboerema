@@ -4,9 +4,9 @@ import { findOneTimeCode } from "@evido/mail-core/codes"
 import { htmlToText } from "@evido/mail-core/gmail-send"
 import type { MailSummary, MailThreadMessage } from "@evido/mail-core/types"
 import type { Language } from "@evido/i18n"
+import { askModel, chargeAi, type AiUsageReport } from "../lib/ai"
 import { readConversation, type Conversation } from "./threads-server"
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 /** Fast, cheap and good in Dutch. OPENROUTER_MODEL picks another. */
 const DEFAULT_MODEL = "anthropic/claude-haiku-5.5"
 /** Three lines in the reading pane; past this, whole sentences are dropped from the end. */
@@ -68,27 +68,18 @@ function codeIn(messages: MailThreadMessage[]) {
 }
 
 /** At most three lines from a language model; empty when there's nothing worth summing up. */
-async function modelSummary(messages: MailThreadMessage[], language: Language) {
+async function modelSummary(userId: string, messages: MailThreadMessage[], language: Language) {
   const text = conversationText(messages)
   const key = process.env.OPENROUTER_API_KEY
   if (!key || text.length < MIN_TEXT) return ""
-  const response = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://mail.jornboerema.nl",
-      "X-Title": "Even mailen",
-    },
-    body: JSON.stringify({
+  const response = await askModel(
+    userId,
+    key,
+    {
       model: process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
       temperature: 0.2,
       // Room for the words asked for, with margin; asParagraph handles a cut.
       max_tokens: 200,
-      // Thinking first would spend the token budget before any summary is written.
-      reasoning: { enabled: false },
-      // Only providers that neither keep nor train on what they are sent.
-      provider: { data_collection: "deny" },
       messages: [
         {
           role: "system",
@@ -105,13 +96,15 @@ async function modelSummary(messages: MailThreadMessage[], language: Language) {
         },
         { role: "user", content: `<conversation>\n${text}\n</conversation>` },
       ],
-    }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  })
+    },
+    TIMEOUT_MS
+  )
   if (!response.ok) throw new SummaryFailedError(`OpenRouter answered ${response.status}`)
   const body = (await response.json()) as {
     choices?: { message?: { content?: string }; finish_reason?: string }[]
+    usage?: AiUsageReport
   }
+  await chargeAi(userId, "summary", body.usage)
   const choice = body.choices?.[0]
   return asParagraph(choice?.message?.content ?? "", choice?.finish_reason === "length")
 }
@@ -162,7 +155,7 @@ export async function summaryFor(
   const code = kept?.code ?? codeIn(messages)
   // Only asked when it would be shown: a found code takes its place unless codes are off.
   const wantsModel = options.useModel && (!code || !options.findCodes)
-  const summary = wantsModel ? await modelSummary(messages, language) : (kept?.summary ?? null)
+  const summary = wantsModel ? await modelSummary(conversation.account.userId, messages, language) : (kept?.summary ?? null)
   await db.mailSummary.upsert({
     where: keyOf(newest.id),
     create: {

@@ -28,7 +28,9 @@ import { defer } from "../lib/defer"
 import { actOnSender, listSenders, senderConversations } from "./senders-server"
 import { mailChannel, realtimeEnabled, sealChannel } from "../lib/realtime"
 import { every } from "hono/combine"
-import { requireAppAccess } from "../lib/access"
+import { canUse, requireAppAccess } from "../lib/access"
+import { AiBudgetError, overAiBudget } from "../lib/ai"
+import { overLimit, TooManyError } from "../lib/limit"
 import { noStore, requireSession as signedIn, requireTrustedOrigin, type AppEnv } from "../lib/session"
 
 /** Signed in, and let into Even mailen: it is invite-only for now. */
@@ -38,6 +40,7 @@ import {
   disconnectAccount,
   finishConnect,
   listAccounts,
+  outlookAdminConsentUrl,
   MailAccountNotFoundError,
   MailNotConfiguredError,
   MailSignatureNotFoundError,
@@ -250,8 +253,24 @@ function failure(c: Context, error: unknown) {
   if (error instanceof UnsupportedActionError) return c.json({ error: msg(c, "mailCantDeleteForever") }, 400)
   // Still refused after trying again: nothing happened, so trying later is safe.
   if (isRateLimited(error)) return c.json({ error: msg(c, "mailBusy") }, 429)
+  if (error instanceof AiBudgetError) return c.json({ error: msg(c, "aiLimitReached"), aiLimit: true }, 429)
+  if (error instanceof TooManyError) return c.json({ error: msg(c, error.messageKey) }, 429)
   console.error("Mail request failed", error instanceof Error ? error.message : "unknown")
   return c.json({ error: msg(c, "mailProviderFailed") }, 502)
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+/** Messages one user may send in a day. Well above real use; stops an account being used to mail in bulk. */
+const dailySendLimit = () => Number(process.env.MAIL_DAILY_SEND_LIMIT) || 400
+
+/** Counts one message about to be sent, scheduled ones included, and refuses past the day's limit. */
+async function countSend(userId: string) {
+  if (await overLimit(`mail-send:${userId}`, dailySendLimit(), DAY_MS)) throw new TooManyError("mailSendLimit")
+}
+
+/** Asked-for AI (writing, translating): a person never needs more than this in a minute. */
+async function countAiRequest(userId: string) {
+  if (await overLimit(`mail-ai:${userId}`, 30, 60_000)) throw new TooManyError("aiTooFast")
 }
 
 export const mailRoutes = new Hono<AppEnv>()
@@ -294,12 +313,48 @@ mailRoutes.get("/accounts", requireSession, async (c) =>
 mailRoutes.post("/connect/:provider", requireTrustedOrigin, requireSession, async (c) => {
   const provider = c.req.param("provider")
   if (!isMailProvider(provider)) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  const user = c.get("session").user
+  if (provider === "gmail" && !(await canUse(user, "gmail")))
+    return c.json({ error: msg(c, "gmailInviteOnly"), gmailInvite: true }, 403)
   try {
-    return c.json({ url: await startConnect(c.get("session").user.id, provider) }, 200, noStore)
+    return c.json({ url: await startConnect(user.id, provider) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
 })
+
+// For the IT admin of an organization that approves apps centrally; the link is
+// the same for everyone, so it may be read by anyone signed in.
+mailRoutes.get("/outlook/admin-consent", requireSession, (c) => {
+  try {
+    return c.json({ url: outlookAdminConsentUrl() }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+/** Microsoft's way of saying "only your admin may approve this app". */
+const NEEDS_ADMIN = /AADSTS(90094|900941|65001|650052|50105)|admin/i
+
+/** What an admin sees after approving (or not): they may have no account here at all. */
+function adminConsentPage(c: Context, approved: boolean) {
+  const nl = languageOf(c) === "nl"
+  const title = approved
+    ? nl ? "Even mailen is goedgekeurd" : "Even mailen is approved"
+    : nl ? "Even mailen is niet goedgekeurd" : "Even mailen was not approved"
+  const body = approved
+    ? nl
+      ? "Iedereen in je organisatie kan nu een Outlook-mailbox koppelen. Je kunt dit venster sluiten."
+      : "Everyone in your organization can now connect an Outlook mailbox. You can close this window."
+    : nl
+      ? "Er is niets veranderd. Open de link opnieuw om het nog eens te proberen."
+      : "Nothing changed. Open the link again to try once more."
+  return c.html(
+    `<!doctype html><html lang="${nl ? "nl" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:20vh auto;padding:0 1.5rem;color:#1a1a1a;background:#fff}@media(prefers-color-scheme:dark){body{color:#eee;background:#111}}h1{font-size:1.25rem}</style></head><body><h1>${title}</h1><p>${body}</p></body></html>`,
+    200,
+    noStore
+  )
+}
 
 // Reached by a top-level redirect from the provider, so failures go back to the
 // web app as a code in the URL instead of a JSON body nobody would see.
@@ -308,11 +363,18 @@ mailRoutes.get("/callback/:provider", async (c) => {
   const provider = c.req.param("provider")
   const state = c.req.query("state")
   const code = c.req.query("code")
-  if (c.req.query("error")) return fail("denied")
+  // An admin coming back from approving the app for their organization.
+  if (provider === "outlook" && (c.req.query("admin_consent") || state === "admin"))
+    return adminConsentPage(c, /^true$/i.test(c.req.query("admin_consent") ?? "") && !c.req.query("error"))
+  if (c.req.query("error"))
+    return fail(
+      provider === "outlook" && NEEDS_ADMIN.test(c.req.query("error_description") ?? "") ? "admin_consent" : "denied"
+    )
   if (!isMailProvider(provider) || !state || !code) return fail("failed")
 
   const session = await getAuth().api.getSession({ headers: c.req.raw.headers })
   if (!session) return fail("session")
+  if (provider === "gmail" && !(await canUse(session.user, "gmail"))) return fail("denied")
   try {
     const account = await finishConnect(session.user.id, provider, state, code)
     defer(() => ensureWatch(account))
@@ -391,7 +453,9 @@ mailRoutes.post("/write", requireTrustedOrigin, requireSession, async (c) => {
   const body = await readBody(c, writeBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    return streamed(c, await streamMessage(writeRequest(c, body), { language: languageOf(c) }))
+    const userId = c.get("session").user.id
+    await countAiRequest(userId)
+    return streamed(c, await streamMessage(writeRequest(c, body), { userId, language: languageOf(c) }))
   } catch (error) {
     return writeFailure(c, error)
   }
@@ -403,7 +467,9 @@ mailRoutes.post("/threads/:id/write", requireTrustedOrigin, requireSession, asyn
   try {
     const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
     const { messages } = await readConversation(conversation, { includeHidden: conversation.hidden })
-    return streamed(c, await streamMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages }))
+    const userId = c.get("session").user.id
+    await countAiRequest(userId)
+    return streamed(c, await streamMessage(writeRequest(c, body), { userId, language: languageOf(c), conversation: messages }))
   } catch (error) {
     return writeFailure(c, error)
   }
@@ -411,8 +477,9 @@ mailRoutes.post("/threads/:id/write", requireTrustedOrigin, requireSession, asyn
 
 // Mail bodies pass through on request and are never written anywhere.
 // Read live, summed up, and not kept: the summary goes to the reader only.
-const summaryOptions = (c: Context) => ({
-  useModel: c.req.query("ai") !== "0",
+// Past the month's AI allowance no model is asked; a code is still found without one.
+const summaryOptions = async (c: Context<AppEnv>) => ({
+  useModel: c.req.query("ai") !== "0" && !(await overAiBudget(c.get("session").user.id)),
   findCodes: c.req.query("codes") !== "0",
 })
 
@@ -420,7 +487,7 @@ const summaryOptions = (c: Context) => ({
 mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
   try {
     const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
-    return c.json(await summaryFor(conversation, languageOf(c), summaryOptions(c)), 200, noStore)
+    return c.json(await summaryFor(conversation, languageOf(c), await summaryOptions(c)), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)
@@ -431,7 +498,8 @@ mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
 async function repliesAnswer(c: Context<AppEnv>, conversation: Conversation) {
   const user = c.get("session").user
   try {
-    if (!(await replySuggestionsEnabled(user.id))) return c.json({ replies: [] }, 200, noStore)
+    if (!(await replySuggestionsEnabled(user.id)) || (await overAiBudget(user.id)))
+      return c.json({ replies: [] }, 200, noStore)
     return c.json({ replies: await repliesFor(conversation, languageOf(c), user.name ?? "") }, 200, noStore)
   } catch (error) {
     if (error instanceof RepliesFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
@@ -463,6 +531,7 @@ async function translationAnswer(c: Context<AppEnv>, conversation: Conversation)
   const messageId = messageParam.safeParse(c.req.query("message"))
   if (!messageId.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
+    await countAiRequest(c.get("session").user.id)
     return c.json(await translateMessage(conversation, messageId.data, languageOf(c)), 200, noStore)
   } catch (error) {
     if (error instanceof MessageNotFoundError) return c.json({ error: msg(c, "invalidRequest") }, 404)
@@ -753,6 +822,7 @@ mailRoutes.post("/accounts/:id/scheduled", requireTrustedOrigin, requireSession,
     const userId = c.get("session").user.id
     const { sendAt, ...draft } = body
     const files = await loadAttachments(userId, draft.attachments)
+    await countSend(c.get("session").user.id)
     return c.json(await scheduleSend(userId, c.req.param("id"), { ...draft, attachments: files }, sendAt), 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -811,6 +881,7 @@ mailRoutes.post("/threads/:id/reply", requireTrustedOrigin, requireSession, asyn
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
     const userId = c.get("session").user.id
+    await countSend(c.get("session").user.id)
     await replyToThread(userId, c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
     await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
@@ -823,6 +894,7 @@ mailRoutes.post("/threads/:id/forward", requireTrustedOrigin, requireSession, as
   const body = await readBody(c, forwardBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
+    await countSend(c.get("session").user.id)
     await forwardThread(c.get("session").user.id, c.req.param("id"), body)
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
@@ -857,6 +929,7 @@ mailRoutes.post("/accounts/:id/send", requireTrustedOrigin, requireSession, asyn
     return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
     const userId = c.get("session").user.id
+    await countSend(c.get("session").user.id)
     await sendMessage(userId, c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
     await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
@@ -902,6 +975,7 @@ mailRoutes.post("/accounts/:id/drafts/:draftId/send", requireTrustedOrigin, requ
     const draftId = c.req.param("draftId")
     const userId = c.get("session").user.id
     const files = await loadAttachments(userId, body.attachments)
+    await countSend(c.get("session").user.id)
     await sendDraft(userId, c.req.param("id"), { ...body, attachments: files, draftId })
     await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
@@ -1013,7 +1087,7 @@ mailRoutes.get("/accounts/:id/conversation/summary", requireSession, async (c) =
     const conversation = await conversationOf(c)
     if (!conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const hidden = c.req.query("hidden") === "1"
-    return c.json(await summaryFor({ ...conversation, hidden }, languageOf(c), summaryOptions(c)), 200, noStore)
+    return c.json(await summaryFor({ ...conversation, hidden }, languageOf(c), await summaryOptions(c)), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
     return failure(c, error)
@@ -1026,7 +1100,9 @@ mailRoutes.post("/accounts/:id/conversation/write", requireTrustedOrigin, requir
     const conversation = await conversationOf(c)
     if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const { messages } = await readConversation(conversation, { includeHidden: c.req.query("hidden") === "1" })
-    return streamed(c, await streamMessage(writeRequest(c, body), { language: languageOf(c), conversation: messages }))
+    const userId = c.get("session").user.id
+    await countAiRequest(userId)
+    return streamed(c, await streamMessage(writeRequest(c, body), { userId, language: languageOf(c), conversation: messages }))
   } catch (error) {
     return writeFailure(c, error)
   }
@@ -1050,6 +1126,7 @@ mailRoutes.post("/accounts/:id/conversation/reply", requireTrustedOrigin, requir
     const conversation = await conversationOf(c)
     if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const userId = c.get("session").user.id
+    await countSend(c.get("session").user.id)
     await replyInConversation(conversation, { ...body, attachments: await loadAttachments(userId, body.attachments) })
     await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
@@ -1063,6 +1140,7 @@ mailRoutes.post("/accounts/:id/conversation/forward", requireTrustedOrigin, requ
   try {
     const conversation = await conversationOf(c)
     if (!body || !conversation) return c.json({ error: msg(c, "invalidRequest") }, 400)
+    await countSend(c.get("session").user.id)
     await forwardFromConversation(conversation, body)
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {

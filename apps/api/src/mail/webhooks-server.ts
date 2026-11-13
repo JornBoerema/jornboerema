@@ -1,6 +1,9 @@
 import { getDb, type MailAccount } from "@evido/db"
 import { secretsMatch, webhookClientState } from "@evido/mail-core/secrets"
+import { mailEmails, sendEmail } from "@evido/email"
+import { ReauthRequiredError } from "@evido/mail-core/provider"
 import { z } from "zod"
+import { defer } from "../lib/defer"
 import { notifyMailChanged } from "../lib/realtime"
 import { env } from "../env"
 import { withAccessToken } from "./accounts-server"
@@ -9,6 +12,8 @@ import { syncAccount } from "./sync-server"
 /** Renewed this long before expiry, so one missed daily run changes nothing. */
 const RENEW_BEFORE_MS = 3 * 24 * 60 * 60 * 1000
 const RENEW_CONCURRENCY = 5
+/** The daily run shares one 30 second function; what is left waits a day, well inside the margin. */
+const RENEW_BUDGET_MS = 18 * 1000
 
 const webhookSecret = () => process.env.MAIL_WEBHOOK_SECRET ?? ""
 
@@ -49,25 +54,34 @@ export async function renewWatches() {
         { watchExpiresAt: { lt: new Date(Date.now() + RENEW_BEFORE_MS) } },
       ],
     },
+    // Closest to expiring first, so a run that runs out of time leaves the least urgent.
+    orderBy: { watchExpiresAt: { sort: "asc", nulls: "first" } },
   })
   let renewed = 0
   let failed = 0
-  for (let start = 0; start < accounts.length; start += RENEW_CONCURRENCY) {
+  const reasons = new Set<string>()
+  const deadline = Date.now() + RENEW_BUDGET_MS
+  let start = 0
+  for (; start < accounts.length && Date.now() < deadline; start += RENEW_CONCURRENCY) {
     const results = await Promise.allSettled(
       accounts.slice(start, start + RENEW_CONCURRENCY).map(ensureWatch)
     )
     for (const result of results) {
       if (result.status === "fulfilled") renewed++
-      else {
+      // A mailbox whose access ended is no failure: its owner was told to connect it again.
+      else if (!(result.reason instanceof ReauthRequiredError)) {
         failed++
-        console.error(
-          "Mail watch renewal failed",
-          result.reason instanceof Error ? result.reason.message : "unknown"
-        )
+        const reason = result.reason instanceof Error ? result.reason.message : "unknown"
+        reasons.add(reason.slice(0, 200))
+        console.error("Mail watch renewal failed", reason)
       }
     }
   }
-  return { renewed, failed }
+  const left = Math.max(0, accounts.length - start)
+  if (failed > 0)
+    for (const to of env.adminEmails)
+      defer(() => sendEmail(mailEmails.watchesFailed({ to, failed, renewed, reasons: [...reasons].slice(0, 10) })))
+  return { renewed, failed, left }
 }
 
 async function syncAndNotify(account: MailAccount) {

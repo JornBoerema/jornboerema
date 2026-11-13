@@ -70,12 +70,15 @@ export function AuthForm({
   client: authClient,
   texts: t,
   returnTo = "/",
+  legal,
 }: {
   mode: AuthMode;
   client: EvidoAuthClient;
   texts: AuthTexts;
   /** Where to continue after signing in: a path here, or an app's absolute URL. */
   returnTo?: string;
+  /** Under the sign-up button: what making an account agrees to. */
+  legal?: React.ReactNode;
 }) {
   const copy = t;
   const navigate = useNavigate();
@@ -296,6 +299,7 @@ export function AuthForm({
             {copy[mode].action}
             {!pending && <HugeiconsIcon icon={ArrowRight02Icon} {...ICON} data-icon="inline-end" />}
           </Button>
+          {mode === "register" && legal && <p className="auth-legal">{legal}</p>}
         </form>
       )}
       <p className="auth-switch">

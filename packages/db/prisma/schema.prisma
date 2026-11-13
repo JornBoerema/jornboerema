@@ -49,6 +49,7 @@ model User {
   connections            Connection[]
   todoAssignments        TodoAssignee[]
   todoAttachments        TodoAttachment[]
+  aiUsage                AiUsage[]
 
   @@map("user")
 }
@@ -1001,4 +1002,24 @@ model RealtimePing {
   updatedAt DateTime @default(now()) @map("updated_at")
 
   @@map("realtime_pings")
+}
+
+// ─── AI spend (per user) ────────────────────────────────────────────────────
+
+/// What the AI features cost one user in one month, per feature. The monthly limit reads this.
+model AiUsage {
+  userId       String @map("user_id")
+  /// The calendar month in UTC, as "2026-11".
+  month        String
+  /// "summary", "replies", "write" or "translate".
+  feature      String
+  requests     Int    @default(0)
+  inputTokens  Int    @default(0) @map("input_tokens")
+  outputTokens Int    @default(0) @map("output_tokens")
+  /// Millionths of a US dollar.
+  costMicros   Int    @default(0) @map("cost_micros")
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, month, feature])
+  @@map("ai_usage")
 }

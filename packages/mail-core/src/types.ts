@@ -195,7 +195,14 @@ export function replyRecipients(message: MailThreadMessage, selfEmail: string, a
 }
 
 /** Reason codes the OAuth callback hands back to the web app in `?error=`. */
-export type ConnectErrorCode = "denied" | "expired" | "session" | "missing_scope" | "failed"
+export type ConnectErrorCode =
+  | "denied"
+  | "expired"
+  | "session"
+  | "missing_scope"
+  /** The organization only lets its admin approve apps. */
+  | "admin_consent"
+  | "failed"
 
 /** A saved, unsent message as the drafts list shows it. Read live from the provider. */
 export type MailDraftView = {

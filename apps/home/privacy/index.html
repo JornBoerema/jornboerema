@@ -18,7 +18,7 @@
         <h1>Privacy policy</h1>
         <p class="intro">
           This policy covers <em>Even mailen</em>, an email app that shows the Gmail and
-          Outlook mailboxes you connect to it. Last updated 8 November 2026.
+          Outlook mailboxes you connect to it. Last updated 13 November 2026.
         </p>
       </header>
 
@@ -43,13 +43,29 @@
           <li>Your Evido account: name, email address and sign-in details.</li>
           <li>For each connected mailbox: its address, your name and encrypted access tokens.</li>
           <li>
-            Message details needed for your inbox list: sender, recipients, subject, a short
-            preview, date, folder and read status.
+            Message details needed for your mail lists, up to a year back: sender, recipients,
+            subject, a short preview, date, folder and read status.
           </li>
+          <li>
+            What the app worked out for you, so it doesn't have to read the same mail twice: a
+            short summary and reply suggestions per conversation, a one-time code, and for
+            parcels and invoices the details shown in their lists (such as carrier, tracking
+            code, amount and due date).
+          </li>
+          <li>
+            What you set up yourself: signatures, settings, pinned and snoozed conversations,
+            and the subject and recipients of mail scheduled to send later.
+          </li>
+          <li>Attachments you are adding to a message, until it is sent or two days pass.</li>
+          <li>
+            If you turn on notifications on a phone or tablet: the address Apple gives that
+            device for notifications.
+          </li>
+          <li>How much the AI features were used on your account each month, without any mail.</li>
         </ul>
         <p>
-          Message bodies and attachments are not stored. They are fetched from Google or
-          Microsoft when you open a message.
+          Message bodies and attachments from your mailbox are not stored. They are fetched from
+          Google or Microsoft when you open a message.
         </p>
 
         <h2>How your data is used</h2>
@@ -64,18 +80,40 @@
           including the Limited Use requirements.
         </p>
 
-        <h2>Who processes it</h2>
+        <h2>AI features</h2>
         <p>
-          The app runs on Vercel and stores data in a Neon database, both hosting data in the
-          European Union where available. Google and Microsoft provide your mailbox. Ably may
-          deliver live update signals, and Resend sends account emails. Your data is not shared
-          with anyone else.
+          Summaries, reply suggestions, translation and help with writing are made by a language
+          model. For these, the text of the conversation you are looking at is sent to the model
+          and the answer comes back; it is sent through OpenRouter to Anthropic's Claude, only
+          to providers that agreed not to keep what they receive and not to train on it. One-time
+          codes, parcels and invoices are recognised by the app itself, without a model.
         </p>
+        <p>
+          Summaries, reply suggestions and writing help can each be turned off in the app's
+          privacy settings; translation only runs when you ask for it. Turned off, nothing from
+          your mail is sent to a model.
+        </p>
+
+        <h2>Who processes it</h2>
+        <p>These companies process data for the app, each only for its own part:</p>
+        <ul>
+          <li>Google and Microsoft: your mailbox itself, which stays with them.</li>
+          <li>Vercel: runs the app, in Frankfurt.</li>
+          <li>Neon: the database, and the signal that tells an open app something changed.</li>
+          <li>OpenRouter and Anthropic (United States): the AI features described above.</li>
+          <li>Trigger.dev: the timer for snoozed mail and mail sent later. It sees no mail.</li>
+          <li>Resend: emails about your account.</li>
+          <li>Apple: notifications on iPhone and iPad, if you turn them on.</li>
+          <li>Moneybird: only if you connect it yourself, the invoices you choose to send there.</li>
+        </ul>
+        <p>Your data is not shared with anyone else.</p>
 
         <h2>Security</h2>
         <p>
           Access tokens are encrypted at rest and never sent to your browser. All connections
-          use HTTPS.
+          use HTTPS. Mail is shown in a sealed frame that can't run scripts, and pictures from
+          outside are not loaded until you allow them, so a sender can't see that you opened
+          their mail.
         </p>
 
         <h2>Deleting your data</h2>
@@ -98,6 +136,7 @@
       <footer>
         <span>© 2026</span>
         <a href="/">Home</a>
+        <a href="/terms">Terms</a>
       </footer>
     </main>
   </body>

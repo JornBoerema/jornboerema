@@ -16,6 +16,7 @@ import {
   type MailAccountView,
   type MailProviderId,
 } from "@evido/mail-core/types"
+import { mailEmails, sendEmail } from "@evido/email"
 import { defer } from "../lib/defer"
 import { env } from "../env"
 
@@ -96,6 +97,11 @@ export async function startConnect(userId: string, providerId: MailProviderId) {
     codeChallenge,
     redirectUri: redirectUri(providerId),
   })
+}
+
+/** The link an organization's admin opens to approve Even mailen for everyone in it. */
+export function outlookAdminConsentUrl() {
+  return providerFor("outlook").adminConsentUrl?.({ redirectUri: redirectUri("outlook") }) ?? null
 }
 
 /** Finishes a connect flow. The state only works once, for the user who started it. */
@@ -203,13 +209,22 @@ export async function withAccessToken<T>(
   try {
     return await call(provider, await validAccessToken(account, provider, tokenKey()))
   } catch (error) {
-    if (error instanceof ReauthRequiredError)
-      await getDb().mailAccount.update({
-        where: { id: account.id },
+    if (error instanceof ReauthRequiredError) {
+      const { count } = await getDb().mailAccount.updateMany({
+        where: { id: account.id, status: "active" },
         data: { status: "reauth_required" },
       })
+      // Only the call that flipped it writes: mail stops arriving, and nobody may be looking.
+      if (count === 1) defer(() => tellOwnerToReconnect(account))
+    }
     throw error
   }
+}
+
+async function tellOwnerToReconnect(account: MailAccount) {
+  const owner = await getDb().user.findUnique({ where: { id: account.userId }, select: { email: true } })
+  if (!owner) return
+  await sendEmail(mailEmails.reconnect({ to: owner.email, mailbox: account.email, url: `${env.mailWebUrl}/?settings=mailboxes` }))
 }
 
 export async function ownedAccount(userId: string, id: string) {

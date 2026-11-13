@@ -43,6 +43,19 @@
   text-align: center;
   color: var(--muted-foreground);
 }
+.auth-legal {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.auth-legal a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.auth-legal a:hover {
+  color: var(--foreground);
+}
 .auth-switch a,
 .form-link {
   color: var(--foreground);

@@ -39,6 +39,17 @@ export function createOutlookProvider({
       return `${OAUTH_BASE}/authorize?${params}`
     },
 
+    adminConsentUrl({ redirectUri }) {
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        // Exactly what a mailbox asks for, so one approval covers every colleague.
+        scope: SCOPES.filter((name) => name.includes(".")).map((name) => `https://graph.microsoft.com/${name}`).join(" "),
+        state: "admin",
+      })
+      return `https://login.microsoftonline.com/organizations/v2.0/adminconsent?${params}`
+    },
+
     exchangeCode({ code, codeVerifier, redirectUri }) {
       return requestTokens(`${OAUTH_BASE}/token`, {
         grant_type: "authorization_code",

@@ -633,12 +633,24 @@ export const nl: typeof en = {
     inbox: (total: number, unread: number) => `Inbox: ${total} berichten, ${unread} ongelezen`,
     inboxLoading: "Inbox controleren…",
     inboxFailed: "Inbox niet beschikbaar",
+    gmailInviteOnly: "Voorlopig alleen op uitnodiging",
+    gmailAsk: "Uitnodiging aanvragen",
+    gmailAsked: "Uitnodiging aangevraagd",
+    gmailAskedHelp: "Je krijgt een e-mail zodra je Gmail kunt koppelen.",
+    adminTitle: "Werk- of schoolaccount?",
+    adminHelp:
+      "Bij sommige organisaties mag alleen de IT-beheerder nieuwe apps goedkeuren. Vraagt Microsoft om goedkeuring van een beheerder, stuur je beheerder dan deze link: één goedkeuring geldt voor iedereen.",
+    adminCopy: "Link voor je beheerder kopiëren",
+    adminCopied: "Link gekopieerd. Stuur hem naar je IT-beheerder.",
+    adminCopyFailed: "De link kon niet worden gekopieerd.",
   },
   connectErrors: {
     denied: "Koppelen is geannuleerd, of je organisatie staat deze app niet toe.",
     expired: "Dat duurde te lang. Probeer het opnieuw.",
     session: "Log eerst in en koppel daarna je mailbox.",
     missing_scope: "Geef op het Google-scherm toegang tot je mail om deze mailbox te koppelen.",
+    admin_consent:
+      "Je organisatie laat alleen de IT-beheerder nieuwe apps goedkeuren. Kopieer hieronder bij Outlook de link voor je beheerder en stuur die door.",
     failed: "Koppelen is niet gelukt. Probeer het opnieuw.",
   },
 }

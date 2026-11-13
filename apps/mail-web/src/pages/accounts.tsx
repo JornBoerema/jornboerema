@@ -183,6 +183,64 @@ function AccountRow({ account }: { account: MailAccountView }) {
   )
 }
 
+type GmailAccess = { access: boolean; requested: boolean }
+const GMAIL_ACCESS_KEY = ["mail-access", "gmail"]
+
+/** Gmail takes an invitation for now; whoever has none can ask for one here. */
+function GmailRow({ connecting, onConnect }: { connecting: boolean; onConnect: () => void }) {
+  const t = useI18n().t.accounts
+  const queryClient = useQueryClient()
+  const check = useQuery({ queryKey: GMAIL_ACCESS_KEY, queryFn: () => api<GmailAccess>("/api/access/gmail") })
+  const ask = useMutation({
+    mutationFn: () => api<GmailAccess>("/api/access/gmail/request", { method: "POST" }),
+    onSuccess: (data) => queryClient.setQueryData(GMAIL_ACCESS_KEY, data),
+    onError: (error) => toast.error(errorText(error)),
+  })
+  // Unknown (still loading, or the check failed): offer to connect; the API refuses outsiders itself.
+  const locked = check.data?.access === false
+  const asked = locked && check.data?.requested
+
+  return (
+    <SettingsRow
+      title={PROVIDER_NAMES.gmail}
+      description={locked ? (asked ? t.gmailAskedHelp : t.gmailInviteOnly) : undefined}
+    >
+      {locked ? (
+        <Button size="sm" variant="outline" disabled={asked || ask.isPending} onClick={() => ask.mutate()}>
+          {asked ? t.gmailAsked : t.gmailAsk}
+        </Button>
+      ) : (
+        <Button size="sm" variant="outline" disabled={connecting} onClick={onConnect}>
+          {t.connect}
+        </Button>
+      )}
+    </SettingsRow>
+  )
+}
+
+/** For organizations where only the IT admin may approve an app: a link to send them. */
+function AdminConsentRow() {
+  const t = useI18n().t.accounts
+  const copy = useMutation({
+    mutationFn: async () => {
+      const { url } = await api<{ url: string | null }>("/api/mail/outlook/admin-consent")
+      if (!url) throw new Error(t.adminCopyFailed)
+      await navigator.clipboard.writeText(url).catch(() => {
+        throw new Error(t.adminCopyFailed)
+      })
+    },
+    onSuccess: () => toast.success(t.adminCopied),
+    onError: (error) => toast.error(errorText(error)),
+  })
+  return (
+    <SettingsRow title={t.adminTitle} description={t.adminHelp}>
+      <Button size="sm" variant="outline" disabled={copy.isPending} onClick={() => copy.mutate()}>
+        {t.adminCopy}
+      </Button>
+    </SettingsRow>
+  )
+}
+
 export function AccountsPage() {
   const t = useI18n().t.accounts
   useConnectResult()
@@ -200,13 +258,13 @@ export function AccountsPage() {
         ))}
       </SettingsSection>
       <SettingsSection title={t.connectTitle} description={t.connectHelp}>
-        {(["gmail", "outlook"] as const).map((provider) => (
-          <SettingsRow key={provider} title={PROVIDER_NAMES[provider]}>
-            <Button size="sm" variant="outline" disabled={connect.isPending} onClick={() => connect.mutate(provider)}>
-              {t.connect}
-            </Button>
-          </SettingsRow>
-        ))}
+        <SettingsRow title={PROVIDER_NAMES.outlook}>
+          <Button size="sm" variant="outline" disabled={connect.isPending} onClick={() => connect.mutate("outlook")}>
+            {t.connect}
+          </Button>
+        </SettingsRow>
+        <GmailRow connecting={connect.isPending} onConnect={() => connect.mutate("gmail")} />
+        <AdminConsentRow />
       </SettingsSection>
     </>
   )

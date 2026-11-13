@@ -14,6 +14,19 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       client={authClient}
       texts={{ ...t.auth, noConnection: t.common.noConnection }}
       returnTo={useReturnTo()}
+      legal={
+        <>
+          {t.auth.legal.before}{" "}
+          <a href="https://jornboerema.nl/terms" target="_blank" rel="noopener">
+            {t.auth.legal.terms}
+          </a>{" "}
+          {t.auth.legal.and}{" "}
+          <a href="https://jornboerema.nl/privacy" target="_blank" rel="noopener">
+            {t.auth.legal.privacy}
+          </a>
+          .
+        </>
+      }
     />
   )
 }

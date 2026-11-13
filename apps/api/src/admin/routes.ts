@@ -5,7 +5,7 @@ import { getDb } from "@evido/db"
 import { accessEmails, queueEmail } from "@evido/email"
 import { env } from "../env"
 import { languageOf, msg } from "../i18n"
-import { forgetAccess, hasAppAccess, isAdmin, requestAccess, requireAdmin } from "../lib/access"
+import { canUse, forgetAccess, isAdmin, requestAccess, requireAdmin } from "../lib/access"
 import { APPS, findApp } from "../lib/apps"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
 import { GithubError, getStatus } from "./status"
@@ -17,7 +17,7 @@ accessRoutes.get("/:app", requireSession, async (c) => {
   const app = findApp(c.req.param("app"))
   if (!app) return c.json({ error: msg(c, "invalidRequest") }, 404)
   const user = c.get("session").user
-  const access = !app.inviteOnly || (await hasAppAccess(user, app.id))
+  const access = await canUse(user, app.id)
   const requested = access
     ? false
     : Boolean(await getDb().appAccessRequest.findUnique({ where: { app_userId: { app: app.id, userId: user.id } } }))
@@ -28,7 +28,7 @@ accessRoutes.post("/:app/request", requireTrustedOrigin, requireSession, async (
   const app = findApp(c.req.param("app"))
   if (!app) return c.json({ error: msg(c, "invalidRequest") }, 404)
   const user = c.get("session").user
-  if (await hasAppAccess(user, app.id)) return c.json({ access: true, requested: false }, 200, noStore)
+  if (await canUse(user, app.id)) return c.json({ access: true, requested: false }, 200, noStore)
   const { created } = await requestAccess(user.id, app.id)
   // One mail per request, not per click.
   if (created)
@@ -64,7 +64,7 @@ adminRoutes.get("/apps", async (c) => {
       id: app.id,
       name: app.name,
       url: app.url(),
-      inviteOnly: app.inviteOnly,
+      inviteOnly: app.inviteOnly(),
       members: await db.appAccess.count({ where: { app: app.id } }),
       invites: await db.appInvite.count({ where: { app: app.id, acceptedAt: null } }),
       requests: await db.appAccessRequest.count({ where: { app: app.id } }),
@@ -89,7 +89,7 @@ adminRoutes.get("/apps/:app", async (c) => {
   ])
   return c.json(
     {
-      app: { id: app.id, name: app.name, url: app.url(), inviteOnly: app.inviteOnly },
+      app: { id: app.id, name: app.name, url: app.url(), inviteOnly: app.inviteOnly() },
       members: members.map((member) => ({ ...member.user, grantedAt: member.grantedAt, grantedBy: member.grantedBy })),
       invites: invites.map(({ id, email, invitedBy, createdAt }) => ({ id, email, invitedBy, createdAt })),
       requests: requests.map((request) => ({ id: request.id, createdAt: request.createdAt, user: request.user })),

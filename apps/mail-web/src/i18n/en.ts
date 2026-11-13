@@ -632,12 +632,24 @@ export const en = {
     inbox: (total: number, unread: number) => `Inbox: ${total} messages, ${unread} unread`,
     inboxLoading: "Checking inbox…",
     inboxFailed: "Inbox unavailable",
+    gmailInviteOnly: "Invite-only for now",
+    gmailAsk: "Ask for an invitation",
+    gmailAsked: "Invitation requested",
+    gmailAskedHelp: "You'll get an email as soon as you can connect Gmail.",
+    adminTitle: "Work or school account?",
+    adminHelp:
+      "Some organizations only let their IT admin approve new apps. If Microsoft asks for admin approval, send your admin this link: one approval covers everyone.",
+    adminCopy: "Copy link for your admin",
+    adminCopied: "Link copied. Send it to your IT admin.",
+    adminCopyFailed: "The link couldn't be copied.",
   },
   connectErrors: {
     denied: "Connecting was cancelled, or your organization doesn't allow this app.",
     expired: "That took too long. Please try again.",
     session: "Sign in first, then connect your mailbox.",
     missing_scope: "Allow access to your mail on the Google screen to connect this mailbox.",
+    admin_consent:
+      "Your organization only lets its IT admin approve new apps. Copy the link for your admin under Outlook below and send it to them.",
     failed: "Connecting failed. Please try again.",
   },
 }

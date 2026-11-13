@@ -1,8 +1,8 @@
 import { htmlToText } from "@evido/mail-core/gmail-send"
 import type { MailThreadMessage } from "@evido/mail-core/types"
 import type { Language } from "@evido/i18n"
+import { AiBudgetError, askModel, chargeAiLater, type AiUsageReport } from "../lib/ai"
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 /** Fast and good at Dutch. OPENROUTER_WRITE_MODEL picks another. */
 const DEFAULT_MODEL = "anthropic/claude-haiku-5.5"
 /** The conversation a reply answers, newest part kept when long. */
@@ -48,7 +48,7 @@ function conversationText(messages: MailThreadMessage[]) {
  */
 export async function streamMessage(
   input: WriteRequest,
-  options: { language: Language; conversation?: MailThreadMessage[] }
+  options: { userId: string; language: Language; conversation?: MailThreadMessage[] }
 ): Promise<ReadableStream<Uint8Array>> {
   const key = process.env.OPENROUTER_API_KEY
   if (!key) throw new WriteNotConfiguredError()
@@ -85,47 +85,52 @@ export async function streamMessage(
     `<instruction>\n${input.instruction.trim()}\n</instruction>`,
   ].filter(Boolean)
 
-  const response = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://mail.jornboerema.nl",
-      "X-Title": "Even mailen",
-    },
-    body: JSON.stringify({
+  const response = await askModel(
+    options.userId,
+    key,
+    {
       model: process.env.OPENROUTER_WRITE_MODEL || DEFAULT_MODEL,
       stream: true,
       temperature: 0.5,
       max_tokens: 1200,
-      reasoning: { enabled: false },
-      // Only providers that neither keep nor train on what they are sent.
-      provider: { data_collection: "deny" },
       messages: [
         { role: "system", content: system },
         { role: "user", content: parts.join("\n\n") },
       ],
-    }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  }).catch((error: unknown) => {
+    },
+    TIMEOUT_MS
+  ).catch((error: unknown) => {
+    if (error instanceof AiBudgetError) throw error
     throw new WriteFailedError(String(error))
   })
   if (!response.ok || !response.body) throw new WriteFailedError(`OpenRouter answered ${response.status}`)
-  return response.body.pipeThrough(new TextDecoderStream()).pipeThrough(contentOfEvents()).pipeThrough(new TextEncoderStream())
+  return response.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(contentOfEvents((usage) => chargeAiLater(options.userId, "write", usage)))
+    .pipeThrough(new TextEncoderStream())
 }
 
-/** Server-sent events from OpenRouter in, only the written text out. */
-function contentOfEvents() {
+/**
+ * Server-sent events from OpenRouter in, only the written text out. The last
+ * event names what the answer cost; a stream cut short is charged by its length.
+ */
+function contentOfEvents(onDone: (usage: AiUsageReport) => void) {
   let buffer = ""
+  let written = 0
+  let usage: AiUsageReport | undefined
   const emit = (line: string, controller: TransformStreamDefaultController<string>) => {
     // Comments keep the connection open; [DONE] ends it.
     if (!line.startsWith("data:")) return
     const data = line.slice(5).trim()
     if (!data || data === "[DONE]") return
     try {
-      const event = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] }
+      const event = JSON.parse(data) as { choices?: { delta?: { content?: string } }[]; usage?: AiUsageReport }
+      if (event.usage) usage = event.usage
       const text = event.choices?.[0]?.delta?.content
-      if (text) controller.enqueue(text)
+      if (text) {
+        written += text.length
+        controller.enqueue(text)
+      }
     } catch {
       // A broken event is skipped; the rest still arrives.
     }
@@ -139,6 +144,8 @@ function contentOfEvents() {
     },
     flush(controller) {
       emit(buffer, controller)
+      // About four characters to a token, when the stream never said.
+      onDone(usage ?? { completion_tokens: Math.ceil(written / 4) })
     },
   })
 }

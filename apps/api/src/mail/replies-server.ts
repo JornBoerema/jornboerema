@@ -4,9 +4,9 @@ import { findOneTimeCode } from "@evido/mail-core/codes"
 import { htmlToText } from "@evido/mail-core/gmail-send"
 import type { MailReplySuggestion, MailThreadMessage } from "@evido/mail-core/types"
 import type { Language } from "@evido/i18n"
+import { askModel, chargeAi, type AiUsageReport } from "../lib/ai"
 import { readConversation, type Conversation } from "./threads-server"
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 /** Fast and good at Dutch. OPENROUTER_REPLY_MODEL picks another. */
 const DEFAULT_MODEL = "anthropic/claude-haiku-5.5"
 /** Long threads keep their newest part. */
@@ -66,25 +66,17 @@ export function parseReplies(content: string): MailReplySuggestion[] {
   }
 }
 
-async function modelReplies(messages: MailThreadMessage[], language: Language, userName: string) {
+async function modelReplies(userId: string, messages: MailThreadMessage[], language: Language, userName: string) {
   const key = process.env.OPENROUTER_API_KEY
   if (!key) return []
   const fallback = LANGUAGE_NAMES[language]
-  const response = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://mail.jornboerema.nl",
-      "X-Title": "Even mailen",
-    },
-    body: JSON.stringify({
+  const response = await askModel(
+    userId,
+    key,
+    {
       model: process.env.OPENROUTER_REPLY_MODEL || DEFAULT_MODEL,
       temperature: 0.4,
       max_tokens: 900,
-      reasoning: { enabled: false },
-      // Only providers that neither keep nor train on what they are sent.
-      provider: { data_collection: "deny" },
       messages: [
         {
           role: "system",
@@ -104,11 +96,15 @@ async function modelReplies(messages: MailThreadMessage[], language: Language, u
         },
         { role: "user", content: `<conversation>\n${conversationText(messages)}\n</conversation>` },
       ],
-    }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  })
+    },
+    TIMEOUT_MS
+  )
   if (!response.ok) throw new RepliesFailedError(`OpenRouter answered ${response.status}`)
-  const body = (await response.json()) as { choices?: { message?: { content?: string } }[] }
+  const body = (await response.json()) as {
+    choices?: { message?: { content?: string } }[]
+    usage?: AiUsageReport
+  }
+  await chargeAi(userId, "replies", body.usage)
   return parseReplies(body.choices?.[0]?.message?.content ?? "")
 }
 
@@ -148,7 +144,7 @@ export async function repliesFor(
 
   const replies = plainlyNoReply(newest, conversation.account.email)
     ? []
-    : await modelReplies(messages, language, userName)
+    : await modelReplies(conversation.account.userId, messages, language, userName)
   await db.mailSummary.upsert({
     where: keyOf(newest.id),
     create: {

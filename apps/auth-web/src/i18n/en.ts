@@ -30,6 +30,7 @@ export const en = {
       description: "Create an account for Even doen, Even mailen, Even noteren and the Even desktop app.",
       action: "Create account",
     },
+    legal: { before: "By creating an account you agree to the", terms: "terms", and: "and the", privacy: "privacy policy" },
     forgot: {
       title: "Forgot your password?",
       description: "We'll send you a link to choose a new password.",

@@ -32,6 +32,7 @@ export const nl: typeof en = {
       description: "Maak een account voor Even doen, Even mailen, Even noteren en de Even-desktopapp.",
       action: "Account maken",
     },
+    legal: { before: "Met een account ga je akkoord met de", terms: "voorwaarden", and: "en de", privacy: "privacyverklaring" },
     forgot: {
       title: "Wachtwoord vergeten?",
       description: "We sturen je een link om een nieuw wachtwoord te kiezen.",

@@ -3,7 +3,7 @@ import { createMiddleware } from "hono/factory"
 import { getDb } from "@evido/db"
 import { env } from "../env"
 import { msg } from "../i18n"
-import type { AppId } from "./apps"
+import { findApp, mailOpen, type AppId } from "./apps"
 import type { AppEnv } from "./session"
 
 type SessionUser = { id: string; email: string; emailVerified: boolean }
@@ -45,10 +45,29 @@ export async function hasAppAccess(user: SessionUser, app: AppId) {
   return allowed
 }
 
+/**
+ * Gmail for those who had it before it took its own invitation: everyone while
+ * Even mailen itself is invite-only, and afterwards whoever was let into Even
+ * mailen in that time or already has a Gmail mailbox connected.
+ */
+async function hadGmailBefore(userId: string) {
+  if (!mailOpen()) return true
+  const db = getDb()
+  if (await db.appAccess.findUnique({ where: { userId_app: { userId, app: "mail" } } })) return true
+  return Boolean(await db.mailAccount.findFirst({ where: { userId, provider: "gmail" }, select: { id: true } }))
+}
+
+/** Whether the user may use an app: open ones always, invite-only ones when let in. */
+export async function canUse(user: SessionUser, app: AppId) {
+  if (!findApp(app)?.inviteOnly()) return true
+  if (await hasAppAccess(user, app)) return true
+  return app === "gmail" && (await hadGmailBefore(user.id))
+}
+
 /** After requireSession: answers 403 with `noAccess` for users not let in yet. */
 export const requireAppAccess = (app: AppId) =>
   createMiddleware<AppEnv>(async (c, next) => {
-    if (!(await hasAppAccess(c.get("session").user, app)))
+    if (!(await canUse(c.get("session").user, app)))
       return c.json({ error: msg(c, "noAppAccess"), noAccess: true }, 403)
     await next()
   })
