@@ -17,6 +17,21 @@
         ],
         "createdAt": "2026-11-09T13:39:40.040Z",
         "reason": "User asked for a homepage in the style of their t3.gg screenshot: small name, hierarchy through weight and color instead of size"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-11-13T14:22:50.809Z",
+        "reason": "agent triage: the outgoing mail's HTML wrapper, copied from the web's toEmailHtml (apps/mail-web/src/lib/email-compose.ts); mail clients need a system font, it is not interface type"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/even-native/assets/editor/editor.css"
+        ],
+        "createdAt": "2026-11-13T14:22:50.825Z",
+        "reason": "agent triage: blockquote quote bars, copied 1:1 from .note-prose and .mail-editor in the web apps' CSS; not card accents"
       }
     ]
   }
