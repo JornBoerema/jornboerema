@@ -87,9 +87,8 @@ impl AppId {
 }
 
 /// Shown in the rail, greyed out, until they are built.
-const UPCOMING: [(&str, &str); 3] = [
+const UPCOMING: [(&str, &str); 2] = [
     ("Even plannen", "calendar-03"),
-    ("Even uren", "clock-01"),
     ("Even chatten", "bubble-chat"),
 ];
 
