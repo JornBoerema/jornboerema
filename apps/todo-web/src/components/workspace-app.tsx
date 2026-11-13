@@ -265,7 +265,7 @@ export function WorkspaceApp({
                               <MoreHorizontal className="size-4" aria-hidden="true" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="min-w-44">
+                          <DropdownMenuContent align="start" className="board-menu min-w-36">
                             <DropdownMenuItem onSelect={() => setSharingList(list)}>
                               <Share aria-hidden="true" />{board ? bt.list.share : t.list.shareList}
                             </DropdownMenuItem>
