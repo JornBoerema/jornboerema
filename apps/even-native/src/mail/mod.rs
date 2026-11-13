@@ -79,6 +79,17 @@ pub(crate) const TITLE_BAR: f32 = 52.;
 /// The mail view tells the app when the session lapsed.
 pub struct SignedOut;
 impl EventEmitter<SignedOut> for MailView {}
+impl EventEmitter<crate::app::AppEvent> for MailView {}
+
+impl crate::app::EvenApp for MailView {
+    fn activated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.focus(window, cx);
+    }
+
+    fn set_covered(&mut self, covered: bool, _: &mut Window, cx: &mut Context<Self>) {
+        MailView::set_covered(self, covered, cx);
+    }
+}
 
 pub struct MailView {
     client: Client,
@@ -120,6 +131,9 @@ pub struct MailView {
     /// Bumped on every search, so a slow older answer can't replace a newer one.
     search_generation: u64,
     found: UniformListScrollHandle,
+    /// Something lies over the mail (the settings) or another app shows: the
+    /// webview is a system view above everything GPUI draws, so it must go.
+    covered: bool,
     _poll: Task<()>,
     _ipc: Task<()>,
     _search_events: Subscription,
@@ -175,6 +189,7 @@ impl MailView {
             search: None,
             search_generation: 0,
             found: UniformListScrollHandle::new(),
+            covered: false,
             _poll: poll,
             _ipc: ipc_task,
             _search_events: search_events,
@@ -182,6 +197,26 @@ impl MailView {
         view.load_accounts(cx);
         view.load(true, cx);
         view
+    }
+
+    /// Hides the mail's system webview while something must show above it, or
+    /// while another app has the window.
+    pub fn set_covered(&mut self, covered: bool, cx: &mut Context<Self>) {
+        if self.covered == covered {
+            return;
+        }
+        self.covered = covered;
+        if covered {
+            if let Some(webview) = &self.webview {
+                webview.update(cx, |webview, _| webview.hide());
+            }
+        }
+        cx.notify();
+    }
+
+    /// Takes the keyboard: the shortcuts work once the app shows.
+    pub fn focus(&self, window: &mut Window, cx: &mut App) {
+        window.focus(&self.focus, cx);
     }
 
     fn load_accounts(&mut self, cx: &mut Context<Self>) {

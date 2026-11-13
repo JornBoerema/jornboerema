@@ -197,8 +197,11 @@ impl MailView {
             let _ = webview.read(cx).load_html(&document);
             self.shown = Some(wanted);
         }
+        let covered = self.covered;
         webview.update(cx, |webview, _| {
-            if !webview.visible() {
+            if covered {
+                webview.hide();
+            } else if !webview.visible() {
                 webview.show();
             }
         });

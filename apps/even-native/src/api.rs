@@ -28,6 +28,18 @@ pub fn auth_url() -> String {
 /// This app is a desktop app like the Tauri one, so it says so the same way.
 const DESKTOP_ORIGIN: &str = "tauri://localhost";
 
+/// The signed-in person.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    pub email: String,
+    #[serde(default)]
+    pub image: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
@@ -335,6 +347,113 @@ impl Client {
             .set("Origin", DESKTOP_ORIGIN)
     }
 
+    /// The session token, for a download or upload outside this client.
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
+    fn request(&self, method: &str, path: &str) -> ureq::Request {
+        let request = self
+            .agent
+            .request(method, &format!("{}{path}", self.base))
+            .set("Authorization", &format!("Bearer {}", self.token))
+            .set("Accept-Language", crate::i18n::lang().code());
+        // Changes need a trusted origin; reading does not.
+        if method == "GET" {
+            request
+        } else {
+            request.set("Origin", DESKTOP_ORIGIN)
+        }
+    }
+
+    /// GET `path` (starting with /api/…) and read the JSON answer.
+    pub fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> Result<T> {
+        read(self.request("GET", path).call())
+    }
+
+    /// GET with query parameters, which are encoded here.
+    pub fn get_query<T: serde::de::DeserializeOwned>(&self, path: &str, query: &[(&str, &str)]) -> Result<T> {
+        let mut request = self.request("GET", path);
+        for (key, value) in query {
+            request = request.query(key, value);
+        }
+        read(request.call())
+    }
+
+    /// POST, PUT, PATCH or DELETE with a JSON body; the answer read as JSON.
+    /// Use `serde_json::Value` for `T` when the answer does not matter.
+    pub fn send_json<T: serde::de::DeserializeOwned>(
+        &self,
+        method: &str,
+        path: &str,
+        body: &impl Serialize,
+    ) -> Result<T> {
+        read_lenient(self.request(method, path).send_json(body))
+    }
+
+    pub fn post_json<T: serde::de::DeserializeOwned>(&self, path: &str, body: &impl Serialize) -> Result<T> {
+        self.send_json("POST", path, body)
+    }
+
+    pub fn patch_json<T: serde::de::DeserializeOwned>(&self, path: &str, body: &impl Serialize) -> Result<T> {
+        self.send_json("PATCH", path, body)
+    }
+
+    pub fn put_json<T: serde::de::DeserializeOwned>(&self, path: &str, body: &impl Serialize) -> Result<T> {
+        self.send_json("PUT", path, body)
+    }
+
+    /// DELETE without a body.
+    pub fn delete(&self, path: &str) -> Result<()> {
+        let _: serde_json::Value = read_lenient(self.request("DELETE", path).call())?;
+        Ok(())
+    }
+
+    /// GET the raw bytes of `path` (a file, an image), up to `limit` bytes.
+    pub fn get_bytes(&self, path: &str, limit: u64) -> Result<Vec<u8>> {
+        match self.request("GET", path).call() {
+            Ok(response) => {
+                let mut bytes = Vec::new();
+                response.into_reader().take(limit).read_to_end(&mut bytes)?;
+                Ok(bytes)
+            }
+            Err(ureq::Error::Status(401, _)) => Err(Unauthorized.into()),
+            Err(error) => Err(anyhow!(error)),
+        }
+    }
+
+    /// POST raw bytes (an upload) with their content type; the answer as JSON.
+    pub fn post_bytes<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        content_type: &str,
+        headers: &[(&str, &str)],
+        bytes: &[u8],
+    ) -> Result<T> {
+        let mut request = self.request("POST", path).set("Content-Type", content_type);
+        for (key, value) in headers {
+            request = request.set(key, value);
+        }
+        read_lenient(request.send_bytes(bytes))
+    }
+
+    /// Who is signed in. `Unauthorized` when the session lapsed.
+    pub fn session(&self) -> Result<User> {
+        #[derive(Deserialize)]
+        struct Session {
+            user: User,
+        }
+        let session: Option<Session> = read(self.request("GET", "/api/auth/get-session").call())?;
+        session.map(|session| session.user).ok_or_else(|| Unauthorized.into())
+    }
+
+    /// Ends the session on the server. The app forgets its token either way.
+    pub fn sign_out(&self) -> Result<()> {
+        let _: serde_json::Value =
+            read_lenient(self.request("POST", "/api/auth/sign-out").send_json(serde_json::json!({})))?;
+        Ok(())
+    }
+
     pub fn accounts(&self) -> Result<Vec<Account>> {
         #[derive(Deserialize)]
         struct Accounts {
@@ -433,6 +552,48 @@ const MAX_ATTACHMENT_BYTES: u64 = 30 * 1024 * 1024;
 
 fn encode(segment: &str) -> String {
     url::form_urlencoded::byte_serialize(segment.as_bytes()).collect()
+}
+
+/// What the API said went wrong, in the user's language when it has words for it.
+#[derive(Debug)]
+pub struct ApiError {
+    pub status: u16,
+    pub message: String,
+}
+
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for ApiError {}
+
+/// As `read`, but an empty answer (204, or no body) is JSON `null`, and an
+/// error keeps its status and the API's own message.
+fn read_lenient<T: serde::de::DeserializeOwned>(response: Result<ureq::Response, ureq::Error>) -> Result<T> {
+    match response {
+        Ok(response) => {
+            let text = response.into_string().unwrap_or_default();
+            let text = if text.trim().is_empty() { "null" } else { text.as_str() };
+            serde_json::from_str(text).context("unexpected answer")
+        }
+        Err(ureq::Error::Status(401, _)) => Err(Unauthorized.into()),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().unwrap_or_default();
+            let message = serde_json::from_str::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|value| {
+                    value
+                        .get("error")
+                        .or_else(|| value.get("message"))
+                        .and_then(|message| message.as_str().map(str::to_string))
+                })
+                .unwrap_or_else(|| format!("API answered {status}"));
+            Err(ApiError { status, message }.into())
+        }
+        Err(error) => Err(anyhow!(error)),
+    }
 }
 
 fn read<T: serde::de::DeserializeOwned>(response: Result<ureq::Response, ureq::Error>) -> Result<T> {
