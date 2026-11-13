@@ -1,20 +1,18 @@
-//! Attachments saved to Downloads when their chip in the mail is clicked.
+//! Attachments saved to Downloads when their chip in the mail is clicked, as
+//! a browser saves what the web's chip downloads (`AttachmentChip` in
+//! apps/mail-web/src/pages/conversation.tsx).
 
 use std::fs::OpenOptions;
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use anyhow::Context as _;
 
 use super::*;
 
-/// How long the toolbar says how a download went.
-const STATUS_FOR: Duration = Duration::from_secs(6);
-
 impl MailView {
-    /// A chip clicked in the document. The numbers come from the webview, so
-    /// they only count for the document on screen and a file it really has.
+    /// A chip clicked in the page. The numbers come from the webview, so
+    /// they only count for the page on screen and a file it really has.
     pub(super) fn download(&mut self, view: u64, part: usize, file: usize, cx: &mut Context<Self>) {
         if view != self.document {
             return;
@@ -25,54 +23,45 @@ impl MailView {
         let Some(Reading::Ready(conversation)) = self.reading.get(&thread_id) else {
             return;
         };
-        let Some(files) = conversation.files.get(part) else {
+        let Some(message) = conversation.parts.get(part) else {
             return;
         };
-        let Some(attachment) = files.attachments.get(file).filter(|a| !a.id.is_empty()) else {
+        let Some(attachment) = message.attachments.get(file).filter(|a| !a.id.is_empty()) else {
             return;
         };
-        let message_id = files.message_id.clone();
+        let message_id = message.message_id.clone();
         let attachment = attachment.clone();
-        self.set_status(format!("{} downloaden…", attachment.name), false, cx);
         let client = self.client.clone();
         let task = cx.background_executor().spawn(async move {
             let bytes = client.attachment(&thread_id, &message_id, &attachment.id)?;
             let dir = dirs::download_dir()
                 .or_else(|| dirs::home_dir().map(|home| home.join("Downloads")))
-                .context("geen map Downloads")?;
+                .context("no Downloads folder")?;
             let path = save(&dir, &attachment.name, &bytes)?;
             reveal(&path);
             anyhow::Ok(path)
         });
         cx.spawn(async move |this, cx| {
             let result = task.await;
-            let _ = this.update(cx, |this, cx| match result {
-                Ok(path) => {
-                    let name = path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().into_owned())
-                        .unwrap_or_default();
-                    this.set_status(format!("{name} staat in Downloads"), false, cx);
-                }
-                Err(error) if error.downcast_ref::<Unauthorized>().is_some() => cx.emit(SignedOut),
-                Err(error) => this.set_status(format!("Downloaden mislukt: {error}"), true, cx),
-            });
-        })
-        .detach();
-    }
-
-    /// A short line in the reader's toolbar, gone after a while unless a newer one replaced it.
-    pub(super) fn set_status(&mut self, text: String, failed: bool, cx: &mut Context<Self>) {
-        self.status_serial += 1;
-        let serial = self.status_serial;
-        self.status = Some((text.into(), failed));
-        cx.notify();
-        cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(STATUS_FOR).await;
             let _ = this.update(cx, |this, cx| {
-                if this.status_serial == serial {
-                    this.status = None;
-                    cx.notify();
+                // The chip stops turning, in the page it was clicked in.
+                if view == this.document {
+                    if let Some(webview) = &this.webview {
+                        let _ = webview.read(cx).raw().evaluate_script(&format!("even.downloaded({part},{file})"));
+                    }
+                }
+                match result {
+                    Ok(_) => {}
+                    Err(error) if error.downcast_ref::<Unauthorized>().is_some() => cx.emit(SignedOut),
+                    Err(_) => {
+                        this.toast(
+                            t("The attachment couldn't be downloaded.", "De bijlage kon niet worden gedownload."),
+                            ToastKind::Error,
+                            None,
+                            false,
+                            cx,
+                        );
+                    }
                 }
             });
         })
@@ -99,7 +88,7 @@ pub(super) fn safe_name(name: &str) -> String {
         .trim_end_matches(['.', ' '])
         .trim();
     if trimmed.is_empty() {
-        return "bijlage".into();
+        return t("attachment", "bijlage").into();
     }
     if trimmed.len() <= MAX_BYTES {
         return trimmed.to_string();
@@ -152,7 +141,7 @@ pub(super) fn save(dir: &Path, name: &str, bytes: &[u8]) -> io::Result<PathBuf> 
     }
     Err(io::Error::new(
         io::ErrorKind::AlreadyExists,
-        "te veel bestanden met deze naam",
+        "too many files with this name",
     ))
 }
 
@@ -187,8 +176,8 @@ mod tests {
         assert_eq!(safe_name("../../etc/passwd"), "_.._etc_passwd");
         assert_eq!(safe_name("..\\x.exe"), "_x.exe");
         assert_eq!(safe_name(".hidden"), "hidden");
-        assert_eq!(safe_name(".."), "bijlage");
-        assert_eq!(safe_name("  "), "bijlage");
+        assert!(["attachment", "bijlage"].contains(&safe_name("..").as_str()));
+        assert!(["attachment", "bijlage"].contains(&safe_name("  ").as_str()));
         assert_eq!(safe_name("a\nb:c.txt"), "a_b_c.txt");
         // Right-to-left override: "invoice\u{202e}fdp.exe" would read as "invoiceexe.pdf".
         assert_eq!(safe_name("invoice\u{202e}fdp.exe"), "invoicefdp.exe");

@@ -17,6 +17,7 @@ use gpui_kit::*;
 use crate::api::{Client, User};
 use crate::app::{AppEvent, EvenApp};
 use crate::i18n::t;
+use crate::workspace::realtime;
 use crate::{prefs, theme, ui};
 
 mod api;
@@ -25,7 +26,6 @@ mod note;
 mod overlays;
 mod page;
 mod parts;
-mod realtime;
 mod sidebar;
 
 use api::{Command, Failure, List, WorkspaceSummary};
@@ -119,6 +119,10 @@ pub struct NotesApp {
     /// The last fetch of the notes failed; what shows is the last loaded.
     sync_error: bool,
     connection: Connection,
+    /// The settings window lies over the app, or another app shows.
+    covered: bool,
+    /// What the open note leaves free at its foot while toasts show there.
+    toast_room: f32,
     realtime: Option<realtime::Realtime>,
     _realtime: Option<Task<()>>,
     _poll: Task<()>,
@@ -165,6 +169,8 @@ impl NotesApp {
             online: true,
             sync_error: false,
             connection: Connection::Polling,
+            covered: false,
+            toast_room: 0.,
             realtime: None,
             _realtime: None,
             _poll: poll,
@@ -295,7 +301,7 @@ impl NotesApp {
                         this.online = true;
                         this.sync_error = false;
                         this.recompute();
-                        this.incoming(window, cx);
+                        this.incoming(cx);
                         this.settle(window, cx);
                         #[cfg(debug_assertions)]
                         this.show_for_a_picture(window, cx);
@@ -481,9 +487,32 @@ impl NotesApp {
         match &mut self.editor {
             Some(editor) => {
                 editor.after_save = Some(nav);
-                self.save(window, cx);
+                if editor.body.is_focused(cx) {
+                    // The keyboard is still in the text: what was typed last is
+                    // on its way here from the editor's page. Save once it is in.
+                    cx.spawn_in(window, async move |this, cx| {
+                        cx.background_executor().timer(Duration::from_millis(120)).await;
+                        let _ = this.update_in(cx, |this, window, cx| this.save(window, cx));
+                    })
+                    .detach();
+                } else {
+                    self.save(window, cx);
+                }
             }
             None => self.show(nav, window, cx),
+        }
+    }
+
+    /// The note's text is a system view above everything GPUI draws: it goes
+    /// off the screen while a dialog, the spotlight or a menu must show where
+    /// it is, and while the settings or another app cover this one.
+    fn sync_body(&mut self, cx: &mut Context<Self>) {
+        let hidden = self.covered
+            || self.load != Load::Ready
+            || self.overlay.is_some()
+            || self.menu == Some(Menu::NoteOptions);
+        if let Some(editor) = &self.editor {
+            editor.body.set_hidden(hidden, cx);
         }
     }
 
@@ -713,7 +742,7 @@ impl EvenApp for NotesApp {
             let in_note = self
                 .editor
                 .as_ref()
-                .is_some_and(|editor| editor.body.is_focused(window, cx));
+                .is_some_and(|editor| editor.body.is_focused(cx));
             if !in_note {
                 window.focus(&self.focus, cx);
             }
@@ -730,10 +759,20 @@ impl EvenApp for NotesApp {
             _ => self.fetch(window, cx),
         }
     }
+
+    fn set_covered(&mut self, covered: bool, _window: &mut Window, cx: &mut Context<Self>) {
+        self.covered = covered;
+        // Now, not at the next draw: a covered app is not drawn at all.
+        self.sync_body(cx);
+        cx.notify();
+    }
 }
 
 impl Render for NotesApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.sync_body(cx);
+        // Toasts show at the window's foot, where the note's text would cover them.
+        self.toast_room = crate::workspace::toast_room(window, cx);
         let root = div()
             .key_context("Notes")
             .track_focus(&self.focus)

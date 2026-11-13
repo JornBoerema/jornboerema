@@ -4,11 +4,8 @@
 //! after the web file it ports.
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use futures::channel::mpsc::unbounded;
 use futures::StreamExt as _;
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::prelude::*;
@@ -17,6 +14,7 @@ use gpui_kit::*;
 use crate::api::{ApiError, Client, Unauthorized, User};
 use crate::app::{AppEvent, EvenApp, SettingsPage};
 use crate::i18n::t;
+use crate::workspace::realtime;
 use crate::{prefs, theme, ui};
 
 mod api;
@@ -82,12 +80,6 @@ enum Connection {
     /// The API has no realtime provider: the lists reload every minute.
     Polling,
     Disconnected,
-}
-
-/// What comes off the realtime thread.
-enum Live {
-    Connected(bool),
-    Changed,
 }
 
 /// Which window part draws an overlay: the app's own screen, or its pages in
@@ -185,6 +177,8 @@ pub struct TodoApp {
     /// The last reload failed: the lists shown are the last ones loaded.
     error: bool,
     connection: Connection,
+    /// The settings window lies over the app, or another app shows.
+    covered: bool,
     /// Bumped when the workspace changes, so answers for the old one are dropped.
     generation: u64,
     members: Option<WorkspaceMembers>,
@@ -217,16 +211,8 @@ pub struct TodoApp {
     // components/settings
     settings: settings::SettingsState,
 
-    stop: Arc<AtomicBool>,
     _tasks: Vec<Task<()>>,
     _subscriptions: Vec<Subscription>,
-}
-
-impl Drop for TodoApp {
-    fn drop(&mut self) {
-        // Lets the realtime thread end.
-        self.stop.store(true, Ordering::Relaxed);
-    }
 }
 
 impl TodoApp {
@@ -251,8 +237,7 @@ impl TodoApp {
                 break;
             }
         });
-        let stop = Arc::new(AtomicBool::new(false));
-        let live = Self::listen(&client, &user, stop.clone(), cx);
+        let live = Self::listen(&client, &user, cx);
         let settings = settings::SettingsState::new(window, cx);
         let mut app = Self {
             client,
@@ -268,6 +253,7 @@ impl TodoApp {
             saving: false,
             error: false,
             connection: Connection::Connecting,
+            covered: false,
             generation: 0,
             members: None,
             members_error: None,
@@ -286,7 +272,6 @@ impl TodoApp {
             menu_dismissed: None,
             tracked: Tracked::default(),
             settings,
-            stop,
             _tasks: vec![poll, live],
             _subscriptions: vec![composer, activation],
         };
@@ -294,39 +279,35 @@ impl TodoApp {
         app
     }
 
-    /// The user's own realtime channel, on a thread of its own: it blocks on
-    /// the stream for as long as the app runs.
-    fn listen(client: &Client, user: &User, stop: Arc<AtomicBool>, cx: &mut Context<Self>) -> Task<()> {
-        let (send, mut received) = unbounded::<Option<Live>>();
-        let client = client.clone();
-        let user_id = user.id.clone();
-        std::thread::spawn(move || {
-            if !api::realtime_enabled(&client) {
-                let _ = send.unbounded_send(None);
+    /// The user's own realtime channel (src/workspace/realtime.rs), when the
+    /// API has a realtime provider. The listening ends with this task.
+    fn listen(client: &Client, user: &User, cx: &mut Context<Self>) -> Task<()> {
+        let (client, user_id) = (client.clone(), user.id.clone());
+        cx.spawn(async move |this, cx| {
+            let asked = client.clone();
+            let enabled = cx
+                .background_executor()
+                .spawn(async move { api::realtime_enabled(&asked) })
+                .await;
+            if !enabled {
+                let _ = this.update(cx, |this, cx| {
+                    this.connection = Connection::Polling;
+                    cx.notify();
+                });
                 return;
             }
-            let connected = send.clone();
-            api::listen(
-                &client,
-                &user_id,
-                stop,
-                move |up| {
-                    let _ = connected.unbounded_send(Some(Live::Connected(up)));
-                },
-                move || {
-                    let _ = send.unbounded_send(Some(Live::Changed));
-                },
-            );
-        });
-        cx.spawn(async move |this, cx| {
-            while let Some(message) = received.next().await {
+            let (_listening, mut signals) = realtime::start(client, user_id);
+            while let Some(signal) = signals.next().await {
                 let updated = this.update(cx, |this, cx| {
-                    match message {
-                        None => this.connection = Connection::Polling,
-                        Some(Live::Connected(true)) => this.connection = Connection::Connected,
-                        Some(Live::Connected(false)) => this.connection = Connection::Disconnected,
+                    match signal {
+                        realtime::Signal::Connected => {
+                            this.connection = Connection::Connected;
+                            // What was missed while the line was down.
+                            this.refresh_quietly(cx);
+                        }
+                        realtime::Signal::Disconnected => this.connection = Connection::Disconnected,
                         // Membership changes (invites, removals, renames) arrive on the same channel.
-                        Some(Live::Changed) => this.refresh_quietly(cx),
+                        realtime::Signal::Changed => this.refresh_quietly(cx),
                     }
                     cx.notify();
                 });
@@ -445,6 +426,7 @@ impl TodoApp {
                         this.error = false;
                         this.server = Some(data);
                         this.rebuild();
+                        this.load_pictures(cx);
                         if opening {
                             this.debug_show(window, cx);
                         }
@@ -513,6 +495,7 @@ impl TodoApp {
                         if this.queued.is_empty() {
                             this.server = Some(data);
                             this.rebuild();
+                            this.load_pictures(cx);
                         }
                     }
                     Err(error) => {
@@ -536,6 +519,25 @@ impl TodoApp {
         } else {
             self.refresh_quietly(cx);
         }
+    }
+
+    /// The members' profile pictures (board-meta.tsx `MemberAvatar`), each
+    /// fetched once; until one is in, the initials show.
+    fn load_pictures(&mut self, cx: &mut Context<Self>) {
+        let wanted = kit::pictures_to_load(&self.data.members);
+        if wanted.is_empty() {
+            return;
+        }
+        let task = cx.background_executor().spawn(async move {
+            for url in wanted {
+                kit::load_picture(&url);
+            }
+        });
+        cx.spawn(async move |this, cx| {
+            task.await;
+            let _ = this.update(cx, |_, cx| cx.notify());
+        })
+        .detach();
     }
 
     /// lib/workspaces.ts `useWorkspaceMembers`: for the overview and the settings.
@@ -790,6 +792,9 @@ impl TodoApp {
                             .map(|todo| todo.id.clone());
                         if let Some(issue) = issue {
                             self.open_issue(&issue, window, cx);
+                            if show.contains("delete") {
+                                self.ask_delete_issue(window, cx);
+                            }
                         }
                     }
                     if show.starts_with("new-issue") {
@@ -812,11 +817,33 @@ impl TodoApp {
             }))),
             _ => {}
         }
+        // EVEN_TODO_SCROLL=<points>: the open issue scrolled that far down.
+        if let Some(points) = std::env::var("EVEN_TODO_SCROLL").ok().and_then(|points| points.parse::<f32>().ok()) {
+            cx.spawn_in(window, async move |this, cx| {
+                cx.background_executor().timer(Duration::from_millis(1500)).await;
+                let _ = this.update_in(cx, |this, _, cx| {
+                    if let Some(issue) = &this.issue {
+                        let scroller = issue.description.scroller();
+                        scroller.set_offset(point(px(0.), -px(points).min(scroller.max_offset().y)));
+                        cx.notify();
+                    }
+                });
+            })
+            .detach();
+        }
         if let Some(menu) = std::env::var("EVEN_TODO_MENU").ok().as_deref() {
             let (kind, anchor) = match menu {
                 "workspace" => (MenuKind::Workspace, "workspace-switcher"),
                 "list" => (MenuKind::ListOptions, "list-options"),
                 "filter" => (MenuKind::Filter, "board-filter"),
+                "issue-options" => (MenuKind::IssueOptions, "issue-options"),
+                "status" => match &self.issue {
+                    Some(issue) => (
+                        MenuKind::Status(overlay::Target::Issue(issue.id.clone())),
+                        "issue-prop-status",
+                    ),
+                    None => return,
+                },
                 _ => return,
             };
             // After the first frame, once the button's place is known.
@@ -851,6 +878,13 @@ impl EvenApp for TodoApp {
     }
 
     fn set_covered(&mut self, covered: bool, _window: &mut Window, cx: &mut Context<Self>) {
+        self.covered = covered;
+        // The open issue's description is a system view: off the screen now,
+        // not at the next draw (a covered app is not drawn at all).
+        if let (true, Some(issue)) = (covered, &self.issue) {
+            issue.description.set_hidden(true, cx);
+        }
+        cx.notify();
         // A menu of the screen below would float over the settings.
         if covered && self.menu.as_ref().is_some_and(|menu| menu.surface == Surface::App) {
             self.menu = None;

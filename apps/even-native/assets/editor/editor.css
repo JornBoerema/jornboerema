@@ -132,3 +132,79 @@ body {
   line-height: 20px;
 }
 #link input::placeholder { color: var(--muted-foreground); }
+
+/* Mail: formatting on the selection (the web's bubble menu in rich-text-editor.tsx). */
+#bubble {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--popover);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  white-space: nowrap;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#bubble[hidden] { display: none; }
+#bubble button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.8px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: default;
+}
+#bubble button:hover, #bubble button.on { background: var(--muted); }
+#bubble button.size { width: auto; padding: 0 8px; }
+#bubble svg { width: 16px; height: 16px; pointer-events: none; }
+#bubble svg path { stroke-width: 2; }
+
+/* Notes: the blocks "/" offers (`.note-slash` in apps/notes-web/src/app.css). */
+#slash {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: 230px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--popover);
+  box-shadow: 0 2px 8px #00000014;
+}
+#slash[hidden] { display: none; }
+#slash button {
+  flex: none;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+#slash button[aria-selected="true"], #slash button:hover { background: var(--muted); }
+#slash p { margin: 0; padding: 8px 10px; font-size: 13px; line-height: 1.5; color: var(--muted-foreground); }
+
+/* A host that scrolls the editor itself (an issue's description): the page stays where it is put. */
+.fitted body { overflow: hidden; }

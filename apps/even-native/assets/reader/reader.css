@@ -1,0 +1,299 @@
+/* The open conversation, as apps/mail-web/src/pages/conversation.tsx draws it
+   with Tailwind: the same tokens (packages/ui/src/styles/globals.css), sizes
+   and spacing, written out. Mail bodies sit in their own shadow roots, so
+   nothing here reaches them and nothing of theirs reaches this. */
+
+@font-face { font-family: Inter; font-weight: 400; src: url("evenfont://localhost/Inter-Regular.ttf") format("truetype"); }
+@font-face { font-family: Inter; font-weight: 500; src: url("evenfont://localhost/Inter-Medium.ttf") format("truetype"); }
+@font-face { font-family: Inter; font-weight: 600; src: url("evenfont://localhost/Inter-SemiBold.ttf") format("truetype"); }
+@font-face { font-family: Inter; font-weight: 700; src: url("evenfont://localhost/Inter-Bold.ttf") format("truetype"); }
+
+:root {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.555 0.163 48.998);
+  --primary-foreground: oklch(0.987 0.022 95.277);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --ring: oklch(0.145 0 0 / 5%);
+}
+:root.dark {
+  color-scheme: dark;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --primary: oklch(0.473 0.137 46.201);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --sidebar: oklch(0.205 0 0);
+  --ring: oklch(0.985 0 0 / 10%);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+html {
+  background: var(--sidebar);
+  color: var(--foreground);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  cursor: default;
+}
+p, h2, ul { margin: 0; padding: 0; }
+ul { list-style: none; }
+svg { display: block; flex: none; }
+button { margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+a { color: inherit; text-decoration: none; cursor: pointer; }
+[hidden] { display: none !important; }
+
+/* `.scroll-fade.fade-top-only`: what scrolls under the toolbar fades out. */
+body::before {
+  content: "";
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background: linear-gradient(var(--sidebar), transparent);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+.scrolled body::before { opacity: 1; }
+
+/* `readingColumn` and the scroller's padding. */
+.col {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 768px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 8px 32px 0;
+}
+@media (min-width: 896px) { .col { max-width: 896px; } }
+@media (min-width: 1152px) { .col { max-width: 1024px; } }
+
+.subject { margin-bottom: 8px; font-size: 18px; line-height: 28px; font-weight: 600; letter-spacing: -0.025em; overflow-wrap: break-word; }
+
+.mu { color: var(--muted-foreground); }
+.xs { font-size: 12px; line-height: 16px; }
+.med { font-weight: 500; }
+.cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.all { -webkit-user-select: all; user-select: all; }
+
+/* packages/ui/src/components/button.tsx */
+.btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background-color 100ms ease-out, border-color 100ms ease-out, color 100ms ease-out;
+}
+.btn svg { width: 16px; height: 16px; }
+.btn.start { padding-left: 10px; }
+.btn.end { padding-right: 10px; }
+.btn.sm { height: 28px; padding: 0 10px; font-size: 12.5px; }
+.btn.sm.start { padding-left: 8px; }
+.btn.sm.end { padding-right: 8px; }
+.btn.xs { height: 24px; gap: 4px; padding: 0 8px; border-radius: 6px; font-size: 12px; line-height: 16px; }
+.btn.xs svg { width: 12px; height: 12px; }
+.btn.icon { width: 32px; padding: 0; }
+.btn.icon-sm { width: 28px; height: 28px; padding: 0; }
+.btn.icon-xs { width: 24px; height: 24px; padding: 0; border-radius: 6px; }
+.btn.icon-xs svg { width: 12px; height: 12px; }
+.btn:disabled, .btn.off { opacity: 0.5; pointer-events: none; }
+.btn.primary { background: var(--primary); color: var(--primary-foreground); }
+.btn.primary:hover { background: color-mix(in oklab, var(--primary) 88%, var(--foreground)); }
+.btn.outline { border-color: var(--border); background: var(--background); }
+.dark .btn.outline { background: transparent; }
+.btn.outline:hover, .btn.outline[aria-expanded="true"] { background: var(--muted); color: var(--foreground); }
+.btn.secondary { background: var(--secondary); color: var(--secondary-foreground); }
+.btn.secondary:hover { background: color-mix(in oklch, var(--secondary), var(--foreground) 5%); }
+.btn.ghost { color: var(--muted-foreground); }
+.btn.ghost:hover { background: var(--muted); color: var(--foreground); }
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.sk { border-radius: 8px; background: var(--muted); animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+
+/* The cards above the mail (mail-summary, parcels, invoices, todo-from-mail). */
+.card { margin-bottom: 12px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in oklab, var(--muted) 40%, transparent); }
+.card.row { display: flex; align-items: center; gap: 16px; }
+.card .label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.card .label svg { width: 14px; height: 14px; }
+.card .said { text-wrap: pretty; }
+.info { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.code { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: 0.2em; }
+.badge { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--background); color: var(--muted-foreground); box-shadow: 0 0 0 1px var(--border); }
+.badge svg { width: 18px; height: 18px; }
+.status { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.tone { flex: none; width: 6px; height: 6px; border-radius: 999px; }
+.tone.quiet { background: color-mix(in oklab, var(--muted-foreground) 50%, transparent); }
+.tone.sky { background: oklch(0.685 0.169 237.323); }
+.tone.brand { background: var(--primary); }
+.tone.violet { background: oklch(0.606 0.25 292.717); }
+.tone.emerald { background: oklch(0.696 0.17 162.48); }
+.tone.danger { background: var(--destructive); }
+.amount { font-size: 16px; line-height: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tight { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.track { display: flex; align-items: center; gap: 4px; }
+.copy .tick { display: none; }
+.copy.copied .tick { display: block; }
+.copy.copied .plain { display: none; }
+.sk1 { width: 96px; height: 12px; margin-bottom: 8px; }
+.sk2 { width: 100%; height: 14px; margin-bottom: 6px; }
+.sk3 { width: 75%; height: 14px; }
+
+.tasks { display: flex; flex-direction: column; margin-bottom: 12px; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in oklab, var(--muted) 40%, transparent); }
+.task { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; transition: background-color 150ms; }
+.task:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); }
+.task > svg { width: 16px; height: 16px; }
+.task .name { flex: 1; }
+.task.done > svg, .task.done .name { color: var(--muted-foreground); }
+.task.done .name { text-decoration: line-through; }
+.task .go { width: 14px; height: 14px; color: var(--muted-foreground); opacity: 0; transition: opacity 150ms; }
+.task:hover .go { opacity: 1; }
+
+/* Moneybird: the button, its arrow and the menu under it (moneybird-button.tsx). */
+.mb { position: relative; display: flex; flex: none; align-items: stretch; }
+.mb .btn:not(:last-of-type) { border-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.mb .btn:not(:first-child) { border-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.mb .sep { width: 1px; margin: 1px 0; background: var(--input); }
+.mb .arrow svg { transition: transform 200ms ease-out; }
+.mb .arrow svg * { stroke-width: 2; }
+.mb .btn .tickmark * { stroke-width: 2; }
+.mb.open .arrow { background: var(--muted); }
+.mb.open .arrow svg { transform: rotate(180deg); }
+.menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: none;
+  width: max-content;
+  min-width: 208px;
+  max-width: 288px;
+  max-height: 320px;
+  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: var(--popover);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1), 0 0 0 1px var(--ring);
+}
+.mb.open .menu { display: block; }
+.menu .mlabel { padding: 4px 8px; }
+.menu .rule { height: 1px; margin: 4px -4px; background: color-mix(in oklab, var(--border) 50%, transparent); }
+.menu .item { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 28px; padding: 4px 8px; border-radius: 10px; font-size: 13px; line-height: 20px; cursor: default; }
+.menu .item.radio { padding-right: 32px; }
+.menu .item:hover { background: var(--accent); }
+.menu .item .on { position: absolute; right: 8px; width: 16px; height: 16px; }
+
+/* The images notice. */
+.images { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 6px 12px; border-radius: 10px; background: var(--muted); }
+.images .btn { color: var(--foreground); }
+
+/* Messages: newest first, each apart from the next. */
+.messages { display: flex; flex-direction: column; margin-top: 4px; }
+.messages > * + * { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.messages.folded .mid { display: none; }
+.messages:not(.folded) .more { display: none; }
+.more { padding: 10px 0; }
+.more button { width: calc(100% + 20px); margin: 0 -10px; padding: 6px 10px; border-radius: 10px; color: var(--muted-foreground); transition: background-color 150ms, color 150ms; }
+.more button:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); color: var(--foreground); }
+article { display: flex; flex-direction: column; gap: 12px; padding: 10px 0; }
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 0 -10px; padding: 6px 10px; border-radius: 10px; transition: background-color 150ms; }
+.head:enabled:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); }
+.head .name { font-weight: 500; }
+.head time { flex: none; font-variant-numeric: tabular-nums; }
+article.open .snip, article:not(.open) .addr, article:not(.open) .rest { display: none; }
+.rest { display: contents; }
+.meta { display: flex; align-items: baseline; gap: 12px; margin-top: -12px; }
+.meta p { flex: 1; }
+.unsub { flex: none; border-radius: 6px; text-underline-offset: 2px; }
+.unsub:enabled:hover { color: var(--foreground); text-decoration: underline; }
+.unsub:disabled { opacity: 0.7; }
+.body { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.mail { width: 100%; border-radius: 8px; }
+.mail.paper { background: #fff; }
+.btn.quote { height: 16px; padding: 0 6px; border-radius: 6px; }
+.btn.quote svg { width: 14px; height: 14px; }
+.btn.quote svg * { stroke-width: 2; }
+.text { line-height: 1.625; overflow-wrap: break-word; white-space: pre-wrap; }
+.tr { display: none; flex-direction: column; gap: 8px; }
+.tr .from { display: flex; align-items: center; gap: 6px; }
+.tr .from svg { width: 14px; height: 14px; }
+.tr .lines { display: flex; flex-direction: column; gap: 6px; }
+.tr .lines div { height: 14px; }
+article.translated .tr { display: flex; }
+article.translated .orig { display: none; }
+.files { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: flex; align-items: center; gap: 6px; max-width: 256px; height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
+.chip svg { width: 14px; height: 14px; }
+.chip .size { flex: none; }
+button.chip { transition: background-color 150ms, color 150ms; }
+button.chip:hover { background: var(--accent); color: var(--foreground); }
+.chip .spin, .chip.busy .clip { display: none; }
+.chip.busy .spin { display: block; }
+
+/* The bar the conversation ends with: answer, answer everyone, send on. */
+.reply { position: sticky; z-index: 10; bottom: 6px; margin-top: auto; margin-bottom: 6px; padding-top: 16px; container-type: inline-size; }
+.replying .reply { display: none; }
+.suggest { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 8px; }
+.suggest:empty { display: none; }
+.suggest li { min-width: 0; }
+.suggest .btn { max-width: 100%; border-radius: 999px; background: color-mix(in oklab, var(--background) 90%, transparent); font-weight: 400; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.suggest .btn svg { color: var(--primary); }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; padding: 0 10px 0 16px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in oklab, var(--background) 90%, transparent); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.bar .count { display: none; align-items: center; gap: 6px; min-width: 0; }
+.bar .count .mu { flex: none; }
+.bar .dot { flex: none; width: 8px; height: 8px; border-radius: 999px; }
+.bar .acts { display: flex; flex: none; align-items: center; gap: 4px; margin-left: auto; }
+.bar .lbl { display: none; }
+.bar .btn.outline .lbl { display: inline; }
+@container (min-width: 512px) { .bar .lbl { display: inline; } }
+@container (min-width: 672px) { .bar .count { display: flex; } }
+
+/* The shared tooltip (packages/ui tooltip.tsx, `.tip-kbd` in mail.css). */
+#tip { position: fixed; z-index: 50; display: none; align-items: center; gap: 6px; max-width: 320px; padding: 6px 12px; border-radius: 8px; background: var(--foreground); color: var(--background); font-size: 12px; line-height: 16px; white-space: nowrap; pointer-events: none; }
+#tip.on { display: inline-flex; }
+#tip.kbd { padding-right: 6px; }
+#tip kbd { margin-left: 2px; padding: 0 5px; border-radius: 5px; background: color-mix(in oklab, var(--background) 18%, transparent); font-family: inherit; font-size: 11px; }
+#tip::after { content: ""; position: absolute; left: var(--ax, 50%); width: 10px; height: 10px; margin-left: -5px; border-radius: 2px; background: var(--foreground); transform: rotate(45deg); }
+#tip.top::after { bottom: -3px; }
+#tip.bottom::after { top: -3px; }

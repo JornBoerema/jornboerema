@@ -70,6 +70,8 @@ pub(crate) enum SnoozeTarget {
     Selection,
     /// Nothing: only to look at the picker (`EVEN_MAIL_DEBUG=snooze`).
     Debug,
+    /// Not a snooze: the new message being written is sent then (Send later).
+    Send,
 }
 
 pub(crate) struct WhenPicker {
@@ -278,7 +280,7 @@ impl MailView {
             text: String::new(),
             active: 0,
             now: Local::now().naive_local(),
-            purpose: Purpose::Snooze,
+            purpose: if target == SnoozeTarget::Send { Purpose::Send } else { Purpose::Snooze },
             target,
             _events: events,
         }));
@@ -464,6 +466,7 @@ impl MailView {
             SnoozeTarget::Open => self.leave(ThreadAction::Archive, Some(until), cx),
             SnoozeTarget::Selection => self.bulk(ThreadAction::Archive, Some(until), cx),
             SnoozeTarget::Debug => {}
+            SnoozeTarget::Send => self.send_later(until, cx),
         }
     }
 

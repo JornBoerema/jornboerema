@@ -33,6 +33,8 @@ mod overlays;
 mod places;
 mod reader;
 mod settings;
+mod settings_pages;
+mod settings_signatures;
 mod sidebar;
 mod toast;
 mod when;
@@ -68,6 +70,8 @@ actions!(
         SelectAll,
         Reply,
         ReplyAll,
+        Forward,
+        MakeTask,
         Compose,
         SendMail
     ]
@@ -108,8 +112,11 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("p", TogglePin, Some(NOT_TYPING)),
         KeyBinding::new("r", Reply, Some(NOT_TYPING)),
         KeyBinding::new("a", ReplyAll, Some(NOT_TYPING)),
+        KeyBinding::new("f", Forward, Some(NOT_TYPING)),
+        KeyBinding::new("t", MakeTask, Some(NOT_TYPING)),
         KeyBinding::new("cmd-enter", SendMail, Some("Composer")),
     ]);
+    compose::bind_keys(cx);
 }
 
 /// A mail line: two lines of text and their padding (`ROW_ESTIMATE`).
@@ -133,6 +140,14 @@ impl EventEmitter<SignedOut> for MailView {}
 impl EventEmitter<crate::app::AppEvent> for MailView {}
 
 impl crate::app::EvenApp for MailView {
+    fn settings_pages(&self, _cx: &App) -> Vec<crate::app::SettingsPage> {
+        settings_pages::pages()
+    }
+
+    fn render_settings(&mut self, page: &str, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+        self.render_settings_page(page, window, cx)
+    }
+
     fn activated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.focus(window, cx);
     }
@@ -268,11 +283,10 @@ pub struct MailView {
     /// Numbers each document the webview loads, so a download asked for in
     /// one that was replaced since is dropped.
     document: u64,
-    /// How a download went, for the reader's toolbar; `true` when it failed.
-    status: Option<(SharedString, bool)>,
-    status_serial: u64,
     /// The mail being written, if any.
     composer: Option<compose::Composer>,
+    /// The reply under the open conversation, and what writing keeps beside the composers (compose.rs).
+    writing: compose::Writing,
     /// Lets only our own script run in the mail document.
     nonce: String,
     /// Messages from that script: shortcuts pressed while the mail has focus, and downloads.
@@ -280,12 +294,14 @@ pub struct MailView {
     /// Something lies over the mail (the settings) or another app shows: the
     /// webview is a system view above everything GPUI draws, so it must go.
     covered: bool,
-    /// The tool under the pointer in the reader's toolbar, named at its end.
-    tool_hint: Option<SharedString>,
+    /// What the reader shows around the open mail, and its dialogs (reader.rs).
+    reader: reader::State,
     /// States asked for with `EVEN_MAIL_DEBUG`, set once their data is there.
     debug_select: usize,
     debug_open: bool,
     debug_first_sender: bool,
+    /// Mail's pages in the settings window (settings_pages.rs).
+    pages: settings_pages::Pages,
     _tasks: Vec<Task<()>>,
     _quit: Subscription,
 }
@@ -385,16 +401,16 @@ impl MailView {
             shown: None,
             images: HashSet::new(),
             document: 0,
-            status: None,
-            status_serial: 0,
             composer: None,
+            writing: compose::Writing::default(),
             nonce: random_nonce(),
             ipc,
             covered: false,
-            tool_hint: None,
+            reader: reader::State::default(),
             debug_select: 0,
             debug_open: false,
             debug_first_sender: false,
+            pages: settings_pages::Pages::default(),
             _tasks: vec![poll, sync, ipc_task],
             _quit: quit,
         };
@@ -441,7 +457,8 @@ impl MailView {
                 "trash" => self.select_view(View::Folder(MailFolder::Trash), cx),
                 "select" => self.debug_select = 3,
                 "open" => self.debug_open = true,
-                _ => {}
+                // Writing's own states (compose.rs).
+                other => self.debug_compose(other, window, cx),
             }
         }
     }
@@ -480,6 +497,8 @@ impl MailView {
                 webview.update(cx, |webview, _| webview.hide());
             }
         }
+        // The editors of what is being written are system views too.
+        self.cover_writing(covered, cx);
         cx.notify();
     }
 
@@ -491,7 +510,7 @@ impl MailView {
     /// Whether the webview must make way: for the settings or another app,
     /// for a spotlight or dialog of our own, or while the sidebar is arranged.
     pub(crate) fn veiled(&self) -> bool {
-        self.covered || self.overlay.is_some() || self.editor.is_some()
+        self.covered || self.overlay.is_some() || self.editor.is_some() || self.reader.in_dialog() || self.writing_veils()
     }
 
     /// Runs `call` on the background executor and hands its answer to `done`.
@@ -906,14 +925,13 @@ impl MailView {
     /// Whether the composer fills the reading pane: New message is then the
     /// current place in the sidebar.
     pub(crate) fn composing(&self) -> bool {
-        self.open.is_none() && self.composer.as_ref().is_some_and(|composer| composer.is_new())
+        self.message_showing()
     }
 
     /// Going somewhere from the sidebar puts a new message away.
     fn hide_composer(&mut self) {
-        if self.composer.as_ref().is_some_and(|composer| composer.is_new()) {
-            self.composer = None;
-        }
+        // An empty one closes; one with something in it waits as a draft to resume.
+        self.put_message_away();
     }
 
     fn show(&mut self, view: View, filter: String, cx: &mut Context<Self>) {
@@ -1454,6 +1472,7 @@ impl MailView {
         match email::parse_message(raw) {
             Some(email::Message::Key(key)) => self.key(&key, window, cx),
             Some(email::Message::Download { view, part, file }) => self.download(view, part, file, cx),
+            Some(other) => self.page_message(other, window, cx),
             None => {}
         }
     }
@@ -1478,6 +1497,8 @@ impl MailView {
             "cmd-b" => self.toggle_sidebar(cx),
             "r" => self.compose_reply(false, window, cx),
             "a" => self.compose_reply(true, window, cx),
+            "f" => self.answer(reader::Answer::Forward, None, window, cx),
+            "t" => self.open_todo(window, cx),
             "c" => self.compose(window, cx),
             "Escape" => self.close(window, cx),
             _ => {}
@@ -1578,6 +1599,9 @@ impl MailView {
 
     /// Esc: clearing a selection comes before closing the conversation.
     fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.close_reader_dialog(window, cx) {
+            return;
+        }
         if self.overlay.is_some() {
             self.close_overlay(window, cx);
         } else if self.editor.is_some() {
@@ -1610,7 +1634,7 @@ impl MailView {
     /// Single keys do nothing while a spotlight or dialog of ours is open
     /// (`isBlocked` in lib/hotkeys.ts).
     fn free(&self) -> bool {
-        self.overlay.is_none() && self.editor.is_none()
+        self.overlay.is_none() && self.editor.is_none() && !self.reader.in_dialog()
     }
 }
 
@@ -1718,9 +1742,11 @@ impl Render for MailView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.rebuild_rows();
         self.debug_states(cx);
+        self.compose_frame(window, cx);
         let overlay = self.render_overlay(window, cx);
         let editor_bar = self.render_editor_bar(cx);
         let toasts = self.render_toasts(cx);
+        let reader_dialog = self.render_reader_dialog(window, cx);
         div()
             .id("mail")
             .key_context("Mail")
@@ -1753,6 +1779,8 @@ impl Render for MailView {
             .on_action(cx.listener(|this, _: &ToggleSidebar, _, cx| if this.overlay.is_none() { this.toggle_sidebar(cx) }))
             .on_action(cx.listener(|this, _: &Reply, window, cx| if this.free() { this.compose_reply(false, window, cx) }))
             .on_action(cx.listener(|this, _: &ReplyAll, window, cx| if this.free() { this.compose_reply(true, window, cx) }))
+            .on_action(cx.listener(|this, _: &Forward, window, cx| if this.free() { this.answer(reader::Answer::Forward, None, window, cx) }))
+            .on_action(cx.listener(|this, _: &MakeTask, window, cx| if this.free() { this.open_todo(window, cx) }))
             .on_action(cx.listener(|this, _: &Compose, window, cx| if this.free() { this.compose(window, cx) }))
             .relative()
             .flex()
@@ -1778,6 +1806,7 @@ impl Render for MailView {
             })
             .children(editor_bar)
             .children(overlay)
+            .children(reader_dialog)
             .children(toasts)
     }
 }

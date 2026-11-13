@@ -24,6 +24,16 @@ pub fn auth_url() -> String {
         .to_string()
 }
 
+/// Even mailen on the web, where mailboxes and Moneybird are connected (their
+/// providers send the browser back with a cookie session, which this app
+/// doesn't have). `EVEN_MAIL_WEB_URL` points elsewhere.
+pub fn mail_web_url() -> String {
+    std::env::var("EVEN_MAIL_WEB_URL")
+        .unwrap_or_else(|_| "https://mail.jornboerema.nl".into())
+        .trim_end_matches('/')
+        .to_string()
+}
+
 /// Changes need a trusted origin (the API's guard against cross-site requests).
 /// This app is a desktop app like the Tauri one, so it says so the same way.
 const DESKTOP_ORIGIN: &str = "tauri://localhost";
@@ -95,6 +105,26 @@ pub struct Attachment {
     pub id: String,
     pub name: String,
     pub size: u64,
+    /// "application/pdf": what Moneybird takes, and what the reader may show.
+    #[serde(default, rename = "contentType")]
+    pub content_type: String,
+}
+
+/// How to leave the mailing list a message came from (`MailUnsubscribe`).
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Unsubscribe {
+    /// An https link: posted to when `one_click`, else opened for the reader.
+    pub url: Option<String>,
+    /// A mailbox that unsubscribes whoever writes to it.
+    pub mailto: Option<UnsubscribeMailbox>,
+    #[serde(default)]
+    pub one_click: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct UnsubscribeMailbox {
+    pub address: String,
 }
 
 /// An image the body refers to as `cid:<content_id>`.
@@ -111,6 +141,11 @@ pub struct InlineImage {
 #[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: String,
+    #[serde(default)]
+    pub subject: String,
+    /// How to leave the mailing list this came from, when it says.
+    #[serde(default)]
+    pub unsubscribe: Option<Unsubscribe>,
     pub from: Option<Address>,
     /// Where answers go, when the sender asks for somewhere else than `from`.
     #[serde(default)]
@@ -407,6 +442,33 @@ impl Client {
     pub fn delete(&self, path: &str) -> Result<()> {
         let _: serde_json::Value = read_lenient(self.request("DELETE", path).call())?;
         Ok(())
+    }
+
+    /// DELETE without a body, the answer read as JSON.
+    pub fn delete_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> Result<T> {
+        read_lenient(self.request("DELETE", path).call())
+    }
+
+    /// PUT raw bytes (one chunk of an upload); the answer does not matter.
+    pub fn put_bytes(&self, path: &str, content_type: &str, bytes: &[u8]) -> Result<()> {
+        let request = self.request("PUT", path).set("Content-Type", content_type);
+        let _: serde_json::Value = read_lenient(request.send_bytes(bytes))?;
+        Ok(())
+    }
+
+    /// POST JSON and read the answer as it arrives (text a language model is
+    /// still writing). `patience` is how long the whole answer may take.
+    pub fn post_stream(
+        &self,
+        path: &str,
+        body: &impl Serialize,
+        patience: Duration,
+    ) -> Result<Box<dyn std::io::Read + Send + Sync + 'static>> {
+        match self.request("POST", path).timeout(patience).send_json(body) {
+            Ok(response) => Ok(response.into_reader()),
+            // The error itself is read as any other answer's.
+            error => read_lenient::<serde_json::Value>(error).map(|_| Box::new(std::io::empty()) as _),
+        }
     }
 
     /// GET the raw bytes of `path` (a file, an image), up to `limit` bytes.

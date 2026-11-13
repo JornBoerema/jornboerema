@@ -1,11 +1,9 @@
 //! Even doen's part of the API (apps/api/src/todo/routes.ts): the workspace
 //! with its lists, tasks and boards, the workspaces themselves, public links,
-//! attachments and the realtime channel. The types are packages/todo-core's.
+//! attachments and whether there is a realtime channel (src/workspace/realtime.rs
+//! listens to it). The types are packages/todo-core's.
 //! Blocking, as `crate::api`: call on the background executor.
 
-use std::io::{BufRead as _, BufReader};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
@@ -180,6 +178,9 @@ pub struct BoardMember {
     pub name: String,
     #[serde(default)]
     pub email: String,
+    /// The address of their profile picture, when they have one.
+    #[serde(default)]
+    pub image: Option<String>,
 }
 
 impl BoardMember {
@@ -498,6 +499,7 @@ pub fn workspace(client: &Client, workspace_id: &str) -> Result<WorkspaceData> {
 }
 
 pub fn run(client: &Client, command: &Command) -> Result<()> {
+    crate::workspace::before_write("todo", command)?;
     let _: serde_json::Value = client.post_json("/api/workspace", command)?;
     Ok(())
 }
@@ -623,99 +625,5 @@ fn content_type(name: &str) -> &'static str {
         "mov" => "video/quicktime",
         "mp3" => "audio/mpeg",
         _ => "application/octet-stream",
-    }
-}
-
-// ─── Realtime ───────────────────────────────────────────────────────────────
-
-/// The web listens on the user's own Ably channel (`workspace:<userId>`,
-/// subscribe-only, hooks/use-workspace.ts) and reloads when "changed" comes
-/// by. This does the same over Ably's event stream: it calls `changed` for
-/// every message, and `connected` with how the line is doing. It returns when
-/// `stop` is set, or when the API has no realtime provider.
-pub fn listen(
-    client: &Client,
-    user_id: &str,
-    stop: Arc<AtomicBool>,
-    connected: impl Fn(bool),
-    changed: impl Fn(),
-) {
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(Duration::from_secs(10))
-        // Ably sends a heartbeat well within this; silence means a dead line.
-        .timeout_read(Duration::from_secs(90))
-        .build();
-    let mut wait = 1;
-    while !stop.load(Ordering::Relaxed) {
-        match stream(&agent, client, user_id, &stop, &connected, &changed) {
-            Ok(()) => wait = 1,
-            Err(_) => wait = (wait * 2).min(60),
-        }
-        connected(false);
-        // Sleep in short steps, so a closed app lets go of the thread soon.
-        for _ in 0..wait * 4 {
-            if stop.load(Ordering::Relaxed) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(250));
-        }
-    }
-}
-
-/// One connection: a token from our API, traded at Ably, then the stream
-/// until it ends (the token lasts fifteen minutes) or `stop` is set.
-fn stream(
-    agent: &ureq::Agent,
-    client: &Client,
-    user_id: &str,
-    stop: &AtomicBool,
-    connected: &impl Fn(bool),
-    changed: &impl Fn(),
-) -> Result<()> {
-    #[derive(Deserialize)]
-    struct Token {
-        token: String,
-    }
-    let request: serde_json::Value = client.get_json("/api/realtime")?;
-    let key = request
-        .get("keyName")
-        .and_then(|name| name.as_str())
-        .ok_or_else(|| anyhow!("no key name"))?
-        .to_string();
-    let token: Token = agent
-        .post(&format!("https://rest.ably.io/keys/{}/requestToken", encode(&key)))
-        .send_json(&request)?
-        .into_json()?;
-    let response = agent
-        .get("https://realtime.ably.io/sse")
-        .query("v", "1.2")
-        .query("channels", &format!("workspace:{user_id}"))
-        .query("accessToken", &token.token)
-        .set("Accept", "text/event-stream")
-        .call()?;
-    connected(true);
-    // What was missed while the line was down.
-    changed();
-    let mut reader = BufReader::new(response.into_reader());
-    let mut line = String::new();
-    let mut event = String::new();
-    loop {
-        line.clear();
-        if reader.read_line(&mut line)? == 0 || stop.load(Ordering::Relaxed) {
-            return Ok(());
-        }
-        let text = line.trim_end();
-        if let Some(name) = text.strip_prefix("event:") {
-            event = name.trim().to_string();
-        } else if text.starts_with("data:") {
-            match event.as_str() {
-                "" | "message" => changed(),
-                // Ably ends a stream with an error event (an expired token).
-                "error" => return Err(anyhow!("stream error")),
-                _ => {}
-            }
-        } else if text.is_empty() {
-            event.clear();
-        }
     }
 }

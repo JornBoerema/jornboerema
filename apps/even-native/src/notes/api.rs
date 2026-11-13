@@ -218,6 +218,7 @@ pub fn realtime_enabled(client: &Client) -> Result<bool> {
 }
 
 pub fn run(client: &Client, workspace_id: &str, command: &Command) -> Result<()> {
+    crate::workspace::before_write("notes", command)?;
     let _: serde_json::Value = client.post_json(&format!("/api/workspace?workspaceId={workspace_id}"), command)?;
     Ok(())
 }

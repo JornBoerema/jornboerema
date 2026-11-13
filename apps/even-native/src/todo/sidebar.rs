@@ -214,7 +214,7 @@ impl TodoApp {
                         .flex_none()
                         .pl(px(10.))
                         .pb(px(22.))
-                        .child(ui::brand("checkmark-square-02", "Even doen")),
+                        .child(crate::workspace::brand("tick-02", "Even doen")),
                 )
                 .child(sections)
                 .children(self.render_switcher(cx)),

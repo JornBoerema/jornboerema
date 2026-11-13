@@ -150,9 +150,12 @@ impl NotesApp {
             .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close_overlay(window, cx)))
             .child(parts::dialog_header(
                 t("New note", "Nieuwe notitie"),
-                t(
-                    "Give your note a recognisable title.",
-                    "Geef je notitie een herkenbare titel.",
+                Some(
+                    t(
+                        "Give your note a recognisable title.",
+                        "Geef je notitie een herkenbare titel.",
+                    )
+                    .into(),
                 ),
                 false,
             ))
@@ -192,9 +195,12 @@ impl NotesApp {
             .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close_overlay(window, cx)))
             .child(parts::dialog_header(
                 t("Delete note?", "Notitie verwijderen?"),
-                t(
-                    format!("“{title}” will be deleted. This can't be undone."),
-                    format!("“{title}” wordt verwijderd. Dit kan niet ongedaan worden gemaakt."),
+                Some(
+                    t(
+                        format!("“{title}” will be deleted. This can't be undone."),
+                        format!("“{title}” wordt verwijderd. Dit kan niet ongedaan worden gemaakt."),
+                    )
+                    .into(),
                 ),
                 true,
             ))
@@ -308,9 +314,12 @@ impl NotesApp {
             .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close_overlay(window, cx)))
             .child(parts::dialog_header(
                 t("New workspace", "Nieuwe workspace"),
-                t(
-                    "For example for work or your household. You can invite members afterwards.",
-                    "Bijvoorbeeld voor werk of je huishouden. Daarna kun je leden uitnodigen.",
+                Some(
+                    t(
+                        "For example for work or your household. You can invite members afterwards.",
+                        "Bijvoorbeeld voor werk of je huishouden. Daarna kun je leden uitnodigen.",
+                    )
+                    .into(),
                 ),
                 false,
             ))
@@ -470,13 +479,16 @@ impl NotesApp {
             .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close_overlay(window, cx)))
             .child(parts::dialog_header(
                 t("Share note", "Notitie delen"),
-                t(
-                    format!(
-                        "Everyone in {workspace} can already see ‘{name}’. A link also shares it with someone without an account."
-                    ),
-                    format!(
-                        "Iedereen in {workspace} ziet ‘{name}’ al. Met een link deel je hem ook met iemand zonder account."
-                    ),
+                Some(
+                    t(
+                        format!(
+                            "Everyone in {workspace} can already see ‘{name}’. A link also shares it with someone without an account."
+                        ),
+                        format!(
+                            "Iedereen in {workspace} ziet ‘{name}’ al. Met een link deel je hem ook met iemand zonder account."
+                        ),
+                    )
+                    .into(),
                 ),
                 false,
             ));

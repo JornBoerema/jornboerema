@@ -28,6 +28,7 @@ Needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 | `src/mail/` | Even mailen (`apps/mail-web`). |
 | `src/todo/` | Even doen (`apps/todo-web`). |
 | `src/notes/` | Even noteren (`apps/notes-web`). |
+| `src/workspace/` | What Even doen and Even noteren share: the realtime channel, and the web's Dialog, DropdownMenu panel, Alert, Input and brand. |
 
 ## Rules for porting a screen
 
@@ -62,21 +63,60 @@ filter, emptying the trash; drafts, parcels, invoices, snoozed, scheduled and
 Tidy up with its sender pane; the ⌘K spotlight, the shortcuts on ?, the empty
 pane, toasts and new-mail notifications. English and Dutch, light and dark.
 
-The open conversation is still the first version: HTML in a system webview
-(sanitized with ammonia, behind a content policy that runs only our own
-script, remote images blocked until asked for, `cid:` images inlined, links
-opened in the browser, quoted mail folded away, attachments saved to
-Downloads), with a plain-text reply and compose. A SQLite cache next to the
-session (deleted on sign-out) shows the last mail at once. The webview is a
-system view above everything GPUI draws, so it hides under a spotlight or
-dialog and leaves room for toasts.
+The open conversation (`pages/conversation.tsx`; `src/mail/reader.rs` and
+`reader/`): GPUI draws the toolbar (star, spam, the moves, snooze, unread,
+pin, make a task) and the dialogs (a task in Even doen, leaving a mailing
+list, "not recognised well"); everything that scrolls under the toolbar is
+one page in a system webview (`reader/page.rs`, `assets/reader/`), written
+with the web's own tokens and sizes: the subject, the cards above the mail
+(parcel, invoice with Moneybird, tasks made from it, sign-in code or
+summary), each message newest first with long threads folded, the images
+notice, translation, unsubscribe, quoted mail tucked away, attachment chips
+(saved to Downloads), suggested replies and the bar to answer with. Mail is
+sanitized with ammonia and sits in its own contained shadow root, behind a
+content policy that runs only our own script; remote images wait until asked
+for, `cid:` images are inlined, links open in the browser. The page tells
+the app what was clicked (`email::parse_message`) and the app fills the
+page's slots as answers arrive (`reader/extras.rs`). A SQLite cache next to
+the session (deleted on sign-out) shows the last mail at once. The webview
+is a system view above everything GPUI draws: tooltips (also the toolbar's)
+and the Moneybird menu are drawn in the page itself, and it hides under a
+spotlight or dialog and leaves room for toasts.
 
 `EVEN_MAIL_DEBUG` shows states that otherwise need a click, for
 `scripts/shot.sh` (comma separated): `collapsed`, `expanded`, `more`,
 `editor`, `spotlight`, `shortcuts`, `snooze`, `confirm`, `toast`, `select`,
 `open` (a conversation already read, so looking changes nothing), `sender`,
 and a list: `drafts`, `parcels`, `invoices`, `snoozed`, `scheduled`,
-`senders`, `starred`, `sent`, `archive`, `spam`, `trash`.
+`senders`, `starred`, `sent`, `archive`, `spam`, `trash`. For the reader:
+`long` (opens the read conversation with the most messages), `files` (the
+first read one with an attachment), `cards` (every card and the suggested
+replies with made-up content), `todo`, `unsubscribe` (its question, with a
+made-up list), `tip` (a toolbar tooltip), `pending` (while it is fetched).
+With any debug state the models are left alone (no summary, no suggested
+replies) unless `ai` is added.
+
+Writing mail (`src/mail/compose.rs` and `src/mail/compose/`): the new
+message and an opened draft in the reading pane, reply, reply all and forward
+under a conversation, with the mailbox to send from, recipients as badges with
+suggested contacts, the rich body (the shared editor in mail mode, with the
+web's format menu on the selection), signatures, attachments uploaded in
+chunks, inline pictures, drafts saved while writing, replies kept on this Mac
+per conversation, undo send, Send later, scheduled mail opened as a draft
+again, and writing with AI as the words arrive. Its debug states are
+prefilled and save, upload, ask and send nothing: `compose`, `compose-empty`,
+`copies`, `suggest`, `attachments`, `ai-line`, `ai-writing`, `saved`, `from`,
+`signature`, `send-later`, `when-send`, `draft-opening`, `draft-failed`, and
+under a conversation `reply`, `reply-all`, `forward`, `reply-ai`.
+
+Its pages in the settings window (`src/mail/settings_pages.rs`,
+`settings_signatures.rs`): mailboxes, signatures (written in the shared
+editor), notifications, AI, sidebar, features and privacy, and its part of the
+shared connections page. `EVEN_SETTINGS=connections` or
+`EVEN_SETTINGS=mail:signatures` opens the settings at a page (`<page>` for a
+shared one, `<app>:<page>` for an app's own); with it, `EVEN_MAIL_DEBUG` also
+takes `settings-colors`, `settings-disconnect`, `settings-signature`,
+`settings-delete-signature` and `settings-moneybird`.
 
 ## Even doen, so far
 
@@ -88,7 +128,16 @@ filters, cards dragged between statuses, a new issue with files, the open
 issue with sub-issues, attachments and properties), the spotlight (⌘K), and
 its pages in the settings window. Changes show at once and save one by one;
 the user's realtime channel reloads the lists when something changed elsewhere.
-An issue's description is its markdown in a plain field for now
-(`src/todo/description.rs`), until the shared editor takes its place.
+An issue's description is the shared rich text editor
+(`src/todo/description.rs`), as tall as its text; a note's text is one too
+(`src/notes/body.rs`), scrolling under its title, with the blocks "/" offers.
+Both are system webviews: they go off the screen while a menu, a dialog or
+the settings lie over them.
 `EVEN_TODO_SHOW=board|board-list|issue|new-issue|new-list|spotlight|settings,<page>`
-opens a screen for `scripts/shot.sh` without a click.
+opens a screen for `scripts/shot.sh` without a click (`issue-delete`: with the
+delete question; `EVEN_TODO_MENU=status|issue-options|workspace|list|filter`
+opens a menu, `EVEN_TODO_SCROLL=<points>` scrolls the open issue).
+`EVEN_NOTES_SHOW=note|options|workspaces|spotlight|new|delete|share|rename|conflict|offline`
+(comma separated) does the same for Even noteren. `EVEN_LOG_WRITES=1` names
+every change either app sends on stderr, `EVEN_LOG_WRITES=block` refuses them:
+opening a note or an issue must send none.

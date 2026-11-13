@@ -1,5 +1,5 @@
-//! The open note: its title (components/inline-name.tsx) and its text with
-//! saving as you type (components/note-editor.tsx). The draft is kept on disk
+//! The open note: its title (components/inline-name.tsx) and its text
+//! (src/notes/body.rs) with saving as you type (components/note-editor.tsx). The draft is kept on disk
 //! until the server has it, saved 600 ms after the last change, and held back
 //! with a choice when the note was changed elsewhere in the meantime.
 
@@ -175,7 +175,7 @@ impl NotesApp {
         if can_edit {
             if let Some(draft) = stored_draft(&self.user.id, id) {
                 if length(&draft.markdown) <= MAX_NOTE && draft.markdown != editor.saved {
-                    editor.body.set_markdown(&draft.markdown, window, cx);
+                    editor.body.set_markdown(&draft.markdown, cx);
                     editor.markdown = draft.markdown;
                     if draft.version != editor.version {
                         editor.blocked = true;
@@ -194,6 +194,7 @@ impl NotesApp {
             }
         }
         self.editor = Some(editor);
+        self.sync_body(cx);
         if resume {
             self.save(window, cx);
         }
@@ -362,13 +363,13 @@ impl NotesApp {
 
     /// The notes came in again: a newer version of the open one replaces the
     /// text, unless there is a draft; then the user chooses.
-    pub(super) fn incoming(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn incoming(&mut self, cx: &mut Context<Self>) {
         let Some(editor) = &mut self.editor else { return };
         let Some(list) = self.lists.iter().find(|list| list.id == editor.list_id) else {
             return;
         };
         editor.can_edit = list.role != ListRole::Viewer;
-        editor.body.set_editable(editor.can_edit);
+        editor.body.set_editable(editor.can_edit, cx);
         let Some(note) = &list.note else { return };
         if note.version <= editor.version || editor.in_flight {
             return;
@@ -381,7 +382,7 @@ impl NotesApp {
             editor.markdown = note.markdown.clone();
             editor.saved = note.markdown.clone();
             editor.version = note.version;
-            editor.body.set_markdown(&note.markdown, window, cx);
+            editor.body.set_markdown(&note.markdown, cx);
         }
     }
 
@@ -433,7 +434,7 @@ impl NotesApp {
                 };
                 editor.version = note.version;
                 if !keep_local {
-                    editor.body.set_markdown(&note.markdown, window, cx);
+                    editor.body.set_markdown(&note.markdown, cx);
                     editor.markdown = note.markdown.clone();
                 }
                 editor.saved = note.markdown;
@@ -699,7 +700,7 @@ impl NotesApp {
         if let Some(error) = &editor.error {
             page.push(self.render_save_error(error.clone(), editor.conflict, cx).into_any_element());
         }
-        page.push(editor.body.render().into_any_element());
+        page.push(editor.body.render(self.toast_room).into_any_element());
         page
     }
 

@@ -190,6 +190,10 @@ pub fn forget() {
 
 fn delete(path: Option<PathBuf>) {
     let Some(path) = path else { return };
+    // Replies in progress are kept beside the cache (mail/compose/drafts.rs) and go with it.
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::remove_dir_all(dir.join("reply-drafts"));
+    }
     for suffix in ["", "-wal", "-shm"] {
         let mut name = path.clone().into_os_string();
         name.push(suffix);

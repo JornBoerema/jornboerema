@@ -27,6 +27,9 @@ pub enum AppEvent {
     SignedOut,
     /// Open the settings window, at this page of the app's when given.
     OpenSettings(Option<&'static str>),
+    /// Close the settings window and bring this app to the front: what it
+    /// does next happens in its own screen (arranging mail's sidebar).
+    Show,
 }
 
 /// An app in the rail. Its `Render` draws everything right of the rail: its

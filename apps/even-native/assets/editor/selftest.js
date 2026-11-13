@@ -24,6 +24,17 @@
     show(name);
   }
   try {
+    if (html) {
+      var signed = '<p>Old text</p><p>more</p><p></p><div data-signature><p>Groet, Jorn</p></div>';
+      command('set body', signed, 'Old', function () { __even.setBody('<p>New</p><p></p><p>text</p>'); });
+      command('set body, undone', signed, 'Old', function () { __even.setBody('<p>New</p>'); __even.exec('undo'); });
+      command('set body without signature', '<p>Old</p>', 'Old', function () { __even.setBody('<p>New</p><p>text</p>'); });
+      command('stream', signed, 'Old', function () { __even.startStream(); __even.streamBody('<p>Stre</p>'); __even.streamBody('<p>Streamed</p><p>now</p>'); });
+      command('stream finished', signed, 'Old', function () { __even.startStream(); __even.streamBody('<p>Stre</p>'); __even.finishStream('<p>Done</p>'); });
+      command('stream finished, undone', signed, 'Old', function () { __even.startStream(); __even.streamBody('<p>Stre</p>'); __even.finishStream('<p>Done</p>'); __even.exec('undo'); });
+      command('stream cancelled', signed, 'Old', function () { __even.startStream(); __even.streamBody('<p>Stre</p>'); __even.cancelStream(); });
+      command('stream into empty', '<p></p><div data-signature><p>Groet</p></div>', null, function () { __even.startStream(); __even.streamBody(''); __even.streamBody('<p>Hi</p>'); __even.finishStream('<p>Hi there</p>'); });
+    }
     typed('bold rule', '', 'a **bold** b');
     typed('italic rule', '', 'an *italic* b');
     typed('strike rule', '', 'a ~~gone~~ b');
@@ -88,6 +99,35 @@
       command('paste markdown', 'start', null, function () { __even.paste('# Pasted\n\n- a\n- **b**', false); });
       command('paste plain markdown', 'start ', null, function () { __even.paste('**not bold**', true); });
       command('heading shortcut', 'one', null, function () { __even.combo('cmd-alt-1'); });
+      // Notes: the blocks "/" offers (note-editor.tsx's slash menu).
+      __even.slash({ blocks: [{ id: 'paragraph', label: 'Text' }, { id: 'h1', label: 'Heading 1' }, { id: 'h2', label: 'Heading 2' }, { id: 'taskList', label: 'Checklist' }, { id: 'horizontalRule', label: 'Divider' }], empty: 'No blocks found.' });
+      var key = function (name) { document.getElementById('editor').dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true })); };
+      __even.set('');
+      d.caret(null, true);
+      d.type('/');
+      log('slash all => ' + JSON.stringify(d.slash()));
+      d.type('head');
+      log('slash head => ' + JSON.stringify(d.slash()));
+      key('ArrowDown');
+      key('Enter');
+      d.type('Title');
+      show('slash heading 2');
+      __even.set('one');
+      d.caret(null, true);
+      d.type('\n/check');
+      key('Enter');
+      d.type('todo');
+      show('slash checklist');
+      __even.set('');
+      d.caret(null, true);
+      d.type('/zzz');
+      log('slash none => ' + JSON.stringify(d.slash()));
+      key('Escape');
+      log('slash escaped => ' + JSON.stringify(d.slash()));
+      __even.set('text /head');
+      d.caret(null, true);
+      log('slash mid-line => ' + JSON.stringify(d.slash()));
+      __even.slash(null);
       __even.set('- [ ] a\n- [x] b');
       d.selectText('b');
       log('marks in task => ' + JSON.stringify(d.marks()));

@@ -22,6 +22,20 @@ pub struct Mailbox {
     #[serde(default)]
     pub status: String,
     pub color: usize,
+    /// Which signatures this mailbox adds.
+    #[serde(default)]
+    pub signatures: MailboxSignatures,
+}
+
+/// A mailbox's signature for new messages and for replies and forwards, by
+/// id; none adds no signature.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailboxSignatures {
+    #[serde(default)]
+    pub new_id: Option<String>,
+    #[serde(default)]
+    pub reply_id: Option<String>,
 }
 
 impl Mailbox {
@@ -522,6 +536,107 @@ pub fn preferences(client: &Client) -> Result<Option<serde_json::Map<String, ser
 pub fn save_preferences(client: &Client, change: &serde_json::Value) -> Result<()> {
     let _: serde_json::Value = client.patch_json("/api/mail/preferences", change)?;
     Ok(())
+}
+
+// Mail's pages in the settings window (pages/accounts.tsx, lib/signatures.ts,
+// lib/connections.ts).
+
+/// `InboxSummary`: how much mail a mailbox's inbox holds.
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct InboxSummary {
+    pub total: u64,
+    pub unread: u64,
+}
+
+pub fn inbox_summary(client: &Client, account: &str) -> Result<InboxSummary> {
+    client.get_json(&format!("/api/mail/accounts/{}/inbox", encode(account)))
+}
+
+/// Changes a mailbox: `{ "color": 3 }`, `{ "signatureNewId": … }`, `{ "signatureReplyId": null }`.
+pub fn update_mailbox(client: &Client, account: &str, change: &serde_json::Value) -> Result<()> {
+    let _: serde_json::Value = client.patch_json(&format!("/api/mail/accounts/{}", encode(account)), change)?;
+    Ok(())
+}
+
+pub fn disconnect_mailbox(client: &Client, account: &str) -> Result<()> {
+    client.delete(&format!("/api/mail/accounts/{}", encode(account)))
+}
+
+/// A signature the user wrote (`MailSignature`); `html` is the editor's HTML.
+#[derive(Clone, Debug, Deserialize)]
+pub struct Signature {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub html: String,
+}
+
+pub fn signatures(client: &Client) -> Result<Vec<Signature>> {
+    #[derive(Deserialize)]
+    struct Answer {
+        signatures: Vec<Signature>,
+    }
+    Ok(client.get_json::<Answer>("/api/mail/signatures")?.signatures)
+}
+
+pub fn create_signature(client: &Client, name: &str) -> Result<Signature> {
+    client.post_json("/api/mail/signatures", &serde_json::json!({ "name": name, "html": "" }))
+}
+
+/// Changes a signature: `{ "name": … }` or `{ "html": … }`.
+pub fn update_signature(client: &Client, id: &str, change: &serde_json::Value) -> Result<()> {
+    let _: serde_json::Value = client.patch_json(&format!("/api/mail/signatures/{}", encode(id)), change)?;
+    Ok(())
+}
+
+pub fn delete_signature(client: &Client, id: &str) -> Result<()> {
+    client.delete(&format!("/api/mail/signatures/{}", encode(id)))
+}
+
+/// `MoneybirdAdministration`.
+#[derive(Clone, Debug, Deserialize)]
+pub struct Administration {
+    pub id: String,
+    pub name: String,
+}
+
+/// A linked service (`ConnectionView`); Moneybird for now.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Connection {
+    pub provider: String,
+    /// "active" or "reauth_required".
+    #[serde(default)]
+    pub status: String,
+    /// Where mail goes unless another is picked; none asks each time.
+    #[serde(default)]
+    pub default_target: Option<Administration>,
+    #[serde(default)]
+    pub administrations: Vec<Administration>,
+}
+
+/// `ConnectionsView`: what is linked, and what this server can link.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct Connections {
+    #[serde(default)]
+    pub connections: Vec<Connection>,
+    #[serde(default)]
+    pub available: Vec<String>,
+}
+
+pub fn connections(client: &Client) -> Result<Connections> {
+    client.get_json("/api/connections")
+}
+
+/// Where Moneybird invoices go by default; `None` asks each time.
+pub fn set_moneybird_administration(client: &Client, administration: Option<&str>) -> Result<()> {
+    let _: serde_json::Value =
+        client.patch_json("/api/connections/moneybird", &serde_json::json!({ "administrationId": administration }))?;
+    Ok(())
+}
+
+pub fn disconnect_moneybird(client: &Client) -> Result<()> {
+    client.delete("/api/connections/moneybird")
 }
 
 #[cfg(test)]

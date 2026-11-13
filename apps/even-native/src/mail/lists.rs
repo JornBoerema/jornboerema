@@ -134,7 +134,7 @@ fn rows(children: Vec<AnyElement>) -> Div {
 }
 
 /// `oklch(0.6 0.12 hue)` in sRGB: a contact's colour (components/contact-avatar.tsx).
-fn avatar_color(email: &str) -> Rgba {
+pub(super) fn avatar_color(email: &str) -> Rgba {
     let mut hash: u32 = 0;
     for unit in email.to_lowercase().encode_utf16() {
         hash = hash.wrapping_mul(31).wrapping_add(unit as u32);
@@ -166,7 +166,7 @@ fn avatar_color(email: &str) -> Rgba {
 }
 
 /// "Jorn Boerema" → "JB", "jorn | Daize" → "JD", no name → the address's first letter.
-fn initials_of(name: Option<&str>, email: &str) -> String {
+pub(super) fn initials_of(name: Option<&str>, email: &str) -> String {
     let words: Vec<&str> = name
         .unwrap_or_default()
         .split(|c: char| !c.is_alphanumeric())
@@ -455,6 +455,10 @@ impl MailView {
     }
 
     fn delete_draft(&mut self, account: String, id: String, cx: &mut Context<Self>) {
+        // The draft open in the composer goes through it, so saving can't bring it back.
+        if self.discard_open_draft(&id, cx) {
+            return;
+        }
         if let Some(drafts) = &mut self.drafts.data {
             drafts.drafts.retain(|draft| draft.id != id);
         }
@@ -636,7 +640,8 @@ impl MailView {
                     .then(|| self.mailbox(&draft.account_id).map(|mailbox| mailbox.color))
                     .flatten();
                 // Drafts sit flush: there is no unread dot or checkbox to leave room for.
-                let button = row_button(("draft", index), false, false)
+                let selected = self.composing() && self.open_draft_id() == Some(draft.id.as_str());
+                let button = row_button(("draft", index), selected, false)
                     .pl(px(10.))
                     .child(
                         div()
@@ -682,18 +687,10 @@ impl MailView {
                                 el.child(div().flex_none().mr(px(2.)).size(px(8.)).rounded_full().bg(theme::account(color)))
                             }),
                     )
-                    // Opening a draft in the composer comes with the composer's own pass.
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.toast(
-                            t(
-                                "Drafts open in Even mailen on the web for now.",
-                                "Concepten open je voorlopig in Even mailen op het web.",
-                            ),
-                            ToastKind::Plain,
-                            None,
-                            false,
-                            cx,
-                        );
+                    // Opens in the composer, to go on writing (compose.rs).
+                    .on_click(cx.listener({
+                        let (account, id) = (draft.account_id.clone(), draft.id.clone());
+                        move |this, _, window, cx| this.open_draft(account.clone(), id.clone(), window, cx)
                     }));
                 let (account, id) = (draft.account_id.clone(), draft.id.clone());
                 let actions = vec![RowAction::new("delete-02", t("Discard", "Weggooien"), move |this, _, cx| {
@@ -1148,21 +1145,8 @@ impl MailView {
                 let id = item.id.clone();
                 let edit = move |this: &mut MailView, cx: &mut Context<MailView>| {
                     let id = id.clone();
-                    this.fetch(
-                        cx,
-                        move |client| api::cancel_scheduled(client, &id),
-                        |this, result, cx| {
-                            match result {
-                                Ok(()) => {
-                                    this.toast(t("Kept as a draft", "Bewaard als concept"), ToastKind::Success, None, false, cx);
-                                    this.select_view(View::Drafts, cx);
-                                }
-                                Err(error) => this.toast_error(error, cx),
-                            }
-                            this.load_later(cx);
-                            this.load_drafts(cx);
-                        },
-                    );
+                    // It opens in the composer as the draft it now is (compose.rs).
+                    this.edit_scheduled(id, cx);
                 };
                 let open = edit.clone();
                 let button = Self::later_row(

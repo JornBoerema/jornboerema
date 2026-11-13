@@ -162,6 +162,8 @@
     var now = serialize();
     if (now.content === lastContent) return;
     lastContent = now.content;
+    // Mail: what is written above the signature, known before the change is told.
+    if (mode === 'html') post({ t: 'body', text: bodyText() });
     post({ t: 'change', content: now.content, text: now.text, written: now.written });
   }
   /** Something in the document changed: tell the app soon, and keep the page's own state right. */
@@ -280,7 +282,10 @@
     pending = 0;
     lastRange = null;
     // What the document now reads as, so only a real edit is reported.
-    lastContent = serialize().content;
+    var read = serialize();
+    lastContent = read.content;
+    // Mail sends an opened draft as the editor reads it, also when nothing is changed (the web's onCreate).
+    if (mode === 'html') post({ t: 'read', content: read.content, text: read.text, written: read.written, body: bodyText() });
     measure();
     marksSoon();
   }
@@ -869,6 +874,8 @@
         if (!tabKey(name !== 'tab')) post({ t: 'key', key: name });
         return true;
       case 'escape':
+        // What was typed last reaches the app first: Escape may close what the editor is in.
+        flush();
         post({ t: 'key', key: name });
         return true;
       // The Edit menu does these when the app has one; otherwise they arrive here.
@@ -1004,6 +1011,7 @@
     fieldInput.value = link ? link.getAttribute('href') || '' : '';
     var box = r.collapsed ? link.getBoundingClientRect() : r.getBoundingClientRect();
     fieldOpen = true;
+    if (bubble) bubble.hidden = true;
     field.hidden = false;
     var width = field.offsetWidth;
     var height = field.offsetHeight;
@@ -1130,6 +1138,202 @@
     post({ t: 'blur' });
   });
 
+  // ------------------------------------------------------- mail: the body
+
+  function signatureBlock() {
+    return mode === 'html' ? E.querySelector(':scope > div[data-signature]') : null;
+  }
+  /** Everything above the signature, the blank line before it included (the web's bodyRange). */
+  function bodyNodes() {
+    var end = signatureBlock();
+    var nodes = [];
+    for (var node = E.firstChild; node && node !== end; node = node.nextSibling) nodes.push(node);
+    return nodes;
+  }
+  /** What is written above the signature, as plain text (the web's bodyText). */
+  function bodyText() {
+    var html = '';
+    bodyNodes().forEach(function (node) { html += node.nodeType === 1 ? node.outerHTML : Md.escape(node.textContent || ''); });
+    return Md.htmlToEmail(html).text;
+  }
+  /** `html` as the editor holds it, without a signature of its own. */
+  function bodyHtml(html) {
+    var tree = Md.htmlToTree(normalize(html), 'html').filter(function (block) { return block.tag !== 'sig'; });
+    return Md.treeToHtml(tree);
+  }
+  /** Everything above the signature becomes `html`, as one undo step; the blank line before the signature stays. */
+  function setBody(html) {
+    if (mode !== 'html') return;
+    edit(function () {
+      var end = signatureBlock();
+      var nodes = bodyNodes();
+      var last = nodes[nodes.length - 1];
+      var r = document.createRange();
+      r.setStart(E, 0);
+      // Up to the end of the last line, never past it: a selection that touches the signature takes its text along.
+      if (last && last.nodeType === 1) r.setEnd(last, last.childNodes.length);
+      else if (end) r.setEndBefore(end);
+      else r.setEnd(E, E.childNodes.length);
+      var s = selection();
+      s.removeAllRanges();
+      s.addRange(r);
+      // The browser leaves what follows the selection alone while it cannot be edited.
+      if (end) end.contentEditable = 'false';
+      var content = bodyHtml(html) + (end ? '<p><br></p>' : '');
+      cmd('insertHTML', content || '<p><br></p>');
+      if (end) end.removeAttribute('contenteditable');
+    });
+    if (E.firstElementChild) caretIn(E.firstElementChild, false);
+  }
+  /** The elements above the signature before text started streaming in, kept as they are so undo still knows them. */
+  var beforeStream = null;
+  function startStream() {
+    if (mode !== 'html' || beforeStream) return;
+    beforeStream = { nodes: bodyNodes(), away: false };
+  }
+  function quietly(run) {
+    applying = true;
+    try {
+      run();
+    } finally {
+      applying = false;
+    }
+    E.classList.toggle('is-empty', isEmpty());
+    changed();
+  }
+  function streamedNodes() {
+    return bodyNodes().filter(function (node) { return beforeStream.nodes.indexOf(node) < 0; });
+  }
+  /** Shows text as it is written, without filling the undo history. */
+  function streamBody(html) {
+    if (!beforeStream) return;
+    quietly(function () {
+      var end = signatureBlock();
+      if (!beforeStream.away) beforeStream.nodes.forEach(function (node) { node.remove(); });
+      else streamedNodes().forEach(function (node) { node.remove(); });
+      beforeStream.away = true;
+      var content = (bodyHtml(html) || '<p><br></p>') + (end ? '<p><br></p>' : '');
+      if (end) end.insertAdjacentHTML('beforebegin', content);
+      else E.insertAdjacentHTML('afterbegin', content);
+    });
+  }
+  function restoreBeforeStream() {
+    var saved = beforeStream;
+    if (!saved) return false;
+    if (saved.away) {
+      quietly(function () {
+        var end = signatureBlock();
+        streamedNodes().forEach(function (node) { node.remove(); });
+        saved.nodes.forEach(function (node) { E.insertBefore(node, end); });
+      });
+    }
+    beforeStream = null;
+    return true;
+  }
+  /** The result as a single undo step back to how it was. */
+  function finishStream(html) {
+    restoreBeforeStream();
+    setBody(html);
+  }
+  function cancelStream() {
+    restoreBeforeStream();
+  }
+
+  // ------------------------------------------------ mail: the format menu
+
+  // The web's bubble menu (FormatMenu in rich-text-editor.tsx): formatting
+  // appears on the selection, so the writing surface stays empty.
+  var bubble = null;
+  var bubbleLabels = null;
+  var bubbleIcons = {};
+  var choosingSize = false;
+  var TEXT_SIZES = [['small', '12px'], ['normal', ''], ['large', '18px'], ['huge', '24px']];
+  var TOOLS = ['bold', 'italic', 'underline', 'strike', 'link', 'size', 'bulletList', 'orderedList', 'quote'];
+  function drawBubble() {
+    var now = marks();
+    var html = '';
+    if (choosingSize) {
+      TEXT_SIZES.forEach(function (size) {
+        var on = (now.fontSize || '') === size[1];
+        html += '<button type="button" class="size' + (on ? ' on' : '') + '" data-size="' + size[1] + '" aria-pressed="' + on + '"' + (size[1] ? ' style="font-size:' + size[1] + '"' : '') + '>' + Md.escape((bubbleLabels.sizes || {})[size[0]] || size[0]) + '</button>';
+      });
+    } else {
+      TOOLS.forEach(function (tool) {
+        var on = tool === 'size' ? now.fontSize !== null : tool === 'link' ? now.link !== null : !!now[tool];
+        html += '<button type="button"' + (on ? ' class="on"' : '') + ' data-tool="' + tool + '" aria-pressed="' + on + '" aria-label="' + Md.escape(bubbleLabels[tool] || tool) + '">' + (bubbleIcons[tool] || '') + '</button>';
+      });
+    }
+    if (bubble.innerHTML !== html) bubble.innerHTML = html;
+  }
+  function showBubble() {
+    if (!bubble || !bubbleLabels) return;
+    var r = range();
+    if (!r || r.collapsed) choosingSize = false;
+    if (!editable || fieldOpen || !r || r.collapsed || document.activeElement !== E) {
+      bubble.hidden = true;
+      return;
+    }
+    drawBubble();
+    bubble.hidden = false;
+    var box = r.getBoundingClientRect();
+    var width = bubble.offsetWidth;
+    var height = bubble.offsetHeight;
+    var left = Math.max(8, Math.min(box.left + box.width / 2 - width / 2, window.innerWidth - width - 8));
+    var top = box.top - height - 8 >= 4 ? box.top - height - 8 : box.bottom + 8;
+    bubble.style.left = left + window.scrollX + 'px';
+    bubble.style.top = top + window.scrollY + 'px';
+  }
+  var bubbleQueued = false;
+  function bubbleSoon() {
+    if (!bubble || bubbleQueued) return;
+    bubbleQueued = true;
+    requestAnimationFrame(function () {
+      bubbleQueued = false;
+      showBubble();
+    });
+  }
+  /** Turns the menu on with its words and signs, or off with nothing. */
+  function setBubble(config) {
+    bubbleLabels = config && mode === 'html' ? config.labels || {} : null;
+    bubbleIcons = (config && config.icons) || {};
+    if (!bubbleLabels) {
+      if (bubble) bubble.hidden = true;
+      return;
+    }
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.id = 'bubble';
+      bubble.hidden = true;
+      document.body.appendChild(bubble);
+      // Keeps the text selected; a normal click would move focus off it.
+      bubble.addEventListener('mousedown', function (event) { event.preventDefault(); });
+      bubble.addEventListener('click', function (event) {
+        var button = event.target && event.target.closest ? event.target.closest('button') : null;
+        if (!button) return;
+        if (button.hasAttribute('data-size')) {
+          exec('fontSize', button.getAttribute('data-size') || null);
+          choosingSize = false;
+        } else {
+          var tool = button.getAttribute('data-tool');
+          if (tool === 'link') {
+            bubble.hidden = true;
+            return openLink();
+          }
+          if (tool === 'size') choosingSize = true;
+          else exec(tool);
+        }
+        showBubble();
+      });
+      document.addEventListener('selectionchange', bubbleSoon);
+      E.addEventListener('focus', bubbleSoon);
+      E.addEventListener('blur', bubbleSoon);
+      E.addEventListener('input', bubbleSoon);
+      window.addEventListener('scroll', bubbleSoon, true);
+      window.addEventListener('resize', bubbleSoon);
+    }
+    bubbleSoon();
+  }
+
   // ----------------------------------------------------------- for the app
 
   function setTheme(vars) {
@@ -1165,6 +1369,13 @@
       else restore();
     },
     blur: function () { E.blur(); },
+    /** Mail: the text above the signature (AI writing), and the format menu on the selection. */
+    setBody: setBody,
+    startStream: startStream,
+    streamBody: streamBody,
+    finishStream: finishStream,
+    cancelStream: cancelStream,
+    bubble: setBubble,
     /** For tests and the demo: typing without a keyboard, and a look at the document. */
     debug: {
       type: function (text) {
@@ -1197,6 +1408,187 @@
         return false;
       },
     },
+  };
+
+  // ------------------------------------------- notes: the blocks "/" offers
+  // apps/notes-web/src/components/note-editor.tsx: "/" at the start of a
+  // paragraph lists what the line can become; typing on narrows the list,
+  // ↑ ↓ choose, Enter makes it, Escape puts the list away.
+
+  var slashBlocks = null;
+  var slashEmpty = '';
+  var slashBox = null;
+  /** The open list: the paragraph it is for, what is typed after the "/", the chosen row. */
+  var slash = null;
+  /** The line the list was put away on with Escape: it stays away until the line changes. */
+  var slashShut = null;
+  function slashOptions() {
+    var query = slash.query.toLowerCase();
+    return slashBlocks.filter(function (block) { return block.label.toLowerCase().indexOf(query) >= 0; });
+  }
+  function readSlash() {
+    if (!slashBlocks || !editable || mode !== 'markdown') return null;
+    var r = range();
+    if (!r || !r.collapsed) return null;
+    var block = blockOf(r.startContainer);
+    if (!block || block.tagName !== 'P') return null;
+    var m = /^\/([^\n]*)$/.exec(block.textContent.replace(/​/g, ''));
+    return m ? { block: block, query: m[1], index: 0 } : null;
+  }
+  function drawSlash() {
+    if (!slash) {
+      if (slashBox) slashBox.hidden = true;
+      return;
+    }
+    if (!slashBox) {
+      slashBox = document.createElement('div');
+      slashBox.id = 'slash';
+      slashBox.setAttribute('role', 'listbox');
+      // A press on the list must not take the caret out of the text.
+      slashBox.addEventListener('mousedown', function (event) { event.preventDefault(); });
+      document.body.appendChild(slashBox);
+    }
+    var options = slashOptions();
+    var chosen = null;
+    slashBox.textContent = '';
+    if (!options.length) {
+      var none = document.createElement('p');
+      none.textContent = slashEmpty;
+      slashBox.appendChild(none);
+    }
+    options.forEach(function (option, index) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', index === slash.index % options.length ? 'true' : 'false');
+      row.textContent = option.label;
+      row.addEventListener('click', function () { applySlash(option.id); });
+      slashBox.appendChild(row);
+      if (index === slash.index % options.length) chosen = row;
+    });
+    var r = range();
+    var line = (r && r.getClientRects()[0]) || slash.block.getBoundingClientRect();
+    var box = E.getBoundingClientRect();
+    slashBox.hidden = false;
+    slashBox.style.left = box.left + (parseFloat(getComputedStyle(E).paddingLeft) || 0) + window.scrollX + 'px';
+    slashBox.style.top = line.bottom + window.scrollY + 4 + 'px';
+    if (chosen) chosen.scrollIntoView({ block: 'nearest' });
+    else slashBox.scrollIntoView({ block: 'nearest' });
+  }
+  function updateSlash() {
+    var next = readSlash();
+    if (next && slashShut === next.block.textContent) next = null;
+    else slashShut = null;
+    if (next && slash && slash.block === next.block && slash.query === next.query) next.index = slash.index;
+    slash = next;
+    drawSlash();
+  }
+  /** The line loses its "/…" and becomes the block (the web's deleteRange and formatBlock). */
+  function applySlash(id) {
+    var block = slash && slash.block;
+    slash = null;
+    drawSlash();
+    if (!block || !E.contains(block)) return;
+    edit(function () {
+      var whole = document.createRange();
+      whole.selectNodeContents(block);
+      var s = selection();
+      s.removeAllRanges();
+      s.addRange(whole);
+      cmd('delete');
+      if (/^h[1-3]$/.test(id)) cmd('formatBlock', id);
+      else if (id === 'bulletList') setList('ul');
+      else if (id === 'orderedList') setList('ol');
+      else if (id === 'taskList') setList('task');
+      else if (id === 'blockquote') setQuote(true);
+      else if (id === 'codeBlock') setCodeBlock();
+      else if (id === 'horizontalRule') insertRule();
+    });
+  }
+  // Before the editor's own keys: while the list is open, these are the list's.
+  document.addEventListener('keydown', function (event) {
+    if (!slash || event.isComposing) return;
+    var options = slashOptions();
+    var key = event.key;
+    if (key === 'Escape') {
+      slashShut = slash.block.textContent;
+      slash = null;
+      drawSlash();
+    } else if ((key === 'ArrowUp' || key === 'ArrowDown') && options.length) {
+      slash.index = ((slash.index % options.length) + (key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      drawSlash();
+    } else if (key === 'Enter' && options.length) {
+      applySlash(options[slash.index % options.length].id);
+    } else return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+  E.addEventListener('input', updateSlash);
+  E.addEventListener('blur', function () {
+    slash = null;
+    drawSlash();
+  });
+  document.addEventListener('selectionchange', updateSlash);
+  /** Turns the list on: `{ blocks: [{ id, label }], empty }`, or `null` for off. */
+  window.__even.slash = function (config) {
+    slashBlocks = config && config.blocks && config.blocks.length ? config.blocks : null;
+    slashEmpty = (config && config.empty) || '';
+    updateSlash();
+  };
+  window.__even.debug.slash = function () {
+    return slash ? slashOptions().map(function (option) { return option.label; }) : null;
+  };
+
+  // ------------------------------------ for a host that scrolls the editor
+  // An issue's description (src/todo/description.rs) is as tall as its text
+  // and sits in a pane the app scrolls. The view then covers only the part of
+  // the text that pane has in sight: the page is told how far down that part
+  // starts, never scrolls by itself, and hands the wheel to the app.
+
+  var fitted = false;
+  var fitTop = 0;
+  var wheelSum = 0;
+  var wheelQueued = false;
+  function sendWheel(dy) {
+    wheelSum += dy;
+    if (wheelQueued) return;
+    wheelQueued = true;
+    requestAnimationFrame(function () {
+      wheelQueued = false;
+      var sum = wheelSum;
+      wheelSum = 0;
+      if (sum) post({ t: 'wheel', dy: sum });
+    });
+  }
+  /** Asks the app to scroll when the caret is outside the part in sight. */
+  function revealCaret() {
+    if (!fitted || document.activeElement !== E) return;
+    var r = range();
+    if (!r || !r.collapsed) return;
+    var line = r.getClientRects()[0] || (blockOf(r.startContainer) || E).getBoundingClientRect();
+    if (line.bottom > window.innerHeight) sendWheel(line.bottom - window.innerHeight + 8);
+    else if (line.top < 0) sendWheel(line.top - 8);
+  }
+  window.__even.scroll = function (top) {
+    if (!fitted) {
+      fitted = true;
+      root.classList.add('fitted');
+      window.addEventListener('wheel', function (event) {
+        // A pinch is not a scroll.
+        if (event.ctrlKey) return;
+        event.preventDefault();
+        sendWheel(event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY);
+      }, { passive: false });
+      // The browser moves the page to follow the caret; it goes back, and the app scrolls instead.
+      window.addEventListener('scroll', function () {
+        if (Math.abs(window.scrollY - fitTop) >= 0.5) window.scrollTo(0, fitTop);
+      });
+      window.addEventListener('resize', function () { window.scrollTo(0, fitTop); });
+      E.addEventListener('input', revealCaret);
+      E.addEventListener('keyup', revealCaret);
+    }
+    fitTop = Math.max(0, +top || 0);
+    window.scrollTo(0, fitTop);
   };
 
   cmd('defaultParagraphSeparator', 'p');

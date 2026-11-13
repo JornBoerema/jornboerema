@@ -32,6 +32,12 @@ pub(crate) enum ToastAction {
     Undo(u64),
     /// After unsubscribing: archive everything from this sender too.
     AlsoArchive(String),
+    /// Opens what the toast is about (a task, a file in Moneybird) in the browser.
+    Open(String),
+    /// Takes back the message that is about to be sent (compose.rs).
+    UndoSend(u64),
+    /// Puts back what the message said before the AI wrote it (compose/ai.rs).
+    UndoAi(u64),
     /// Only closes the toast.
     Dismiss,
 }
@@ -140,6 +146,11 @@ impl MailView {
                     self.tidy(sender, "archive", cx);
                 }
             }
+            Some(ToastAction::Open(url)) => {
+                let _ = open::that_detached(url);
+            }
+            Some(ToastAction::UndoSend(serial)) => self.undo_send(serial, cx),
+            Some(ToastAction::UndoAi(key)) => self.undo_ai(key, cx),
             Some(ToastAction::Dismiss) | None => {}
         }
     }

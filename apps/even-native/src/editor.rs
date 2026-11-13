@@ -187,6 +187,13 @@ pub enum EditorEvent {
     ContentHeight(f32),
 }
 
+/// Mail: the page read the content it was given with [`RichEditor::set_content`],
+/// so [`RichEditor::html`], [`RichEditor::plain_text`], [`RichEditor::is_written`]
+/// and [`RichEditor::body_text`] now say what an unchanged draft holds. An
+/// event of its own, beside [`EditorEvent`]: subscribe to it separately.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ContentRead;
+
 /// What the page tells the app. Only our script can post (the page's policy
 /// runs nothing else), and every message is still checked here.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -225,6 +232,24 @@ enum Message {
     },
     /// A pasted picture could not be read.
     Failed,
+    /// The wheel turned over a page its host scrolls (see [`RichEditor::set_scroller`]).
+    Wheel {
+        dy: f32,
+    },
+    /// Mail: how the page reads the content it was given.
+    Read {
+        content: String,
+        #[serde(default)]
+        text: String,
+        #[serde(default)]
+        written: bool,
+        #[serde(default)]
+        body: String,
+    },
+    /// Mail: what is written above the signature, as plain text.
+    Body {
+        text: String,
+    },
     /// From the demo's self-test.
     Log {
         message: String,
@@ -239,6 +264,7 @@ fn parse_message(raw: &str) -> Option<Message> {
     match &message {
         Message::Key { key } if !KEYS.is_match(key) => None,
         Message::Height { px } if !px.is_finite() || *px < 0. || *px > 1_000_000. => None,
+        Message::Wheel { dy } if !dy.is_finite() || dy.abs() > 100_000. => None,
         _ => Some(message),
     }
 }
@@ -378,6 +404,11 @@ pub struct RichEditor {
     content: String,
     text: String,
     written: bool,
+    /// Mail: the content as the page reads it, and the text above the signature.
+    html: String,
+    body: String,
+    /// Mail: formatting shows on the selection.
+    format_menu: bool,
     placeholder: String,
     editable: bool,
     hidden: bool,
@@ -393,11 +424,14 @@ pub struct RichEditor {
     remote_images: bool,
     open_links: bool,
     forward_shortcuts: bool,
+    /// The pane that scrolls this editor along with what is around it.
+    scroller: Option<ScrollHandle>,
     ipc: UnboundedSender<String>,
     _ipc: Task<()>,
 }
 
 impl EventEmitter<EditorEvent> for RichEditor {}
+impl EventEmitter<ContentRead> for RichEditor {}
 
 impl Focusable for RichEditor {
     fn focus_handle(&self, _: &App) -> FocusHandle {
@@ -429,6 +463,9 @@ impl RichEditor {
             content: String::new(),
             text: String::new(),
             written: false,
+            html: String::new(),
+            body: String::new(),
+            format_menu: false,
             placeholder: String::new(),
             editable: true,
             hidden: false,
@@ -444,6 +481,7 @@ impl RichEditor {
             remote_images: false,
             open_links: true,
             forward_shortcuts: true,
+            scroller: None,
             ipc,
             _ipc: task,
         };
@@ -559,7 +597,98 @@ impl RichEditor {
         self.content = content.to_string();
         self.text.clear();
         self.written = false;
+        self.html.clear();
+        self.body.clear();
         self.eval(format!("__even.set({})", js(&content)), cx);
+    }
+
+    /// Mail: the content as mail HTML, as the page reads it: what the user
+    /// made of it, or what was set once [`ContentRead`] came. Empty when
+    /// nothing but blank lines is written.
+    pub fn html(&self) -> &str {
+        &self.html
+    }
+
+    /// Mail: what is written above the signature, as plain text.
+    pub fn body_text(&self) -> &str {
+        &self.body
+    }
+
+    /// Mail: puts `html` in place of everything above the signature, as one undo step.
+    pub fn set_body(&mut self, html: &str, cx: &mut Context<Self>) {
+        self.eval(format!("__even.setBody({})", js(&html)), cx);
+    }
+
+    /// Mail: text is about to be written into the body as it arrives
+    /// ([`Self::stream_body`]), without filling the undo history.
+    /// [`Self::finish_stream`] makes the result a single undo step back to how it was.
+    pub fn start_stream(&mut self, cx: &mut Context<Self>) {
+        self.eval("__even.startStream()".into(), cx);
+    }
+
+    pub fn stream_body(&mut self, html: &str, cx: &mut Context<Self>) {
+        self.eval(format!("__even.streamBody({})", js(&html)), cx);
+    }
+
+    pub fn finish_stream(&mut self, html: &str, cx: &mut Context<Self>) {
+        self.eval(format!("__even.finishStream({})", js(&html)), cx);
+    }
+
+    /// Mail: puts back what was there before [`Self::start_stream`].
+    pub fn cancel_stream(&mut self, cx: &mut Context<Self>) {
+        self.eval("__even.cancelStream()".into(), cx);
+    }
+
+    /// Mail: the web's bubble menu. While something is selected, its
+    /// formatting (bold to quote, a link, the text size) shows above it.
+    pub fn set_format_menu(&mut self, on: bool, cx: &mut Context<Self>) {
+        self.format_menu = on;
+        let script = self.format_menu_script();
+        self.eval(script, cx);
+    }
+
+    fn format_menu_script(&self) -> String {
+        if !self.format_menu {
+            return "__even.bubble(null)".into();
+        }
+        let icons: serde_json::Map<String, serde_json::Value> = [
+            ("bold", "text-bold"),
+            ("italic", "text-italic"),
+            ("underline", "text-underline"),
+            ("strike", "text-strikethrough"),
+            ("link", "link-01"),
+            ("size", "text-font"),
+            ("bulletList", "left-to-right-list-bullet"),
+            ("orderedList", "left-to-right-list-number"),
+            ("quote", "quote-down"),
+        ]
+        .into_iter()
+        .filter_map(|(tool, icon)| {
+            let bytes = crate::assets::Assets.load(&format!("hi/{icon}.svg")).ok().flatten()?;
+            Some((tool.to_string(), String::from_utf8_lossy(&bytes).into_owned().into()))
+        })
+        .collect();
+        let config = json!({
+            "icons": icons,
+            "labels": {
+                "bold": t("Bold", "Vet"),
+                "italic": t("Italic", "Cursief"),
+                "underline": t("Underline", "Onderstrepen"),
+                "strike": t("Strikethrough", "Doorhalen"),
+                "link": t("Link", "Link"),
+                "size": t("Text size", "Tekstgrootte"),
+                "bulletList": t("Bulleted list", "Lijst met opsommingstekens"),
+                "orderedList": t("Numbered list", "Genummerde lijst"),
+                "quote": t("Quote", "Citaat"),
+                "sizes": {
+                    "small": t("Small", "Klein"),
+                    "normal": t("Normal", "Normaal"),
+                    "large": t("Large", "Groot"),
+                    "huge": t("Huge", "Extra groot"),
+                },
+            },
+        });
+        format!("__even.bubble({})", js(&config))
     }
 
     /// The content as last known: what was set, or what the user made of it.
@@ -638,6 +767,9 @@ impl RichEditor {
         // The policy is part of the page, so the page loads again with what it held.
         self.ready = false;
         self.queue = vec![format!("__even.set({})", js(&self.content))];
+        if self.format_menu {
+            self.queue.push(self.format_menu_script());
+        }
         let document = self.document();
         if let Some(webview) = &self.webview {
             let _ = webview.read(cx).load_html(&document);
@@ -653,6 +785,30 @@ impl RichEditor {
     /// own key bindings (they are unless turned off).
     pub fn set_forward_shortcuts(&mut self, forward: bool) {
         self.forward_shortcuts = forward;
+    }
+
+    /// Notes: typing "/" at the start of a paragraph lists these blocks
+    /// (`(id, label)`, the ids of note-editor.tsx's `blockIds`) to turn the
+    /// line into; `empty` shows when what is typed after it matches none.
+    pub fn set_slash_menu(&mut self, blocks: &[(&str, &str)], empty: &str, cx: &mut Context<Self>) {
+        let blocks: Vec<_> = blocks.iter().map(|(id, label)| json!({ "id": id, "label": label })).collect();
+        let config = json!({ "blocks": blocks, "empty": empty });
+        self.eval(format!("__even.slash({})", js(&config)), cx);
+    }
+
+    /// For an editor as tall as its content ([`EditorEvent::ContentHeight`])
+    /// inside a pane the host scrolls: the wheel over the text scrolls that
+    /// pane, and typing past its edge brings the caret back in sight. The
+    /// host draws only the part in sight and says where it starts with
+    /// [`Self::set_page_scroll`] (a system webview can't be clipped).
+    pub fn set_scroller(&mut self, scroller: ScrollHandle, cx: &mut Context<Self>) {
+        self.scroller = Some(scroller);
+        self.set_page_scroll(0., cx);
+    }
+
+    /// How far down the document the part the view shows starts, in points.
+    pub fn set_page_scroll(&mut self, top: f32, cx: &mut Context<Self>) {
+        self.eval(format!("__even.scroll({})", js(&top.max(0.))), cx);
     }
 
     /// Gives the editor the keyboard, the caret where it last was.
@@ -672,6 +828,20 @@ impl RichEditor {
             let _ = webview.read(cx).focus();
         }
         self.eval(format!("__even.focus({})", js(&place)), cx);
+    }
+
+    /// Hands the keyboard back to the window, before a field of the host's
+    /// own takes it: a webview keeps it otherwise.
+    pub fn release_keyboard(&self, cx: &App) {
+        if let Some(webview) = &self.webview {
+            let _ = webview.read(cx).raw().focus_parent();
+        }
+    }
+
+    /// Presses a key combination in the page, as if typed there: "cmd-a",
+    /// "cmd-b". For combinations the host's own key bindings caught first.
+    pub fn press(&mut self, keys: &str, cx: &mut Context<Self>) {
+        self.eval(format!("__even.combo({})", js(&keys)), cx);
     }
 
     /// Does what a toolbar button asks, on the selection.
@@ -762,8 +932,19 @@ impl RichEditor {
                 self.content = content.clone();
                 self.text = text;
                 self.written = written;
+                if self.mode == Mode::Html {
+                    self.html = content.clone();
+                }
                 cx.emit(EditorEvent::Changed(content));
             }
+            Message::Read { content, text, written, body } => {
+                self.html = content;
+                self.text = text;
+                self.written = written;
+                self.body = body;
+                cx.emit(ContentRead);
+            }
+            Message::Body { text } => self.body = text,
             Message::Focus => {
                 self.focused = true;
                 // GPUI's focus follows, so ⌘-keys the window sees first come to this view.
@@ -815,6 +996,16 @@ impl RichEditor {
                 window,
                 cx,
             ),
+            Message::Wheel { dy } => {
+                if let Some(scroller) = &self.scroller {
+                    let (offset, most) = (scroller.offset(), scroller.max_offset());
+                    let y = (offset.y - px(dy)).clamp(-most.y, px(0.));
+                    if y != offset.y {
+                        scroller.set_offset(point(offset.x, y));
+                        window.refresh();
+                    }
+                }
+            }
             Message::Log { message } => eprintln!("[editor] {message}"),
         }
     }

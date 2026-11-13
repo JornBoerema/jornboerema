@@ -1,8 +1,9 @@
 //! Word from the API that something in the user's workspaces changed, as the
-//! web hears it (apps/notes-web/src/hooks/use-workspace.ts, through Ably). The
-//! web uses Ably's websocket client; this listens to the same channel over
-//! Ably's event stream, with the same subscribe-only token from /api/realtime.
-//! Messages carry no data: each one only says "ask again".
+//! web hears it (hooks/use-workspace.ts in apps/todo-web and apps/notes-web,
+//! through Ably). The web uses Ably's websocket client; this listens to the
+//! same channel (`workspace:<userId>`, subscribe-only) over Ably's event
+//! stream, with the same token from /api/realtime. Messages carry no data:
+//! each one only says "ask again". Even doen and Even noteren both listen.
 
 use std::io::{BufRead as _, BufReader};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -41,7 +42,7 @@ pub fn start(client: Client, user_id: String) -> (Realtime, UnboundedReceiver<Si
     let stop = Arc::new(AtomicBool::new(false));
     let stopped = stop.clone();
     std::thread::Builder::new()
-        .name("notes-realtime".into())
+        .name("workspace-realtime".into())
         .spawn(move || {
             let mut wait = 2;
             while !stopped.load(Ordering::Relaxed) {
@@ -78,7 +79,7 @@ fn listen(client: &Client, user_id: &str, sender: &UnboundedSender<Signal>, stop
         .and_then(|key| key.as_str())
         .context("no key name")?;
     let token: serde_json::Value = agent
-        .post(&format!("https://rest.ably.io/keys/{key}/requestToken"))
+        .post(&format!("https://rest.ably.io/keys/{}/requestToken", encode(key)))
         .send_json(&request)
         .map_err(|error| anyhow!(error))?
         .into_json()?;
@@ -88,6 +89,7 @@ fn listen(client: &Client, user_id: &str, sender: &UnboundedSender<Signal>, stop
         .query("v", "1.2")
         .query("channels", &format!("workspace:{user_id}"))
         .query("accessToken", token)
+        .set("Accept", "text/event-stream")
         .call()
         .map_err(|error| anyhow!(error))?;
     if sender.unbounded_send(Signal::Connected).is_err() {
@@ -111,6 +113,7 @@ fn listen(client: &Client, user_id: &str, sender: &UnboundedSender<Signal>, stop
                     break;
                 }
             } else if event == "error" {
+                // Ably ends a stream with an error event (an expired token).
                 break;
             }
             event.clear();
@@ -118,4 +121,8 @@ fn listen(client: &Client, user_id: &str, sender: &UnboundedSender<Signal>, stop
         }
     }
     Ok(true)
+}
+
+fn encode(value: &str) -> String {
+    url::form_urlencoded::byte_serialize(value.as_bytes()).collect()
 }

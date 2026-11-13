@@ -1,25 +1,40 @@
-//! A conversation made ready to read, off the UI thread, and the small formats it uses.
+//! A conversation made ready to read, off the UI thread: each message
+//! sanitized, the earlier mail it quotes split off, its inline images in place.
 
 use std::sync::Arc;
 
-use chrono::{Datelike, Local};
-
-use crate::api::{Address, Attachment, Client, Message, ThreadDetail};
-use crate::email::{self, Body, File, Part};
+use crate::api::{Address, Attachment, Client, Message, ThreadDetail, Unsubscribe};
+use crate::email::{self, Body};
 use crate::quote;
 
 use super::*;
 
-/// A conversation as the reader shows it, prepared off the UI thread:
-/// sanitized, with its inline images in place.
+/// A conversation as the reader shows it.
 pub(super) struct Conversation {
+    /// The first message's subject, or else the list's (`messages[0]?.subject || summary.subject`).
     pub(super) subject: String,
+    /// Oldest first, as the API gives them.
     pub(super) parts: Vec<Part>,
-    /// Per part, what its attachment chips download.
-    pub(super) files: Vec<Files>,
+    /// Some message asks for images from elsewhere.
     pub(super) remote_images: bool,
     /// The newest message: what R and A answer.
     pub(super) last: Option<ReplyTarget>,
+}
+
+/// One message, ready for the page (`SanitizedMessage`).
+pub(super) struct Part {
+    pub(super) message_id: String,
+    pub(super) from: Option<Address>,
+    pub(super) to: Vec<Address>,
+    pub(super) cc: Vec<Address>,
+    pub(super) received_at: DateTime<Utc>,
+    /// The start of its text, for the line of a folded message.
+    pub(super) preview: String,
+    pub(super) body: Body,
+    /// There is something to translate.
+    pub(super) translatable: bool,
+    pub(super) unsubscribe: Option<Unsubscribe>,
+    pub(super) attachments: Vec<Attachment>,
 }
 
 /// What an answer needs from the message it answers.
@@ -29,11 +44,6 @@ pub(super) struct ReplyTarget {
     pub(super) reply_to: Vec<Address>,
     pub(super) to: Vec<Address>,
     pub(super) cc: Vec<Address>,
-}
-
-pub(super) struct Files {
-    pub(super) message_id: String,
-    pub(super) attachments: Vec<Attachment>,
 }
 
 pub(super) enum Reading {
@@ -46,6 +56,8 @@ pub(super) enum Reading {
 const SAFE_INLINE: [&str; 5] = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
 const MAX_INLINE_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_INLINE_IMAGES: usize = 20;
+/// How much of a folded message's text its line shows (`text.slice(0, 160)`).
+const PREVIEW: usize = 160;
 
 /// Runs on the background executor: sanitizes each body, splits off the quote of
 /// earlier mail and puts its `cid:` images in place.
@@ -57,26 +69,35 @@ pub(super) fn prepare(client: &Client, thread_id: &str, subject: String, detail:
         to: message.to.clone(),
         cc: message.cc.clone(),
     });
+    let subject = detail
+        .messages
+        .first()
+        .map(|message| message.subject.clone())
+        .filter(|subject| !subject.is_empty())
+        .unwrap_or(subject);
     let mut remote_images = false;
     let parts = detail
         .messages
-        .iter()
+        .into_iter()
         .enumerate()
         .map(|(index, message)| {
             // The first message quotes nothing in this thread, as in the web app.
             let quoted = index > 0;
-            let html = message.html.as_deref().filter(|html| !html.trim().is_empty());
-            let body = match (html, message.text.as_deref()) {
+            let html = message.html.as_deref().filter(|html| !html.is_empty());
+            let text = message.text.as_deref().filter(|text| !text.is_empty());
+            let body = match (html, text) {
                 (Some(html), _) => {
                     // Split before sanitizing, which drops the ids Outlook marks its quote with;
                     // then each half is sanitized on its own.
+                    let clean = |html: &str| email::scope_styles(&email::sanitize(html));
                     let mut pieces = match quoted.then(|| quote::split_html(html)).flatten() {
-                        Some((reply, quote)) => vec![email::sanitize(&reply), email::sanitize(&quote)],
-                        None => vec![email::sanitize(html)],
+                        Some((reply, quote)) => vec![clean(&reply), clean(&quote)],
+                        None => vec![clean(html)],
                     };
-                    pieces = with_inline_images(client, thread_id, message, pieces);
+                    pieces = with_inline_images(client, thread_id, &message, pieces);
                     remote_images |= pieces.iter().any(|piece| email::has_remote_images(piece));
-                    let paper = pieces.iter().any(|piece| email::has_own_background(piece));
+                    // As shown first, without the quote: designed mail keeps its paper.
+                    let paper = pieces.first().is_some_and(|piece| email::has_own_background(piece));
                     let mut pieces = pieces.into_iter();
                     Body::Html {
                         html: pieces.next().unwrap_or_default(),
@@ -84,63 +105,26 @@ pub(super) fn prepare(client: &Client, thread_id: &str, subject: String, detail:
                         paper,
                     }
                 }
-                (None, Some(text)) => {
-                    let text = tidy(text);
-                    match quoted.then(|| quote::split_text(&text)).flatten() {
-                        Some((reply, quote)) => Body::Text {
-                            text: reply,
-                            quote: Some(quote),
-                        },
-                        None => Body::Text { text, quote: None },
-                    }
-                }
-                (None, None) => Body::Text {
-                    text: String::new(),
-                    quote: None,
-                },
+                (None, Some(text)) => Body::Text(text.to_string()),
+                (None, None) => Body::Empty,
             };
-            let to: Vec<&str> = message.to.iter().chain(&message.cc).map(|a| a.label()).collect();
             Part {
-                from: message
-                    .from
-                    .as_ref()
-                    .map(|a| a.label().to_string())
-                    .unwrap_or_else(|| "Onbekend".into()),
-                to: if to.is_empty() {
-                    String::new()
-                } else {
-                    format!("Aan {}", to.join(", "))
-                },
-                date: long_date(message.received_at),
+                preview: text.map(|text| text.chars().take(PREVIEW).collect()).unwrap_or_default(),
+                translatable: text.is_some_and(|text| !text.trim().is_empty()) || html.is_some(),
                 body,
-                attachments: message
-                    .attachments
-                    .iter()
-                    .map(|a| File {
-                        label: format!("{} · {}", a.name, size(a.size)),
-                        downloadable: !a.id.is_empty(),
-                    })
-                    .collect(),
+                message_id: message.id,
+                from: message.from,
+                to: message.to,
+                cc: message.cc,
+                received_at: message.received_at,
+                unsubscribe: message.unsubscribe,
+                attachments: message.attachments,
             }
         })
         .collect();
-    let files = detail
-        .messages
-        .into_iter()
-        .map(|message| Files {
-            message_id: message.id,
-            attachments: message.attachments,
-        })
-        .collect();
-    let subject = if subject.is_empty() {
-        "(geen onderwerp)".to_string()
-    } else {
-        subject
-    };
     Conversation {
         subject,
         parts,
-        files,
         remote_images,
         last,
     }
@@ -182,62 +166,24 @@ pub(super) fn random_nonce() -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
 
-const MONTHS: [&str; 12] = [
-    "jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec",
-];
-
-pub(super) fn long_date(at: chrono::DateTime<chrono::Utc>) -> String {
-    let at = at.with_timezone(&Local);
-    format!(
-        "{} {} {}, {}",
-        at.day(),
-        MONTHS[at.month0() as usize],
-        at.year(),
-        at.format("%H:%M")
-    )
-}
-
-/// No more than one empty line in a row; newsletters stack them.
-pub(super) fn tidy(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut blank = 0;
-    for line in text.lines() {
-        let line = line.trim_end();
-        if line.is_empty() {
-            blank += 1;
-            if blank > 1 {
-                continue;
-            }
-        } else {
-            blank = 0;
-        }
-        out.push_str(line);
-        out.push('\n');
-    }
-    out.trim().to_string()
-}
-
+/// "12 KB", "3.4 MB" (`formatSize` in pages/conversation.tsx).
 pub(super) fn size(bytes: u64) -> String {
-    match bytes {
-        b if b >= 1_000_000 => format!("{:.1} MB", b as f64 / 1_000_000.),
-        b if b >= 1_000 => format!("{} kB", b / 1_000),
-        b => format!("{b} B"),
+    const MB: u64 = 1024 * 1024;
+    if bytes < MB {
+        format!("{} KB", bytes.div_ceil(1024))
+    } else {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{size, tidy};
+    use super::size;
 
     #[test]
-    fn tidy_keeps_one_empty_line() {
-        assert_eq!(tidy("a\n\n\n\nb  \n"), "a\n\nb");
-    }
-
-    #[test]
-    fn sizes_read_well() {
-        assert_eq!(size(512), "512 B");
-        assert_eq!(size(2_400), "2 kB");
-        assert_eq!(size(3_250_000), "3.2 MB");
+    fn sizes_read_as_on_the_web() {
+        assert_eq!(size(512), "1 KB");
+        assert_eq!(size(2_400), "3 KB");
+        assert_eq!(size(3_565_158), "3.4 MB");
     }
 }

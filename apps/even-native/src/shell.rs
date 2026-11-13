@@ -202,6 +202,19 @@ impl Shell {
         }));
         self.select(stored_app(), window, cx);
         self.load_user(client, cx);
+        // `EVEN_SETTINGS=connections` or `EVEN_SETTINGS=mail:signatures` opens
+        // the settings at that page (`<page>` for a shared one, `<app>:<page>`
+        // for an app's own), to look at with scripts/shot.sh.
+        if let Ok(wanted) = std::env::var("EVEN_SETTINGS") {
+            let page = match wanted.split_once(':') {
+                Some((app, page)) => AppId::ALL
+                    .into_iter()
+                    .find(|id| id.key() == app)
+                    .map(|app| PageKey::Own(app, page.to_string().into())),
+                None => Some(PageKey::Shared(wanted.into())),
+            };
+            self.open_settings(page, window, cx);
+        }
         cx.notify();
     }
 
@@ -231,6 +244,10 @@ impl Shell {
             AppEvent::OpenSettings(page) => {
                 let page = page.map(|page| PageKey::Own(app, page.into()));
                 self.open_settings(page, window, cx);
+            }
+            AppEvent::Show => {
+                self.close_settings(window, cx);
+                self.select(app, window, cx);
             }
         }
     }
@@ -1122,7 +1139,6 @@ impl Shell {
             .track_focus(&focus)
             .on_action(cx.listener(|this, _: &CloseSettings, window, cx| this.close_settings(window, cx)))
             .occlude()
-            .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close_settings(window, cx)))
             .w(width)
             .h(height)
             .flex()
@@ -1225,6 +1241,7 @@ impl Shell {
             );
         Some(
             div()
+                .id("settings-backdrop")
                 .absolute()
                 .inset_0()
                 .occlude()
@@ -1232,6 +1249,13 @@ impl Shell {
                 .items_center()
                 .justify_center()
                 .bg(gpui_kit::rgba(if theme::is_dark() { 0x00000080 } else { 0x0000001a }))
+                // A press beside the window closes it. Only a press on this
+                // backdrop itself: the window and what an app draws over it
+                // (a confirm dialog, a menu) occlude it, so they don't.
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| this.close_settings(window, cx)),
+                )
                 .child(dialog)
                 .into_any_element(),
         )

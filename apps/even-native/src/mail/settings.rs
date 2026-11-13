@@ -80,8 +80,14 @@ impl Feature {
         }
     }
 
+    /// Keeps the choice on this Mac: the UI thread's half of [`Feature::set`],
+    /// so a switch flips at once. Follow it with `api::save_preferences` in
+    /// the background, so it reaches the account.
+    pub fn keep_locally(self, on: bool) {
+        self.keep(on);
+    }
+
     /// Keeps the choice here and on the account. Blocking: background executor.
-    /// For mail's settings pages.
     #[allow(dead_code)]
     pub fn set(self, on: bool, client: &Client) -> anyhow::Result<()> {
         self.keep(on);
@@ -122,8 +128,6 @@ pub fn notify_new_mail() -> bool {
     prefs::get(NOTIFY).as_deref() == Some("on")
 }
 
-/// For mail's settings pages.
-#[allow(dead_code)]
 pub fn set_notify_new_mail(on: bool) {
     if on {
         prefs::set(NOTIFY, "on");

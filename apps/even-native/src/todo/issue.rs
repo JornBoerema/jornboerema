@@ -7,6 +7,8 @@ use std::time::Duration;
 
 use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
 
+use crate::editor::EditorEvent;
+
 use super::api::{AttachmentTooLarge, BoardMember};
 use super::core::{default_status, sort_statuses, sort_sub_issues};
 use super::description::DescriptionEditor;
@@ -19,7 +21,7 @@ pub(super) struct IssueView {
     title: Entity<TextareaState>,
     /// The title as last shown from the data, to see a change made elsewhere.
     shown_title: String,
-    description: DescriptionEditor,
+    pub description: DescriptionEditor,
     /// The field for a new sub-issue, while one is being added.
     sub: Option<Entity<InputState>>,
     /// The names of files on their way up.
@@ -68,7 +70,11 @@ impl TodoApp {
                 }
                 _ => {}
             }),
-            cx.subscribe_in(description.events(), window, |this, _, event: &InputEvent, window, cx| {
+            cx.subscribe_in(description.events(), window, |this, _, event: &EditorEvent, window, cx| {
+                // The description grows with its text: drawn again at its new height.
+                if matches!(event, EditorEvent::ContentHeight(_)) {
+                    cx.notify();
+                }
                 match DescriptionEditor::save_on(event) {
                     Some(true) => this.flush_description(window, cx),
                     Some(false) => {
@@ -394,12 +400,19 @@ impl TodoApp {
             view.title
                 .update(cx, |title, cx| title.set_value(issue.title.clone(), window, cx));
         }
-        view.description
-            .sync(issue.description.as_deref().unwrap_or(""), window, cx);
+        view.description.sync(issue.description.as_deref().unwrap_or(""), cx);
 
-        let Some(view) = &self.issue else { return Vec::new() };
         let list = self.data.lists.iter().find(|list| list.id == issue.list_id);
         let read_only = list.is_some_and(|list| list.role == api::ListRole::Viewer);
+        // The description is a system view above everything GPUI draws: off
+        // the screen while a menu, a dialog or the delete question shows.
+        let covered = self.covered || self.menu.is_some() || self.dialog.is_some() || view.confirm_delete;
+        view.description.set_hidden(covered, cx);
+        let room = crate::workspace::toast_room(window, cx);
+        let description = view.description.render(!read_only, room, window, cx).into_any_element();
+        let scroller = view.description.scroller().clone();
+
+        let Some(view) = &self.issue else { return Vec::new() };
         let list_name = list.map(|list| list.name.clone()).unwrap_or_default();
         let statuses = &self.data.statuses;
         let status = statuses.iter().find(|status| Some(&status.id) == issue.status_id.as_ref());
@@ -853,6 +866,7 @@ impl TodoApp {
             .flex_1()
             .min_w_0()
             .overflow_y_scroll()
+            .track_scroll(&scroller)
             .px(px(40.))
             .pt(px(28.))
             .pb(px(40.))
@@ -871,7 +885,7 @@ impl TodoApp {
                             .font_weight(FontWeight::SEMIBOLD),
                     ),
             )
-            .child(div().mx(px(-10.)).child(view.description.render(!read_only)))
+            .child(description)
             .child(sub_issues)
             .child(attachments);
 

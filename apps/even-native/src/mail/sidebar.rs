@@ -147,7 +147,8 @@ impl MailView {
         let compose = ui::list_link(
             "compose",
             "pencil-edit-02",
-            t("New message", "Nieuw bericht"),
+            // A message that waits out of view comes back with it (`draftWaiting`).
+            if self.draft_waiting() { t("Resume draft", "Concept hervatten") } else { t("New message", "Nieuw bericht") },
             composing,
         )
         .mb(px(12.))
@@ -627,7 +628,10 @@ impl MailView {
                             } else {
                                 theme::muted()
                             }))
-                            .tooltip(ui::tip_with_hint(t("New message", "Nieuw bericht"), "C"))
+                            .tooltip(ui::tip_with_hint(
+                                if self.draft_waiting() { t("Resume draft", "Concept hervatten") } else { t("New message", "Nieuw bericht") },
+                                "C",
+                            ))
                             .on_click(cx.listener(|this, _, window, cx| this.compose(window, cx))),
                     )
                     .child(div().h(px(10.)))

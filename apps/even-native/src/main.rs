@@ -18,6 +18,7 @@ mod store;
 mod theme;
 mod todo;
 mod ui;
+mod workspace;
 
 use gpui_kit::*;
 

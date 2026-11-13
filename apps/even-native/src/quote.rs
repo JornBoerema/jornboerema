@@ -5,11 +5,8 @@
 //! attributes Outlook marks its quote with. Both halves are sanitized afterwards,
 //! each on its own, so nothing here has to be safe.
 
-use std::sync::LazyLock;
-
 use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
-use regex::Regex;
 
 /// Where mail clients start the earlier mail they quote under a reply: Gmail,
 /// Apple Mail and Thunderbird, Outlook (web and desktop), Yahoo.
@@ -122,61 +119,6 @@ fn inner_html(body: &NodeRef) -> String {
     body.children().map(|child| child.to_string()).collect()
 }
 
-/// Outlook and others put the earlier mail under a line like this, unquoted.
-static SEPARATOR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)^\s*-{2,}\s*(original message|oorspronkelijk bericht|forwarded message|doorgestuurd bericht)\s*-*\s*$|^\s*_{10,}\s*$")
-        .unwrap()
-});
-
-/// The same for plain text: the reply and the quote under it, or `None`.
-/// The quote is the `>` lines at the end with the "On … wrote:" line before them,
-/// or everything from an "Original Message" line.
-pub fn split_text(text: &str) -> Option<(String, String)> {
-    let lines: Vec<&str> = text.lines().collect();
-    let blank = |i: usize| lines[i].trim().is_empty();
-    let quoted = |i: usize| lines[i].trim_start().starts_with('>');
-
-    let separator = lines.iter().position(|line| SEPARATOR.is_match(line));
-
-    let mut trailing = None;
-    let mut end = lines.len();
-    while end > 0 && blank(end - 1) {
-        end -= 1;
-    }
-    if end > 0 && quoted(end - 1) {
-        let mut start = end - 1;
-        while start > 0 && (quoted(start - 1) || blank(start - 1)) {
-            start -= 1;
-        }
-        while blank(start) {
-            start += 1;
-        }
-        // "On …, … wrote:", sometimes wrapped so "wrote:" stands on its own line.
-        let mut before = start;
-        while before > 0 && blank(before - 1) {
-            before -= 1;
-        }
-        if before > 0 && lines[before - 1].trim_end().ends_with(':') {
-            start = before - 1;
-            if lines[start].split_whitespace().count() <= 2 && start > 0 && !blank(start - 1) {
-                start -= 1;
-            }
-        }
-        trailing = Some(start);
-    }
-
-    let start = match (separator, trailing) {
-        (Some(a), Some(b)) => a.min(b),
-        (a, b) => a.or(b)?,
-    };
-    let reply = lines[..start].join("\n").trim_end().to_string();
-    let quote = lines[start..].join("\n").trim().to_string();
-    if reply.trim().is_empty() || quote.is_empty() {
-        return None;
-    }
-    Some((reply, quote))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -232,30 +174,5 @@ mod tests {
         assert!(split_html(r#"<style>p{}</style><div class="gmail_quote">Oud</div>"#).is_none());
         // An image is a reply too.
         assert!(split_html(r#"<img src="cid:a@b"><div class="gmail_quote">Oud</div>"#).is_some());
-    }
-
-    #[test]
-    fn text_quote_with_wrote_line() {
-        let text =
-            "Prima.\n\nGroet, Jorn\n\nOn Thu, Nov 12, 2026 at 10:00 Jan <jan@x.nl>\nwrote:\n\n> Zullen we?\n>\n> Jan";
-        let (reply, quote) = split_text(text).unwrap();
-        assert_eq!(reply, "Prima.\n\nGroet, Jorn");
-        assert!(quote.starts_with("On Thu"));
-        assert!(quote.ends_with("> Jan"));
-    }
-
-    #[test]
-    fn text_quote_from_outlook_separator() {
-        let text = "Akkoord.\n\n-----Original Message-----\nFrom: Piet\nKun je tekenen?";
-        let (reply, quote) = split_text(text).unwrap();
-        assert_eq!(reply, "Akkoord.");
-        assert!(quote.starts_with("-----Original Message-----"));
-    }
-
-    #[test]
-    fn text_without_trailing_quote_stays() {
-        assert!(split_text("Hoi\n> een citaat\nen mijn antwoord eronder").is_none());
-        assert!(split_text("> alleen een citaat").is_none());
-        assert!(split_text("Gewoon tekst").is_none());
     }
 }

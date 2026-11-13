@@ -10,6 +10,9 @@ use gpui_kit::component::input::Escape;
 
 use super::*;
 
+// The Dialog's parts are Even noteren's too: src/workspace.
+pub(super) use crate::workspace::{dialog_close, dialog_footer, dialog_header, dialog_panel, labeled};
+
 /// Which menu is open. What is in it is decided when it is drawn (menus.rs),
 /// so a menu that stays open shows the change it just made.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -369,38 +372,21 @@ impl TodoApp {
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
         let text = if compact { 12.5 } else { 14. };
-        let mut panel = div()
+        let mut panel = crate::workspace::menu_panel()
             .id(if is_sub { "todo-submenu" } else { "todo-menu" })
             .occlude()
             .relative()
-            .flex()
-            .flex_col()
             .min_w(min_width)
             .max_w(px(320.))
             .max_h(px(320.))
             .overflow_y_scroll()
-            .p(px(4.))
-            .rounded(theme::RADIUS)
-            .bg(theme::popover())
-            .border_1()
-            .border_color(theme::with_alpha(theme::foreground(), if theme::is_dark() { 0.1 } else { 0.05 }))
-            .shadow_lg()
-            .font_family(theme::FONT)
-            .text_size(px(text))
-            .text_color(theme::foreground());
+            .text_size(px(text));
         if !is_sub {
             panel = panel.child(kit::track(&self.tracked, "menu-panel"));
         }
         for (index, entry) in entries.into_iter().enumerate() {
             panel = match entry {
-                Entry::Label(label) => panel.child(
-                    div()
-                        .px(px(8.))
-                        .py(px(4.))
-                        .text_size(px(12.))
-                        .text_color(theme::muted())
-                        .child(label),
-                ),
+                Entry::Label(label) => panel.child(crate::workspace::menu_label(label)),
                 Entry::Separator => panel.child(
                     div()
                         .flex_none()
@@ -412,11 +398,7 @@ impl TodoApp {
                 Entry::Custom(element) => panel.child(element),
                 Entry::Item(mut item) => {
                     let color = if item.destructive { theme::danger() } else { theme::foreground() };
-                    let hover = if item.destructive {
-                        theme::mix(theme::danger(), if theme::is_dark() { 20. } else { 10. })
-                    } else {
-                        theme::accent()
-                    };
+                    let hover = crate::workspace::menu_hover(item.destructive);
                     let opens = item.sub.is_some();
                     let checked = item.checked;
                     let disabled = item.disabled;
@@ -555,69 +537,6 @@ pub(super) fn modal(
     )
     .with_priority(10 + layer)
     .into_any_element()
-}
-
-/// packages/ui dialog.tsx `DialogContent`: the raised box, 448 wide.
-pub(super) fn dialog_panel(id: impl Into<ElementId>, window: &Window) -> Stateful<Div> {
-    let width = (window.viewport_size().width - px(32.)).min(px(448.));
-    div()
-        .id(id)
-        .occlude()
-        .relative()
-        .flex()
-        .flex_col()
-        .gap(px(24.))
-        .w(width)
-        .p(px(24.))
-        .rounded(theme::RADIUS_XL)
-        .bg(theme::popover())
-        .border_1()
-        .border_color(theme::with_alpha(theme::foreground(), if theme::is_dark() { 0.1 } else { 0.05 }))
-        .shadow_xl()
-        .font_family(theme::FONT)
-        .text_size(px(14.))
-        .text_color(theme::foreground())
-}
-
-/// `DialogHeader` with its title and description. `large`: an alert dialog's 18-point title.
-pub(super) fn dialog_header(title: impl Into<SharedString>, description: Option<SharedString>, large: bool) -> Div {
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(6.))
-        .child(
-            div()
-                .text_size(px(if large { 18. } else { 16. }))
-                .font_weight(FontWeight::MEDIUM)
-                .child(title.into()),
-        )
-        .when_some(description, |el, description| {
-            el.child(div().text_size(px(14.)).text_color(theme::muted()).child(description))
-        })
-}
-
-/// `DialogFooter`: the buttons at the right.
-pub(super) fn dialog_footer() -> Div {
-    div().flex().justify_end().gap(px(8.))
-}
-
-/// The dialog's own close button (top right, on the quiet fill).
-pub(super) fn dialog_close(id: impl Into<ElementId>) -> Stateful<Div> {
-    ui::icon_button(id, "cancel-01")
-        .absolute()
-        .top(px(16.))
-        .right(px(16.))
-        .bg(theme::secondary())
-}
-
-/// A `FieldLabel` above its control.
-pub(super) fn labeled(label: impl Into<SharedString>, control: impl IntoElement) -> Div {
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(12.))
-        .child(div().text_size(px(14.)).font_weight(FontWeight::MEDIUM).child(label.into()))
-        .child(control)
 }
 
 /// Escape from a field inside a dialog reaches the dialog as the field's own

@@ -5,14 +5,19 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io::Read as _;
 use std::rc::Rc;
+use std::sync::{Arc, LazyLock, Mutex};
+use std::time::Duration;
 
-use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::api::{BoardMember, StatusCategory};
 use crate::theme;
+
+// packages/ui's Input and Alert are Even noteren's too: src/workspace.
+pub use crate::workspace::{alert, field};
 
 /// `#rrggbb` as the API keeps a status's or project's colour.
 pub fn hex(color: &str) -> Rgba {
@@ -249,8 +254,87 @@ fn hue(id: &str) -> f32 {
     hash as f32
 }
 
-/// A member's initials on their own colour, with the ring that parts a stack.
+/// Members' profile pictures by address, once fetched. `None`: asked for, or
+/// not a picture; the initials show.
+static PICTURES: LazyLock<Mutex<HashMap<String, Option<Arc<Image>>>>> = LazyLock::new(Default::default);
+
+fn picture(url: &str) -> Option<Arc<Image>> {
+    PICTURES.lock().ok()?.get(url).cloned().flatten()
+}
+
+/// The pictures of these members that were not asked for yet. Each address is
+/// given once: fetch it with [`load_picture`].
+pub fn pictures_to_load(members: &[BoardMember]) -> Vec<String> {
+    let Ok(mut pictures) = PICTURES.lock() else { return Vec::new() };
+    let mut wanted = Vec::new();
+    for url in members.iter().filter_map(|member| member.image.as_deref()) {
+        if !url.is_empty() && !pictures.contains_key(url) {
+            pictures.insert(url.to_string(), None);
+            wanted.push(url.to_string());
+        }
+    }
+    wanted
+}
+
+/// Fetches one profile picture (blocking: on the background executor). The
+/// address is someone else's server, so it gets no session token.
+pub fn load_picture(url: &str) {
+    const LIMIT: u64 = 4 * 1024 * 1024;
+    let bytes = if let Some(data) = url.strip_prefix("data:") {
+        use base64::Engine as _;
+        data.split_once(";base64,")
+            .and_then(|(_, data)| base64::engine::general_purpose::STANDARD.decode(data).ok())
+    } else if url.starts_with("https://") {
+        ureq::AgentBuilder::new()
+            .timeout(Duration::from_secs(15))
+            .build()
+            .get(url)
+            .call()
+            .ok()
+            .and_then(|response| {
+                let mut bytes = Vec::new();
+                response.into_reader().take(LIMIT).read_to_end(&mut bytes).ok()?;
+                Some(bytes)
+            })
+    } else {
+        None
+    };
+    let image = bytes.and_then(|bytes| {
+        let format = match bytes.as_slice() {
+            [0x89, b'P', b'N', b'G', ..] => ImageFormat::Png,
+            [0xff, 0xd8, ..] => ImageFormat::Jpeg,
+            [b'G', b'I', b'F', ..] => ImageFormat::Gif,
+            [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P', ..] => ImageFormat::Webp,
+            _ => return None,
+        };
+        Some(Arc::new(Image::from_bytes(format, bytes)))
+    });
+    if let Ok(mut pictures) = PICTURES.lock() {
+        pictures.insert(url.to_string(), image);
+    }
+}
+
+/// A member's picture (board-meta.tsx `MemberAvatar`), or their initials on
+/// their own colour, with the ring that parts a stack.
 pub fn member_avatar(member: &BoardMember, size: f32) -> Div {
+    if let Some(image) = member.image.as_deref().and_then(picture) {
+        return div()
+            .flex()
+            .flex_none()
+            .items_center()
+            .justify_center()
+            .size(px(size + 4.))
+            .m(px(-2.))
+            .rounded_full()
+            .bg(theme::background())
+            .child(
+                img(image)
+                    .size(px(size))
+                    .flex_none()
+                    .rounded_full()
+                    .object_fit(ObjectFit::Cover),
+            );
+    }
     // The ring is drawn around the avatar without taking room, as a CSS ring.
     div()
         .flex()
@@ -416,24 +500,6 @@ pub fn skeleton() -> Div {
     div().rounded(theme::RADIUS_MD).bg(theme::muted_bg())
 }
 
-/// packages/ui's Input around a gpui-component field: the quiet fill, no edge
-/// until it has the keyboard.
-pub fn field(state: &Entity<InputState>, window: &Window, cx: &App) -> Div {
-    let focused = state.read(cx).focus_handle(cx).is_focused(window);
-    div()
-        .flex()
-        .items_center()
-        .h(px(32.))
-        .w_full()
-        .min_w_0()
-        .rounded(theme::RADIUS_MD)
-        .border_1()
-        .border_color(if focused { theme::ring() } else { gpui_kit::transparent_black().into() })
-        .bg(theme::with_alpha(theme::input(), 0.5))
-        .text_size(px(14.))
-        .child(Input::new(state).appearance(false))
-}
-
 /// packages/ui's Empty: a sign, a title, a line below, perhaps a button.
 pub fn empty(
     icon: Option<AnyElement>,
@@ -488,39 +554,6 @@ pub fn card() -> Div {
         .shadow_sm()
         .overflow_hidden()
         .text_size(px(14.))
-}
-
-/// packages/ui's Alert: a quiet box with a title and what to do about it.
-pub fn alert(title: Option<SharedString>, description: impl Into<SharedString>, destructive: bool) -> Div {
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(2.))
-        .w_full()
-        .rounded(theme::RADIUS)
-        .border_1()
-        .border_color(theme::border())
-        .bg(theme::card())
-        .px(px(16.))
-        .py(px(12.))
-        .text_size(px(14.))
-        .when_some(title, |el, title| {
-            el.child(
-                div()
-                    .font_weight(FontWeight::MEDIUM)
-                    .when(destructive, |el| el.text_color(theme::danger()))
-                    .child(title),
-            )
-        })
-        .child(
-            div()
-                .text_color(if destructive {
-                    theme::with_alpha(theme::danger(), 0.9)
-                } else {
-                    theme::muted()
-                })
-                .child(description.into()),
-        )
 }
 
 /// apps/todo-web/src/lib/attachments.ts `formatBytes`.

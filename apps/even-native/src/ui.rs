@@ -36,7 +36,7 @@ pub fn button(id: impl Into<ElementId>, label: impl Into<SharedString>, variant:
         .h(px(32.))
         .px(px(10.))
         .gap(px(6.))
-        .text_size(px(14.))
+        .text_size(px(13.))
         .child(label.into())
 }
 

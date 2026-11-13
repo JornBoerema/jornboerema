@@ -9,37 +9,32 @@ use super::*;
 
 const MAX_AVATARS: usize = 5;
 
-/// "Friday, November 13" or "vrijdag 13 november", as the web's
-/// `Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" })`.
+/// "Friday 13 November" or "vrijdag 13 november", as the web's
+/// `Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" })`
+/// with the app language's locale (en-GB, nl-NL: packages/i18n).
 fn long_date(now: chrono::DateTime<chrono::Local>) -> String {
-    match crate::i18n::lang() {
-        crate::i18n::Lang::En => now.format_localized("%A, %B %-d", chrono::Locale::en_US).to_string(),
-        crate::i18n::Lang::Nl => now.format_localized("%A %-d %B", chrono::Locale::nl_NL).to_string(),
-    }
+    now.format_localized("%A %-d %B", crate::i18n::lang().locale()).to_string()
 }
 
-/// "November 13" or "13 november": the day an invitation runs out.
+/// "13 November" or "13 november": the day an invitation runs out.
 pub(super) fn day_and_month(date: chrono::DateTime<chrono::Utc>) -> String {
     let date = date.with_timezone(&chrono::Local);
-    match crate::i18n::lang() {
-        crate::i18n::Lang::En => date.format_localized("%B %-d", chrono::Locale::en_US).to_string(),
-        crate::i18n::Lang::Nl => date.format_localized("%-d %B", chrono::Locale::nl_NL).to_string(),
-    }
+    date.format_localized("%-d %B", crate::i18n::lang().locale()).to_string()
 }
 
-/// "Nov 13, 2026" or "13 nov 2026": when an issue was made.
+/// "13 Nov 2026" or "13 nov 2026": when an issue was made.
 pub(super) fn short_date(iso: &str) -> String {
     let Ok(date) = chrono::DateTime::parse_from_rfc3339(iso) else {
         return String::new();
     };
     let date = date.with_timezone(&chrono::Local);
-    match crate::i18n::lang() {
-        crate::i18n::Lang::En => date.format_localized("%b %-d, %Y", chrono::Locale::en_US).to_string(),
-        crate::i18n::Lang::Nl => {
-            let month = date.format_localized("%b", chrono::Locale::nl_NL).to_string();
-            format!("{} {} {}", date.day(), month.trim_end_matches('.'), date.year())
-        }
-    }
+    let month = date.format_localized("%b", crate::i18n::lang().locale()).to_string();
+    let month = match (crate::i18n::lang(), month.trim_end_matches('.')) {
+        // The one short month `Intl` writes with four letters in en-GB.
+        (crate::i18n::Lang::En, "Sep") => "Sept",
+        (_, month) => month,
+    };
+    format!("{} {month} {}", date.day(), date.year())
 }
 
 fn widget(title: &'static str, action: Option<AnyElement>, content: impl IntoElement) -> Div {
