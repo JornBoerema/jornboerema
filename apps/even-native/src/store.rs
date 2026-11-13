@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use rusqlite::{params, Connection, OptionalExtension as _};
 
-use crate::api::{Folder, Thread, ThreadDetail};
+use crate::api::{Thread, ThreadDetail};
 
 /// Enough for a day or two of reading; older conversations come from the network again.
 const MAX_DETAILS: i64 = 300;
@@ -28,17 +28,6 @@ pub struct Store {
 
 fn file() -> Option<PathBuf> {
     Some(crate::auth::data_dir()?.join("cache.sqlite"))
-}
-
-fn folder_key(folder: Folder) -> &'static str {
-    match folder {
-        Folder::Inbox => "inbox",
-        Folder::Starred => "starred",
-        Folder::Sent => "sent",
-        Folder::Archive => "archive",
-        Folder::Spam => "spam",
-        Folder::Trash => "trash",
-    }
 }
 
 impl Store {
@@ -109,34 +98,14 @@ impl Store {
         }
     }
 
-    /// The first page of the folder, as last seen.
-    pub fn threads(&self, folder: Folder) -> Option<Vec<Thread>> {
-        self.run(|c| read_threads(c, folder)).flatten()
+    /// The first page of a list, as last seen. `list` names it: "inbox",
+    /// "sent", or with a mailbox before it when only that one shows.
+    pub fn threads(&self, list: &str) -> Option<Vec<Thread>> {
+        self.run(|c| read_threads(c, list)).flatten()
     }
 
-    pub fn put_threads(&self, folder: Folder, threads: &[Thread]) {
-        self.run(|c| write_threads(c, folder, threads));
-    }
-
-    /// Brings one conversation in the folder's page up to date, or drops it
-    /// when it left the folder, so a restart doesn't bring it back. Under one
-    /// lock, so two changes at once don't undo each other.
-    pub fn patch_thread(&self, folder: Folder, id: &str, thread: Option<&Thread>) {
-        self.run(|c| {
-            let Some(mut threads) = read_threads(c, folder)? else {
-                return Ok(());
-            };
-            let Some(index) = threads.iter().position(|t| t.id == id) else {
-                return Ok(());
-            };
-            match thread {
-                Some(thread) => threads[index] = thread.clone(),
-                None => {
-                    threads.remove(index);
-                }
-            }
-            write_threads(c, folder, &threads)
-        });
+    pub fn put_threads(&self, list: &str, threads: &[Thread]) {
+        self.run(|c| write_threads(c, list, threads));
     }
 
     /// A conversation as last seen; marks it as used, so it is the last to go.
@@ -191,11 +160,11 @@ impl Store {
     }
 }
 
-fn read_threads(c: &Connection, folder: Folder) -> rusqlite::Result<Option<Vec<Thread>>> {
+fn read_threads(c: &Connection, list: &str) -> rusqlite::Result<Option<Vec<Thread>>> {
     let json: Option<String> = c
         .query_row(
             "SELECT json FROM threads WHERE folder = ?1",
-            [folder_key(folder)],
+            [list],
             |row| row.get(0),
         )
         .optional()?;
@@ -203,13 +172,13 @@ fn read_threads(c: &Connection, folder: Folder) -> rusqlite::Result<Option<Vec<T
     Ok(json.and_then(|json| serde_json::from_str(&json).ok()))
 }
 
-fn write_threads(c: &Connection, folder: Folder, threads: &[Thread]) -> rusqlite::Result<()> {
+fn write_threads(c: &Connection, list: &str, threads: &[Thread]) -> rusqlite::Result<()> {
     let Ok(json) = serde_json::to_string(threads) else {
         return Ok(());
     };
     c.execute(
         "INSERT OR REPLACE INTO threads (folder, json) VALUES (?1, ?2)",
-        params![folder_key(folder), json],
+        params![list, json],
     )?;
     Ok(())
 }
@@ -254,21 +223,14 @@ mod tests {
     #[test]
     fn keeps_a_page_of_threads_in_order() {
         let store = Store::in_memory();
-        assert!(store.threads(Folder::Inbox).is_none());
-        store.put_threads(Folder::Inbox, &[thread("t1"), thread("t2")]);
-        store.put_threads(Folder::Sent, &[thread("t3")]);
-        let inbox = store.threads(Folder::Inbox).unwrap();
+        assert!(store.threads("inbox").is_none());
+        store.put_threads("inbox", &[thread("t1"), thread("t2")]);
+        store.put_threads("sent", &[thread("t3")]);
+        let inbox = store.threads("inbox").unwrap();
         assert_eq!(inbox.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), ["t1", "t2"]);
         assert_eq!(inbox[0].to.as_ref().unwrap()[0].email, "ik@example.nl");
         assert_eq!(inbox[0].from_name.as_deref(), Some("Jan"));
 
-        let mut read = thread("t2");
-        read.is_read = true;
-        store.patch_thread(Folder::Inbox, "t2", Some(&read));
-        assert!(store.threads(Folder::Inbox).unwrap()[1].is_read);
-        store.patch_thread(Folder::Inbox, "t1", None);
-        let inbox = store.threads(Folder::Inbox).unwrap();
-        assert_eq!(inbox.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), ["t2"]);
     }
 
     #[test]
@@ -311,15 +273,15 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("even-native-store-{}", std::process::id()));
         let path = dir.join("cache.sqlite");
         let store = Store::open_at(&path).unwrap();
-        store.put_threads(Folder::Inbox, &[thread("t1")]);
+        store.put_threads("inbox", &[thread("t1")]);
         store.put_detail("t1", &detail("hoi"));
         assert!(path.exists());
         store.forget();
         assert!(!path.exists());
         assert!(!dir.join("cache.sqlite-wal").exists());
         // Late writes go nowhere and don't bring the file back.
-        store.put_threads(Folder::Inbox, &[thread("t2")]);
-        assert!(store.threads(Folder::Inbox).is_none());
+        store.put_threads("inbox", &[thread("t2")]);
+        assert!(store.threads("inbox").is_none());
         assert!(!path.exists());
         let _ = std::fs::remove_dir_all(dir);
     }

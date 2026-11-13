@@ -53,6 +53,13 @@ pub fn is_dark() -> bool {
 }
 
 pub fn choice() -> Choice {
+    // For a look at one theme without changing what the user picked:
+    // EVEN_THEME=light|dark (see scripts/shot.sh).
+    match std::env::var("EVEN_THEME").as_deref() {
+        Ok("light") => return Choice::Light,
+        Ok("dark") => return Choice::Dark,
+        _ => {}
+    }
     match prefs::get(PREF).as_deref() {
         Some("light") => Choice::Light,
         Some("dark") => Choice::Dark,

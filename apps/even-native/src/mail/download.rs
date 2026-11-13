@@ -16,10 +16,10 @@ impl MailView {
     /// A chip clicked in the document. The numbers come from the webview, so
     /// they only count for the document on screen and a file it really has.
     pub(super) fn download(&mut self, view: u64, part: usize, file: usize, cx: &mut Context<Self>) {
-        if view != self.view {
+        if view != self.document {
             return;
         }
-        let Some((thread_id, _)) = self.shown.clone() else {
+        let Some((thread_id, ..)) = self.shown.clone() else {
             return;
         };
         let Some(Reading::Ready(conversation)) = self.reading.get(&thread_id) else {

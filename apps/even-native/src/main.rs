@@ -6,6 +6,7 @@ mod api;
 mod app;
 mod assets;
 mod auth;
+mod editor;
 mod email;
 mod i18n;
 mod mail;
@@ -31,6 +32,8 @@ fn main() {
         theme::apply(cx);
         shell::bind_keys(cx);
         mail::bind_keys(cx);
+        todo::bind_keys(cx);
+        notes::bind_keys(cx);
         cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
         cx.on_action(|_: &Quit, cx| cx.quit());
         cx.set_menus(vec![Menu {
@@ -43,7 +46,11 @@ fn main() {
                 MenuItem::action(i18n::t("Quit Even", "Stop Even"), Quit),
             ],
             disabled: false,
-        }]);
+        }, editor::edit_menu()]);
+        // EVEN_EDITOR_DEMO=markdown|html: the rich text editor alone, to look at.
+        if editor::demo_window(cx) {
+            return;
+        }
         let bounds = Bounds::centered(None, size(px(1360.), px(860.)), cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),

@@ -134,7 +134,7 @@ fn text_to_html(text: &str) -> String {
 /// root, so its styles can't reach this, nor another message in the thread.
 const STYLE: &str = r#"
 :root{color-scheme:dark}
-html,body{margin:0;background:#0f0f0f;color:#fafafa}
+html,body{margin:0;background:#171717;color:#fafafa}
 body{padding:4px 24px 40px;font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 h1.even-subject{font-size:20px;font-weight:600;line-height:1.3;margin:4px 0 16px}
 section.even-message{border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:16px;margin:0 0 12px}
@@ -156,6 +156,21 @@ details.even-quote>summary{display:inline-block;list-style:none;cursor:pointer;m
 details.even-quote>summary::-webkit-details-marker{display:none}
 details.even-quote>summary:hover{color:#fafafa}
 details.even-quote>.even-text{margin-top:8px;color:#a1a1a1}
+"#;
+
+/// The same look on the light theme's panel (`--sidebar`), after [`STYLE`].
+const LIGHT_STYLE: &str = r#"
+:root{color-scheme:light}
+html,body{background:#fafafa;color:#0a0a0a}
+section.even-message{border-color:#e5e5e5}
+.even-to,.even-date{color:#737373}
+.even-text,.even-plain{color:#0a0a0a}
+.even-text a{color:#bb4d00}
+.even-file{color:#737373;background:#f5f5f5}
+button.even-file:hover{color:#0a0a0a;background:#e5e5e5}
+details.even-quote>summary{color:#737373;background:#f5f5f5}
+details.even-quote>summary:hover{color:#0a0a0a}
+details.even-quote>.even-text{color:#737373}
 "#;
 
 /// Inside every mail's shadow root. The quote's toggle is ours, so it keeps its
@@ -187,10 +202,10 @@ document.addEventListener('keydown', function (e) {
   var t = e.target;
   if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
   var key = null;
-  if (e.metaKey && !e.ctrlKey && !e.altKey && (e.key === 'r' || e.key === 'f')) key = 'cmd-' + e.key;
+  if (e.metaKey && !e.ctrlKey && !e.altKey && ['r', 'f', 'k', 'b'].indexOf(e.key) >= 0) key = 'cmd-' + e.key;
   else if (!e.metaKey && !e.ctrlKey && !e.altKey) {
     if (e.shiftKey && (e.key === 'U' || e.key === 'u')) key = 'shift-u';
-    else if (['j', 'k', 'e', 's', '#', '/', 'r', 'a', 'c', 'Escape'].indexOf(e.key) >= 0) key = e.key;
+    else if (['j', 'k', 'x', 'e', 's', '#', 'i', '!', 'b', 'u', 'p', '?', '/', 'r', 'a', 'c', 'Escape'].indexOf(e.key) >= 0) key = e.key;
   }
   if (key) { e.preventDefault(); window.ipc.postMessage('key:' + key); }
 });
@@ -225,7 +240,21 @@ pub fn parse_message(raw: &str) -> Option<Message> {
 
 /// The conversation as one document: our own header per message, the mail below it.
 /// `view` numbers the document, so the app knows which one a download came from.
+#[cfg(test)]
 pub fn document(subject: &str, parts: &[Part], allow_images: bool, nonce: &str, view: u64) -> String {
+    themed_document(subject, parts, allow_images, nonce, view, true)
+}
+
+/// [`document`] in the app's theme: `dark` as the first screens drew it, or
+/// light, where mail keeps the colours it was written with.
+pub fn themed_document(
+    subject: &str,
+    parts: &[Part],
+    allow_images: bool,
+    nonce: &str,
+    view: u64,
+    dark: bool,
+) -> String {
     let policy = format!(
         "default-src 'none'; style-src 'unsafe-inline'; img-src data:{}; font-src data:; script-src 'nonce-{nonce}'; form-action 'none'; base-uri 'none'",
         if allow_images { " https:" } else { "" }
@@ -247,6 +276,9 @@ pub fn document(subject: &str, parts: &[Part], allow_images: bool, nonce: &str, 
     ));
     out.push_str(r#"<meta name="referrer" content="no-referrer"><style>"#);
     out.push_str(STYLE);
+    if !dark {
+        out.push_str(LIGHT_STYLE);
+    }
     out.push_str("</style></head><body>");
     out.push_str(&format!(r#"<h1 class="even-subject">{}</h1>"#, escape(subject)));
     for (index, part) in parts.iter().enumerate() {
@@ -264,7 +296,7 @@ pub fn document(subject: &str, parts: &[Part], allow_images: bool, nonce: &str, 
                 let (look, extra) = if *paper {
                     ("even-paper", "")
                 } else {
-                    ("even-plain", PLAIN_STYLE)
+                    ("even-plain", if dark { PLAIN_STYLE } else { "" })
                 };
                 // Declarative shadow DOM: no script needed, and the mail's CSS stays inside.
                 // The quote sits in the same root, so it keeps the mail's styles and not ours.

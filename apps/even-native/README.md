@@ -22,6 +22,7 @@ Needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 | `src/ui.rs` | `packages/ui`: buttons, floating panel, sidebar rows, settings sections, select, tooltip, toast. |
 | `src/theme.rs` | The design tokens of `packages/ui/src/styles/globals.css`, light and dark; `hi("mail-01")` is the web's `Mail01Icon`. |
 | `src/i18n.rs` | English and Dutch: `t("Sign out", "Uitloggen")`, words next to the screen that shows them. |
+| `src/editor.rs` | `RichEditor`: the web's tiptap editors (notes, descriptions, mail) as one contenteditable page in a system webview; the page is `assets/editor/`. `EVEN_EDITOR_DEMO=markdown\|html` shows it alone, `node scripts/editor-test.mjs` tests its converters. |
 | `src/prefs.rs` | What the web keeps in localStorage. |
 | `src/api.rs` | The Even API with the session token: `get_json`, `post_json`, `patch_json`, `put_json`, `delete`. Blocking: call on `cx.background_executor()`. |
 | `src/mail/` | Even mailen (`apps/mail-web`). |
@@ -52,11 +53,42 @@ Needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 
 ## Even mailen, so far
 
-Sign-in through the browser (the same PKCE flow as the Tauri app), the folders,
-a virtualized conversation list that pages in as you scroll, and the open
-conversation as HTML in a system webview: sanitized with ammonia, behind a
-content policy that runs only our own script, remote images blocked until asked
-for, `cid:` images inlined, links opened in the browser, the quote of earlier
-mail under a reply folded away, attachments saved to Downloads with a click.
-A SQLite cache next to the session (deleted on sign-out) shows the last mail at
-once. Search (/ or ⌘F) through every mailbox. Plain-text reply and compose.
+The frame, the sidebar and every list of `apps/mail-web` (`pages/inbox.tsx`):
+the places in the order the account arranged them (arranged in place, synced
+through `/api/mail/preferences`), the collapsed strip (⌘B), mailboxes, unread
+counts; conversations with selection, quick actions on hover, pins, what is
+back from snooze, moves with Undo, snoozing with the when-picker, the mailbox
+filter, emptying the trash; drafts, parcels, invoices, snoozed, scheduled and
+Tidy up with its sender pane; the ⌘K spotlight, the shortcuts on ?, the empty
+pane, toasts and new-mail notifications. English and Dutch, light and dark.
+
+The open conversation is still the first version: HTML in a system webview
+(sanitized with ammonia, behind a content policy that runs only our own
+script, remote images blocked until asked for, `cid:` images inlined, links
+opened in the browser, quoted mail folded away, attachments saved to
+Downloads), with a plain-text reply and compose. A SQLite cache next to the
+session (deleted on sign-out) shows the last mail at once. The webview is a
+system view above everything GPUI draws, so it hides under a spotlight or
+dialog and leaves room for toasts.
+
+`EVEN_MAIL_DEBUG` shows states that otherwise need a click, for
+`scripts/shot.sh` (comma separated): `collapsed`, `expanded`, `more`,
+`editor`, `spotlight`, `shortcuts`, `snooze`, `confirm`, `toast`, `select`,
+`open` (a conversation already read, so looking changes nothing), `sender`,
+and a list: `drafts`, `parcels`, `invoices`, `snoozed`, `scheduled`,
+`senders`, `starred`, `sent`, `archive`, `spam`, `trash`.
+
+## Even doen, so far
+
+Everything the Tauri app's lists do: the workspace switcher, the sidebar with
+lists and boards (new, rename with a double-click, drag to reorder, delete,
+share by link), the overview, simple lists (add, the checkbox's three steps,
+rename, reorder, delete, clear done) and boards (columns and list view,
+filters, cards dragged between statuses, a new issue with files, the open
+issue with sub-issues, attachments and properties), the spotlight (⌘K), and
+its pages in the settings window. Changes show at once and save one by one;
+the user's realtime channel reloads the lists when something changed elsewhere.
+An issue's description is its markdown in a plain field for now
+(`src/todo/description.rs`), until the shared editor takes its place.
+`EVEN_TODO_SHOW=board|board-list|issue|new-issue|new-list|spotlight|settings,<page>`
+opens a screen for `scripts/shot.sh` without a click.

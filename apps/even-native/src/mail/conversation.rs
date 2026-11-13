@@ -186,19 +186,6 @@ const MONTHS: [&str; 12] = [
     "jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec",
 ];
 
-/// Today the time, this year day and month, before that the year too, as the web app does.
-pub(super) fn short_date(at: chrono::DateTime<chrono::Utc>) -> String {
-    let at = at.with_timezone(&Local);
-    let now = Local::now();
-    if at.date_naive() == now.date_naive() {
-        at.format("%H:%M").to_string()
-    } else if at.year() == now.year() {
-        format!("{} {}", at.day(), MONTHS[at.month0() as usize])
-    } else {
-        format!("{} {} {}", at.day(), MONTHS[at.month0() as usize], at.year())
-    }
-}
-
 pub(super) fn long_date(at: chrono::DateTime<chrono::Utc>) -> String {
     let at = at.with_timezone(&Local);
     format!(

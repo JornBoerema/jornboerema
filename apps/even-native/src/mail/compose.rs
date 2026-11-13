@@ -41,10 +41,8 @@ impl MailView {
         if self.composer.as_ref().is_some_and(|c| c.is_new()) {
             return;
         }
-        let account = self
-            .position()
-            .map(|i| self.rows()[i].account_id.clone())
-            .filter(|id| !id.starts_with(crate::api::REMOTE))
+        let account = Some(self.filter.clone())
+            .filter(|id| !id.is_empty())
             .or_else(|| self.accounts.first().map(|a| a.id.clone()));
         let composer = Composer {
             kind: Kind::New,
@@ -64,8 +62,7 @@ impl MailView {
 
     /// R answers the sender, A everyone on the newest message.
     pub(super) fn compose_reply(&mut self, all: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(index) = self.position() else { return };
-        let thread_id = self.rows()[index].id.clone();
+        let Some(thread_id) = self.open_id().map(str::to_string) else { return };
         let Some(Reading::Ready(conversation)) = self.reading.get(&thread_id) else {
             return;
         };
@@ -100,7 +97,7 @@ impl MailView {
 
     /// An answer belongs to its conversation: opening another one closes it.
     pub(super) fn drop_reply_elsewhere(&mut self) {
-        let open = self.open.clone();
+        let open = self.open_id().map(str::to_string);
         if let Some(Composer {
             kind: Kind::Reply { thread_id, .. },
             ..
@@ -186,7 +183,8 @@ impl MailView {
                         this.set_status("Verstuurd".into(), false, cx);
                         // The sent answer shows in the conversation once the mailbox has it.
                         if let Some(thread_id) = replied {
-                            this.read(thread_id, cx);
+                            let subject = this.open.as_ref().map(|thread| thread.subject.clone()).unwrap_or_default();
+                            this.read(thread_id, subject, cx);
                         }
                     }
                     Err(error) => {
@@ -330,7 +328,7 @@ fn account_picker(account: Option<&Account>, several: bool) -> Stateful<Div> {
         .px_2()
         .rounded_md()
         .text_sm()
-        .when(several, |el| el.hover(|el| el.bg(theme::hover())))
+        .when(several, |el| el.hover(|el| el.bg(theme::muted_bg())))
         .map(|el| match account {
             Some(account) => el
                 .child(div().size(px(7.)).rounded_full().bg(theme::account(account.color)))
@@ -338,7 +336,7 @@ fn account_picker(account: Option<&Account>, several: bool) -> Stateful<Div> {
             None => el.text_color(theme::muted()).child("Geen mailbox"),
         })
         .when(several, |el| {
-            el.child(div().text_xs().text_color(theme::faint()).child("wisselen"))
+            el.child(div().text_xs().text_color(theme::muted()).child("wisselen"))
         })
 }
 
@@ -360,7 +358,7 @@ fn button(id: &'static str, label: &'static str, key: &'static str, primary: boo
         })
         .when(!primary, |el| {
             el.text_color(theme::muted())
-                .hover(|el| el.bg(theme::hover()).text_color(theme::foreground()))
+                .hover(|el| el.bg(theme::muted_bg()).text_color(theme::foreground()))
         })
         .child(label)
         .child(div().opacity(0.7).child(key))

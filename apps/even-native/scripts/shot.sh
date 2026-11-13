@@ -7,10 +7,10 @@ set -e
 cd "$(dirname "$0")/.."
 OUT="$1"; WAIT="${2:-6}"; APP="${3:-mail}"
 BIN=target/winid
-[ -x "$BIN" ] || swiftc -O -o "$BIN" scripts/winid.swift
+[ "$BIN" -nt scripts/winid.swift ] || swiftc -O -o "$BIN" scripts/winid.swift
 EVEN_BACKGROUND=1 EVEN_APP="$APP" ./target/debug/even-native >/dev/null 2>&1 &
 PID=$!
 sleep "$WAIT"
-ID=$("$BIN" even-native | head -1)
+ID=$("$BIN" $PID)
 screencapture -x -o -l"$ID" "$OUT" || true
 kill $PID
