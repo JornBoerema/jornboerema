@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct EvenMailApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var session = Session()
 
     var body: some Scene {

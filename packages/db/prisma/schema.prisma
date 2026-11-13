@@ -42,6 +42,7 @@ model User {
   mailPreferences        MailPreferences?
   mailShipments          MailShipment[]
   mailSnoozes            MailSnooze[]
+  mailPushDevices        MailPushDevice[]
   mailScheduledSends     MailScheduledSend[]
   mailInvoices           MailInvoice[]
   mailRecognitionReports MailRecognitionReport[]
@@ -735,6 +736,23 @@ model MailSnooze {
   @@index([until], map: "mail_snoozes_until_idx")
   @@index([userId, until], map: "mail_snoozes_user_until_idx")
   @@map("mail_snoozes")
+}
+
+/// An iPhone or iPad that gets a notification when new mail arrives. The token
+/// is Apple's address for one install of the app; nothing about the mail is kept.
+model MailPushDevice {
+  token       String   @id
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Apple's "sandbox" for builds from Xcode, "production" for the rest.
+  environment String
+  /// The app's language, for the few words a notification adds itself.
+  language    String   @default("en")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([userId], map: "mail_push_devices_user_idx")
+  @@map("mail_push_devices")
 }
 
 /// A draft at the provider to be sent at `sendAt`. What it says lives in the

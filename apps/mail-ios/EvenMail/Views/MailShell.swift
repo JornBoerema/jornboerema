@@ -147,6 +147,9 @@ struct MailShell: View {
         .onChange(of: navigator.place) { _, place in
             store.showing(place ?? .inbox)
         }
+        .task { await Push.shared.start() }
+        .task(id: Push.shared.opened) { await openTapped() }
+        .onChange(of: store.unreadCount, initial: true) { _, count in Push.shared.setBadge(count) }
         .task {
             // After the first layout, as a tap would be.
             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -156,6 +159,29 @@ struct MailShell: View {
 }
 
 extension MailShell {
+    /// Opens the conversation a tapped notification is about: in the inbox when
+    /// it is listed there, otherwise on top of whatever is showing.
+    private func openTapped() async {
+        guard let tapped = Push.shared.opened else { return }
+        Push.shared.opened = nil
+        await store.load(.inbox)
+        if let thread = store.list(.inbox).threads.first(where: { $0.id == tapped.thread }) ?? store.pinned.first(where: { $0.id == tapped.thread }) {
+            navigator.compose = nil
+            navigator.place = .inbox
+            navigator.opened = thread
+            navigator.selection = thread.id
+            compact = .detail
+            return
+        }
+        // Not in the first page (or a filter hides it): the notification's own words stand in.
+        let lines = tapped.body.split(separator: "\n", maxSplits: 1).map(String.init)
+        navigator.reading = MailThread(
+            id: tapped.thread, accountId: "", subject: lines.first ?? "", snippet: lines.count > 1 ? lines[1] : "",
+            fromName: tapped.title, fromEmail: nil, receivedAt: Date(), isRead: false, isStarred: false,
+            hasAttachments: false, messageCount: 1, to: nil
+        )
+    }
+
     /// For `scripts/shot.sh`, which can't tap: `EVEN_SHOW` opens a screen of the
     /// demo. Only with made-up mail, never in a real session.
     private func showForScreenshot() {

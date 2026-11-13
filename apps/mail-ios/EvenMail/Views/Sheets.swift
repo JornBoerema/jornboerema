@@ -171,6 +171,48 @@ struct SettingsView: View {
                         }
                     }
 
+                    section(
+                        t("Notifications", "Meldingen"),
+                        footer: !Push.shared.allowed && prefs.notifications
+                            ? t("Notifications are off for Even mailen in the phone's settings.", "Meldingen staan uit voor Even mailen in de instellingen van je telefoon.")
+                            : !Push.shared.serverReady ? t("Notifications aren't set up on the server yet.", "Meldingen zijn op de server nog niet ingesteld.") : nil
+                    ) {
+                        Toggle(isOn: $prefs.notifications) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(t("New mail", "Nieuwe mail")).font(.inter(16)).foregroundStyle(Theme.foreground)
+                                Text(t("A notification when mail arrives in your inbox.", "Een melding zodra er mail in je inbox komt."))
+                                    .font(.inter(13, relativeTo: .footnote))
+                                    .foregroundStyle(Theme.mutedForeground)
+                            }
+                        }
+                        .tint(Theme.primary)
+                        .padding(14)
+                        .onChange(of: prefs.notifications) { _, on in
+                            Task {
+                                if on { await Push.shared.start() } else { await Push.shared.stop() }
+                                await Push.shared.refresh()
+                            }
+                        }
+                        if !Push.shared.allowed, prefs.notifications {
+                            Divider().overlay(Theme.border)
+                            Button {
+                                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                            } label: {
+                                HStack {
+                                    Text(t("Open the phone's settings", "Open de instellingen van je telefoon"))
+                                        .font(.inter(15, .medium, relativeTo: .subheadline))
+                                        .foregroundStyle(Theme.accentText)
+                                    Spacer()
+                                    Icon("arrow-up-right-01", size: 16).foregroundStyle(Theme.accentText)
+                                }
+                                .padding(14)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .task { await Push.shared.refresh() }
+
                     section(t("Appearance", "Weergave")) {
                         VStack(alignment: .leading, spacing: 14) {
                             setting(t("Theme", "Thema")) {

@@ -9,6 +9,7 @@
 /* Begin PBXFileReference section */
 		E0000000000000000000A001 /* EvenMail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EvenMail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E0000000000000000000A002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E0000000000000000000A003 /* EvenMail.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EvenMail.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +36,7 @@
 			children = (
 				E0000000000000000000B001 /* EvenMail */,
 				E0000000000000000000A002 /* Info.plist */,
+				E0000000000000000000A003 /* EvenMail.entitlements */,
 				E0000000000000000000D002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -169,6 +171,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = EvenMail.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V3BNY54367;
@@ -198,6 +201,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = EvenMail.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V3BNY54367;

@@ -8,6 +8,7 @@ import {
 } from "@evido/mail-core/provider"
 import type { MailSyncResult } from "@evido/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
+import { isNews, pushEnabled, pushNewMail } from "./push-server"
 
 /** How far back mail is kept: a year, for every synced folder. */
 const WINDOW_MS = 365 * 24 * 60 * 60 * 1000
@@ -37,6 +38,11 @@ async function applyPage(account: MailAccount, page: SyncPage, since: Date) {
   // Graph reports read-state changes on older mail too; those stay outside the window.
   const rows = page.upserts.filter((item) => item.receivedAt >= since).map((item) => toRow(account, item))
   const removed = page.removals.map((id) => messageId(account.id, id))
+  // What might ring a phone: only mail not seen here before, and only when someone listens.
+  const candidates = pushEnabled() ? rows.filter((row) => isNews(row)) : []
+  const known = candidates.length
+    ? await db.mailMessage.findMany({ where: { id: { in: candidates.map((row) => row.id) } }, select: { id: true } })
+    : []
   await db.$transaction([
     db.mailMessage.deleteMany({ where: { id: { in: rows.map((row) => row.id) } } }),
     // Left one folder can mean moved to another, whose sync may have run first.
@@ -49,6 +55,12 @@ async function applyPage(account: MailAccount, page: SyncPage, since: Date) {
       data: { syncCursor: page.cursor, syncSince: since },
     }),
   ])
+  const seen = new Set(known.map((row) => row.id))
+  const news = candidates.filter((row) => !seen.has(row.id))
+  if (news.length > 0)
+    await pushNewMail(account.userId, news).catch((error) =>
+      console.error("Push for new mail failed", error instanceof Error ? error.message : "unknown")
+    )
   return rows.length + page.removals.length
 }
 

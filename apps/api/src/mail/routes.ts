@@ -81,6 +81,7 @@ import { connectionFailure } from "../connections/routes"
 import { createTodoFromMail, TodoListGoneError, todoLists, todosForConversation } from "./todo-server"
 import { RECOGNITION_KINDS, REPORT_REASONS, reportRecognition } from "./recognition-server"
 import { syncAccount } from "./sync-server"
+import { forgetDevice, PUSH_ENVIRONMENTS, pushEnabled, registerDevice } from "./push-server"
 import {
   createUpload,
   deleteUploads,
@@ -1182,6 +1183,29 @@ mailRoutes.put("/uploads/:id/chunks/:index", requireTrustedOrigin, requireSessio
 
 mailRoutes.delete("/uploads/:id", requireTrustedOrigin, requireSession, async (c) => {
   await deleteUploads(c.get("session").user.id, [c.req.param("id")])
+  return c.json({ ok: true }, 200, noStore)
+})
+
+// The iPhone and iPad app: where Apple delivers this install's notifications.
+const pushToken = z.string().regex(/^[0-9a-f]{32,200}$/i)
+const pushDeviceBody = z.object({ token: pushToken, environment: z.enum(PUSH_ENVIRONMENTS) })
+
+mailRoutes.post("/push/devices", requireTrustedOrigin, requireSession, async (c) => {
+  const body = await readBody(c, pushDeviceBody)
+  if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  await registerDevice(
+    c.get("session").user.id,
+    { token: body.token.toLowerCase(), environment: body.environment },
+    c.req.header("accept-language")
+  )
+  // `enabled` false: remembered, but this server has no push key yet.
+  return c.json({ ok: true, enabled: pushEnabled() }, 200, noStore)
+})
+
+mailRoutes.delete("/push/devices/:token", requireTrustedOrigin, requireSession, async (c) => {
+  const token = pushToken.safeParse(c.req.param("token"))
+  if (!token.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
+  await forgetDevice(c.get("session").user.id, token.data.toLowerCase())
   return c.json({ ok: true }, 200, noStore)
 })
 

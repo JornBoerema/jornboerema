@@ -15,6 +15,7 @@ Signing & Capabilities, and run. The bundle id is `nl.jornboerema.even.mail`.
 | `EvenMail/Core/Prefs.swift` | Language and theme of this device; `t("Sign out", "Uitloggen")` keeps both languages next to the screen. |
 | `EvenMail/Core/API.swift` | The Even API with the session token. |
 | `EvenMail/Core/Auth.swift` | Sign-in through the account site in the browser (the desktop app's loopback + PKCE flow); the token lives in the keychain. |
+| `EvenMail/Core/Push.swift` | Notifications for new mail: permission, this install's address for the API, and opening the conversation a tapped one is about. The API sends them (`apps/api/src/mail/push-server.ts`) once `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID` and `APNS_BUNDLE_ID` are set. |
 | `EvenMail/Core/Store.swift` | Mailboxes, lists, actions with undo, sync. The screen changes first, the server after it, as on the web. |
 | `EvenMail/Views/MailShell.swift` | Sidebar, list and reader: three columns on iPad, a stack on iPhone. |
 | `EvenMail/Views/ThreadListView.swift` | A place's conversations: search, pull to refresh, swipe actions, pins. |
@@ -44,8 +45,7 @@ run can't change a real account.
 
 ## Not there yet
 
-Push notifications (they need an Apple push key and a sender on the API),
-live updates (the app looks again every 45 seconds while open instead), rich
+Live updates (the app looks again every 45 seconds while open instead), rich
 text, selecting several conversations, emptying the trash, reporting a wrong
 parcel or invoice, editing the sidebar and connecting a mailbox or Moneybird
 (done on the web).

@@ -114,6 +114,8 @@ final class Session {
     }
 
     func signOut() async {
+        // While the session still stands: this device stops getting this account's mail.
+        await Push.shared.stop()
         try? await API.run("/api/auth/sign-out")
         forget()
     }

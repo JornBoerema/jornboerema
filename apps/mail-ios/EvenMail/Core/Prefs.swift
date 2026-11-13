@@ -27,12 +27,17 @@ final class Prefs {
     var appearance: Appearance {
         didSet { UserDefaults.standard.set(appearance.rawValue, forKey: "appearance") }
     }
+    /// A notification for new mail on this device.
+    var notifications: Bool {
+        didSet { UserDefaults.standard.set(notifications, forKey: "notifications") }
+    }
 
     private init() {
         let defaults = UserDefaults.standard
         let environment = ProcessInfo.processInfo.environment
         language = Language(rawValue: environment["EVEN_LANG"] ?? defaults.string(forKey: "language") ?? "") ?? .system
         appearance = Appearance(rawValue: environment["EVEN_THEME"] ?? defaults.string(forKey: "appearance") ?? "") ?? .system
+        notifications = defaults.object(forKey: "notifications") as? Bool ?? true
     }
 
     /// "en" or "nl": the chosen language, or the phone's when that is Dutch.
