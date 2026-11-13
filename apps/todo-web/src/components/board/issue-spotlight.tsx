@@ -61,19 +61,16 @@ export function IssueSpotlight({ field, issue, data, run, onClose }: {
           <CommandInput aria-label={t.properties.change(label)} placeholder={t.shortcuts.placeholder(label)} autoComplete="off" autoCorrect="off" spellCheck={false} />
           <CommandList aria-label={label}>
             <CommandEmpty>{t.shortcuts.empty}</CommandEmpty>
-            {field === "status" && statusCategories.map((category) => {
-              const matches = statuses.filter((status) => status.category === category);
-              return matches.length > 0 && (
-                <CommandGroup key={category} heading={t.categories[category]}>
-                  {matches.map((status) => (
-                    <CommandItem key={status.id} value={status.id} keywords={[status.name, t.categories[category]]}
-                      data-checked={status.id === issue.statusId} onSelect={() => choose({ statusId: status.id })}>
-                      <StatusIcon status={status} /><span className="spotlight-name">{status.name}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              );
-            })}
+            {field === "status" && (
+              <CommandGroup>
+                {statusCategories.flatMap((category) => statuses.filter((status) => status.category === category)).map((status) => (
+                  <CommandItem key={status.id} value={status.id} keywords={[status.name, t.categories[status.category]]}
+                    data-checked={status.id === issue.statusId} onSelect={() => choose({ statusId: status.id })}>
+                    <StatusIcon status={status} /><span className="spotlight-name">{status.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
             {field === "priority" && (
               <CommandGroup>
                 {[0, 1, 2, 3, 4].map((priority) => (
