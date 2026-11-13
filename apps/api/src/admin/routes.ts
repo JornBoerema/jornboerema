@@ -5,7 +5,7 @@ import { getDb } from "@evido/db"
 import { accessEmails, queueEmail } from "@evido/email"
 import { env } from "../env"
 import { languageOf, msg } from "../i18n"
-import { canUse, forgetAccess, isAdmin, requestAccess, requireAdmin } from "../lib/access"
+import { canUse, forgetAccess, isAdmin, needsPlan, requestAccess, requireAdmin } from "../lib/access"
 import { APPS, findApp } from "../lib/apps"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
 import { GithubError, getStatus } from "./status"
@@ -21,7 +21,9 @@ accessRoutes.get("/:app", requireSession, async (c) => {
   const requested = access
     ? false
     : Boolean(await getDb().appAccessRequest.findUnique({ where: { app_userId: { app: app.id, userId: user.id } } }))
-  return c.json({ access, requested }, 200, noStore)
+  // Open to all but not paid for: the app offers a subscription instead of asking for access.
+  const unpaid = !access && app.id === "mail" && (await needsPlan(user))
+  return c.json({ access, requested, needsPlan: unpaid }, 200, noStore)
 })
 
 accessRoutes.post("/:app/request", requireTrustedOrigin, requireSession, async (c) => {

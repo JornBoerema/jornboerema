@@ -20,6 +20,8 @@ model User {
   email         String   @unique
   emailVerified Boolean  @default(false) @map("email_verified")
   image         String?
+  /// The customer at Stripe, made the first time this user starts a subscription.
+  stripeCustomerId String? @map("stripe_customer_id")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -1022,4 +1024,35 @@ model AiUsage {
 
   @@id([userId, month, feature])
   @@map("ai_usage")
+}
+
+// ─── Billing (Better Auth Stripe plugin) ────────────────────────────────────
+
+/// A subscription at Stripe, kept in step by its webhooks. `referenceId` is the
+/// user it belongs to; rows go when the account is deleted.
+model Subscription {
+  id                   String    @id
+  /// The plan's name, such as "pro".
+  plan                 String
+  referenceId          String    @map("reference_id")
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  stripeSubscriptionId String?   @map("stripe_subscription_id")
+  /// Stripe's status: incomplete, trialing, active, past_due, canceled, unpaid, …
+  status               String    @default("incomplete")
+  periodStart          DateTime? @map("period_start")
+  periodEnd            DateTime? @map("period_end")
+  trialStart           DateTime? @map("trial_start")
+  trialEnd             DateTime? @map("trial_end")
+  cancelAtPeriodEnd    Boolean?  @default(false) @map("cancel_at_period_end")
+  cancelAt             DateTime? @map("cancel_at")
+  canceledAt           DateTime? @map("canceled_at")
+  endedAt              DateTime? @map("ended_at")
+  seats                Int?
+  /// "month" or "year".
+  billingInterval      String?   @map("billing_interval")
+  stripeScheduleId     String?   @map("stripe_schedule_id")
+
+  @@index([referenceId], map: "subscription_reference_id_idx")
+  @@index([stripeSubscriptionId], map: "subscription_stripe_subscription_id_idx")
+  @@map("subscription")
 }

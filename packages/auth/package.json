@@ -10,16 +10,19 @@
   },
   "exports": {
     "./server": "./src/server.ts",
+    "./billing": "./src/billing.ts",
     "./client": "./src/client.ts"
   },
   "dependencies": {
     "@better-auth/mcp": "^1.7.14",
     "@better-auth/oauth-provider": "^1.7.14",
     "@better-auth/prisma-adapter": "^1.7.14",
+    "@better-auth/stripe": "^1.7.14",
     "@evido/db": "workspace:*",
     "@evido/email": "workspace:*",
     "@evido/i18n": "workspace:*",
     "better-auth": "^1.7.14",
+    "stripe": "^23.1.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

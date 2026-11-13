@@ -31,6 +31,7 @@ import { Input } from "@evido/ui/components/input"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
 import { Brand } from "@/components/brand"
 import { RequireSession } from "@/components/require-session"
+import { Subscription } from "@/components/subscription"
 import { useI18n } from "@/i18n"
 import { appLinks } from "@/lib/apps"
 import { authClient } from "@/lib/auth-client"
@@ -75,6 +76,7 @@ function Account({ user, sessionToken }: { user: User; sessionToken: string }) {
           <p className="text-sm text-muted-foreground">{t.description}</p>
         </div>
         <Apps />
+        <Subscription />
         <Profile user={user} />
         <SignIn user={user} />
         <Sessions current={sessionToken} />

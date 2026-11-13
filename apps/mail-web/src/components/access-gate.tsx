@@ -6,12 +6,13 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@evido/ui/components/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@evido/ui/components/empty"
 import { Brand } from "@/components/brand"
+import { Paywall } from "@/components/paywall"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { signOut } from "@/lib/auth-client"
 import { ACCESS_KEY as KEY } from "@/lib/cache"
 
-type Access = { access: boolean; requested: boolean }
+type Access = { access: boolean; requested: boolean; needsPlan?: boolean }
 
 const ACCESS_QUERY = ["mail-access"]
 
@@ -34,8 +35,9 @@ function remember(userId: string, access: boolean) {
 }
 
 /**
- * Even mailen is invite-only for now. Signed-in users without access see why,
- * and can ask for it; the API refuses them either way.
+ * Even mailen is invite-only, or open with a subscription. Signed-in users
+ * without access see why, and can ask for it or subscribe; the API refuses
+ * them either way.
  */
 export function AccessGate({ user, children }: { user: { id: string; email: string }; children: ReactNode }) {
   const t = useI18n().t.access
@@ -63,6 +65,7 @@ export function AccessGate({ user, children }: { user: { id: string; email: stri
   // Unreachable check: the app tries anyway, since the API refuses outsiders itself.
   if (access || (check.isError && !check.data)) return children
   if (!check.data) return null
+  if (check.data.needsPlan) return <Paywall email={user.email} />
   const requested = check.data.requested
   return (
     <div className="auth-layout">

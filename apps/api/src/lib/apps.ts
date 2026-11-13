@@ -1,3 +1,4 @@
+import { billingConfigured } from "@evido/auth/billing"
 import { env } from "../env"
 
 /**
@@ -6,6 +7,12 @@ import { env } from "../env"
  * Google caps an unverified app at a hundred users.
  */
 export const mailOpen = () => ["1", "true"].includes(process.env.MAIL_OPEN ?? "")
+
+/**
+ * Even mailen takes a subscription once MAIL_PAID is set and Stripe is
+ * configured. Whoever the admin let in by invitation uses it free of charge.
+ */
+export const mailPaid = () => ["1", "true"].includes(process.env.MAIL_PAID ?? "") && billingConfigured()
 
 /** The apps the admin portal manages. Invite-only ones need an AppAccess row to use. */
 export const APPS = [

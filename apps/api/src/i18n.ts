@@ -6,6 +6,9 @@ const en = {
   // Session & request
   signInAgain: "Please sign in again.",
   noAppAccess: "This app is invite-only for now.",
+  needsPlan: "Even mailen needs a subscription.",
+  billingFailed: "That didn't work at the payment provider. Please try again in a minute.",
+  billingAlreadySubscribed: "You already have a subscription. Change it under Manage subscription.",
   notAdmin: "Only admins can do this.",
   alreadyHasAccess: "This person already has access.",
   invalidRequest: "Invalid request.",
@@ -91,6 +94,9 @@ export type MessageKey = keyof typeof en
 const nl: Record<MessageKey, string> = {
   signInAgain: "Log opnieuw in.",
   noAppAccess: "Deze app is voorlopig alleen op uitnodiging.",
+  needsPlan: "Voor Even mailen heb je een abonnement nodig.",
+  billingFailed: "Dat lukte niet bij de betaalprovider. Probeer het over een minuut opnieuw.",
+  billingAlreadySubscribed: "Je hebt al een abonnement. Wijzig het via Abonnement beheren.",
   notAdmin: "Alleen beheerders kunnen dit.",
   alreadyHasAccess: "Deze persoon heeft al toegang.",
   invalidRequest: "Ongeldig verzoek.",

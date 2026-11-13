@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth"
 import { bearer, jwt } from "better-auth/plugins"
 import { mcp } from "@better-auth/mcp"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
+import { billingConfigured, billingPlugin, endSubscriptions } from "./billing"
 import { desktopSignIn } from "./desktop-sign-in"
 import { getDb, Prisma } from "@evido/db"
 import { authEmails, queueEmail } from "@evido/email"
@@ -105,10 +106,12 @@ function createAuth() {
         allowUnauthenticatedClientRegistration: true,
         accessTokenExpiresIn: 300,
       }),
+      // Subscriptions through Stripe, once its keys are set.
+      ...(billingConfigured() ? [billingPlugin()] : []),
     ],
     user: {
       changeEmail: { enabled: true },
-      deleteUser: { enabled: true },
+      deleteUser: { enabled: true, beforeDelete: (user) => endSubscriptions(user) },
     },
     emailAndPassword: {
       enabled: true,
