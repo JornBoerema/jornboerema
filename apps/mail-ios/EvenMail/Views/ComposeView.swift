@@ -22,6 +22,13 @@ struct ComposeView: View {
     @State private var confirmClose = false
     @State private var draft: OpenedDraft?
     @State private var ready = false
+    @State private var aiOpen = false
+    @State private var aiInstruction = ""
+    @State private var aiPending = false
+    @State private var aiTask: Task<Void, Never>?
+    /// What stood there before the model wrote, to take its text back.
+    @State private var aiBefore: (text: String, subject: String)?
+    @FocusState private var aiFocused: Bool
     @FocusState private var focus: Field?
 
     private enum Field { case subject, body }
@@ -172,6 +179,7 @@ struct ComposeView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom, spacing: 0) { if store.aiWriting { aiBar } }
             .background(Theme.background)
             .overlay { if loadingDraft { ProgressView() } }
             .navigationTitle(title)
@@ -198,7 +206,10 @@ struct ComposeView: View {
             }
         }
         .interactiveDismissDisabled(written || !subject.isEmpty)
+        // The app's own toasts sit under this sheet; what goes wrong here shows here.
+        .overlay(alignment: .bottom) { ToastView().environment(store) }
         .task { await prepare() }
+        .onDisappear { aiTask?.cancel() }
     }
 
     // MARK: Parts
@@ -245,6 +256,166 @@ struct ComposeView: View {
         }
     }
 
+    // MARK: Writing with AI (`components/ai-writer.tsx`)
+
+    /// One line: what to write, or what to change in what is there. The text
+    /// appears as the model writes it, and can be taken back in one step.
+    private var aiBar: some View {
+        VStack(spacing: 0) {
+            Divider().overlay(Theme.border)
+            HStack(spacing: 10) {
+                if aiOpen {
+                    Icon("sparkles", size: 18).foregroundStyle(Theme.accentText)
+                    TextField(
+                        written ? t("What should change? For example: shorter, more formal", "Wat moet er anders? Bijvoorbeeld: korter, formeler")
+                            : t("What should the mail say?", "Wat moet erin?"),
+                        text: $aiInstruction,
+                        axis: .vertical
+                    )
+                    .font(.inter(16))
+                    .lineLimit(1...3)
+                    .focused($aiFocused)
+                    .disabled(aiPending)
+                    .submitLabel(.go)
+                    .onSubmit { startWriting() }
+                    if aiPending {
+                        Text(t("Writing…", "Schrijven…"))
+                            .font(.inter(13, relativeTo: .footnote))
+                            .foregroundStyle(Theme.mutedForeground)
+                    } else {
+                        Button { closeAi() } label: { Icon("cancel-01", size: 18).foregroundStyle(Theme.mutedForeground).frame(width: 36, height: 36) }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(t("Close", "Sluiten"))
+                    }
+                    // One round control: write, or stop while writing.
+                    let ready = aiPending || !aiInstruction.trimmingCharacters(in: .whitespaces).isEmpty
+                    Button { aiPending ? stopWriting() : startWriting() } label: {
+                        Icon(aiPending ? "stop" : "arrow-up-02", size: aiPending ? 14 : 18)
+                            .foregroundStyle(ready ? Theme.primaryForeground : Theme.mutedForeground)
+                            .frame(width: 36, height: 36)
+                            .background(ready ? Theme.primary : Theme.muted, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!ready)
+                    .accessibilityLabel(aiPending ? t("Stop writing", "Stoppen met schrijven") : t("Write", "Schrijven"))
+                } else {
+                    Button {
+                        aiOpen = true
+                        aiFocused = true
+                    } label: {
+                        HStack(spacing: 7) {
+                            Icon("sparkles", size: 18).foregroundStyle(Theme.accentText)
+                            Text(written ? t("Rewrite with AI", "Herschrijven met AI") : t("Write with AI", "Schrijven met AI"))
+                                .font(.inter(15, .medium, relativeTo: .subheadline))
+                                .foregroundStyle(Theme.foreground)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
+                        .padding(.horizontal, 13)
+                        .frame(minHeight: 38)
+                        .overlay(Capsule().strokeBorder(Theme.border))
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    Spacer(minLength: 0)
+                    if aiBefore != nil {
+                        Button(t("Undo", "Ongedaan maken")) { undoWriting() }
+                            .font(.inter(14, .semibold, relativeTo: .subheadline))
+                            .foregroundStyle(Theme.accentText)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .accessibilityHint(t("Takes back what the AI wrote", "Haalt weg wat de AI schreef"))
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
+        }
+        .background(Theme.background)
+    }
+
+    private struct WriteBody: Encodable {
+        let instruction: String
+        let draft: String
+        let subject: String
+        let hasSignature: Bool
+        let forward: Bool
+    }
+
+    private func startWriting() {
+        guard !aiPending, !aiInstruction.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        aiTask = Task { await write() }
+    }
+
+    /// Stops the model and keeps what it wrote so far.
+    private func stopWriting() {
+        aiTask?.cancel()
+    }
+
+    private func closeAi() {
+        aiOpen = false
+        focus = .body
+    }
+
+    private func undoWriting() {
+        guard let before = aiBefore else { return }
+        text = before.text
+        subject = before.subject
+        aiBefore = nil
+    }
+
+    private func write() async {
+        let before = (text: text, subject: subject)
+        // A new message with no subject yet gets one from the model.
+        let fillsSubject = !isReply && !isForward && subject.trimmingCharacters(in: .whitespaces).isEmpty
+        let path: String
+        switch request.mode {
+        case .reply(let thread, _, _), .forward(let thread, _): path = conversationPath(thread.id, "/write")
+        case .new, .draft: path = "/api/mail/write"
+        }
+        let body = WriteBody(instruction: aiInstruction.trimmingCharacters(in: .whitespaces), draft: text, subject: subject, hasSignature: signature != nil, forward: isForward)
+        aiPending = true
+        var raw = ""
+        do {
+            if Demo.enabled {
+                for word in Demo.written.split(separator: " ", omittingEmptySubsequences: false) {
+                    raw += (raw.isEmpty ? "" : " ") + word
+                    text = parseWritten(raw, done: false).text
+                    try await Task.sleep(nanoseconds: 40_000_000)
+                }
+            } else {
+                for try await soFar in API.stream(path, body) {
+                    raw = soFar
+                    let partial = parseWritten(raw, done: false)
+                    text = partial.text
+                    if fillsSubject, let found = partial.subject { subject = found }
+                }
+            }
+        } catch {
+            // Stopped by hand: what is there stays. Anything else puts the old text back.
+            if !(error is CancellationError), !Task.isCancelled {
+                text = before.text
+                subject = before.subject
+                aiPending = false
+                store.show(error)
+                return
+            }
+        }
+        aiPending = false
+        let result = parseWritten(raw)
+        guard !result.text.isEmpty else {
+            text = before.text
+            subject = before.subject
+            if !Task.isCancelled { store.present(Toast(message: t("The AI wrote nothing. Try describing it differently.", "De AI schreef niets. Probeer het anders te omschrijven."), isError: true)) }
+            return
+        }
+        text = result.text
+        if fillsSubject, let found = result.subject { subject = found }
+        aiBefore = before
+        aiOpen = false
+        aiInstruction = ""
+    }
+
     // MARK: Start
 
     private func prepare() async {
@@ -258,6 +429,14 @@ struct ComposeView: View {
             let recipients = replyRecipients(message, selfEmail: account?.email ?? "", all: all)
             to = recipients.to
             cc = recipients.cc
+            if Demo.enabled, request.prefill == "ai" {
+                aiInstruction = "zeg dat donderdag past"
+                aiOpen = true
+                await write()
+                return
+            }
+            // A suggested reply is a start: it stands there ready to change.
+            if let prefill = request.prefill { text = prefill }
             focus = .body
         case .forward(let thread, let message):
             accountId = thread.accountId

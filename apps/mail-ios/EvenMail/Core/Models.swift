@@ -196,7 +196,54 @@ struct Access: Codable {
 
 struct MailPreferences: Codable {
     var summaries: Bool?
+    var codes: Bool?
+    var aiWriting: Bool?
+    var replySuggestions: Bool?
     var remoteImages: Bool?
+}
+
+/// A reply a model suggests: a few words to pick it by, and the reply itself.
+struct ReplySuggestion: Codable, Hashable {
+    let label: String
+    let text: String
+}
+
+/// A message in the reader's language. `same` when it already was in theirs.
+struct MailTranslation: Codable {
+    let same: Bool
+    let from: String
+    let text: String
+}
+
+/// What a language model wrote for a message, as it streams in or once it's
+/// done (`parseWritten` in `packages/mail-core/src/write.ts`). While the first
+/// line might still turn out to be a subject line, the body waits for it.
+func parseWritten(_ content: String, done: Bool = true) -> (subject: String?, text: String) {
+    let marker = "subject:"
+    var text = content.replacingOccurrences(of: "\r\n", with: "\n")
+    text = String(text.drop(while: { $0.isWhitespace }))
+    var subject: String?
+    let lead = text.prefix(marker.count).lowercased()
+    if !lead.isEmpty, marker.hasPrefix(lead) {
+        if let lineEnd = text.firstIndex(of: "\n") {
+            if lead == marker {
+                let line = text[text.index(text.startIndex, offsetBy: marker.count)..<lineEnd].trimmingCharacters(in: .whitespaces)
+                subject = line.isEmpty ? nil : line
+                text = String(text[text.index(after: lineEnd)...])
+            }
+        } else {
+            if !done { return (nil, "") }
+            if lead == marker {
+                let line = text.dropFirst(marker.count).trimmingCharacters(in: .whitespaces)
+                return (line.isEmpty ? nil : line, "")
+            }
+        }
+    }
+    // Models like to fence or bold things; a mail body has neither.
+    for (pattern, replacement) in [(#"^\s*```[a-z]*\n?"#, ""), (#"\n?```\s*$"#, ""), (#"\*\*(.+?)\*\*"#, "$1"), (#"\n{3,}"#, "\n\n")] {
+        text = text.replacingOccurrences(of: pattern, with: replacement, options: .regularExpression)
+    }
+    return (subject, done ? text.trimmingCharacters(in: .whitespacesAndNewlines) : String(text.drop(while: { $0.isWhitespace })))
 }
 
 struct Contact: Codable, Hashable {

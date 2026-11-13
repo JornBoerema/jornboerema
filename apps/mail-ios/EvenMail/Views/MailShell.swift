@@ -11,6 +11,8 @@ struct ComposeRequest: Identifiable {
 
     let id = UUID()
     let mode: Mode
+    /// A suggested reply to start from, as plain text.
+    var prefill: String?
 }
 
 struct SnoozeRequest: Identifiable {
@@ -64,7 +66,14 @@ struct MailRoot: View {
     var body: some View {
         Group {
             if let access = store.access {
-                if access.access { MailShell() } else { AccessView(requested: access.requested) }
+                if !access.access {
+                    AccessView(requested: access.requested)
+                } else if Demo.enabled, ProcessInfo.processInfo.environment["EVEN_SHOW"] == "places" {
+                    // For `scripts/shot.sh` on a phone, where the sidebar is a screen of its own.
+                    NavigationStack { SidebarView() }
+                } else {
+                    MailShell()
+                }
             } else if let error = store.accessError {
                 EmptyState(icon: "cloud-alert", title: t("Could not reach Even", "Even is niet bereikbaar"), text: error) {
                     OutlineButton(title: t("Try again", "Opnieuw proberen"), icon: "refresh") {
@@ -141,15 +150,14 @@ extension MailShell {
         let thread = Demo.threads[2]
         let message = Demo.detail(thread.id).messages.last!
         switch show {
-        case "sidebar":
-            compact = .sidebar
-            visibility = .all
+        case "sidebar": visibility = .all
         case "conversation":
             navigator.selection = thread.id
             navigator.opened = thread
             compact = .detail
         case "compose": navigator.compose = ComposeRequest(mode: .new)
         case "reply": navigator.compose = ComposeRequest(mode: .reply(thread: thread, message: message, all: false))
+        case "ai": navigator.compose = ComposeRequest(mode: .reply(thread: thread, message: message, all: false), prefill: "ai")
         case "snooze": navigator.snoozing = SnoozeRequest(thread: thread)
         case "settings": navigator.settings = true
         case "toast": store.act(.archive, on: [Demo.threads[0]], in: .inbox)
@@ -158,70 +166,120 @@ extension MailShell {
     }
 }
 
-/// The places and mailboxes (`components/sidebar.tsx`).
+/// The places and mailboxes (`components/sidebar.tsx`, `packages/ui/src/styles/sidebar.css`).
+/// Every row is a `list-link`: the icon in one column, the words in the next,
+/// a count at the end, so places, mailboxes and the account line up.
 struct SidebarView: View {
     @Environment(MailStore.self) private var store
     @Environment(Navigator.self) private var navigator
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// Where a row's content starts, and the room its rounded background keeps from the edge.
+    private static let inset: CGFloat = 12
+    private static let rowInsets = EdgeInsets(top: 1, leading: inset, bottom: 1, trailing: inset)
 
     var body: some View {
         @Bindable var navigator = navigator
         List(selection: $navigator.place) {
-            Section {
-                ForEach(Place.allCases) { place in
-                    PlaceRow(place: place, selected: navigator.place == place, count: count(place))
-                        .tag(place)
-                        .listRowBackground(rowBackground(navigator.place == place))
-                        .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-                }
+            HStack(spacing: 10) {
+                Image("Brand").resizable().frame(width: 28, height: 28)
+                Text("Even mailen")
+                    .font(.inter(21, .semibold, relativeTo: .title3))
+                    .tracking(-0.6)
+                    .foregroundStyle(Theme.foreground)
             }
-            if store.accounts.count > 1 {
-                Section {
-                    mailbox(id: "", label: t("All mailboxes", "Alle mailboxen"), color: nil)
-                    ForEach(store.accounts) { account in
-                        mailbox(id: account.id, label: account.email, color: account.color, needsReconnect: !account.isActive)
-                    }
-                } header: {
-                    Text(t("Mailboxes", "Mailboxen"))
-                        .font(.inter(12, .medium, relativeTo: .caption))
-                        .foregroundStyle(Theme.mutedForeground)
-                        .textCase(nil)
+            .padding(.leading, 12)
+            .padding(.top, sizeClass == .compact ? 14 : 2)
+            .padding(.bottom, 18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .sidebarRow(insets: Self.rowInsets)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            Button { navigator.compose = ComposeRequest(mode: .new) } label: {
+                SidebarRow(selected: false) {
+                    Icon("pencil-edit-02", size: 20).foregroundStyle(Theme.mutedForeground)
+                } label: {
+                    Text(t("New message", "Nieuw bericht"))
                 }
-            }
-        }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
-        .background(Theme.sidebar)
-        .navigationTitle("Even mailen")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { navigator.settings = true } label: { Icon("settings-01") }
-                    .accessibilityLabel(t("Settings", "Instellingen"))
-            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            Button { navigator.settings = true } label: {
-                HStack(spacing: 10) {
-                    ContactAvatar(name: store.user.name, email: store.user.email, size: 30)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(store.user.name ?? store.user.email)
-                            .font(.inter(14, .medium, relativeTo: .subheadline))
-                            .foregroundStyle(Theme.foreground)
-                        if store.user.name != nil {
-                            Text(store.user.email)
-                                .font(.inter(12, relativeTo: .caption))
-                                .foregroundStyle(Theme.mutedForeground)
-                        }
-                    }
-                    .lineLimit(1)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .background(Theme.sidebar)
+            .sidebarRow(insets: Self.rowInsets)
+            .padding(.bottom, 10)
+
+            ForEach(Place.allCases) { place in
+                let selected = navigator.place == place
+                SidebarRow(selected: selected, count: count(place)) {
+                    Icon(place.icon, size: 20).foregroundStyle(selected ? Theme.accentText : Theme.mutedForeground)
+                } label: {
+                    Text(place.title)
+                }
+                .tag(place)
+                .sidebarRow(insets: Self.rowInsets)
+            }
+
+            if store.accounts.count > 1 {
+                Text(t("Mailboxes", "Mailboxen"))
+                    .font(.inter(13, relativeTo: .footnote))
+                    .foregroundStyle(Theme.mutedForeground)
+                    .padding(.leading, 12)
+                    .padding(.top, 22)
+                    .padding(.bottom, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .sidebarRow(insets: Self.rowInsets)
+                    .accessibilityAddTraits(.isHeader)
+                mailbox(id: "", label: t("All mailboxes", "Alle mailboxen"), color: nil)
+                ForEach(store.accounts) { account in
+                    mailbox(id: account.id, label: account.email, color: account.color, needsReconnect: !account.isActive)
+                }
+            }
         }
+        .listStyle(.plain)
+        .environment(\.defaultMinListRowHeight, 0)
+        .scrollContentBackground(.hidden)
+        .background(Theme.sidebar)
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        // On a phone the sidebar is a screen of its own and needs no bar; on a
+        // tablet the bar holds the button that folds the sidebar away.
+        .toolbar(sizeClass == .compact ? .hidden : .automatic, for: .navigationBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) { account }
+    }
+
+    /// The signed-in user, at the foot as on the web; opens the settings.
+    private var account: some View {
+        Button { navigator.settings = true } label: {
+            HStack(spacing: 12) {
+                Text(String((store.user.name ?? store.user.email).trimmingCharacters(in: .whitespaces).prefix(1)).uppercased())
+                    .font(.inter(14, .semibold, relativeTo: .subheadline))
+                    .foregroundStyle(Theme.primaryForeground)
+                    .frame(width: 32, height: 32)
+                    .background(Theme.primary, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(store.user.name ?? store.user.email)
+                        .font(.inter(15, .medium, relativeTo: .subheadline))
+                        .foregroundStyle(Theme.foreground)
+                    if store.user.name != nil {
+                        Text(store.user.email)
+                            .font(.inter(12.5, relativeTo: .caption))
+                            .foregroundStyle(Theme.mutedForeground)
+                    }
+                }
+                .lineLimit(1)
+                Spacer(minLength: 0)
+                Icon("settings-01", size: 20).foregroundStyle(Theme.mutedForeground)
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Self.inset)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .background(Theme.sidebar.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
+        .accessibilityLabel(t("Settings and account, \(store.user.email)", "Instellingen en account, \(store.user.email)"))
     }
 
     private func count(_ place: Place) -> Int {
@@ -232,12 +290,6 @@ struct SidebarView: View {
         }
     }
 
-    private func rowBackground(_ selected: Bool) -> some View {
-        RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
-            .fill(selected ? Theme.accent : .clear)
-            .padding(.horizontal, 8)
-    }
-
     private func mailbox(id: String, label: String, color: Int?, needsReconnect: Bool = false) -> some View {
         let selected = store.accountFilter == id
         return Button {
@@ -245,54 +297,62 @@ struct SidebarView: View {
             store.accountFilter = id
             Task { await store.load(navigator.shownPlace) }
         } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    if let color { AccountDot(color: color) } else { Icon("layers-01", size: 18).foregroundStyle(Theme.mutedForeground) }
-                }
-                .frame(width: 20)
-                Text(label)
-                    .font(.inter(15, selected ? .medium : .regular, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.foreground)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
+            SidebarRow(selected: false, trailing: selected ? "tick-02" : nil) {
                 if needsReconnect {
-                    Icon("alert-02", size: 16).foregroundStyle(Theme.destructive)
-                        .accessibilityLabel(t("Needs reconnecting", "Opnieuw koppelen nodig"))
-                } else if selected {
-                    Icon("tick-02", size: 16).foregroundStyle(Theme.accentText)
+                    Icon("alert-02", size: 20).foregroundStyle(Theme.destructive)
+                } else if let color {
+                    AccountDot(color: color, size: 10)
+                } else {
+                    Icon("layers-01", size: 20).foregroundStyle(Theme.mutedForeground)
                 }
+            } label: {
+                Text(label).fontWeight(selected ? .medium : .regular)
             }
-            .frame(minHeight: 40)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .sidebarRow(insets: Self.rowInsets)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityHint(needsReconnect ? t("Needs reconnecting", "Opnieuw koppelen nodig") : "")
     }
 }
 
-private struct PlaceRow: View {
-    let place: Place
+/// One line of the sidebar: icon column, words, and a count or mark at the end.
+private struct SidebarRow<Leading: View, Label: View>: View {
     let selected: Bool
-    let count: Int
+    var count = 0
+    var trailing: String?
+    @ViewBuilder var leading: Leading
+    @ViewBuilder var label: Label
 
     var body: some View {
         HStack(spacing: 12) {
-            Icon(place.icon, size: 20)
-                .foregroundStyle(selected ? Theme.accentText : Theme.mutedForeground)
-            Text(place.title)
+            leading.frame(width: 22, height: 22)
+            label
                 .font(.inter(16, selected ? .medium : .regular))
                 .foregroundStyle(Theme.foreground)
-            Spacer(minLength: 0)
+                .lineLimit(1)
+            Spacer(minLength: 8)
             if count > 0 {
                 Text("\(count)")
                     .font(.inter(13, relativeTo: .footnote))
                     .monospacedDigit()
                     .foregroundStyle(Theme.mutedForeground)
             }
+            if let trailing { Icon(trailing, size: 18).foregroundStyle(Theme.accentText) }
         }
-        .padding(.horizontal, 8)
-        .frame(minHeight: 44)
+        .padding(.horizontal, 12)
+        .frame(minHeight: 46)
+        .background(selected ? Theme.accent : .clear, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .contentShape(Rectangle())
+    }
+}
+
+private extension View {
+    /// A list row that draws nothing of its own: no separator, no system highlight.
+    func sidebarRow(insets: EdgeInsets) -> some View {
+        listRowSeparator(.hidden)
+            .listRowInsets(insets)
+            .listRowBackground(Color.clear)
     }
 }
 

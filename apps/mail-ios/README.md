@@ -18,9 +18,9 @@ Signing & Capabilities, and run. The bundle id is `nl.jornboerema.even.mail`.
 | `EvenMail/Core/Store.swift` | Mailboxes, lists, actions with undo, sync. The screen changes first, the server after it, as on the web. |
 | `EvenMail/Views/MailShell.swift` | Sidebar, list and reader: three columns on iPad, a stack on iPhone. |
 | `EvenMail/Views/ThreadListView.swift` | A place's conversations: search, pull to refresh, swipe actions. |
-| `EvenMail/Views/ConversationView.swift` | Reading, summary, attachments, reply bar. |
+| `EvenMail/Views/ConversationView.swift` | Reading, summary or sign-in code, translation, suggested replies, attachments, reply bar. |
 | `EvenMail/Views/EmailWebView.swift` | Untrusted mail HTML: scripts off, a strict content policy, nothing kept, links open in the browser. |
-| `EvenMail/Views/ComposeView.swift` | New message, reply, forward, drafts. |
+| `EvenMail/Views/ComposeView.swift` | New message, reply, forward, drafts, writing with AI. |
 | `EvenMail/Views/Sheets.swift` | Snooze and settings. |
 
 The web app is the specification: a screen says in its comment which web file
@@ -32,7 +32,7 @@ it follows. Words go in both languages. Icons and fonts come from
 
 `scripts/shot.sh out.png [device-udid] [nl|en] [light|dark]` builds the app,
 runs it in a simulator with made-up mail (`EVEN_DEMO=1`, nothing is asked of
-the API) and saves a screenshot. `EVEN_SHOW=conversation|compose|reply|snooze|settings|toast|sidebar`
+the API) and saves a screenshot. `EVEN_SHOW=conversation|compose|reply|ai|snooze|settings|toast|places`
 opens a screen of the demo.
 
 Other switches (scheme environment, or `SIMCTL_CHILD_…`): `EVEN_API_URL` and
@@ -42,8 +42,7 @@ run can't change a real account.
 
 ## Not there yet
 
-Parcels, invoices, senders, pins, scheduled sending, AI writing and reply
-suggestions, translation, unsubscribe, tasks for Even doen, Moneybird, adding
+Parcels, invoices, senders, pins, scheduled sending, unsubscribe, tasks for Even doen, Moneybird, adding
 attachments while writing, rich text, selecting several conversations, live
 updates (the app looks again every 45 seconds while open instead), push
 notifications, and connecting a mailbox (done on the web).

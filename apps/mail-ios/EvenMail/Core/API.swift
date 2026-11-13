@@ -119,6 +119,36 @@ enum API {
         _ = try await send(request(path, method: method, body: body ?? Empty()))
     }
 
+    /// Text as it is written: everything so far, each time more of it arrives.
+    static func stream(_ path: String, _ body: any Encodable) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    var request = request(path, method: "POST", body: body)
+                    request.timeoutInterval = 120
+                    let (bytes, response) = try await session.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse else { throw APIError(message: t("No answer", "Geen antwoord"), status: 0) }
+                    var data = Data()
+                    guard (200..<300).contains(http.statusCode) else {
+                        for try await byte in bytes { data.append(byte) }
+                        let failure = try? JSONDecoder().decode(Failure.self, from: data)
+                        throw APIError(message: failure?.error ?? failure?.message ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode), status: http.statusCode)
+                    }
+                    for try await byte in bytes {
+                        data.append(byte)
+                        // Whole words at a time; a character cut in half waits for its rest.
+                        if byte == 0x20 || byte == 0x0A, let text = String(data: data, encoding: .utf8) { continuation.yield(text) }
+                    }
+                    continuation.yield(String(decoding: data, as: UTF8.self))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     /// Binary answers, such as attachments.
     static func bytes(_ path: String, _ body: any Encodable) async throws -> Data {
         var request = request(path, method: "POST", body: body)

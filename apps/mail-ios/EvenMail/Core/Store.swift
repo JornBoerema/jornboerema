@@ -452,12 +452,37 @@ final class MailStore {
 
     func summary(_ id: String) async -> MailSummary? {
         if Demo.enabled { return Demo.summary }
-        guard preferences.summaries != false else { return nil }
+        // Each can be off on its own; with both off nothing is asked at all.
+        let model = preferences.summaries != false
+        let codes = preferences.codes != false
+        guard model || codes else { return nil }
         if let kept = summaries[id] { return kept }
-        guard let summary: MailSummary = try? await API.get(conversationPath(id, "/summary")) else { return nil }
+        let path = conversationPath(id, "/summary")
+        let off = [model ? nil : "ai=0", codes ? nil : "codes=0"].compactMap { $0 }.joined(separator: "&")
+        let url = off.isEmpty ? path : "\(path)\(path.contains("?") ? "&" : "?")\(off)"
+        guard let summary: MailSummary = try? await API.get(url) else { return nil }
         summaries[id] = summary
         return summary
     }
+
+    private struct Replies: Decodable { let replies: [ReplySuggestion] }
+
+    /// Three replies to start from, when the newest message asks for an answer.
+    func replies(_ id: String) async -> [ReplySuggestion] {
+        if Demo.enabled { return Demo.replies }
+        guard preferences.replySuggestions != false else { return [] }
+        let answer: Replies? = try? await API.get(conversationPath(id, "/replies"))
+        return answer?.replies ?? []
+    }
+
+    /// One message in the reader's language; asked for on request, never kept.
+    func translation(thread: String, message: String) async throws -> MailTranslation {
+        if Demo.enabled { return Demo.translation }
+        let path = conversationPath(thread, "/translation")
+        return try await API.get("\(path)\(path.contains("?") ? "&" : "?")message=\(message.queryEncoded)")
+    }
+
+    var aiWriting: Bool { preferences.aiWriting != false }
 
     private struct AttachmentBody: Encodable {
         let messageId: String

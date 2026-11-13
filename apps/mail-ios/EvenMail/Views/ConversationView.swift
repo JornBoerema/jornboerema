@@ -14,6 +14,8 @@ struct ConversationView: View {
     @State private var detail: ThreadDetail?
     @State private var error: String?
     @State private var summary: MailSummary?
+    @State private var summarizing = false
+    @State private var replies: [ReplySuggestion] = []
     @State private var showImagesOnce = false
     @State private var starred: Bool
     @State private var seen: Bool
@@ -50,7 +52,11 @@ struct ConversationView: View {
                     }
                     .padding(.bottom, 8)
                 }
-                if let summary { SummaryCard(summary: summary).padding(.vertical, 8) }
+                if let summary {
+                    SummaryCard(summary: summary).padding(.vertical, 8)
+                } else if summarizing {
+                    SummaryPlaceholder().padding(.vertical, 8)
+                }
                 if imagesBlocked {
                     Button { showImagesOnce = true } label: {
                         Notice(icon: "image-02", text: t("Pictures in this mail are hidden. Tap to show them.", "Afbeeldingen in deze mail zijn verborgen. Tik om ze te tonen."))
@@ -82,9 +88,27 @@ struct ConversationView: View {
         .background(Theme.background)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !replies.isEmpty, let latest {
+                ReplyChips(replies: replies) { reply in
+                    navigator.compose = ComposeRequest(mode: .reply(thread: thread, message: latest, all: false), prefill: reply.text)
+                }
+            }
+        }
         .task {
-            await load(fresh: false)
-            summary = await store.summary(thread.id)
+            // Only a summary being written is worth a placeholder; a code shows once found.
+            summarizing = store.preferences.summaries != false
+            async let loading: Void = load(fresh: false)
+            async let summed = store.summary(thread.id)
+            async let suggested = store.replies(thread.id)
+            let found = await summed
+            withAnimation(.snappy(duration: 0.2)) {
+                summary = found?.kind == "none" ? nil : found
+                summarizing = false
+            }
+            await loading
+            let answers = await suggested
+            withAnimation(.snappy(duration: 0.25)) { replies = answers }
         }
         .task {
             // Open long enough to have been read.
@@ -171,46 +195,147 @@ private struct BarLabel: View {
     }
 }
 
-/// Three lines on what the mail says, or the code it carries (`components/mail-summary.tsx`).
+/// Above a conversation: a sign-in code ready to copy, or three lines on what
+/// it says (`components/mail-summary.tsx`).
 private struct SummaryCard: View {
     let summary: MailSummary
     @State private var copied = false
 
     var body: some View {
         if summary.kind == "code", let code = summary.code {
-            Button {
-                UIPasteboard.general.string = code
-                copied = true
-            } label: {
-                HStack(spacing: 10) {
-                    Icon("security-check", size: 18).foregroundStyle(Theme.accentText)
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(t("Verification code", "Verificatiecode"))
+                        .font(.inter(12.5, relativeTo: .caption))
+                        .foregroundStyle(Theme.mutedForeground)
                     Text(code)
-                        .font(.inter(18, .semibold, relativeTo: .headline))
-                        .monospacedDigit()
+                        .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                        .tracking(4)
                         .foregroundStyle(Theme.foreground)
-                    Spacer()
-                    HStack(spacing: 4) {
-                        Icon(copied ? "tick-02" : "copy-01", size: 16)
-                        Text(copied ? t("Copied", "Gekopieerd") : t("Copy", "Kopiëren")).font(.inter(13, .medium, relativeTo: .footnote))
-                    }
-                    .foregroundStyle(Theme.mutedForeground)
+                        .textSelection(.enabled)
                 }
-                .padding(12)
-                .background(Theme.muted, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                Spacer(minLength: 0)
+                Button {
+                    // Spaces and dashes are for reading; sites want the bare code.
+                    UIPasteboard.general.string = code.replacingOccurrences(of: #"[\s-]"#, with: "", options: .regularExpression)
+                    copied = true
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        copied = false
+                    }
+                } label: {
+                    Icon(copied ? "tick-02" : "copy-01", size: 20)
+                        .foregroundStyle(Theme.foreground)
+                        .frame(width: 44, height: 44)
+                        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.border))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(copied ? t("Code copied", "Code gekopieerd") : t("Copy code", "Code kopiëren"))
             }
-            .buttonStyle(.plain)
+            .summaryCard()
         } else if summary.kind == "summary", let text = summary.summary, !text.isEmpty {
-            HStack(alignment: .top, spacing: 10) {
-                Icon("sparkles", size: 16).foregroundStyle(Theme.accentText).padding(.top, 2)
+            VStack(alignment: .leading, spacing: 5) {
+                SummaryLabel()
                 Text(text)
-                    .font(.inter(14, relativeTo: .subheadline))
+                    .font(.inter(15, relativeTo: .subheadline))
                     .foregroundStyle(Theme.foreground)
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(12)
-            .background(Theme.muted, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .summaryCard()
         }
+    }
+}
+
+private struct SummaryLabel: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            Icon("sparkles", size: 14)
+            Text(t("Summary", "Samenvatting")).font(.inter(12.5, relativeTo: .caption))
+        }
+        .foregroundStyle(Theme.mutedForeground)
+    }
+}
+
+/// While the summary is being written.
+private struct SummaryPlaceholder: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SummaryLabel()
+            Skeleton(lines: 2)
+        }
+        .summaryCard()
+        .accessibilityHidden(true)
+    }
+}
+
+/// Grey lines where text is on its way (the web's `Skeleton`).
+private struct Skeleton: View {
+    let lines: Int
+    @State private var dim = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ForEach(0..<lines, id: \.self) { line in
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Theme.accent)
+                    .frame(height: 13)
+                    .frame(maxWidth: .infinity)
+                    .padding(.trailing, line == lines - 1 ? 90 : 0)
+            }
+        }
+        .opacity(dim ? 0.5 : 1)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { dim = true }
+        }
+    }
+}
+
+private extension View {
+    /// `rounded-lg border bg-muted/40 px-4 py-3`
+    func summaryCard() -> some View {
+        padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.muted.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.border))
+    }
+}
+
+/// Three replies to start from, above the reply bar, when the newest message
+/// asks for an answer (`components/reply-suggestions.tsx`).
+private struct ReplyChips: View {
+    let replies: [ReplySuggestion]
+    let pick: (ReplySuggestion) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(replies, id: \.self) { reply in
+                    Button { pick(reply) } label: {
+                        HStack(spacing: 6) {
+                            Icon("sparkles", size: 15).foregroundStyle(Theme.accentText)
+                            Text(reply.label)
+                                .font(.inter(14, relativeTo: .subheadline))
+                                .foregroundStyle(Theme.foreground)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 13)
+                        .frame(minHeight: 38)
+                        .background(Theme.card, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Theme.border))
+                        .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(Theme.background)
+        .accessibilityLabel(t("Suggested replies", "Voorgestelde antwoorden"))
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
 
@@ -227,6 +352,8 @@ private struct MessageView: View {
     @State private var html: String?
     @State private var preview: URL?
     @State private var downloading: String?
+    @State private var translated = false
+    @State private var translation: MailTranslation?
 
     init(thread: MailThread, message: MailMessage, latest: Bool, allowImages: Bool) {
         self.thread = thread
@@ -270,8 +397,47 @@ private struct MessageView: View {
             .accessibilityHint(latest ? "" : expanded ? t("Collapses the message", "Klapt het bericht in") : t("Opens the message", "Opent het bericht"))
 
             if expanded {
-                EmailBody(html: html ?? source, allowImages: allowImages)
-                    .task { await inlineImages() }
+                if translatable {
+                    Button {
+                        translated.toggle()
+                        if translated { Task { await translate() } }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Icon("translate", size: 15)
+                            Text(translated ? t("Show original", "Origineel tonen") : t("Translate", "Vertalen"))
+                                .font(.inter(13, .medium, relativeTo: .footnote))
+                        }
+                        .foregroundStyle(Theme.mutedForeground)
+                        .frame(minHeight: 32)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 44)
+                    .padding(.top, -8)
+                }
+                if translated {
+                    if let translation {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                Icon("translate", size: 14)
+                                Text(translation.from.isEmpty ? t("Translated", "Vertaald") : t("Translated from \(translation.from)", "Vertaald uit het \(translation.from)"))
+                                    .font(.inter(12.5, relativeTo: .caption))
+                            }
+                            .foregroundStyle(Theme.mutedForeground)
+                            Text(translation.text)
+                                .font(.inter(16))
+                                .foregroundStyle(Theme.foreground)
+                                .lineSpacing(4)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    } else {
+                        Skeleton(lines: 3).accessibilityLabel(t("Translating…", "Vertalen…"))
+                    }
+                } else {
+                    EmailBody(html: html ?? source, allowImages: allowImages)
+                        .task { await inlineImages() }
+                }
                 if !message.attachments.isEmpty {
                     VStack(spacing: 6) {
                         ForEach(message.attachments) { file in
@@ -283,6 +449,28 @@ private struct MessageView: View {
         }
         .padding(.vertical, 14)
         .quickLookPreview($preview)
+    }
+
+    private var translatable: Bool {
+        !(message.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !(message.html ?? "").isEmpty
+    }
+
+    /// Mail already in the reader's language, or a failed translation, turns
+    /// back to the original with a note why.
+    private func translate() async {
+        guard translation == nil else { return }
+        do {
+            let result = try await store.translation(thread: thread.id, message: message.id)
+            if result.same {
+                translated = false
+                store.present(Toast(message: t("This mail is already in English.", "Deze mail is al in het Nederlands.")))
+            } else {
+                withAnimation(.snappy(duration: 0.2)) { translation = result }
+            }
+        } catch {
+            translated = false
+            store.show(error)
+        }
     }
 
     private var recipients: String {

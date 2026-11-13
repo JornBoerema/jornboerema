@@ -52,5 +52,15 @@ enum Demo {
         return ThreadDetail(messages: thread.messageCount > 1 ? [earlier, latest] : [latest])
     }
 
+    static let replies = [
+        ReplySuggestion(label: "Donderdag past", text: "Hoi Lars,\n\nDonderdag past prima. Zet het maar in de agenda.\n\nGroet,\nSam"),
+        ReplySuggestion(label: "Liever volgende week", text: "Hoi Lars,\n\nDeze week lukt het niet. Kan het volgende week?\n\nGroet,\nSam"),
+        ReplySuggestion(label: "Ik kom erop terug", text: "Hoi Lars,\n\nDank je, ik kom er morgen op terug.\n\nGroet,\nSam"),
+    ]
+
+    static let translation = MailTranslation(same: false, from: "Dutch", text: "Hi Sam,\n\nThanks for the quick reply, I forwarded the quote to Marit.\n\nWill you let me know? Then I'll put it in the calendar.\n\nRegards,\nLars Visser")
+
+    static let written = "Hoi Lars,\n\nDank voor het doorsturen. Donderdag past prima, zet het gerust in de agenda.\n\nGroet,\nSam"
+
     static let summary = MailSummary(kind: "summary", code: nil, summary: "Vraagt of het voorstel past en wil het daarna in de agenda zetten. Verwacht een kort antwoord.")
 }
