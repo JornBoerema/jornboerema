@@ -13,11 +13,12 @@ if (!key) {
 }
 
 const PRODUCT = { id: "even_mail_pro", name: "Even mailen Pro" }
-// Euro cents, VAT included: what a consumer sees is what they pay.
+// Euro cents, without VAT: Stripe Tax adds the VAT of the customer's country on top.
 const PRICES = [
-  { lookupKey: "even_mail_pro_monthly", amount: 1500, interval: "month", nickname: "Monthly" },
-  { lookupKey: "even_mail_pro_yearly", amount: 14400, interval: "year", nickname: "Yearly" },
+  { lookupKey: "even_mail_pro_monthly", amount: 2500, interval: "month", nickname: "Monthly" },
+  { lookupKey: "even_mail_pro_yearly", amount: 24000, interval: "year", nickname: "Yearly" },
 ]
+const TAX_BEHAVIOR = "exclusive"
 const SITE = "https://jornboerema.nl"
 const WEBHOOK_EVENTS = [
   "checkout.session.completed",
@@ -86,6 +87,7 @@ for (const wanted of PRICES) {
     current &&
     current.unit_amount === wanted.amount &&
     current.currency === "eur" &&
+    current.tax_behavior === TAX_BEHAVIOR &&
     current.recurring?.interval === wanted.interval &&
     current.product === product.id
   if (same) {
@@ -98,7 +100,7 @@ for (const wanted of PRICES) {
     currency: "eur",
     unit_amount: wanted.amount,
     recurring: { interval: wanted.interval },
-    tax_behavior: "inclusive",
+    tax_behavior: TAX_BEHAVIOR,
     nickname: wanted.nickname,
     lookup_key: wanted.lookupKey,
     transfer_lookup_key: true,
