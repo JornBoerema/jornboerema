@@ -225,10 +225,9 @@ pub fn run(client: &Client, workspace_id: &str, command: &Command) -> Result<()>
 
 /// `workspaceCommand` "create": a new workspace with this id and name.
 pub fn create_workspace(client: &Client, id: &str, name: &str) -> Result<()> {
-    let _: serde_json::Value = client.post_json(
-        "/api/workspaces",
-        &serde_json::json!({ "type": "create", "id": id, "name": name }),
-    )?;
+    let body = workspace_body(id, name);
+    crate::workspace::before_write("notes workspaces", &body)?;
+    let _: serde_json::Value = client.post_json("/api/workspaces", &body)?;
     Ok(())
 }
 
@@ -236,12 +235,21 @@ pub fn sharing(client: &Client, list_id: &str) -> Result<Sharing> {
     client.get_query("/api/sharing", &[("listId", list_id)])
 }
 
-/// `sharingCommand`: a link with this role, or with `None` no link any more.
-pub fn share(client: &Client, list_id: &str, role: Option<LinkRole>) -> Result<()> {
-    let body = match role {
+fn workspace_body(id: &str, name: &str) -> serde_json::Value {
+    serde_json::json!({ "type": "create", "id": id, "name": name })
+}
+
+fn share_body(list_id: &str, role: Option<LinkRole>) -> serde_json::Value {
+    match role {
         Some(role) => serde_json::json!({ "type": "enable-link", "listId": list_id, "role": role }),
         None => serde_json::json!({ "type": "revoke-link", "listId": list_id }),
-    };
+    }
+}
+
+/// `sharingCommand`: a link with this role, or with `None` no link any more.
+pub fn share(client: &Client, list_id: &str, role: Option<LinkRole>) -> Result<()> {
+    let body = share_body(list_id, role);
+    crate::workspace::before_write("notes sharing", &body)?;
     let _: serde_json::Value = client.post_json("/api/sharing", &body)?;
     Ok(())
 }
@@ -362,6 +370,84 @@ mod tests {
             serde_json::to_string(&update).unwrap(),
             r#"{"type":"update-note","id":"a","markdown":"x","version":2}"#
         );
+    }
+
+    #[test]
+    fn the_other_commands_are_written_as_the_api_reads_them() {
+        use serde_json::json;
+        let value = |command: &Command| serde_json::to_value(command).unwrap();
+        assert_eq!(
+            value(&Command::RenameList {
+                id: "a".into(),
+                name: "Nieuw".into(),
+            }),
+            json!({ "type": "rename-list", "id": "a", "name": "Nieuw" })
+        );
+        assert_eq!(value(&Command::DeleteList { id: "a".into() }), json!({ "type": "delete-list", "id": "a" }));
+        assert_eq!(
+            value(&Command::MoveList {
+                id: "a".into(),
+                target_id: "b".into(),
+                placement: Placement::After,
+            })["placement"],
+            "after"
+        );
+        // An emptied note is sent as "", and a first save as version 0.
+        assert_eq!(
+            value(&Command::UpdateNote {
+                id: "a".into(),
+                markdown: String::new(),
+                version: 0,
+            }),
+            json!({ "type": "update-note", "id": "a", "markdown": "", "version": 0 })
+        );
+        // workspaces.ts `workspaceCommand` and sharing.ts `sharingCommand`.
+        assert_eq!(workspace_body("w", "Werk"), json!({ "type": "create", "id": "w", "name": "Werk" }));
+        assert_eq!(
+            share_body("l", Some(LinkRole::Editor)),
+            json!({ "type": "enable-link", "listId": "l", "role": "editor" })
+        );
+        assert_eq!(
+            share_body("l", Some(LinkRole::Viewer)),
+            json!({ "type": "enable-link", "listId": "l", "role": "viewer" })
+        );
+        assert_eq!(share_body("l", None), json!({ "type": "revoke-link", "listId": "l" }));
+    }
+
+    #[test]
+    fn a_new_note_shows_at_once_and_only_once() {
+        let mut lists = vec![list("n1", Some("note"))];
+        let create = Command::CreateList {
+            id: "n2".into(),
+            workspace_id: "w".into(),
+            name: "Idee".into(),
+            kind: "note",
+        };
+        apply(&mut lists, &create);
+        apply(&mut lists, &create);
+        assert_eq!(ids(&lists), ["n1", "n2"]);
+        assert_eq!(
+            lists[1].note,
+            Some(Note {
+                markdown: String::new(),
+                version: 0
+            })
+        );
+        apply(&mut lists, &Command::DeleteList { id: "n1".into() });
+        assert_eq!(ids(&lists), ["n2"]);
+    }
+
+    #[test]
+    fn failures_are_told_apart() {
+        let api = |status: u16| anyhow::Error::from(ApiError {
+            status,
+            message: "x".into(),
+        });
+        assert!(matches!(failure(&api(409)), Failure::Conflict(Some(_))));
+        assert!(matches!(failure(&api(404)), Failure::Gone(Some(_))));
+        assert!(matches!(failure(&api(403)), Failure::Other(Some(_))));
+        assert!(matches!(failure(&anyhow::Error::from(Unauthorized)), Failure::SignedOut));
+        assert!(matches!(failure(&anyhow::anyhow!("API answered 404: {{}}")), Failure::Gone(None)));
     }
 
     #[test]

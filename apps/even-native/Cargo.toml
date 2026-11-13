@@ -36,6 +36,16 @@ rust-embed = { version = "8", features = ["include-exclude"] }
 # The Mac's language, until the user picks one.
 sys-locale = "0.3"
 rusqlite = { version = "0.42", features = ["bundled"] }
+# Updates (src/updates.rs): comparing versions, checking the download's
+# minisign signature as Tauri's updater does, unpacking the .app.tar.gz.
+semver = "1"
+minisign-verify = "0.2"
+flate2 = "1"
+tar = "0.4"
+
+# The About panel, the Window and Help menus, and which cursor shows (src/window.rs).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
 
 [profile.release]
 lto = "thin"

@@ -17,7 +17,7 @@ use crate::{theme, ui};
 
 use super::api::{self, Command, Failure, ListRole, MAX_NOTE};
 use super::body::NoteBody;
-use super::{parts, Menu, Nav, NotesApp, Overlay};
+use super::{parts, Menu, Nav, NotesApp};
 
 /// The web saves this long after the last keystroke.
 const SAVE_AFTER: Duration = Duration::from_millis(600);
@@ -55,6 +55,14 @@ impl Editor {
         self.conflict = true;
         self.error = Some(remote_changed());
     }
+}
+
+/// A note that left the screen while a save of it was on its way: the text
+/// it had by then, for `save`'s answer to send on.
+pub(super) struct Leaving {
+    list_id: String,
+    markdown: String,
+    workspace: String,
 }
 
 /// The title while it is being renamed.
@@ -150,6 +158,8 @@ impl NotesApp {
         let Some(list) = self.view.iter().find(|note| note.id == id) else {
             return;
         };
+        // Opened again: what is typed from here on is this editor's to save.
+        self.leaving.take_if(|leaving| leaving.list_id == id);
         let can_edit = list.role != ListRole::Viewer;
         let markdown = list.markdown().to_string();
         let version = list.note.as_ref().map_or(0, |note| note.version);
@@ -209,20 +219,53 @@ impl NotesApp {
             return;
         }
         let Some(workspace) = self.active.clone() else { return };
+        if editor.in_flight {
+            // A save is on its way with this version: a second one beside it
+            // would be refused as a conflict. The web's `save` on unmount is
+            // the one in flight, which goes on until the server has the
+            // draft; so here: `save`'s answer sends what was typed since.
+            self.leaving = Some(Leaving {
+                list_id: editor.list_id.clone(),
+                markdown: editor.markdown.clone(),
+                workspace,
+            });
+            return;
+        }
+        self.save_closed(editor.list_id.clone(), editor.markdown.clone(), editor.version, workspace, cx);
+    }
+
+    /// Sends the text of a note that is no longer on screen. The draft on
+    /// disk goes once the server has it; until then it comes back with the note.
+    fn save_closed(&mut self, list_id: String, markdown: String, version: u64, workspace: String, cx: &mut Context<Self>) {
         let (client, user) = (self.client.clone(), self.user.id.clone());
         let command = Command::UpdateNote {
-            id: editor.list_id.clone(),
-            markdown: editor.markdown.clone(),
-            version: editor.version,
+            id: list_id.clone(),
+            markdown,
+            version,
         };
-        let list_id = editor.list_id.clone();
-        cx.background_executor()
-            .spawn(async move {
-                if api::run(&client, &workspace, &command).is_ok() {
-                    store_draft(&user, &list_id, None);
-                }
-            })
-            .detach();
+        let (to, sent) = (workspace.clone(), command.clone());
+        let task = cx.background_executor().spawn(async move {
+            let result = api::run(&client, &to, &sent);
+            if result.is_ok() {
+                store_draft(&user, &list_id, None);
+            }
+            result
+        });
+        cx.spawn(async move |this, cx| {
+            if task.await.is_ok() {
+                // The lists here know the new text and version at once, so the
+                // note opened again does not save an old version over it.
+                let _ = this.update(cx, |this, cx| {
+                    if this.active.as_ref() == Some(&workspace) {
+                        api::apply(&mut this.lists, &command);
+                        this.recompute();
+                        this.incoming(cx);
+                        cx.notify();
+                    }
+                });
+            }
+        })
+        .detach();
     }
 
     fn persist(&self) {
@@ -296,6 +339,7 @@ impl NotesApp {
         };
         let client = self.client.clone();
         let sent = command.clone();
+        let workspace_sent = workspace.clone();
         let task = cx
             .background_executor()
             .spawn(async move { api::run(&client, &workspace, &sent) });
@@ -303,6 +347,22 @@ impl NotesApp {
             let result = task.await;
             let _ = this.update_in(cx, |this, window, cx| {
                 let Some(editor) = this.editor.as_mut().filter(|editor| editor.list_id == list_id) else {
+                    // The note left the screen while this save was on its way.
+                    let leaving = this.leaving.take_if(|leaving| leaving.list_id == list_id);
+                    if result.is_ok() {
+                        if this.active.as_ref() == Some(&workspace_sent) {
+                            api::apply(&mut this.lists, &command);
+                            this.recompute();
+                        }
+                        match leaving {
+                            // More was typed after it was sent: that goes now, one version on.
+                            Some(leaving) if leaving.markdown != markdown => {
+                                this.save_closed(list_id, leaving.markdown, version + 1, leaving.workspace, cx)
+                            }
+                            _ => store_draft(&this.user.id, &list_id, None),
+                        }
+                        cx.notify();
+                    }
                     return;
                 };
                 editor.in_flight = false;
@@ -529,16 +589,7 @@ impl NotesApp {
         if naming.waiting.is_some() || disabled {
             return;
         }
-        let text = naming
-            .input
-            .read(cx)
-            .value()
-            .split('\n')
-            .map(str::trim)
-            .collect::<Vec<_>>()
-            .join(" ")
-            .trim()
-            .to_string();
+        let text = crate::workspace::single_line(&naming.input.read(cx).value());
         let problem = if length(&text) > MAX_NAME {
             Some(t(
                 format!("Use at most {MAX_NAME} characters."),
@@ -734,12 +785,12 @@ impl NotesApp {
                                             .whitespace_nowrap()
                                             .child(t("Delete note", "Notitie verwijderen")),
                                     )
-                                    .on_click(cx.listener(|this, _, _, cx| {
+                                    .on_click(cx.listener(|this, _, window, cx| {
                                         this.close_menu(cx);
                                         if let Some((id, title)) =
                                             this.selected_note().map(|note| (note.id.clone(), note.name.clone()))
                                         {
-                                            this.overlay = Some(Overlay::Delete { id, title });
+                                            this.ask_delete(id, title, window, cx);
                                         }
                                         cx.notify();
                                     })),

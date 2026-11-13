@@ -5,7 +5,7 @@
 //! (attachment-picker.tsx, ai-writer.tsx, signature-picker.tsx) and the send
 //! button with Send later (send-button.tsx).
 
-use gpui_kit::component::input::{Escape, Input};
+use gpui_kit::component::input::{Escape, IndentInline, Input, OutdentInline};
 
 use super::drafts::SaveStatus;
 use super::files::size_label;
@@ -76,6 +76,9 @@ pub(super) fn message_row(label: &'static str, focused: bool, control: impl Into
                         .self_start()
                         .pt(px(10.))
                         .line_height(px(20.))
+                        // "Onderwerp" is a little wider than the column: it runs
+                        // into the gap, as on the web, instead of breaking in two.
+                        .whitespace_nowrap()
                         .text_color(theme::muted())
                         .child(label),
                 )
@@ -187,12 +190,25 @@ impl MailView {
                 Some(editor) => editor.update(cx, |editor, cx| editor.press("cmd-a", cx)),
                 None => cx.propagate(),
             }))
-            .on_action(cx.listener(move |this, _: &Search, _, cx| {
-                match editing(this, cx).filter(|editor| editor.read(cx).marks().range) {
-                    Some(editor) => editor.update(cx, |editor, cx| editor.exec(Command::EditLink, cx)),
-                    None => cx.propagate(),
+            // ⌘K in the text is a link on what is selected and nothing without a
+            // selection, as on the web; it searches everywhere else. (⌘F is
+            // `Find`, which always searches.)
+            .on_action(cx.listener(move |this, _: &Search, _, cx| match editing(this, cx) {
+                Some(editor) => {
+                    if editor.read(cx).marks().range {
+                        editor.update(cx, |editor, cx| editor.exec(Command::EditLink, cx));
+                    }
+                }
+                None => cx.propagate(),
+            }))
+            // Tab the editor had no use for: the text is the last field, so
+            // only Shift-Tab goes somewhere.
+            .on_action(cx.listener(move |this, _: &PreviousField, window, cx| {
+                if editing(this, cx).is_none() || !this.tab_from(key, Stop::Body, true, window, cx) {
+                    cx.propagate();
                 }
             }))
+            .on_action(cx.listener(|_, _: &NextField, _, cx| cx.propagate()))
             // Files dropped beside the text are attached; pictures dropped on the text land in it.
             .on_drop(cx.listener(move |this, paths: &ExternalPaths, _, cx| this.attach(key, paths.paths().to_vec(), cx)))
     }
@@ -275,7 +291,21 @@ impl MailView {
         let subject = message_row(
             t("Subject", "Onderwerp"),
             composer.subject_focused,
-            div().flex_1().min_w_0().child(Input::new(&composer.subject).appearance(false).text_size(px(14.))),
+            div()
+                .flex_1()
+                .min_w_0()
+                // Tab goes on to the text, Shift-Tab back to the recipients.
+                .capture_action(cx.listener(move |this, _: &IndentInline, window, cx| {
+                    if this.tab_from(key, Stop::Subject, false, window, cx) {
+                        cx.stop_propagation();
+                    }
+                }))
+                .capture_action(cx.listener(move |this, _: &OutdentInline, window, cx| {
+                    if this.tab_from(key, Stop::Subject, true, window, cx) {
+                        cx.stop_propagation();
+                    }
+                }))
+                .child(Input::new(&composer.subject).appearance(false).text_size(px(14.))),
             None,
         );
         let fields = div()
@@ -399,7 +429,16 @@ impl MailView {
                                 .min_h_0()
                                 .px(px(16.))
                                 .child(fields)
-                                .child(div().flex_1().min_h(px(MESSAGE_MIN)).pb(px(room)).child(editor))
+                                // The web's page scrolls as a whole; here the text scrolls in
+                                // its own view, so in a low window (the smallest is 600 high)
+                                // it gives way and the bar with Send stays on the panel.
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_h(px((self.writing.viewport - 520.).clamp(72., MESSAGE_MIN)))
+                                        .pb(px(room))
+                                        .child(editor),
+                                )
                                 .child(bar),
                         ),
                 )

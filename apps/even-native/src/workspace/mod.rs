@@ -34,6 +34,35 @@ pub fn before_write(app: &str, command: &impl serde::Serialize) -> anyhow::Resul
     Ok(())
 }
 
+/// A string's length as JavaScript counts it (UTF-16 units): what the web's
+/// `maxLength` and the API's `z.string().max(n)` both measure.
+pub fn length(text: &str) -> usize {
+    text.encode_utf16().count()
+}
+
+/// The start of `text` that is at most `max` long as the API counts
+/// (`length`), never cut inside a character: what a field with the web's
+/// `maxLength` would have let in.
+pub fn clip(text: &str, max: usize) -> String {
+    let mut used = 0;
+    text.chars()
+        .take_while(|c| {
+            used += c.len_utf16();
+            used <= max
+        })
+        .collect()
+}
+
+/// components/inline-name.tsx `save`: a name typed over several lines is one
+/// line (`text.replace(/\s*\n\s*/g, " ").trim()`); spaces within a line stay.
+pub fn single_line(text: &str) -> String {
+    text.split('\n')
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// components/brand.tsx of each web app: the sign, the name and the dot.
 pub fn brand(icon: &str, name: impl Into<SharedString>) -> Div {
     div()
@@ -64,6 +93,33 @@ pub fn toast_room(window: &mut Window, cx: &mut App) -> f32 {
         0 => 0.,
         toasts => 24. + 72. * toasts.min(3) as f32,
     }
+}
+
+/// `.scroll-fade` (packages/ui globals.css, hooks/use-scroll-fade.ts): what
+/// scrolls fades out over 32 points at an edge there is more behind. A mask
+/// on the web; here `ground`, the colour the scroller lies on, drawn over
+/// it, which looks the same on a plain ground. Lay the two edges over the
+/// scroller, in a `relative` box around it; `scroll` is the handle it tracks.
+pub fn scroll_fades(scroll: &ScrollHandle, ground: Rgba) -> Vec<Div> {
+    let scrolled = -f32::from(scroll.offset().y);
+    let more_below = scrolled < f32::from(scroll.max_offset().y) - 1.;
+    let clear = theme::with_alpha(ground, 0.);
+    let edge = |from: Rgba, to: Rgba| {
+        div()
+            .absolute()
+            .left_0()
+            .right_0()
+            .h(px(32.))
+            .bg(linear_gradient(180., linear_color_stop(from, 0.), linear_color_stop(to, 1.)))
+    };
+    let mut edges = Vec::new();
+    if scrolled > 1. {
+        edges.push(edge(ground, clear).top_0());
+    }
+    if more_below {
+        edges.push(edge(clear, ground).bottom_0());
+    }
+    edges
 }
 
 // ─── Dialog (packages/ui dialog.tsx, alert-dialog.tsx) ──────────────────────
@@ -248,4 +304,30 @@ pub fn menu_label(label: impl Into<SharedString>) -> Div {
         .text_size(px(12.))
         .text_color(theme::muted())
         .child(label.into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{clip, length, single_line};
+
+    #[test]
+    fn lengths_are_counted_as_the_api_counts_them() {
+        assert_eq!(length("één"), 3);
+        assert_eq!(length("👍"), 2);
+        assert_eq!(clip("abcdef", 4), "abcd");
+        // An emoji is two units: it is kept whole or left out.
+        assert_eq!(clip("ab👍cd", 3), "ab");
+        assert_eq!(clip("ab👍cd", 4), "ab👍");
+        assert_eq!(length(&clip(&"👍".repeat(400), 500)), 500);
+    }
+
+    #[test]
+    fn a_name_is_one_line_as_on_the_web() {
+        assert_eq!(single_line("  Werk  "), "Werk");
+        assert_eq!(single_line("a \n b"), "a b");
+        assert_eq!(single_line("a\n\nb\n"), "a b");
+        // Only line breaks are folded; spaces inside a line are the user's.
+        assert_eq!(single_line("a  b"), "a  b");
+        assert_eq!(single_line(" \n "), "");
+    }
 }

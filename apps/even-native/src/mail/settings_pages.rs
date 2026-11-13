@@ -752,24 +752,39 @@ impl MailView {
             .shadow_md()
             .child(line(0..4))
             .child(line(4..8))
-            .on_mouse_down_out(cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                // A press on the button itself closes it there.
-                if bounds.contains(&event.position) {
-                    return;
-                }
+            // Also a press on its own button, which lies under the scrim below.
+            .on_mouse_down_out(cx.listener(move |this, _: &MouseDownEvent, _, cx| {
                 this.pages.color_menu = None;
                 cx.notify();
             }));
+        // Under the menu, over everything else: a press beside it closes the
+        // menu and nothing more (not the settings, whose backdrop lies below),
+        // as a dropdown on the web takes the first press outside it.
+        let scrim = deferred(
+            anchored().position(point(px(0.), px(0.))).child(
+                div()
+                    .id("mailbox-colors-scrim")
+                    .w(px(20_000.))
+                    .h(px(20_000.))
+                    .occlude()
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation()),
+            ),
+        )
+        .with_priority(59);
         Some(
-            deferred(
-                anchored()
-                    .position(point(bounds.right(), bounds.bottom() + px(4.)))
-                    .anchor(Anchor::TopRight)
-                    .snap_to_window_with_margin(px(8.))
-                    .child(panel),
-            )
-            .with_priority(60)
-            .into_any_element(),
+            div()
+                .child(scrim)
+                .child(
+                    deferred(
+                        anchored()
+                            .position(point(bounds.right(), bounds.bottom() + px(4.)))
+                            .anchor(Anchor::TopRight)
+                            .snap_to_window_with_margin(px(8.))
+                            .child(panel),
+                    )
+                    .with_priority(60),
+                )
+                .into_any_element(),
         )
     }
 
@@ -791,11 +806,13 @@ impl MailView {
         if feature == Feature::Pins {
             self.load_pins(cx);
         }
+        // The conversation open behind the settings follows at once.
+        self.features_changed(cx);
         cx.notify();
         self.settings_call(
             window,
             cx,
-            move |client| api::save_preferences(client, &serde_json::json!({ feature.key(): on })),
+            move |client| api::save_preferences(client, &api::feature_body(feature.key(), on)),
             |_, result, window, cx| {
                 if let Err(error) = result {
                     ui::toast_error(error_text(&error), window, cx);

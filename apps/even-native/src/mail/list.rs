@@ -451,13 +451,25 @@ impl MailView {
                     .size(px(28.))
                     .icon(menu_icon("more-horizontal").size(px(16.)))
                     .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
-                        let item = |icon: &str, label: &str, run: Box<dyn Fn(&mut MailView, &mut Window, &mut Context<MailView>)>| {
+                        let entry = |icon: &str,
+                                     label: &str,
+                                     destructive: bool,
+                                     run: Box<dyn Fn(&mut MailView, &mut Window, &mut Context<MailView>)>| {
                             let this = this.clone();
-                            PopupMenuItem::new(label.to_string())
-                                .icon(menu_icon(icon))
-                                .on_click(move |_, window, cx| {
-                                    let _ = this.update(cx, |this, cx| run(this, window, cx));
-                                })
+                            // What throws mail away is red, sign and words (`variant="destructive"`).
+                            let item = if destructive {
+                                let label = SharedString::from(label.to_string());
+                                PopupMenuItem::element(move |_, _| div().text_color(theme::danger()).child(label.clone()))
+                                    .icon(menu_icon(icon).text_color(theme::danger()))
+                            } else {
+                                PopupMenuItem::new(label.to_string()).icon(menu_icon(icon))
+                            };
+                            item.on_click(move |_, window, cx| {
+                                let _ = this.update(cx, |this, cx| run(this, window, cx));
+                            })
+                        };
+                        let item = |icon: &str, label: &str, run: Box<dyn Fn(&mut MailView, &mut Window, &mut Context<MailView>)>| {
+                            entry(icon, label, false, run)
                         };
                         let mut menu = menu.min_w(px(192.)).item(item(
                             "alarm-clock",
@@ -497,9 +509,10 @@ impl MailView {
                             ));
                         }
                         for action in more.iter().copied() {
-                            menu = menu.item(item(
+                            menu = menu.item(entry(
                                 move_icon(action),
                                 move_label(action, folder),
+                                is_destructive(action),
                                 Box::new(move |this, _, cx| this.bulk(action, None, cx)),
                             ));
                         }
@@ -742,9 +755,37 @@ impl MailView {
         if self.cursor.is_some() {
             sizes.push(size(px(0.), px(LOAD_MORE)));
         }
-        v_virtual_list(cx.entity(), "threads", Rc::new(sizes), Self::render_rows)
-            .track_scroll(&self.scroll)
+        // `.scroll-fade` (packages/ui globals.css): the rows fade out over 32 px
+        // at an edge there is more behind. A mask there; here the list's own
+        // ground drawn over it, which looks the same on a plain ground. The
+        // 160 ms it takes to come and go is left out: the edge shows at once.
+        let scrolled = -f32::from(self.scroll.offset().y);
+        let more_below = scrolled < f32::from(self.scroll.max_offset().y) - 1.;
+        let fade = |top: bool| {
+            let ground = theme::background();
+            let clear = theme::with_alpha(ground, 0.);
+            let (from, to) = if top { (ground, clear) } else { (clear, ground) };
+            let edge = div().absolute().left_0().right_0().h(px(32.)).bg(linear_gradient(
+                180.,
+                linear_color_stop(from, 0.),
+                linear_color_stop(to, 1.),
+            ));
+            if top {
+                edge.top_0()
+            } else {
+                edge.bottom_0()
+            }
+        };
+        div()
+            .relative()
             .size_full()
+            .child(
+                v_virtual_list(cx.entity(), "threads", Rc::new(sizes), Self::render_rows)
+                    .track_scroll(&self.scroll)
+                    .size_full(),
+            )
+            .when(scrolled > 0.5, |el| el.child(fade(true)))
+            .when(more_below, |el| el.child(fade(false)))
             .into_any_element()
     }
 

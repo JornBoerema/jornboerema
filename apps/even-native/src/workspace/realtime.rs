@@ -38,6 +38,12 @@ impl Drop for Realtime {
 
 /// Listens on its own thread (the calls block) until the handle is dropped.
 pub fn start(client: Client, user_id: String) -> (Realtime, UnboundedReceiver<Signal>) {
+    start_on(client, "/api/realtime", format!("workspace:{user_id}"))
+}
+
+/// The same, on another of the user's channels: Even mailen hears of new mail
+/// on `mail:<userId>`, with its token from /api/mail/realtime.
+pub fn start_on(client: Client, token_path: &'static str, channel: String) -> (Realtime, UnboundedReceiver<Signal>) {
     let (sender, receiver) = unbounded();
     let stop = Arc::new(AtomicBool::new(false));
     let stopped = stop.clone();
@@ -46,7 +52,7 @@ pub fn start(client: Client, user_id: String) -> (Realtime, UnboundedReceiver<Si
         .spawn(move || {
             let mut wait = 2;
             while !stopped.load(Ordering::Relaxed) {
-                let connected = listen(&client, &user_id, &sender, &stopped).unwrap_or(false);
+                let connected = listen(&client, token_path, &channel, &sender, &stopped).unwrap_or(false);
                 if sender.unbounded_send(Signal::Disconnected).is_err() {
                     return;
                 }
@@ -66,14 +72,20 @@ pub fn start(client: Client, user_id: String) -> (Realtime, UnboundedReceiver<Si
 }
 
 /// One connection, until it ends. `Ok(true)` when it got as far as listening.
-fn listen(client: &Client, user_id: &str, sender: &UnboundedSender<Signal>, stop: &AtomicBool) -> Result<bool> {
+fn listen(
+    client: &Client,
+    token_path: &str,
+    channel: &str,
+    sender: &UnboundedSender<Signal>,
+    stop: &AtomicBool,
+) -> Result<bool> {
     let agent = ureq::AgentBuilder::new()
         .timeout_connect(Duration::from_secs(10))
         // Ably sends a keep-alive well within this; silence means the line is dead.
         .timeout_read(Duration::from_secs(90))
         .build();
     // The API signs a request for a token; Ably turns it into the token (15 minutes).
-    let request: serde_json::Value = client.get_json("/api/realtime")?;
+    let request: serde_json::Value = client.get_json(token_path)?;
     let key = request
         .get("keyName")
         .and_then(|key| key.as_str())
@@ -87,7 +99,7 @@ fn listen(client: &Client, user_id: &str, sender: &UnboundedSender<Signal>, stop
     let response = agent
         .get("https://realtime.ably.io/sse")
         .query("v", "1.2")
-        .query("channels", &format!("workspace:{user_id}"))
+        .query("channels", channel)
         .query("accessToken", token)
         .set("Accept", "text/event-stream")
         .call()

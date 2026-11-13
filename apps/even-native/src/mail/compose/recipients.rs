@@ -4,7 +4,9 @@
 
 use std::time::Duration;
 
-use gpui_kit::component::input::{Backspace, Escape, IndentInline, Input, InputEvent, InputState, MoveDown, MoveUp};
+use gpui_kit::component::input::{
+    Backspace, Escape, IndentInline, Input, InputEvent, InputState, MoveDown, MoveUp, OutdentInline,
+};
 
 use super::addresses::{join_recipients, split_recipients, strip_display_names};
 use super::form::{anchor, menu_panel, message_row};
@@ -22,6 +24,15 @@ pub(super) enum Which {
 }
 
 impl Which {
+    /// Where Tab finds it.
+    fn stop(self) -> Stop {
+        match self {
+            Which::To => Stop::To,
+            Which::Cc => Stop::Cc,
+            Which::Bcc => Stop::Bcc,
+        }
+    }
+
     /// The name its row hangs its suggestions from.
     fn anchor(self) -> &'static str {
         match self {
@@ -373,8 +384,14 @@ impl MailView {
                     cx.stop_propagation();
                 }
             }))
+            // Tab picks the suggested address, or else goes on to the next field.
             .capture_action(cx.listener(move |this, _: &IndentInline, window, cx| {
-                if this.address_key(key, which, Pressed::Tab, window, cx) {
+                if this.address_key(key, which, Pressed::Tab, window, cx) || this.tab_from(key, which.stop(), false, window, cx) {
+                    cx.stop_propagation();
+                }
+            }))
+            .capture_action(cx.listener(move |this, _: &OutdentInline, window, cx| {
+                if this.tab_from(key, which.stop(), true, window, cx) {
                     cx.stop_propagation();
                 }
             }))

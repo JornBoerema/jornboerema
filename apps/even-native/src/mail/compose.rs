@@ -42,7 +42,35 @@ use files::ComposerFile;
 use recipients::{AddressField, Which};
 use wire::{DraftRef, InlineUpload, Outgoing};
 
-actions!(mail_compose, [AiWrite]);
+actions!(mail_compose, [AiWrite, NextField, PreviousField]);
+
+/// Where Tab stops in a composer, in the order of the form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Stop {
+    To,
+    Cc,
+    Bcc,
+    Subject,
+    Body,
+}
+
+/// The stops a composer has: a new message its recipients, subject and
+/// text; a forward its recipients and note; a reply only its text.
+fn stops(mode: Option<ReplyMode>, copies: bool) -> Vec<Stop> {
+    match mode {
+        None if copies => vec![Stop::To, Stop::Cc, Stop::Bcc, Stop::Subject, Stop::Body],
+        None => vec![Stop::To, Stop::Subject, Stop::Body],
+        Some(ReplyMode::Forward) => vec![Stop::To, Stop::Body],
+        Some(_) => vec![Stop::Body],
+    }
+}
+
+/// The stop after `at` (before it with `back`), or none at either end.
+fn stop_beside(stops: &[Stop], at: Stop, back: bool) -> Option<Stop> {
+    let index = stops.iter().position(|stop| *stop == at)?;
+    let beside = if back { index.checked_sub(1)? } else { index + 1 };
+    stops.get(beside).copied()
+}
 
 /// What is being written.
 pub(super) enum Kind {
@@ -214,6 +242,10 @@ impl Composer {
             Which::Cc => &mut self.cc,
             Which::Bcc => &mut self.bcc,
         }
+    }
+
+    fn stop_beside(&self, at: Stop, back: bool) -> Option<Stop> {
+        stop_beside(&stops(self.mode(), self.copies), at, back)
     }
 
     /// The addresses someone could pick from show under a row.
@@ -636,6 +668,38 @@ impl MailView {
         cx.notify();
     }
 
+    /// The conversation under an answer was read again (the copy kept on this
+    /// Mac made way for the mailbox's): the answer goes to its newest message
+    /// and that message's people, as the web's form follows `last`.
+    pub(super) fn retarget_answer(&mut self, thread: &str, cx: &mut Context<Self>) {
+        let Some(Reading::Ready(conversation)) = self.reading.get(thread) else { return };
+        let conversation = conversation.clone();
+        let Some(target) = conversation.last.as_ref() else { return };
+        let Some(account) = self.writing.answer.as_ref().filter(|answer| answer.thread() == Some(thread)).and_then(|answer| answer.account.clone())
+        else {
+            return;
+        };
+        let own = self.mailbox(&account).map(|mailbox| mailbox.email.clone()).unwrap_or_default();
+        let Some(answer) = self.writing.answer.as_mut() else { return };
+        match &mut answer.kind {
+            Kind::Reply { message_id, all, .. } => {
+                if *message_id == target.message_id {
+                    return;
+                }
+                *message_id = target.message_id.clone();
+                let (to, cc) = reply_recipients(target.from.as_ref(), &target.reply_to, &target.to, &target.cc, &own, *all);
+                answer.reply_to = to;
+                answer.reply_cc = cc;
+            }
+            Kind::Forward { message_id, files, .. } => {
+                *message_id = target.message_id.clone();
+                *files = conversation.parts.last().map_or(0, |part| part.attachments.len());
+            }
+            Kind::New => {}
+        }
+        cx.notify();
+    }
+
     /// An answer belongs to its conversation: opening another one puts it
     /// away. What was written stays on this Mac for when the conversation is back.
     pub(super) fn drop_reply_elsewhere(&mut self) {
@@ -690,6 +754,28 @@ impl MailView {
         }
         self.writing.refocus = true;
         cx.notify();
+    }
+
+    /// Tab and Shift-Tab: the keyboard goes to the field after or before
+    /// `at`. False at either end, where the key keeps its own meaning.
+    pub(super) fn tab_from(&mut self, key: u64, at: Stop, back: bool, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let Some(composer) = self.writer(key) else { return false };
+        let Some(stop) = composer.stop_beside(at, back) else { return false };
+        let field = match stop {
+            Stop::To => composer.to.input.clone(),
+            Stop::Cc => composer.cc.input.clone(),
+            Stop::Bcc => composer.bcc.input.clone(),
+            Stop::Subject => composer.subject.clone(),
+            Stop::Body => {
+                composer.editor.update(cx, |editor, cx| editor.focus(window, cx));
+                return true;
+            }
+        };
+        // The text is a webview: it lets go of the keyboard before a field takes it.
+        composer.editor.read(cx).release_keyboard(cx);
+        field.update(cx, |input, cx| input.focus(window, cx));
+        cx.notify();
+        true
     }
 
     /// Escape in a composer: an open line or menu first; then a new message
@@ -1220,17 +1306,21 @@ impl MailView {
         self.writing.viewport = f32::from(window.viewport_size().height);
         if self.writing._quit.is_none() {
             // Quitting takes nothing back: what was waiting goes now, and the draft is kept.
-            self.writing._quit = Some(cx.on_app_quit(|this, cx| {
+            self.writing._quit = Some(cx.on_app_quit(|this, _| {
                 let outbox = this.writing.outbox.take();
                 let parting = this.composer.as_ref().and_then(|composer| drafts::Parting::of(composer));
                 let client = this.client.clone();
-                cx.background_executor().spawn(async move {
-                    if let Some(outbox) = outbox {
-                        let _ = wire::send(&client, &outbox.account, &outbox.message, outbox.draft, outbox.files_changed);
-                    } else if let Some(parting) = parting {
-                        let _ = parting.keep(&client);
-                    }
-                })
+                // Before the handler returns: the app is gone 200 ms after it.
+                if outbox.is_some() || parting.is_some() {
+                    super::before_quit(move || {
+                        if let Some(outbox) = outbox {
+                            let _ = wire::send(&client, &outbox.account, &outbox.message, outbox.draft, outbox.files_changed);
+                        } else if let Some(parting) = parting {
+                            let _ = parting.keep(&client);
+                        }
+                    });
+                }
+                async {}
             }));
         }
         // Written before the mailboxes were known: it goes from the first that can send.
@@ -1297,8 +1387,9 @@ impl MailView {
             return;
         }
         if let Some(saved) = drafts::read_reply_draft(&open) {
-            // Without taking the keyboard: J and K keep walking the list.
-            self.start_answer(saved.mode, None, false, false, window, cx);
+            // With the keyboard, as the web's form comes back (`autoFocus`):
+            // what is typed next goes on where the reply was left.
+            self.start_answer(saved.mode, None, true, false, window, cx);
         }
     }
 
@@ -1451,5 +1542,37 @@ fn invalid_address(address: &str) -> String {
 }
 
 pub(super) fn bind_keys(cx: &mut App) {
-    cx.bind_keys([KeyBinding::new("cmd-j", AiWrite, Some("Composer"))]);
+    cx.bind_keys([
+        KeyBinding::new("cmd-j", AiWrite, Some("Composer")),
+        // In the text, which is no field of GPUI's: the editor passes on the
+        // Tab it has no use for (outside a list). The fields catch their own.
+        KeyBinding::new("tab", NextField, Some("Composer && !Input")),
+        KeyBinding::new("shift-tab", PreviousField, Some("Composer && !Input")),
+    ]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{stop_beside, stops, ReplyMode, Stop};
+
+    #[test]
+    fn tab_walks_the_fields_in_the_order_of_the_form() {
+        let message = stops(None, false);
+        assert_eq!(stop_beside(&message, Stop::To, false), Some(Stop::Subject));
+        assert_eq!(stop_beside(&message, Stop::Subject, false), Some(Stop::Body));
+        assert_eq!(stop_beside(&message, Stop::Body, true), Some(Stop::Subject));
+        // Either end keeps the key for itself.
+        assert_eq!(stop_beside(&message, Stop::Body, false), None);
+        assert_eq!(stop_beside(&message, Stop::To, true), None);
+        // With the copies showing they come between.
+        let copies = stops(None, true);
+        assert_eq!(stop_beside(&copies, Stop::To, false), Some(Stop::Cc));
+        assert_eq!(stop_beside(&copies, Stop::Cc, false), Some(Stop::Bcc));
+        assert_eq!(stop_beside(&copies, Stop::Subject, true), Some(Stop::Bcc));
+        // A forward has its recipients and its note; a reply only its text.
+        let forward = stops(Some(ReplyMode::Forward), false);
+        assert_eq!(stop_beside(&forward, Stop::To, false), Some(Stop::Body));
+        assert_eq!(stop_beside(&forward, Stop::Body, true), Some(Stop::To));
+        assert_eq!(stop_beside(&stops(Some(ReplyMode::All), false), Stop::Body, true), None);
+    }
 }

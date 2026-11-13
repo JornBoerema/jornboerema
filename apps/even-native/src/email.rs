@@ -172,6 +172,17 @@ pub enum Message {
     Ready { view: u64 },
     /// Something else clicked, with the number it carries (a message, a choice).
     Act { view: u64, act: Act, arg: Option<usize> },
+    /// How the page stands before another takes its place: how far it was
+    /// scrolled, and which messages and quotes were unfolded (`f` or `u` for
+    /// the long thread, then a 0 or 1 per message, twice).
+    Keep { view: u64, scroll: usize, state: String },
+}
+
+/// What a page may say of its folds: nothing else is ever written back into a page.
+pub fn is_fold_state(state: &str) -> bool {
+    let mut parts = state.split('.');
+    let bits = |part: Option<&str>| part.is_some_and(|part| part.bytes().all(|bit| bit == b'0' || bit == b'1'));
+    matches!(parts.next(), Some("f" | "u")) && bits(parts.next()) && bits(parts.next()) && parts.next().is_none()
 }
 
 /// The clicks the page passes on (assets/reader/reader.js).
@@ -217,7 +228,8 @@ impl Act {
 /// Reads a message from the webview. Anything else is dropped; the app still
 /// checks the numbers against the conversation it shows.
 pub fn parse_message(raw: &str) -> Option<Message> {
-    if raw.len() > 64 {
+    // A long thread's folds take two characters a message.
+    if raw.len() > if raw.starts_with("keep:") { 1200 } else { 64 } {
         return None;
     }
     if let Some(key) = raw.strip_prefix("key:") {
@@ -233,6 +245,11 @@ pub fn parse_message(raw: &str) -> Option<Message> {
             file: fields.next()?.parse().ok()?,
         },
         "ready" => Message::Ready { view },
+        "keep" => Message::Keep {
+            view,
+            scroll: fields.next()?.parse().ok()?,
+            state: fields.next().filter(|state| is_fold_state(state))?.to_string(),
+        },
         name => Message::Act {
             view,
             act: Act::named(name)?,
@@ -248,6 +265,20 @@ pub fn parse_message(raw: &str) -> Option<Message> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_page_says_how_it_stands_and_nothing_else() {
+        assert_eq!(
+            parse_message("keep:7:320:u.101.010"),
+            Some(Message::Keep { view: 7, scroll: 320, state: "u.101.010".into() })
+        );
+        assert_eq!(parse_message("keep:7:0:f.."), Some(Message::Keep { view: 7, scroll: 0, state: "f..".into() }));
+        // Only folds: nothing else is ever written into the next page.
+        assert_eq!(parse_message("keep:7:0:u.1\";alert(1)//.0"), None);
+        assert_eq!(parse_message("keep:7:0:x.1.0"), None);
+        assert_eq!(parse_message("keep:7:0:u.1"), None);
+        assert!(is_fold_state("f.0011.0000") && !is_fold_state("") && !is_fold_state("u.1.0.1"));
+    }
 
     #[test]
     fn sanitizing_removes_what_could_run() {

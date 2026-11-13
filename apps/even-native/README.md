@@ -18,6 +18,8 @@ Needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 | --- | --- |
 | `src/main.rs` | Starts GPUI, loads Inter, opens the window on `Shell`. |
 | `src/shell.rs` | `apps/desktop/src`: sign-in screen, app rail, ⌘1–3, the one settings window (account, appearance, about, plus every app's pages). |
+| `src/window.rs` | `apps/desktop/src-tauri`: the window's size and place between launches, the window buttons, the top strip that drags it, closing that hides, the menu bar. |
+| `src/updates.rs` | Updates as the Tauri app has them, on the native app's own channel (see below). |
 | `src/app.rs` | `EvenApp`: what an app gives the shell (its screen, settings pages, `AppEvent`). |
 | `src/ui.rs` | `packages/ui`: buttons, floating panel, sidebar rows, settings sections, select, tooltip, toast. |
 | `src/theme.rs` | The design tokens of `packages/ui/src/styles/globals.css`, light and dark; `hi("mail-01")` is the web's `Mail01Icon`. |
@@ -29,6 +31,38 @@ Needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.
 | `src/todo/` | Even doen (`apps/todo-web`). |
 | `src/notes/` | Even noteren (`apps/notes-web`). |
 | `src/workspace/` | What Even doen and Even noteren share: the realtime channel, and the web's Dialog, DropdownMenu panel, Alert, Input and brand. |
+
+## The window, the app and updates
+
+The window (`src/window.rs`) opens as the Tauri app's does: 1360 by 860 the
+first time, never under 1040 by 600, and after that at the size (in points)
+and place it had, maximized or full screen if it was; that is kept in
+`window.json` next to the session. The window buttons sit where Tauri puts
+them, its top 52 points drag it and a double-click there zooms it, except on a
+button or a field. Closing the window (⌘W) hides Even and the Dock icon brings
+it back. The menu bar is Tauri's default one in the app's language, with the
+settings added.
+
+`scripts/bundle.sh` builds the release binary and puts it in
+`target/bundle/Even Native.app`: called Even, with the Tauri app's icon
+(`assets/app/Even.icns`, made from `apps/desktop/src-tauri/icons/icon.png`) and
+the id `nl.jornboerema.even-native`, so it can be installed beside the Tauri
+app and keeps its own session and cache. It is signed ad hoc, enough to run on
+this Mac; it is not notarized and nothing publishes it. From the bundle macOS
+shows new mail as system notifications (it asks for permission at the first
+one); from `cargo run` there is no bundle id and they are quietly left out.
+
+Updates (`src/updates.rs`) work as in the Tauri app: a look ten seconds after
+launch and every hour, the download in the background, then "Restart to
+update" on the rail and in About, where "Check for updates" looks at once. The
+native app has its own channel, apart from the Tauri app's `even-updates`:
+`latest.json` (Tauri's shape) on the `even-native-updates` release, or wherever
+`EVEN_UPDATE_URL` points. Nothing is published there and `PUBLIC_KEY` in
+`src/updates.rs` is empty, so every check says "Up to date" until a minisign
+key is set and a release exists; a development build and `cargo run` never
+update. `EVEN_UPDATE_DEBUG=ready` pretends version 9.9.9 is ready (its button
+does nothing) and `EVEN_SHELL_DEBUG=tip` or `update-tip` shows a rail tooltip,
+both for `scripts/shot.sh`; `EVEN_SETTINGS=about` opens the About page.
 
 ## Rules for porting a screen
 
@@ -86,7 +120,8 @@ spotlight or dialog and leaves room for toasts.
 `EVEN_MAIL_DEBUG` shows states that otherwise need a click, for
 `scripts/shot.sh` (comma separated): `collapsed`, `expanded`, `more`,
 `editor`, `spotlight`, `shortcuts`, `snooze`, `confirm`, `toast`, `select`,
-`open` (a conversation already read, so looking changes nothing), `sender`,
+`open` (a conversation already read, so looking changes nothing; with any
+debug state set, opening a conversation never marks it read), `sender`,
 and a list: `drafts`, `parcels`, `invoices`, `snoozed`, `scheduled`,
 `senders`, `starred`, `sent`, `archive`, `spam`, `trash`. For the reader:
 `long` (opens the read conversation with the most messages), `files` (the
@@ -94,7 +129,16 @@ first read one with an attachment), `cards` (every card and the suggested
 replies with made-up content), `todo`, `unsubscribe` (its question, with a
 made-up list), `tip` (a toolbar tooltip), `pending` (while it is fetched).
 With any debug state the models are left alone (no summary, no suggested
-replies) unless `ai` is added.
+replies) unless `ai` is added. `EVEN_LANG=en|nl` shows the app in a language
+for a look, without keeping it as the choice.
+
+New mail arrives over the user's realtime channel (`mail:<userId>`, the
+listener of `src/workspace/realtime.rs`), with a round every minute for when
+that line is down. What the app sends is built apart from sending it
+(`mail/api.rs`, `mail/compose/wire.rs`) and held in the tests against the
+API's schemas, written out in `src/mail/schema.rs`. Quitting sends what was
+still waiting (a move, a message in its undo moment, a draft) before the app
+is gone.
 
 Writing mail (`src/mail/compose.rs` and `src/mail/compose/`): the new
 message and an opened draft in the reading pane, reply, reply all and forward
@@ -138,6 +182,20 @@ opens a screen for `scripts/shot.sh` without a click (`issue-delete`: with the
 delete question; `EVEN_TODO_MENU=status|issue-options|workspace|list|filter`
 opens a menu, `EVEN_TODO_SCROLL=<points>` scrolls the open issue).
 `EVEN_NOTES_SHOW=note|options|workspaces|spotlight|new|delete|share|rename|conflict|offline`
-(comma separated) does the same for Even noteren. `EVEN_LOG_WRITES=1` names
+(comma separated) does the same for Even noteren (`delete-tab`: the delete
+question after a Tab).
+`EVEN_TODO_SHOW=sample,<screen>` shows a made-up workspace instead of the
+user's own (`src/todo/sample.rs`: a simple list, a board, projects, members
+with and without a picture, files on an issue, a long description), in memory
+only: nothing is read from or sent to the API. Its screens: `list`,
+`edit-task`, `rename`, `delete-list`, `delete-task`, `clear-done`, `share`
+(`share-new`: no link yet), `board`, `board-list`, `issue`, `issue-delete`,
+`viewer` (a picture full screen), `drop` (the "drop files" cover),
+`new-issue`, and `settings,<page>[,project|new-project|delete-project|delete-status|gone]`;
+`EVEN_TODO_MENU` also takes `status-color`, `status-options`, `project-color`,
+`editing-color` and `invite-role` for the settings pages, and
+`EVEN_TODO_SCROLL` scrolls the list, the overview or the board's list view
+when no issue is open. `EVEN_LANG=en|nl` and `EVEN_THEME=light|dark` pick the
+language and the theme for the run. `EVEN_LOG_WRITES=1` names
 every change either app sends on stderr, `EVEN_LOG_WRITES=block` refuses them:
 opening a note or an issue must send none.

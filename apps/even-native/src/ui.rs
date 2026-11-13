@@ -34,19 +34,19 @@ pub enum Variant {
 pub fn button(id: impl Into<ElementId>, label: impl Into<SharedString>, variant: Variant) -> Stateful<Div> {
     button_base(id, variant)
         .h(px(32.))
-        .px(px(10.))
+        .px(px(12.))
         .gap(px(6.))
         .text_size(px(13.))
         .child(label.into())
 }
 
-/// The web's `size="sm"`: 28 points tall, 13-point text.
+/// The web's `size="sm"`: 28 points tall, 12.5-point text.
 pub fn button_sm(id: impl Into<ElementId>, label: impl Into<SharedString>, variant: Variant) -> Stateful<Div> {
     button_base(id, variant)
         .h(px(28.))
         .px(px(10.))
-        .gap(px(4.))
-        .text_size(px(13.))
+        .gap(px(6.))
+        .text_size(px(12.5))
         .child(label.into())
 }
 
@@ -59,9 +59,10 @@ pub fn button_with_icon(
 ) -> Stateful<Div> {
     button_base(id, variant)
         .h(px(32.))
-        .px(px(10.))
+        .pl(px(10.))
+        .pr(px(12.))
         .gap(px(6.))
-        .text_size(px(14.))
+        .text_size(px(13.))
         .child(theme::hi(icon).text_color(variant_foreground(variant)))
         .child(label.into())
 }

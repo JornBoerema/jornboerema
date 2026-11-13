@@ -32,6 +32,8 @@ mod lists;
 mod overlays;
 mod places;
 mod reader;
+#[cfg(test)]
+mod schema;
 mod settings;
 mod settings_pages;
 mod settings_signatures;
@@ -62,6 +64,7 @@ actions!(
         Refresh,
         Close,
         Search,
+        Find,
         Shortcuts,
         ToggleSidebar,
         SelectOpen,
@@ -96,7 +99,7 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("escape", Close, Some(NOT_TYPING)),
         // The app (app.tsx).
         KeyBinding::new("cmd-k", Search, Some("Mail")),
-        KeyBinding::new("cmd-f", Search, Some("Mail")),
+        KeyBinding::new("cmd-f", Find, Some("Mail")),
         KeyBinding::new("?", Shortcuts, Some(NOT_TYPING)),
         KeyBinding::new("cmd-b", ToggleSidebar, Some(NOT_TYPING)),
         KeyBinding::new("cmd-r", Refresh, Some("Mail")),
@@ -125,9 +128,14 @@ pub(crate) const ROW_HEIGHT: f32 = 58.;
 pub(crate) const HEADER: f32 = 56.;
 /// How long a change can still be taken back (`UNDO_MS` in lib/undo.ts).
 const UNDO: Duration = Duration::from_secs(5);
-/// New mail normally arrives on the web through a realtime signal; here the
-/// lists are asked again this often instead.
+/// New mail arrives through the realtime signal (`useMailRealtime`); the
+/// lists are also asked again this often, for when that line is down.
 const POLL: Duration = Duration::from_secs(60);
+/// An opened conversation counts as read once it has been looked at this long
+/// (`MARK_READ_DELAY_MS` in pages/conversation.tsx).
+const MARK_READ_DELAY: Duration = Duration::from_millis(1200);
+/// How long quitting waits for what must still reach the API.
+pub(crate) const QUIT_PATIENCE: Duration = Duration::from_secs(10);
 /// Only a safety net on the web too (`SYNC_INTERVAL_MS`).
 const SYNC_EVERY: Duration = Duration::from_secs(5 * 60);
 const SYNC_RETRY: Duration = Duration::from_secs(30);
@@ -296,6 +304,11 @@ pub struct MailView {
     covered: bool,
     /// What the reader shows around the open mail, and its dialogs (reader.rs).
     reader: reader::State,
+    /// The unread conversation that is open, and which opening of it: marked
+    /// read once it has been looked at for a moment.
+    to_read: Option<(String, u64)>,
+    /// `EVEN_MAIL_DEBUG` is set: looking marks nothing as read.
+    looking_only: bool,
     /// States asked for with `EVEN_MAIL_DEBUG`, set once their data is there.
     debug_select: usize,
     debug_open: bool,
@@ -334,15 +347,42 @@ impl MailView {
                 }
             }
         });
-        // Quitting doesn't take anything back: what was waiting goes now (lib/undo.ts).
-        let quit = cx.on_app_quit(|this, cx| {
-            let waiting: Vec<Pending> = this.pending.drain(..).collect();
-            let client = this.client.clone();
-            cx.background_executor().spawn(async move {
-                for pending in waiting {
-                    post_action(&client, &pending.ids, pending.action, pending.until);
+        // New mail the moment the server has it (`useMailRealtime`): the user's
+        // own channel, heard over the listener Even doen and Even noteren share.
+        let live = {
+            let client = client.clone();
+            cx.spawn_in(window, async move |this, cx| {
+                let asked = client.clone();
+                let user = cx
+                    .background_executor()
+                    .spawn(async move { asked.session().ok().map(|user| user.id) })
+                    .await;
+                let Some(user) = user else { return };
+                let (_listening, mut signals) =
+                    crate::workspace::realtime::start_on(client, "/api/mail/realtime", format!("mail:{user}"));
+                while let Some(signal) = signals.next().await {
+                    // Connected: what was missed while the line was down.
+                    if signal == crate::workspace::realtime::Signal::Disconnected {
+                        continue;
+                    }
+                    if this.update_in(cx, |this, window, cx| this.changed_elsewhere(window, cx)).is_err() {
+                        break;
+                    }
                 }
             })
+        };
+        // Quitting doesn't take anything back: what was waiting goes now (lib/undo.ts).
+        let quit = cx.on_app_quit(|this, _| {
+            let waiting: Vec<Pending> = this.pending.drain(..).collect();
+            let client = this.client.clone();
+            if !waiting.is_empty() {
+                before_quit(move || {
+                    for pending in waiting {
+                        post_action(&client, &pending.ids, pending.action, pending.until);
+                    }
+                });
+            }
+            async {}
         });
         let mut view = Self {
             client,
@@ -407,11 +447,13 @@ impl MailView {
             ipc,
             covered: false,
             reader: reader::State::default(),
+            to_read: None,
+            looking_only: std::env::var_os("EVEN_MAIL_DEBUG").is_some(),
             debug_select: 0,
             debug_open: false,
             debug_first_sender: false,
             pages: settings_pages::Pages::default(),
-            _tasks: vec![poll, sync, ipc_task],
+            _tasks: vec![poll, sync, ipc_task, live],
             _quit: quit,
         };
         view.load_accounts(cx);
@@ -808,7 +850,19 @@ impl MailView {
         }
     }
 
-    /// The minute's round, in place of the web's realtime signal.
+    /// The realtime signal: something changed at the server (new mail, a
+    /// snooze that woke, a scheduled message that went). What the web
+    /// invalidates on it; conversations whose move still waits stay hidden.
+    fn changed_elsewhere(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.refresh_quietly(cx);
+        if self.view == View::Inbox {
+            self.load_pins(cx);
+        }
+        self.load_later(cx);
+        self.load_unread(window, cx);
+    }
+
+    /// The minute's round, for when the realtime signal doesn't arrive.
     fn poll(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.refresh_quietly(cx);
         if self.view == View::Inbox {
@@ -846,6 +900,7 @@ impl MailView {
                     this.select_account(String::new(), cx);
                 }
                 this.load_pins(cx);
+                this.features_changed(cx);
             }
         });
     }
@@ -1103,14 +1158,12 @@ impl MailView {
         if let Some(index) = index {
             self.scroll.scroll_to_item(index, ScrollStrategy::Nearest);
         }
-        if unread {
-            self.each_copy(&id, |thread| thread.is_read = true);
-            self.post(vec![id.clone()], ThreadAction::Read, None, cx);
-            if let Some(unread) = &mut self.unread {
-                unread.count = unread.count.saturating_sub(1);
-            }
-        }
-        if !matches!(self.reading.get(&id), Some(Reading::Ready(_))) {
+        // Read once it has been open for a moment, not by passing over it.
+        self.serial += 1;
+        self.to_read = (unread && !self.looking_only).then(|| (id.clone(), self.serial));
+        if matches!(self.reading.get(&id), Some(Reading::Ready(_))) {
+            self.mark_read_soon(cx);
+        } else {
             self.read(id, subject, cx);
         }
         // The neighbours are where J, K and archive go next: have them ready.
@@ -1124,6 +1177,42 @@ impl MailView {
             }
         }
         cx.notify();
+    }
+
+    /// The open conversation is there to read and still unread: it is marked
+    /// read after a moment, unless another one is opened first (the web's
+    /// `needsRead` effect in pages/conversation.tsx).
+    fn mark_read_soon(&mut self, cx: &mut Context<Self>) {
+        let Some(waiting) = self.to_read.clone() else { return };
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(MARK_READ_DELAY).await;
+            let _ = this.update(cx, |this, cx| {
+                if !read_is_due(this.to_read.as_ref(), &waiting, this.open_id()) {
+                    return;
+                }
+                this.to_read = None;
+                let id = waiting.0;
+                this.each_copy(&id, |thread| thread.is_read = true);
+                this.post(vec![id], ThreadAction::Read, None, cx);
+                if let Some(unread) = &mut this.unread {
+                    unread.count = unread.count.saturating_sub(1);
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// A conversation became readable, or a newer copy of it arrived.
+    fn conversation_ready(&mut self, id: &str, first: bool, cx: &mut Context<Self>) {
+        if self.open_id() != Some(id) {
+            return;
+        }
+        if first {
+            self.mark_read_soon(cx);
+        }
+        // An answer under it follows its newest message, as the web's form does.
+        self.retarget_answer(id, cx);
     }
 
     fn read(&mut self, id: String, subject: String, cx: &mut Context<Self>) {
@@ -1149,6 +1238,7 @@ impl MailView {
                 let shown = this.update(cx, |this, cx| {
                     if matches!(this.reading.get(&id), Some(Reading::Loading)) {
                         this.reading.insert(id.clone(), Reading::Ready(Arc::new(conversation)));
+                        this.conversation_ready(&id, true, cx);
                         cx.notify();
                     }
                 });
@@ -1182,7 +1272,11 @@ impl MailView {
                 if this.shown.as_ref().is_some_and(|(shown, ..)| *shown == id) {
                     this.shown = None;
                 }
-                this.reading.insert(id, reading);
+                let ready = matches!(reading, Reading::Ready(_));
+                this.reading.insert(id.clone(), reading);
+                if ready {
+                    this.conversation_ready(&id, !had_cached, cx);
+                }
                 cx.notify();
             });
         })
@@ -1671,6 +1765,25 @@ fn done_message(action: ThreadAction, count: usize) -> Option<String> {
     })
 }
 
+/// Whether the conversation that waited to be marked read still is the one
+/// open, in the same opening of it.
+fn read_is_due(waiting: Option<&(String, u64)>, timer: &(String, u64), open: Option<&str>) -> bool {
+    waiting == Some(timer) && open == Some(timer.0.as_str())
+}
+
+/// GPUI gives what a quit handler returns 200 ms (`SHUTDOWN_TIMEOUT`), less
+/// than a request takes, and the process ends after it. So what must still
+/// reach the API (a move, a message being sent, a draft) goes before the
+/// handler returns: on its own thread, waited for at most `QUIT_PATIENCE`.
+pub(crate) fn before_quit(work: impl FnOnce() + Send + 'static) {
+    let (done, finished) = std::sync::mpsc::channel::<()>();
+    std::thread::spawn(move || {
+        work();
+        let _ = done.send(());
+    });
+    let _ = finished.recv_timeout(QUIT_PATIENCE);
+}
+
 /// Sends a move or a snooze for each conversation, three at a time
 /// (`ACTION_CONCURRENCY`). The first error, if any.
 fn post_action(
@@ -1775,6 +1888,15 @@ impl Render for MailView {
                     this.open_spotlight(window, cx)
                 }
             }))
+            // ⌘F: the same search, also from the text of a message being
+            // written, where ⌘K is the editor's (a link).
+            .on_action(cx.listener(|this, _: &Find, window, cx| {
+                if matches!(this.overlay, Some(Overlay::Spotlight(_))) {
+                    this.close_overlay(window, cx)
+                } else if this.overlay.is_none() {
+                    this.open_spotlight(window, cx)
+                }
+            }))
             .on_action(cx.listener(|this, _: &Shortcuts, window, cx| if this.free() { this.open_shortcuts(window, cx) }))
             .on_action(cx.listener(|this, _: &ToggleSidebar, _, cx| if this.overlay.is_none() { this.toggle_sidebar(cx) }))
             .on_action(cx.listener(|this, _: &Reply, window, cx| if this.free() { this.compose_reply(false, window, cx) }))
@@ -1808,5 +1930,23 @@ impl Render for MailView {
             .children(overlay)
             .children(reader_dialog)
             .children(toasts)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_is_due;
+
+    #[test]
+    fn a_conversation_is_read_only_while_it_stays_open() {
+        let timer = ("m1".to_string(), 4);
+        // Still open, in the same opening: it is marked.
+        assert!(read_is_due(Some(&timer), &timer, Some("m1")));
+        // Closed, another one opened, or opened again since: that timer does nothing.
+        assert!(!read_is_due(Some(&timer), &timer, None));
+        assert!(!read_is_due(Some(&("m2".to_string(), 5)), &timer, Some("m2")));
+        assert!(!read_is_due(Some(&("m1".to_string(), 6)), &timer, Some("m1")));
+        // Already read (opened from EVEN_MAIL_DEBUG, or marked meanwhile): nothing waits.
+        assert!(!read_is_due(None, &timer, Some("m1")));
     }
 }

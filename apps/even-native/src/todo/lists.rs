@@ -14,7 +14,7 @@ impl TodoApp {
     /// The composer's Enter and its button.
     pub(super) fn add_task(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(list) = self.selected() else { return };
-        let title: String = self.task_input.read(cx).value().trim().chars().take(500).collect();
+        let title = crate::workspace::clip(self.task_input.read(cx).value().trim(), 500);
         if title.is_empty() || list.role == api::ListRole::Viewer || list.kind != ListKind::Todo {
             return;
         }
@@ -66,6 +66,29 @@ impl TodoApp {
         if drag_over(&mut self.todo_order, current, dragged, over) {
             cx.notify();
         }
+    }
+
+    /// sortable.tsx `onStep`: ↑ or ↓ on a task row moves it one place within
+    /// its group (in progress, to do, done).
+    fn step_task(&mut self, id: &str, by: isize, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(list) = self.selected() else { return };
+        if list.role == api::ListRole::Viewer || self.renaming.is_some() {
+            return;
+        }
+        let items = self.list_items(&list.id);
+        let Some(status) = items.iter().find(|todo| todo.id == id).map(task_status) else { return };
+        let group: Vec<&Todo> = items.iter().filter(|todo| task_status(todo) == status).collect();
+        let Some(index) = group.iter().position(|todo| todo.id == id) else { return };
+        let Some(target) = index.checked_add_signed(by).and_then(|at| group.get(at)) else { return };
+        self.run(
+            Command::MoveTodo {
+                id: id.to_string(),
+                target_id: target.id.clone(),
+                placement: if by < 0 { Placement::Before } else { Placement::After },
+            },
+            window,
+            cx,
+        );
     }
 
     fn drop_todo(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -204,6 +227,13 @@ impl TodoApp {
             }
         }
         let can_edit = list.role != api::ListRole::Viewer;
+        // Each row can hold the keyboard, for ↑ and ↓ to move it.
+        self.task_focus.retain(|id, _| items.iter().any(|todo| &todo.id == id));
+        for todo in &items {
+            if !self.task_focus.contains_key(&todo.id) {
+                self.task_focus.insert(todo.id.clone(), cx.focus_handle());
+            }
+        }
         let remaining = items.iter().filter(|todo| !todo.completed).count();
         let summary: SharedString = if remaining == 0 && !items.is_empty() {
             t("All done. Nice work.", "Alles afgevinkt. Lekker gedaan.").into()
@@ -254,6 +284,7 @@ impl TodoApp {
                 .flex_1()
                 .min_h_0()
                 .overflow_y_scroll()
+                .track_scroll(&self.list_scroll)
                 .pb(px(24.))
                 .on_drop(cx.listener(|this, _: &DragTodo, window, cx| this.drop_todo(window, cx)));
             for status in TaskStatus::ALL {
@@ -286,7 +317,17 @@ impl TodoApp {
                     rows = rows.child(self.render_todo_row(todo, can_edit, dragged.as_deref() == Some(&todo.id), cx));
                 }
             }
-            page = page.child(rows);
+            // `.todo-list.scroll-fade`.
+            page = page.child(
+                div()
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .min_h_0()
+                    .child(rows)
+                    .children(crate::workspace::scroll_fades(&self.list_scroll, theme::background())),
+            );
         }
         div().flex().flex_1().min_h_0().justify_center().child(page)
     }
@@ -422,9 +463,18 @@ impl TodoApp {
             id: todo.id.clone(),
             title: todo.title.clone().into(),
         };
+        let (up, down) = (todo.id.clone(), todo.id.clone());
         div()
             .id(SharedString::from(format!("todo-{}", todo.id)))
             .group(group.clone())
+            .when_some(self.task_focus.get(&todo.id).filter(|_| can_edit), |el, focus| {
+                el.track_focus(focus)
+                    .key_context("TodoTask")
+                    .on_action(cx.listener(move |this, _: &MoveTaskUp, window, cx| this.step_task(&up, -1, window, cx)))
+                    .on_action(cx.listener(move |this, _: &MoveTaskDown, window, cx| {
+                        this.step_task(&down, 1, window, cx)
+                    }))
+            })
             .flex()
             .flex_none()
             .items_center()

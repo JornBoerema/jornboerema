@@ -78,6 +78,37 @@
     button.dataset.tip = show ? button.dataset.hide : button.dataset.show;
   }
 
+  // Which messages and quotes are unfolded, for the page that takes this
+  // one's place ("show images", a setting that changed): `f` or `u` for the
+  // long thread, then a 0 or 1 per message for open, and again for its quote.
+  function folds() {
+    var messages = find('.messages'), open = '', quotes = '';
+    document.querySelectorAll('article[data-part]').forEach(function (message) {
+      var quote = find('[data-act="quote"]', message);
+      open += message.classList.contains('open') ? '1' : '0';
+      quotes += quote && quote.getAttribute('aria-expanded') === 'true' ? '1' : '0';
+    });
+    return (messages && messages.classList.contains('folded') ? 'f' : 'u') + '.' + open + '.' + quotes;
+  }
+  function unfold(state) {
+    var parts = state.split('.'), messages = find('.messages');
+    var articles = document.querySelectorAll('article[data-part]');
+    // Another number of messages: not the page these folds were of.
+    if (parts.length !== 3 || parts[1].length !== articles.length) return;
+    if (parts[0] === 'u' && messages) messages.classList.remove('folded');
+    articles.forEach(function (message, index) {
+      var open = parts[1].charAt(index) === '1';
+      if (message.classList.contains('open') !== open) {
+        message.classList.toggle('open', open);
+        var toggle = find('[data-act="toggle"][aria-expanded]', message);
+        if (toggle) toggle.setAttribute('aria-expanded', open);
+      }
+      var quote = find('[data-act="quote"]', message);
+      if (quote && parts[2].charAt(index) === '1' && quote.getAttribute('aria-expanded') !== 'true') toggleQuote(quote, message);
+    });
+  }
+  function keep() { post('keep:' + VIEW + ':' + Math.round(window.scrollY) + ':' + folds()); }
+
   function closeMenus(except) {
     document.querySelectorAll('.mb.open').forEach(function (menu) {
       if (menu !== except) menu.classList.remove('open');
@@ -128,6 +159,7 @@
         element.closest('.mb').classList.toggle('open');
         break;
       case 'images':
+        keep();
         send('images', Math.round(window.scrollY));
         break;
       default:
@@ -173,6 +205,8 @@
         if (button) { button.disabled = true; button.textContent = button.dataset.done; }
       });
     },
+    // The page is about to be written again: it says how it stands.
+    keep: keep,
     // An answer is being written below: the bar makes way.
     replying: function (on) { document.body.classList.toggle('replying', on); },
     // The name of a tool in the app's toolbar above the page, `right` from the page's edge.
@@ -183,6 +217,7 @@
     }
   };
 
+  if (KEPT) unfold(KEPT);
   if (SCROLL) window.scrollTo(0, SCROLL);
   root.classList.toggle('scrolled', window.scrollY > 0);
   post('ready:' + VIEW);

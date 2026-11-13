@@ -110,7 +110,9 @@ impl TodoApp {
         cx: &mut Context<Self>,
         pick: impl Fn(&mut Self, String, &mut Window, &mut Context<Self>) + Clone + 'static,
     ) -> Entry {
-        let mut grid = div().flex().flex_wrap().gap(px(6.)).p(px(4.)).w(px(170.));
+        // `grid grid-cols-5 gap-1.5` in a `p-2` panel: five of 28 with 6 between
+        // (164), and 4 of room here beside the panel's own 4.
+        let mut grid = div().flex().flex_wrap().gap(px(6.)).p(px(4.)).w(px(172.));
         for (index, color) in colors.iter().enumerate() {
             let pick = pick.clone();
             let selected = color.eq_ignore_ascii_case(value);

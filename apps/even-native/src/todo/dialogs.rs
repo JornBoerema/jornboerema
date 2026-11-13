@@ -146,7 +146,7 @@ impl TodoApp {
         self.close_dialog(window, cx);
         match kind {
             EditorKind::UpdateTodo(id) => {
-                let title: String = value.chars().take(500).collect();
+                let title = crate::workspace::clip(&value, 500);
                 self.run(
                     Command::UpdateTodo {
                         id,
@@ -165,7 +165,7 @@ impl TodoApp {
                     Command::CreateList {
                         id: id.clone(),
                         workspace_id,
-                        name: value.chars().take(80).collect(),
+                        name: crate::workspace::clip(&value, 80),
                         kind,
                     },
                     window,
@@ -398,6 +398,22 @@ impl TodoApp {
     }
 
     fn load_sharing(&mut self, list_id: String, window: &mut Window, cx: &mut Context<Self>) {
+        // The made-up workspace has a made-up link (`EVEN_TODO_SHOW=sample,share`), or none (`share-new`).
+        if self.sample {
+            let linked = std::env::var("EVEN_TODO_SHOW").is_ok_and(|show| !show.contains("share-new"));
+            let data = sample::sharing(linked);
+            if let Some(Dialog::Share(share)) = &mut self.dialog {
+                let url = data
+                    .link
+                    .as_ref()
+                    .map(|link| format!("{}/shared/{}", api::web_origin(), link.token))
+                    .unwrap_or_default();
+                share.link.update(cx, |input, cx| input.set_value(url, window, cx));
+                share.data = Some(data);
+                share.pending = false;
+            }
+            return;
+        }
         let client = self.client.clone();
         let id = list_id.clone();
         let task = cx.background_executor().spawn(async move { api::sharing(&client, &id) });
@@ -429,6 +445,9 @@ impl TodoApp {
     }
 
     pub(super) fn change_sharing(&mut self, command: SharingCommand, window: &mut Window, cx: &mut Context<Self>) {
+        if self.sample {
+            return;
+        }
         let Some(Dialog::Share(share)) = &mut self.dialog else { return };
         share.pending = true;
         share.error = None;
@@ -617,8 +636,8 @@ impl TodoApp {
 
     fn create_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(Dialog::NewWorkspace(dialog)) = &mut self.dialog else { return };
-        let name: String = dialog.input.read(cx).value().trim().chars().take(60).collect();
-        if name.is_empty() || dialog.pending {
+        let name = crate::workspace::clip(dialog.input.read(cx).value().trim(), 60);
+        if name.is_empty() || dialog.pending || self.sample {
             return;
         }
         dialog.pending = true;

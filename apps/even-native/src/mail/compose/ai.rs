@@ -204,13 +204,13 @@ impl MailView {
         let previous_subject = composer.subject_text.clone();
         let fills_subject = composer.is_new() && previous_subject.trim().is_empty();
         let path = composer.write_path();
-        let body = serde_json::json!({
-            "instruction": instruction,
-            "draft": composer.editor.read(cx).body_text(),
-            "subject": previous_subject,
-            "hasSignature": composer.applied_signature.as_deref().is_some_and(|html| !html.is_empty()),
-            "forward": matches!(composer.kind, Kind::Forward { .. }),
-        });
+        let body = api::write_body(
+            &instruction,
+            composer.editor.read(cx).body_text(),
+            &previous_subject,
+            composer.applied_signature.as_deref().is_some_and(|html| !html.is_empty()),
+            matches!(composer.kind, Kind::Forward { .. }),
+        );
         let stop = Arc::new(AtomicBool::new(false));
         composer.ai.stop = Some(stop.clone());
         composer.ai.pending = true;

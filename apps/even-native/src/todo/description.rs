@@ -139,6 +139,8 @@ impl DescriptionEditor {
         let seen = self.seen.clone();
         div()
             .relative()
+            // As tall as its text: the pane scrolls, it does not squeeze.
+            .flex_none()
             .w_full()
             .h(px(height))
             .child(

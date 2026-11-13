@@ -58,6 +58,10 @@ pub(crate) struct State {
     replying: Option<bool>,
     /// How far the page was scrolled, for the one that replaces it.
     scroll: usize,
+    /// Which messages and quotes were unfolded in it (`email::is_fold_state`).
+    folds: String,
+    /// The page must be written again (a setting changed) once it has said how it stands.
+    rewrite: bool,
     /// The language the page was written in.
     lang: Lang,
     /// A card was reported: it is asked for again once the question is gone.
@@ -121,6 +125,8 @@ impl Default for State {
             ready: 0,
             replying: None,
             scroll: 0,
+            folds: String::new(),
+            rewrite: false,
             lang: lang(),
             recheck: None,
             debug: Debug::from_env(),
@@ -247,6 +253,32 @@ impl MailView {
     }
 
     /// Runs a line of our own script in the page.
+    /// A setting that shapes the open conversation changed (a card turned
+    /// off, the unsubscribe button, summaries): what was asked about it is
+    /// asked again and its page written again, scrolled and unfolded as it was.
+    pub(super) fn features_changed(&mut self, cx: &mut Context<Self>) {
+        self.reader.extras.clear();
+        let Some(id) = self.open_id().map(str::to_string) else { return };
+        if self.page_shows(&id) {
+            // The page says how it stands first; without an answer it is written anyway.
+            self.reader.rewrite = true;
+            self.tell_page("even.keep()", cx);
+            cx.spawn(async move |this, cx| {
+                cx.background_executor().timer(std::time::Duration::from_millis(400)).await;
+                let _ = this.update(cx, |this, cx| {
+                    if std::mem::take(&mut this.reader.rewrite) {
+                        this.shown = None;
+                        cx.notify();
+                    }
+                });
+            })
+            .detach();
+        } else {
+            self.shown = None;
+        }
+        cx.notify();
+    }
+
     fn tell_page(&self, script: &str, cx: &App) {
         if let Some(webview) = &self.webview {
             let _ = webview.read(cx).raw().evaluate_script(script);
@@ -318,7 +350,10 @@ impl MailView {
             if self.shown.as_ref().is_none_or(|(shown, ..)| *shown != id) {
                 self.reader.translated.clear();
                 self.reader.scroll = 0;
+                self.reader.folds.clear();
             }
+            self.reader.rewrite = false;
+            let folds = std::mem::take(&mut self.reader.folds);
             self.document += 1;
             let translated = conversation
                 .parts
@@ -336,6 +371,7 @@ impl MailView {
                 dark,
                 allow_images: images_allowed,
                 scroll: std::mem::take(&mut self.reader.scroll),
+                folds: &folds,
                 account: self.mailbox(&thread.account_id),
                 replying,
                 unsubscribe: Feature::Unsubscribe.on(),
@@ -553,6 +589,16 @@ impl MailView {
                 cx.notify();
             }
             email::Message::Act { view, act, arg } if view == self.document => self.page_act(act, arg, window, cx),
+            // The page as it stands, for the one that takes its place: sent
+            // before "show images", and when asked for (`rewrite_page`).
+            email::Message::Keep { view, scroll, state } if view == self.document => {
+                self.reader.scroll = scroll;
+                self.reader.folds = state;
+                if std::mem::take(&mut self.reader.rewrite) {
+                    self.shown = None;
+                    cx.notify();
+                }
+            }
             _ => {}
         }
     }

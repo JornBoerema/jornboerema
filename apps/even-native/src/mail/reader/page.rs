@@ -44,6 +44,9 @@ pub(super) struct Page<'a> {
     pub(super) allow_images: bool,
     /// Where the page it replaces was scrolled to.
     pub(super) scroll: usize,
+    /// Which messages and quotes were unfolded in the page it replaces
+    /// (`email::is_fold_state`), or empty for a conversation as it opens.
+    pub(super) folds: &'a str,
     /// The mailbox the conversation is in.
     pub(super) account: Option<&'a Mailbox>,
     /// An answer is being written: the bar makes way.
@@ -322,8 +325,12 @@ pub(super) fn build(page: &Page) -> String {
         reply_bar(page, &mut out);
     }
     out.push_str(&format!(
-        r#"</div><div id="tip" role="tooltip"></div><script nonce="{}">var VIEW = {}, SCROLL = {};{SCRIPT}</script></body></html>"#,
-        page.nonce, page.view, page.scroll
+        r#"</div><div id="tip" role="tooltip"></div><script nonce="{}">var VIEW = {}, SCROLL = {}, KEPT = "{}";{SCRIPT}</script></body></html>"#,
+        page.nonce,
+        page.view,
+        page.scroll,
+        // Only ever f, u, 0, 1 and dots: nothing a page could slip into the next one.
+        if crate::email::is_fold_state(page.folds) { page.folds } else { "" }
     ));
     out
 }
@@ -364,6 +371,7 @@ mod tests {
             dark: true,
             allow_images,
             scroll: 0,
+            folds: "",
             account: None,
             replying: false,
             unsubscribe: true,
@@ -390,7 +398,7 @@ mod tests {
         assert!(blocked.contains("img-src data:;"));
         assert!(blocked.contains(r#"data-act="images""#));
         assert!(blocked.contains("script-src 'nonce-n'"));
-        assert!(blocked.contains(r#"<script nonce="n">var VIEW = 7, SCROLL = 0;"#));
+        assert!(blocked.contains(r#"<script nonce="n">var VIEW = 7, SCROLL = 0, KEPT = "";"#));
         let allowed = page_of(&conversation, &left, true);
         assert!(allowed.contains("img-src data: https:;"));
         assert!(!allowed.contains(r#"data-act="images""#));

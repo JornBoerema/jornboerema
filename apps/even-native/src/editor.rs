@@ -424,6 +424,8 @@ pub struct RichEditor {
     remote_images: bool,
     open_links: bool,
     forward_shortcuts: bool,
+    /// Pasted files are someone else's to take (see `set_files_paste`).
+    files_paste: bool,
     /// The pane that scrolls this editor along with what is around it.
     scroller: Option<ScrollHandle>,
     ipc: UnboundedSender<String>,
@@ -481,6 +483,7 @@ impl RichEditor {
             remote_images: false,
             open_links: true,
             forward_shortcuts: true,
+            files_paste: false,
             scroller: None,
             ipc,
             _ipc: task,
@@ -787,6 +790,13 @@ impl RichEditor {
         self.forward_shortcuts = forward;
     }
 
+    /// A paste with files or a picture on the clipboard pastes no text but
+    /// is reported as `EditorEvent::Shortcut("paste-files")`, for a view that
+    /// attaches them (an issue's description, as the web's `onPasteFiles`).
+    pub fn set_files_paste(&mut self, on: bool) {
+        self.files_paste = on;
+    }
+
     /// Notes: typing "/" at the start of a paragraph lists these blocks
     /// (`(id, label)`, the ids of note-editor.tsx's `blockIds`) to turn the
     /// line into; `empty` shows when what is typed after it matches none.
@@ -982,7 +992,13 @@ impl RichEditor {
                 cx.emit(EditorEvent::ContentHeight(px));
             }
             Message::Paste { plain } => {
-                if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+                let files = self.files_paste
+                    && cx.read_from_clipboard().is_some_and(|item| {
+                        item.entries().iter().any(|entry| !matches!(entry, ClipboardEntry::String(_)))
+                    });
+                if files {
+                    cx.emit(EditorEvent::Shortcut("paste-files".into()));
+                } else if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
                     self.eval(format!("__even.paste({}, {plain})", js(&text)), cx);
                 }
             }
@@ -1276,6 +1292,8 @@ mod tests {
     #[test]
     fn knows_its_own_shortcuts() {
         assert!(is_editing_shortcut("cmd-b"));
+        // ⌘K is the editor's (a link on the selection); ⌘F is the app's search.
+        assert!(is_editing_shortcut("cmd-k") && !is_editing_shortcut("cmd-f"));
         assert!(is_editing_shortcut("cmd-shift-x"));
         assert!(is_editing_shortcut("cmd-alt-2"));
         // The app's, and the clipboard's (the Edit menu's).

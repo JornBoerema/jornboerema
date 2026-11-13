@@ -15,6 +15,11 @@ use crate::editor::InlineImage;
 pub(super) const MAX_UPLOAD_BYTES: u64 = 3 * 1024 * 1024;
 /// All files on one message, as Gmail allows (`MAX_ATTACHMENTS_BYTES`).
 pub(super) const MAX_ATTACHMENTS_BYTES: u64 = 25 * 1024 * 1024;
+/// The API gives a request 30 seconds (apps/api/vercel.json); a message that
+/// goes out is waited for longer than that, so the answer is always the
+/// server's own. Giving up first would show "failed" for mail that was sent,
+/// and trying again would send it twice.
+const SEND_PATIENCE: std::time::Duration = std::time::Duration::from_secs(60);
 /// One chunk per request (`UPLOAD_CHUNK_BYTES`).
 pub(super) const UPLOAD_CHUNK_BYTES: usize = 2 * 1024 * 1024;
 
@@ -163,8 +168,83 @@ pub(super) struct Contact {
     pub email: String,
 }
 
+/// As `encodeURIComponent`: a space is `%20`, which a path reads as a space
+/// too (the `+` of form encoding only means one in a query).
+// The JSON of each call, apart from sending it, so the tests can hold it
+// against what the API accepts (the zod schemas in apps/api/src/mail/routes.ts).
+
+/// A new message (`sendBody`): never a reply, also when the draft it started as was.
+pub(super) fn send_body(content: &Outgoing) -> Value {
+    let mut body = content.json();
+    if let Some(fields) = body.as_object_mut() {
+        fields.remove("reply");
+    }
+    body
+}
+
+/// A draft to save, or to send as itself (`draftBody`).
+pub(super) fn draft_body(content: &Outgoing, draft: Option<&str>, attachments_changed: bool) -> Value {
+    let mut body = content.json();
+    body["draftId"] = json!(draft);
+    body["attachmentsChanged"] = json!(attachments_changed);
+    body
+}
+
+/// Send later (`draftBody` with `sendAt`).
+pub(super) fn schedule_body(content: &Outgoing, draft: Option<&str>, attachments_changed: bool, at: DateTime<Utc>) -> Value {
+    let mut body = draft_body(content, draft, attachments_changed);
+    body["sendAt"] = json!(moment(at));
+    body
+}
+
+/// A moment as the API reads it (`Date.toISOString()`).
+pub(in crate::mail) fn moment(at: DateTime<Utc>) -> String {
+    at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+}
+
+/// `replyBody`: no subject and no blind copies; the API takes those from the message answered.
+pub(super) fn reply_body(message: &str, to: &[Address], cc: &[Address], content: &Outgoing) -> Value {
+    let mut body = json!({
+        "messageId": message,
+        "to": to,
+        "cc": cc,
+        "text": content.text,
+        "attachments": content.attachments,
+    });
+    if !content.html.is_empty() {
+        body["html"] = json!(content.html);
+    }
+    if !content.inline.is_empty() {
+        body["inline"] = json!(content.inline);
+    }
+    body
+}
+
+/// `forwardBody`: the message's own files go along at the server, so none are named here.
+pub(super) fn forward_body(message: &str, to: &[Address], content: &Outgoing) -> Value {
+    let mut body = json!({
+        "messageId": message,
+        "to": to,
+        "cc": [],
+        "text": content.text,
+    });
+    if !content.html.is_empty() {
+        body["html"] = json!(content.html);
+    }
+    if !content.inline.is_empty() {
+        body["inline"] = json!(content.inline);
+    }
+    body
+}
+
+/// `uploadBody`. A file without a known kind is `application/octet-stream`, as the web names it.
+pub(super) fn upload_body(name: &str, content_type: &str, size: u64) -> Value {
+    let content_type = if content_type.is_empty() { "application/octet-stream" } else { content_type };
+    json!({ "name": name, "contentType": content_type, "size": size })
+}
+
 fn encode(segment: &str) -> String {
-    url::form_urlencoded::byte_serialize(segment.as_bytes()).collect()
+    url::form_urlencoded::byte_serialize(segment.as_bytes()).collect::<String>().replace('+', "%20")
 }
 
 fn draft_path(draft: &DraftRef) -> String {
@@ -205,11 +285,44 @@ pub(super) fn save_draft(
     struct Answer {
         draft_id: String,
     }
-    let mut body = content.json();
-    body["draftId"] = json!(draft);
-    body["attachmentsChanged"] = json!(attachments_changed);
-    let answer: Answer = client.post_json(&format!("/api/mail/accounts/{}/drafts", encode(account)), &body)?;
+    let body = draft_body(content, draft, attachments_changed);
+    let answer: Answer =
+        client.post_json_within(&format!("/api/mail/accounts/{}/drafts", encode(account)), &body, SEND_PATIENCE)?;
     Ok(answer.draft_id)
+}
+
+/// One round of `useDraftAutosave`, as what it asks of the API.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Keep {
+    /// Nothing worth keeping: the draft it was, if any, goes.
+    Drop(Option<DraftRef>),
+    /// Saved in `account` as the draft `id` (none: a new one), and the draft
+    /// it was in another mailbox goes after it.
+    Save {
+        id: Option<String>,
+        attachments_changed: bool,
+        then_delete: Option<DraftRef>,
+    },
+}
+
+pub(super) fn plan_keep(account: &str, worth_keeping: bool, previous: Option<DraftRef>, files_changed: bool) -> Keep {
+    if !worth_keeping {
+        return Keep::Drop(previous);
+    }
+    // A draft lives in one mailbox, so switching the sender moves it.
+    match previous {
+        Some(draft) if draft.account == account => Keep::Save {
+            id: Some(draft.id),
+            attachments_changed: files_changed,
+            then_delete: None,
+        },
+        // A new draft has no files at the provider yet: they all go along.
+        other => Keep::Save {
+            id: None,
+            attachments_changed: true,
+            then_delete: other,
+        },
+    }
 }
 
 /// Keeps the open message as a draft, or drops the draft once nothing is
@@ -222,32 +335,66 @@ pub(super) fn keep_draft(
     previous: Option<DraftRef>,
     files_changed: bool,
 ) -> Result<Option<DraftRef>> {
-    if !worth_keeping {
-        if let Some(previous) = &previous {
-            delete_draft(client, previous)?;
+    match plan_keep(account, worth_keeping, previous, files_changed) {
+        Keep::Drop(previous) => {
+            if let Some(previous) = &previous {
+                delete_draft(client, previous)?;
+            }
+            Ok(None)
         }
-        return Ok(None);
+        Keep::Save {
+            id,
+            attachments_changed,
+            then_delete,
+        } => {
+            let id = save_draft(client, account, content, id.as_deref(), attachments_changed)?;
+            if let Some(previous) = &then_delete {
+                let _ = delete_draft(client, previous);
+            }
+            Ok(Some(DraftRef {
+                account: account.to_string(),
+                id,
+            }))
+        }
     }
-    // A draft lives in one mailbox, so switching the sender moves it.
-    let target = previous.as_ref().filter(|draft| draft.account == account);
-    let id = save_draft(
-        client,
-        account,
-        content,
-        target.map(|draft| draft.id.as_str()),
-        target.is_none() || files_changed,
-    )?;
-    if let (Some(previous), None) = (&previous, target) {
-        let _ = delete_draft(client, previous);
-    }
-    Ok(Some(DraftRef {
-        account: account.to_string(),
-        id,
-    }))
 }
 
-/// Sends the message. A saved draft is sent as itself, so it leaves the
-/// drafts folder at the provider too.
+/// A POST and what follows it: where, what, and the draft in another mailbox
+/// that goes once it worked.
+pub(super) struct Request {
+    pub path: String,
+    pub body: Value,
+    pub then_delete: Option<DraftRef>,
+}
+
+impl Request {
+    fn run(self, client: &Client) -> Result<()> {
+        done(client.post_json_within(&self.path, &self.body, SEND_PATIENCE))?;
+        if let Some(draft) = &self.then_delete {
+            let _ = delete_draft(client, draft);
+        }
+        Ok(())
+    }
+}
+
+/// Sending (`send` in pages/compose.tsx). A saved draft is sent as itself, so
+/// it leaves the drafts folder at the provider too; one in another mailbox
+/// can't be, so the message goes as new and that draft is deleted.
+pub(super) fn send_request(account: &str, content: &Outgoing, draft: Option<DraftRef>, attachments_changed: bool) -> Request {
+    match draft {
+        Some(draft) if draft.account == account => Request {
+            path: format!("{}/send", draft_path(&draft)),
+            body: draft_body(content, Some(&draft.id), attachments_changed),
+            then_delete: None,
+        },
+        other => Request {
+            path: format!("/api/mail/accounts/{}/send", encode(account)),
+            body: send_body(content),
+            then_delete: other,
+        },
+    }
+}
+
 pub(super) fn send(
     client: &Client,
     account: &str,
@@ -255,30 +402,26 @@ pub(super) fn send(
     draft: Option<DraftRef>,
     attachments_changed: bool,
 ) -> Result<()> {
-    match draft {
-        Some(draft) if draft.account == account => {
-            let mut body = content.json();
-            body["draftId"] = json!(draft.id);
-            body["attachmentsChanged"] = json!(attachments_changed);
-            done(client.post_json(&format!("{}/send", draft_path(&draft)), &body))
-        }
-        other => {
-            let mut body = content.json();
-            // A new message is no reply, also when the draft it started as was.
-            if let Some(fields) = body.as_object_mut() {
-                fields.remove("reply");
-            }
-            done(client.post_json(&format!("/api/mail/accounts/{}/send", encode(account)), &body))?;
-            if let Some(draft) = other {
-                let _ = delete_draft(client, &draft);
-            }
-            Ok(())
-        }
+    send_request(account, content, draft, attachments_changed).run(client)
+}
+
+/// Send later (`schedule` in pages/compose.tsx): saved as the draft it
+/// already is, so it leaves the drafts for Scheduled until its moment.
+pub(super) fn schedule_request(
+    account: &str,
+    content: &Outgoing,
+    draft: Option<DraftRef>,
+    attachments_changed: bool,
+    at: DateTime<Utc>,
+) -> Request {
+    let here = draft.as_ref().filter(|draft| draft.account == account).map(|draft| draft.id.clone());
+    Request {
+        path: format!("/api/mail/accounts/{}/scheduled", encode(account)),
+        body: schedule_body(content, here.as_deref(), attachments_changed, at),
+        then_delete: draft.filter(|draft| draft.account != account),
     }
 }
 
-/// Send later: saved as the draft it already is, so it leaves the drafts for
-/// Scheduled until its moment.
 pub(super) fn schedule(
     client: &Client,
     account: &str,
@@ -287,15 +430,7 @@ pub(super) fn schedule(
     attachments_changed: bool,
     at: DateTime<Utc>,
 ) -> Result<()> {
-    let mut body = content.json();
-    body["draftId"] = json!(draft.as_ref().filter(|draft| draft.account == account).map(|draft| &draft.id));
-    body["attachmentsChanged"] = json!(attachments_changed);
-    body["sendAt"] = json!(at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
-    done(client.post_json(&format!("/api/mail/accounts/{}/scheduled", encode(account)), &body))?;
-    if let Some(draft) = draft.filter(|draft| draft.account != account) {
-        let _ = delete_draft(client, &draft);
-    }
-    Ok(())
+    schedule_request(account, content, draft, attachments_changed, at).run(client)
 }
 
 /// Keeps a scheduled message as a draft instead, and says which draft.
@@ -322,37 +457,14 @@ pub(super) fn reply(
     cc: &[Address],
     content: &Outgoing,
 ) -> Result<()> {
-    let mut body = json!({
-        "messageId": message,
-        "to": to,
-        "cc": cc,
-        "text": content.text,
-        "attachments": content.attachments,
-    });
-    if !content.html.is_empty() {
-        body["html"] = json!(content.html);
-    }
-    if !content.inline.is_empty() {
-        body["inline"] = json!(content.inline);
-    }
-    done(client.post_json(&conversation_path(thread, "/reply"), &body))
+    let body = reply_body(message, to, cc, content);
+    done(client.post_json_within(&conversation_path(thread, "/reply"), &body, SEND_PATIENCE))
 }
 
 /// Sends `message` on, its files included, under a note (`MailForward`).
 pub(super) fn forward(client: &Client, thread: &str, message: &str, to: &[Address], content: &Outgoing) -> Result<()> {
-    let mut body = json!({
-        "messageId": message,
-        "to": to,
-        "cc": [],
-        "text": content.text,
-    });
-    if !content.html.is_empty() {
-        body["html"] = json!(content.html);
-    }
-    if !content.inline.is_empty() {
-        body["inline"] = json!(content.inline);
-    }
-    done(client.post_json(&conversation_path(thread, "/forward"), &body))
+    let body = forward_body(message, to, content);
+    done(client.post_json_within(&conversation_path(thread, "/forward"), &body, SEND_PATIENCE))
 }
 
 /// Starts an upload and says its id (`uploadFile` in lib/uploads.ts).
@@ -361,10 +473,7 @@ pub(super) fn create_upload(client: &Client, name: &str, content_type: &str, siz
     struct Answer {
         id: String,
     }
-    let answer: Answer = client.post_json(
-        "/api/mail/uploads",
-        &json!({ "name": name, "contentType": content_type, "size": size }),
-    )?;
+    let answer: Answer = client.post_json("/api/mail/uploads", &upload_body(name, content_type, size))?;
     Ok(answer.id)
 }
 
@@ -423,6 +532,266 @@ mod tests {
         assert_eq!(body["inline"][0]["contentId"], "x@evido");
         assert!(body.get("reply").is_none());
         assert_eq!(upload_bytes(&message.inline), 3);
+    }
+
+    use super::{
+        draft_body, forward_body, plan_keep, reply_body, schedule_request, send_body, send_request, upload_body, DraftRef,
+        Keep,
+    };
+    use crate::mail::schema;
+    use serde_json::json;
+
+    fn address(name: Option<&str>, email: &str) -> Address {
+        Address {
+            name: name.map(String::from),
+            email: email.into(),
+        }
+    }
+
+    /// A message with everything on it: formatted, a file, a picture, and the
+    /// conversation it answers.
+    fn full() -> Outgoing {
+        Outgoing {
+            to: vec![address(None, "jan@even.nl")],
+            cc: vec![address(None, "kees@even.nl")],
+            bcc: vec![address(None, "piet@even.nl")],
+            subject: "Lunch".into(),
+            text: "Hello".into(),
+            html: r#"<div><p style="margin:0">Hello</p><img src="cid:1x2y.9a@evido"></div>"#.into(),
+            attachments: vec![AttachmentRef {
+                upload_id: "3f2b6c1e-8a4d-4c57-9b1a-0d2e4f6a8c10".into(),
+                name: "a.pdf".into(),
+                content_type: "application/pdf".into(),
+                size: 12,
+            }],
+            inline: vec![InlineUpload {
+                content_id: "1x2y.9a@evido".into(),
+                name: "image-1x2y.png".into(),
+                content_type: "image/png".into(),
+                data: "AAAA".into(),
+            }],
+            reply: Some(json!({ "threadId": "t1", "inReplyTo": "<m@x>", "references": "<a@x> <m@x>" })),
+        }
+    }
+
+    fn draft(account: &str, id: &str) -> DraftRef {
+        DraftRef {
+            account: account.into(),
+            id: id.into(),
+        }
+    }
+
+    #[test]
+    fn a_new_message_is_what_the_send_route_takes() {
+        // POST /api/mail/accounts/:id/send with `sendBody`: exactly these fields.
+        let body = send_body(&full());
+        assert_eq!(schema::send(&body), Ok(()));
+        assert_eq!(
+            body,
+            json!({
+                "to": [{ "name": null, "email": "jan@even.nl" }],
+                "cc": [{ "name": null, "email": "kees@even.nl" }],
+                "bcc": [{ "name": null, "email": "piet@even.nl" }],
+                "subject": "Lunch",
+                "text": "Hello",
+                "html": r#"<div><p style="margin:0">Hello</p><img src="cid:1x2y.9a@evido"></div>"#,
+                "attachments": [{
+                    "uploadId": "3f2b6c1e-8a4d-4c57-9b1a-0d2e4f6a8c10", "name": "a.pdf",
+                    "contentType": "application/pdf", "size": 12,
+                }],
+                "inline": [{
+                    "contentId": "1x2y.9a@evido", "name": "image-1x2y.png", "contentType": "image/png", "data": "AAAA",
+                }],
+            })
+        );
+        // Plain text and nothing else: html and inline are left out, never null.
+        let plain = Outgoing {
+            to: vec![address(None, "jan@even.nl")],
+            text: "Hi".into(),
+            ..Default::default()
+        };
+        let body = send_body(&plain);
+        assert_eq!(schema::send(&body), Ok(()));
+        assert_eq!(
+            body,
+            json!({ "to": [{ "name": null, "email": "jan@even.nl" }], "cc": [], "bcc": [], "subject": "", "text": "Hi", "attachments": [] })
+        );
+    }
+
+    #[test]
+    fn sending_picks_the_route_the_web_picks() {
+        let message = full();
+        // Saved in the mailbox it goes from: sent as that draft, reply and all.
+        let request = send_request("a1", &message, Some(draft("a1", "d 1")), false);
+        assert_eq!(request.path, "/api/mail/accounts/a1/drafts/d%201/send");
+        assert_eq!(schema::send_draft(&request.body), Ok(()));
+        assert_eq!(request.body["draftId"], "d 1");
+        assert_eq!(request.body["attachmentsChanged"], false);
+        assert_eq!(request.body["reply"]["inReplyTo"], "<m@x>");
+        assert_eq!(request.then_delete, None);
+        // Saved in another mailbox: sent as new from this one, no reply, and that draft goes after it.
+        let request = send_request("a2", &message, Some(draft("a1", "d1")), true);
+        assert_eq!(request.path, "/api/mail/accounts/a2/send");
+        assert_eq!(schema::send(&request.body), Ok(()));
+        assert_eq!(request.then_delete, Some(draft("a1", "d1")));
+        // Never saved: sent as new, nothing to delete.
+        let request = send_request("a1", &message, None, true);
+        assert_eq!(request.path, "/api/mail/accounts/a1/send");
+        assert_eq!(schema::send(&request.body), Ok(()));
+        assert_eq!(request.then_delete, None);
+    }
+
+    #[test]
+    fn a_draft_is_saved_as_the_draft_route_takes_it() {
+        // A new one: `draftId` is null (the key must be there), its files go along.
+        let body = draft_body(&full(), None, true);
+        assert_eq!(schema::save_draft(&body), Ok(()));
+        assert!(body["draftId"].is_null() && body.as_object().unwrap().contains_key("draftId"));
+        assert_eq!(body["attachmentsChanged"], true);
+        assert_eq!(body["reply"], json!({ "threadId": "t1", "inReplyTo": "<m@x>", "references": "<a@x> <m@x>" }));
+        // Saved again: by its id.
+        let body = draft_body(&full(), Some("d1"), false);
+        assert_eq!(schema::save_draft(&body), Ok(()));
+        assert_eq!((&body["draftId"], &body["attachmentsChanged"]), (&json!("d1"), &json!(false)));
+        // Half an address in a field isn't one yet: a draft may have nobody on it.
+        let nobody = Outgoing {
+            subject: "Later".into(),
+            ..Default::default()
+        };
+        assert_eq!(schema::save_draft(&draft_body(&nobody, None, true)), Ok(()));
+        // Nothing but recipients is no draft: the API refuses it, and `plan_keep` never sends it.
+        let empty = Outgoing {
+            to: vec![address(None, "jan@even.nl")],
+            ..Default::default()
+        };
+        assert!(schema::save_draft(&draft_body(&empty, None, true)).is_err());
+    }
+
+    #[test]
+    fn saving_while_writing_makes_updates_moves_and_deletes() {
+        // First save: a new draft, with its files.
+        assert_eq!(
+            plan_keep("a1", true, None, false),
+            Keep::Save { id: None, attachments_changed: true, then_delete: None }
+        );
+        // Again: the same draft, files only when they changed.
+        assert_eq!(
+            plan_keep("a1", true, Some(draft("a1", "d1")), false),
+            Keep::Save { id: Some("d1".into()), attachments_changed: false, then_delete: None }
+        );
+        assert_eq!(
+            plan_keep("a1", true, Some(draft("a1", "d1")), true),
+            Keep::Save { id: Some("d1".into()), attachments_changed: true, then_delete: None }
+        );
+        // Another sender: a new draft there, the old one goes after it.
+        assert_eq!(
+            plan_keep("a2", true, Some(draft("a1", "d1")), false),
+            Keep::Save { id: None, attachments_changed: true, then_delete: Some(draft("a1", "d1")) }
+        );
+        // Emptied again: the draft goes; one never saved needs nothing.
+        assert_eq!(plan_keep("a1", false, Some(draft("a1", "d1")), true), Keep::Drop(Some(draft("a1", "d1"))));
+        assert_eq!(plan_keep("a1", false, None, false), Keep::Drop(None));
+    }
+
+    #[test]
+    fn send_later_is_a_draft_with_its_moment() {
+        let now = chrono::Utc::now();
+        let at = now + chrono::Duration::hours(20);
+        let request = schedule_request("a1", &full(), Some(draft("a1", "d1")), false, at);
+        assert_eq!(request.path, "/api/mail/accounts/a1/scheduled");
+        assert_eq!(schema::schedule(&request.body, now), Ok(()));
+        assert_eq!(request.body["draftId"], "d1");
+        assert_eq!(request.then_delete, None);
+        // As `Date.toISOString()`: milliseconds and Z.
+        let fixed = chrono::DateTime::parse_from_rfc3339("2026-11-14T08:00:00+01:00").unwrap().with_timezone(&chrono::Utc);
+        assert_eq!(super::moment(fixed), "2026-11-14T07:00:00.000Z");
+        // From another mailbox, or never saved: a new draft here (`draftId: null`).
+        let request = schedule_request("a2", &full(), Some(draft("a1", "d1")), false, at);
+        assert!(request.body["draftId"].is_null());
+        assert_eq!(request.then_delete, Some(draft("a1", "d1")));
+        assert_eq!(schema::schedule(&request.body, now), Ok(()));
+        let request = schedule_request("a1", &full(), None, true, at);
+        assert!(request.body["draftId"].is_null() && request.then_delete.is_none());
+        // A moment that passed is refused, as the API does.
+        let late = schedule_request("a1", &full(), None, true, now - chrono::Duration::hours(1));
+        assert!(schema::schedule(&late.body, now).is_err());
+    }
+
+    #[test]
+    fn an_answer_is_what_the_reply_route_takes() {
+        let to = [address(Some("Jan de Vries"), "jan@even.nl")];
+        let cc = [address(None, "kees@even.nl")];
+        let body = reply_body("m1", &to, &cc, &full());
+        assert_eq!(schema::reply(&body), Ok(()));
+        // The message answered, its people as shown, and no subject, blind
+        // copies or reply headers: the API takes those from the message itself.
+        assert_eq!(body["messageId"], "m1");
+        assert_eq!(body["to"], json!([{ "name": "Jan de Vries", "email": "jan@even.nl" }]));
+        assert_eq!(body["cc"], json!([{ "name": null, "email": "kees@even.nl" }]));
+        assert_eq!(body["attachments"][0]["uploadId"], "3f2b6c1e-8a4d-4c57-9b1a-0d2e4f6a8c10");
+        assert_eq!(body["inline"][0]["contentId"], "1x2y.9a@evido");
+        for key in ["subject", "bcc", "reply", "draftId"] {
+            assert!(body.get(key).is_none(), "{key}");
+        }
+        // Plain: html and inline are left out.
+        let plain = Outgoing {
+            text: "Fine".into(),
+            ..Default::default()
+        };
+        let body = reply_body("m1", &to, &[], &plain);
+        assert_eq!(schema::reply(&body), Ok(()));
+        assert_eq!(
+            body,
+            json!({ "messageId": "m1", "to": [{ "name": "Jan de Vries", "email": "jan@even.nl" }], "cc": [], "text": "Fine", "attachments": [] })
+        );
+        // The API refuses an answer without text or without anyone to answer.
+        assert!(schema::reply(&reply_body("m1", &to, &[], &Outgoing::default())).is_err());
+        assert!(schema::reply(&reply_body("m1", &[], &[], &plain)).is_err());
+    }
+
+    #[test]
+    fn a_forward_is_what_the_forward_route_takes() {
+        let to = [address(None, "sanne@even.nl")];
+        let body = forward_body("m1", &to, &full());
+        assert_eq!(schema::forward(&body), Ok(()));
+        assert_eq!(body["cc"], json!([]));
+        assert_eq!(body["inline"][0]["contentId"], "1x2y.9a@evido");
+        // The message's own files go along at the server: none are named here.
+        assert!(body.get("attachments").is_none());
+        // A note is optional.
+        let body = forward_body("m1", &to, &Outgoing::default());
+        assert_eq!(schema::forward(&body), Ok(()));
+        assert_eq!(body, json!({ "messageId": "m1", "to": [{ "name": null, "email": "sanne@even.nl" }], "cc": [], "text": "" }));
+    }
+
+    #[test]
+    fn an_upload_names_its_file() {
+        let body = upload_body("a.pdf", "application/pdf", 12);
+        assert_eq!(schema::upload(&body), Ok(()));
+        assert_eq!(body, json!({ "name": "a.pdf", "contentType": "application/pdf", "size": 12 }));
+        assert_eq!(upload_body("x", "", 0)["contentType"], "application/octet-stream");
+        assert!(schema::upload(&upload_body("big", "", 26 * 1024 * 1024)).is_err());
+    }
+
+    #[test]
+    fn pictures_from_the_editor_are_what_the_api_takes() {
+        // A data: picture in the editor's HTML becomes an inline file with an id the API accepts.
+        let html = r#"<p>Hi</p><img src="data:image/png;base64,iVBORw0KGgo=">"#;
+        let (html, pictures) = crate::editor::to_inline_images(html);
+        let message = Outgoing {
+            to: vec![address(None, "jan@even.nl")],
+            text: "Hi".into(),
+            html: html.clone(),
+            inline: pictures.iter().map(InlineUpload::of).collect(),
+            ..Default::default()
+        };
+        assert_eq!(schema::send(&send_body(&message)), Ok(()));
+        let id = &message.inline[0].content_id;
+        assert!(html.contains(&format!(r#"src="cid:{id}""#)) && !html.contains("data:"));
+        assert_eq!(message.inline[0].data, "iVBORw0KGgo=");
+        // And back, for a draft opened again.
+        let back = crate::editor::from_inline_images(&html, &pictures);
+        assert!(back.contains("data:image/png;base64,iVBORw0KGgo="));
     }
 
     #[test]

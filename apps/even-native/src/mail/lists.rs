@@ -434,7 +434,7 @@ impl MailView {
         };
         self.fetch(
             cx,
-            move |client| client.post_json::<serde_json::Value>(&path, &serde_json::json!({ "kind": name, "reason": reason })),
+            move |client| client.post_json::<serde_json::Value>(&path, &api::report_body(name, reason)),
             move |this, result, cx| match result {
                 Ok(_) => {
                     this.toast(

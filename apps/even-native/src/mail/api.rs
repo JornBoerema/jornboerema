@@ -317,8 +317,10 @@ pub struct SyncResult {
     pub changed: u64,
 }
 
+/// As `encodeURIComponent`: a space is `%20`, which a path reads as a space
+/// too (the `+` of form encoding only means one in a query).
 fn encode(segment: &str) -> String {
-    url::form_urlencoded::byte_serialize(segment.as_bytes()).collect()
+    url::form_urlencoded::byte_serialize(segment.as_bytes()).collect::<String>().replace('+', "%20")
 }
 
 /// With `?account=…` when one mailbox is picked.
@@ -369,7 +371,7 @@ pub fn pins(client: &Client, account: &str) -> Result<Vec<Thread>> {
 pub fn pin(client: &Client, id: &str, pinned: bool) -> Result<()> {
     let _: serde_json::Value = client.post_json(
         &format!("/api/mail/threads/{}/pin", encode(id)),
-        &serde_json::json!({ "pinned": pinned }),
+        &pin_body(pinned),
     )?;
     Ok(())
 }
@@ -452,11 +454,7 @@ pub fn sender_action(client: &Client, email: &str, action: &str, account: &str) 
         handled: u64,
         remaining: u64,
     }
-    let mut body = serde_json::json!({ "email": email, "action": action });
-    if !account.is_empty() {
-        body["account"] = account.into();
-    }
-    let answer: Answer = client.post_json("/api/mail/senders/action", &body)?;
+    let answer: Answer = client.post_json("/api/mail/senders/action", &sender_body(email, action, account))?;
     Ok((answer.handled, answer.remaining))
 }
 
@@ -469,15 +467,78 @@ pub fn unsubscribe(client: &Client, thread_id: &str, provider_message_id: &str) 
     }
     let answer: Answer = client.post_json(
         &conversation_path(thread_id, "/unsubscribe"),
-        &serde_json::json!({ "messageId": provider_message_id }),
+        &unsubscribe_body(provider_message_id),
     )?;
     Ok(if answer.done { None } else { answer.url })
+}
+
+// The JSON of each change, apart from sending it, so the tests can hold it
+// against what the API accepts (the zod schemas in apps/api/src/mail/routes.ts).
+
+/// `actionBody`.
+pub fn action_body(action: ThreadAction) -> serde_json::Value {
+    serde_json::json!({ "action": action })
+}
+
+/// `snoozeBody`: a moment with its offset, as `Date.toISOString()` writes it.
+pub fn snooze_body(until: DateTime<Utc>) -> serde_json::Value {
+    serde_json::json!({ "until": until.to_rfc3339_opts(chrono::SecondsFormat::Millis, true) })
+}
+
+/// `pinBody`.
+pub fn pin_body(pinned: bool) -> serde_json::Value {
+    serde_json::json!({ "pinned": pinned })
+}
+
+/// `senderBody`: the mailbox only when one is picked.
+pub fn sender_body(email: &str, action: &str, account: &str) -> serde_json::Value {
+    let mut body = serde_json::json!({ "email": email, "action": action });
+    if !account.is_empty() {
+        body["account"] = account.into();
+    }
+    body
+}
+
+/// `unsubscribeBody`.
+pub fn unsubscribe_body(provider_message_id: &str) -> serde_json::Value {
+    serde_json::json!({ "messageId": provider_message_id })
+}
+
+/// One setting that follows the account (`preferencesBody`, partial).
+pub fn feature_body(key: &str, on: bool) -> serde_json::Value {
+    serde_json::json!({ key: on })
+}
+
+/// The sidebar as arranged, or null to put the default back.
+pub fn sidebar_body(layout: Option<&super::places::Layout>) -> serde_json::Value {
+    serde_json::json!({ "sidebar": layout })
+}
+
+/// `todoBody`: a task in Even doen from a conversation.
+pub fn todo_body(list: &str, title: &str) -> serde_json::Value {
+    serde_json::json!({ "listId": list, "title": title })
+}
+
+/// `reportBody`: "not recognised well".
+pub fn report_body(kind: &str, reason: &str) -> serde_json::Value {
+    serde_json::json!({ "kind": kind, "reason": reason })
+}
+
+/// `writeBody`: what the model is asked to write.
+pub fn write_body(instruction: &str, draft: &str, subject: &str, has_signature: bool, forward: bool) -> serde_json::Value {
+    serde_json::json!({
+        "instruction": instruction,
+        "draft": draft,
+        "subject": subject,
+        "hasSignature": has_signature,
+        "forward": forward,
+    })
 }
 
 pub fn act(client: &Client, id: &str, action: ThreadAction) -> Result<()> {
     let _: serde_json::Value = client.post_json(
         &conversation_path(id, "/actions"),
-        &serde_json::json!({ "action": action }),
+        &action_body(action),
     )?;
     Ok(())
 }
@@ -486,7 +547,7 @@ pub fn act(client: &Client, id: &str, action: ThreadAction) -> Result<()> {
 pub fn snooze(client: &Client, id: &str, until: DateTime<Utc>) -> Result<()> {
     let _: serde_json::Value = client.post_json(
         &conversation_path(id, "/snooze"),
-        &serde_json::json!({ "until": until.to_rfc3339_opts(chrono::SecondsFormat::Millis, true) }),
+        &snooze_body(until),
     )?;
     Ok(())
 }
@@ -650,6 +711,61 @@ mod tests {
         assert!(!leaves_list(Some(MailFolder::Sent), Archive));
         assert!(leaves_list(Some(MailFolder::Trash), Inbox) && !leaves_list(Some(MailFolder::Trash), Trash));
         assert_eq!(serde_json::to_string(&Unread).unwrap(), "\"unread\"");
+    }
+
+    #[test]
+    fn changes_are_what_the_api_takes() {
+        use super::*;
+        use crate::mail::schema;
+        use serde_json::json;
+
+        // Every action by the name the API knows it.
+        let actions = [Read, Unread, Archive, Trash, Star, Unstar, Inbox, Spam, Delete];
+        for action in actions {
+            assert_eq!(schema::action(&action_body(action)), Ok(()), "{action:?}");
+        }
+        assert_eq!(action_body(Unstar), json!({ "action": "unstar" }));
+        // A snooze: the moment with its offset, as `Date.toISOString()`.
+        let now = chrono::Utc::now();
+        let body = snooze_body(now + chrono::Duration::hours(3));
+        assert_eq!(schema::snooze(&body, now), Ok(()));
+        let fixed = chrono::DateTime::parse_from_rfc3339("2026-11-14T08:00:00+01:00").unwrap().with_timezone(&chrono::Utc);
+        assert_eq!(snooze_body(fixed), json!({ "until": "2026-11-14T07:00:00.000Z" }));
+        for pinned in [true, false] {
+            assert_eq!(schema::pin(&pin_body(pinned)), Ok(()));
+        }
+        // Tidy up: the mailbox only when one is picked.
+        for action in ["archive", "read", "trash"] {
+            assert_eq!(schema::sender(&sender_body("news@shop.nl", action, "")), Ok(()));
+        }
+        assert_eq!(sender_body("news@shop.nl", "read", ""), json!({ "email": "news@shop.nl", "action": "read" }));
+        assert_eq!(sender_body("news@shop.nl", "read", "a1")["account"], "a1");
+        assert_eq!(schema::sender(&sender_body("news@shop.nl", "read", "a1")), Ok(()));
+        assert_eq!(schema::unsubscribe(&unsubscribe_body("m1")), Ok(()));
+        // Preferences: one switch, or the sidebar (null puts the default back).
+        assert_eq!(schema::preferences(&feature_body("replySuggestions", false)), Ok(()));
+        assert!(schema::preferences(&feature_body("reply_suggestions", false)).is_err());
+        assert_eq!(sidebar_body(None), json!({ "sidebar": null }));
+        assert_eq!(schema::preferences(&sidebar_body(None)), Ok(()));
+        let layout = crate::mail::places::Layout::default();
+        let body = sidebar_body(Some(&layout));
+        assert_eq!(schema::preferences(&body), Ok(()));
+        assert_eq!(body["sidebar"]["more"], json!(["archive", "spam", "trash"]));
+        // A task, a report, a request to write.
+        assert_eq!(schema::todo(&todo_body("3f2b6c1e-8a4d-4c57-9b1a-0d2e4f6a8c10", "Call Jan")), Ok(()));
+        for reason in ["not_one", "amount", "status", "other"] {
+            assert_eq!(schema::report(&report_body("invoice", reason)), Ok(()));
+        }
+        assert_eq!(schema::report(&report_body("parcel", "not_one")), Ok(()));
+        assert_eq!(schema::write(&write_body("shorter", "Hi", "Lunch", true, false)), Ok(()));
+    }
+
+    #[test]
+    fn paths_are_encoded_as_the_web_encodes_them() {
+        // `encodeURIComponent`: a space is %20 (a "+" in a path would be a plus).
+        assert_eq!(super::encode("a b+c/d=e"), "a%20b%2Bc%2Fd%3De");
+        assert_eq!(super::with_account("/api/mail/pins", "a 1"), "/api/mail/pins?account=a%201");
+        assert_eq!(super::with_account("/api/mail/pins", ""), "/api/mail/pins");
     }
 
     #[test]

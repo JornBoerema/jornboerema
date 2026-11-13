@@ -24,6 +24,11 @@ pub(super) enum Overlay {
     Delete {
         id: String,
         title: String,
+        /// Which button has the keyboard: Cancel when the question opens, as
+        /// the web's AlertDialog; Tab moves it, Enter presses it.
+        on_delete: bool,
+        /// Tab was used: the button with the keyboard shows it (`:focus-visible`).
+        ring: bool,
     },
     NewWorkspace {
         input: Entity<InputState>,
@@ -189,8 +194,52 @@ impl NotesApp {
 
     // Deleting a note.
 
-    fn render_delete(&self, title: &str, window: &Window, cx: &mut Context<Self>) -> AnyElement {
+    /// The question whether to delete `id`, with the keyboard on Cancel.
+    pub(super) fn ask_delete(&mut self, id: String, title: String, window: &mut Window, cx: &mut Context<Self>) {
+        self.overlay = Some(Overlay::Delete {
+            id,
+            title,
+            on_delete: false,
+            ring: false,
+        });
+        window.focus(&self.focus, cx);
+        cx.notify();
+    }
+
+    /// Tab in the delete question: the keyboard goes to the other button.
+    pub(super) fn next_button(&mut self, cx: &mut Context<Self>) {
+        match &mut self.overlay {
+            Some(Overlay::Delete { on_delete, ring, .. }) => {
+                *on_delete = !*on_delete;
+                *ring = true;
+                cx.notify();
+            }
+            _ => cx.propagate(),
+        }
+    }
+
+    /// Enter in the delete question presses the button that has the keyboard.
+    pub(super) fn press_button(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match &self.overlay {
+            Some(Overlay::Delete { on_delete: true, .. }) if !self.disabled() => self.delete_note(window, cx),
+            Some(Overlay::Delete { on_delete: false, .. }) => self.close_overlay(window, cx),
+            Some(Overlay::Delete { .. }) => {}
+            _ => cx.propagate(),
+        }
+    }
+
+    fn render_delete(&self, title: &str, on_delete: bool, ring: bool, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let disabled = self.disabled();
+        // `focus-visible:outline-2 outline-offset-1 outline-ring`: around the button, taking no room.
+        let focused = |button: Stateful<Div>, shown: bool| {
+            div()
+                .p(px(3.))
+                .m(px(-3.))
+                .rounded(px(11.))
+                .border_2()
+                .border_color(if shown { theme::ring() } else { theme::with_alpha(theme::ring(), 0.) })
+                .child(button)
+        };
         parts::dialog_panel("delete-note-dialog", window)
             .on_mouse_down_out(cx.listener(|this, _, window, cx| this.close_overlay(window, cx)))
             .child(parts::dialog_header(
@@ -206,17 +255,19 @@ impl NotesApp {
             ))
             .child(
                 parts::dialog_footer()
-                    .child(
+                    .child(focused(
                         ui::button("keep-note", t("Cancel", "Annuleren"), ui::Variant::Outline)
                             .on_click(cx.listener(|this, _, window, cx| this.close_overlay(window, cx))),
-                    )
-                    .child(
+                        ring && !on_delete,
+                    ))
+                    .child(focused(
                         ui::button("confirm-delete", t("Delete", "Verwijderen"), ui::Variant::Destructive)
                             .when(disabled, ui::disabled)
                             .when(!disabled, |el| {
                                 el.on_click(cx.listener(|this, _, window, cx| this.delete_note(window, cx)))
                             }),
-                    ),
+                        ring && on_delete,
+                    )),
             )
             .into_any_element()
     }
@@ -837,7 +888,9 @@ impl NotesApp {
         let centred = |dialog: AnyElement| div().flex().flex_col().justify_center().child(dialog).into_any_element();
         let dialog = match overlay {
             Overlay::NewNote { input, .. } => centred(self.render_new_note(input, window, cx)),
-            Overlay::Delete { title, .. } => centred(self.render_delete(title, window, cx)),
+            Overlay::Delete {
+                title, on_delete, ring, ..
+            } => centred(self.render_delete(title, *on_delete, *ring, window, cx)),
             Overlay::NewWorkspace { input, pending, .. } => {
                 centred(self.render_new_workspace(input, *pending, window, cx))
             }

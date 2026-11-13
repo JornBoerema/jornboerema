@@ -74,7 +74,13 @@ pub fn lang() -> Lang {
         1 => Lang::En,
         2 => Lang::Nl,
         _ => {
-            let lang = preference().unwrap_or_else(system);
+            // `EVEN_LANG=en|nl` shows the app in a language for a look, without keeping it.
+            let asked = match std::env::var("EVEN_LANG").as_deref() {
+                Ok("en") => Some(Lang::En),
+                Ok("nl") => Some(Lang::Nl),
+                _ => None,
+            };
+            let lang = asked.or_else(preference).unwrap_or_else(system);
             CURRENT.store(if lang == Lang::En { 1 } else { 2 }, Ordering::Relaxed);
             lang
         }

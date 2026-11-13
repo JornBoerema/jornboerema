@@ -297,14 +297,25 @@ impl TodoApp {
                     ),
             );
         }
+        // `.dashboard-content.scroll-fade`.
         div()
-            .id("dashboard")
+            .relative()
             .flex()
+            .flex_col()
             .flex_1()
             .min_h_0()
-            .justify_center()
-            .overflow_y_scroll()
-            .child(page)
+            .child(
+                div()
+                    .id("dashboard")
+                    .flex()
+                    .flex_1()
+                    .min_h_0()
+                    .justify_center()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.dashboard_scroll)
+                    .child(page),
+            )
+            .children(crate::workspace::scroll_fades(&self.dashboard_scroll, theme::background()))
     }
 
     fn render_members_widget(&self, cx: &mut Context<Self>) -> Div {

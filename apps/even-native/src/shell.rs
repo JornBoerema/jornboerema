@@ -4,6 +4,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::prelude::*;
@@ -16,7 +17,8 @@ use crate::mail::{MailView, SignedOut};
 use crate::notes::NotesApp;
 use crate::todo::TodoApp;
 use crate::ui::{self, Variant};
-use crate::{auth, prefs, store, theme};
+use crate::updates::{self, Updates};
+use crate::{auth, prefs, store, theme, window as even_window};
 
 actions!(
     even,
@@ -97,6 +99,34 @@ const APP_PREF: &str = "even.desktop.app";
 const RAIL_WIDTH: f32 = 80.;
 const STAGE_INSET: f32 = 4.;
 
+/// rail.tsx: a rail tooltip shows after 300 ms, at once when another was
+/// showing up to 400 ms ago, and 10 points right of its button.
+const TIP_DELAY: Duration = Duration::from_millis(300);
+const TIP_SKIP_DELAY: Duration = Duration::from_millis(400);
+const TIP_OFFSET: f32 = 10.;
+/// desktop.css: the rail's buttons, the gap between them and the room around.
+const RAIL_BUTTON: f32 = 40.;
+const RAIL_GAP: f32 = 6.;
+const RAIL_TOP: f32 = 52.;
+const RAIL_BOTTOM: f32 = 18.;
+/// `.app-rail-button::before`: the selected bar grows to this in 180 ms.
+const BAR_HEIGHT: f32 = 18.;
+const BAR_TIME: Duration = Duration::from_millis(180);
+
+/// A button of the rail, for its tooltip: counted from the top, or from the foot.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum RailSpot {
+    Top(usize),
+    Foot(usize),
+}
+
+struct RailTip {
+    spot: RailSpot,
+    label: SharedString,
+    hint: SharedString,
+    shown: bool,
+}
+
 /// The pages the window itself has, before the apps' own.
 const ACCOUNT: &str = "account";
 const APPEARANCE: &str = "appearance";
@@ -148,7 +178,27 @@ pub struct Shell {
     cancel: Arc<AtomicBool>,
     /// The mail cache, kept here so signing out can close and delete it.
     store: Option<Arc<store::Store>>,
-    _appearance: Subscription,
+    /// A downloaded version and looking for one: the rail and the About page.
+    updates: Entity<Updates>,
+    /// The rail tooltip that waits or shows, and when the last one left.
+    rail_tip: Option<RailTip>,
+    rail_tip_left: Option<Instant>,
+    /// Counts hovers, so a tooltip's wait knows whether it is still wanted.
+    rail_hovers: usize,
+    /// The app that was open before this one, and how many switches there
+    /// were: the selected bar moves from the one to the other.
+    left_app: Option<AppId>,
+    switches: usize,
+    _subscriptions: Vec<Subscription>,
+}
+
+/// What signing out leaves on this computer besides the session and the mail
+/// cache with its reply drafts (store.rs): notes that were not saved yet
+/// (src/notes/note.rs keeps them per user in `note-drafts`).
+fn forget_drafts() {
+    if let Some(dir) = auth::data_dir() {
+        let _ = std::fs::remove_dir_all(dir.join("note-drafts"));
+    }
 }
 
 fn stored_app() -> AppId {
@@ -164,6 +214,11 @@ impl Shell {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         // "System" follows the Mac when it turns light or dark.
         let appearance = cx.observe_window_appearance(window, |_, _, cx| theme::apply(cx));
+        let updates = cx.new(Updates::new);
+        // Where the window is and how big, for the next launch.
+        even_window::remember(window, cx);
+        let bounds = cx.observe_window_bounds(window, |_, window, cx| even_window::remember(window, cx));
+        let ready = cx.observe(&updates, |_, _, cx| cx.notify());
         let mut shell = Self {
             screen: Screen::SignIn {
                 waiting: None,
@@ -171,10 +226,43 @@ impl Shell {
             },
             cancel: Arc::new(AtomicBool::new(false)),
             store: None,
-            _appearance: appearance,
+            updates,
+            rail_tip: None,
+            rail_tip_left: None,
+            rail_hovers: 0,
+            left_app: None,
+            switches: 0,
+            _subscriptions: vec![appearance, bounds, ready],
         };
-        if let Some(token) = auth::stored_token() {
-            shell.show_apps(token, window, cx);
+        // `EVEN_SHELL_DEBUG=tip` (or `update-tip`, with EVEN_UPDATE_DEBUG=ready)
+        // shows a rail tooltip without the pointer, for scripts/shot.sh.
+        match std::env::var("EVEN_SHELL_DEBUG").as_deref() {
+            Ok("tip") => {
+                shell.rail_tip = Some(RailTip {
+                    spot: RailSpot::Top(1),
+                    label: AppId::Todo.name().into(),
+                    hint: AppId::Todo.shortcut().into(),
+                    shown: true,
+                })
+            }
+            Ok("update-tip") => {
+                shell.rail_tip = Some(RailTip {
+                    spot: RailSpot::Foot(1),
+                    label: t("Restart to update", "Herstart om bij te werken").into(),
+                    hint: "9.9.9".into(),
+                    shown: true,
+                })
+            }
+            _ => {}
+        }
+        match auth::stored_token() {
+            Some(token) => shell.show_apps(token, window, cx),
+            // desktop.tsx, Gate: signed out, the mail of whoever used Even
+            // last leaves this computer, also when that was found at launch.
+            None => {
+                store::forget();
+                forget_drafts();
+            }
         }
         shell
     }
@@ -201,6 +289,9 @@ impl Shell {
             _subscriptions: subscriptions,
         }));
         self.select(stored_app(), window, cx);
+        // Opening at the app of last time is no switch: its bar is just there.
+        self.left_app = None;
+        self.switches = 0;
         self.load_user(client, cx);
         // `EVEN_SETTINGS=connections` or `EVEN_SETTINGS=mail:signatures` opens
         // the settings at that page (`<page>` for a shared one, `<app>:<page>`
@@ -255,6 +346,10 @@ impl Shell {
     /// Shows `app`, starting it when this is its first time.
     fn select(&mut self, app: AppId, window: &mut Window, cx: &mut Context<Self>) {
         let Screen::Apps(apps) = &mut self.screen else { return };
+        if apps.active != app {
+            self.left_app = Some(apps.active);
+            self.switches += 1;
+        }
         apps.active = app;
         if std::env::var_os("EVEN_APP").is_none() {
             prefs::set(APP_PREF, app.key());
@@ -360,6 +455,9 @@ impl Shell {
             Some(store) => store.forget(),
             None => store::forget(),
         }
+        forget_drafts();
+        self.rail_tip = None;
+        self.left_app = None;
         self.screen = Screen::SignIn {
             waiting: None,
             error: false,
@@ -586,65 +684,263 @@ impl Shell {
 
     // The rail.
 
+    /// The pointer came over a rail button or left it: its tooltip waits
+    /// 300 ms, or shows at once when another one was just showing.
+    fn rail_hover(&mut self, spot: RailSpot, label: SharedString, hint: SharedString, hovered: bool, cx: &mut Context<Self>) {
+        if hovered {
+            self.rail_hovers += 1;
+            let hover = self.rail_hovers;
+            let at_once = self.rail_tip.as_ref().is_some_and(|tip| tip.shown)
+                || self.rail_tip_left.is_some_and(|left| left.elapsed() <= TIP_SKIP_DELAY);
+            self.rail_tip = Some(RailTip {
+                spot,
+                label,
+                hint,
+                shown: at_once,
+            });
+            if !at_once {
+                cx.spawn(async move |this, cx| {
+                    cx.background_executor().timer(TIP_DELAY).await;
+                    let _ = this.update(cx, |this, cx| {
+                        if this.rail_hovers != hover {
+                            return;
+                        }
+                        if let Some(tip) = &mut this.rail_tip {
+                            tip.shown = true;
+                            cx.notify();
+                        }
+                    });
+                })
+                .detach();
+            }
+        } else if self.rail_tip.as_ref().is_some_and(|tip| tip.spot == spot) {
+            self.rail_hovers += 1;
+            if self.rail_tip.take().is_some_and(|tip| tip.shown) {
+                self.rail_tip_left = Some(Instant::now());
+            }
+        }
+        cx.notify();
+    }
+
+    fn rail_hovers(
+        spot: RailSpot,
+        label: SharedString,
+        hint: SharedString,
+        cx: &mut Context<Self>,
+    ) -> impl Fn(&bool, &mut Window, &mut App) + 'static {
+        let this = cx.weak_entity();
+        move |hovered: &bool, _: &mut Window, cx: &mut App| {
+            let _ = this.update(cx, |this, cx| this.rail_hover(spot, label.clone(), hint.clone(), *hovered, cx));
+        }
+    }
+
+    /// A press takes the tooltip away, as on the web.
+    fn rail_pressed(&mut self) {
+        self.rail_hovers += 1;
+        self.rail_tip = None;
+    }
+
+    /// The web's TooltipContent, `side="right" sideOffset={10}`: beside its
+    /// button, over whatever the app shows there.
+    fn render_rail_tip(&self) -> Option<impl IntoElement> {
+        const HEIGHT: f32 = 28.;
+        let tip = self.rail_tip.as_ref().filter(|tip| tip.shown)?;
+        let along = |index: usize| px(index as f32 * (RAIL_BUTTON + RAIL_GAP) + (RAIL_BUTTON - HEIGHT) / 2.);
+        // The button sits midway between the window's edge and the panels.
+        let button_right = STAGE_INSET + (RAIL_WIDTH - STAGE_INSET + RAIL_BUTTON) / 2.;
+        let bubble = div()
+            .absolute()
+            .left(px(button_right + TIP_OFFSET))
+            .map(|el| match tip.spot {
+                RailSpot::Top(index) => el.top(px(RAIL_TOP) + along(index)),
+                RailSpot::Foot(index) => el.bottom(px(RAIL_BOTTOM) + along(index)),
+            })
+            .h(px(HEIGHT))
+            .flex()
+            .items_center()
+            .gap(px(6.))
+            .px(px(12.))
+            .rounded(theme::RADIUS_MD)
+            .bg(theme::foreground())
+            .text_size(px(12.))
+            .line_height(px(16.))
+            .text_color(theme::background())
+            .whitespace_nowrap()
+            .child(tip.label.clone())
+            .when(!tip.hint.is_empty(), |el| el.child(div().opacity(0.6).child(tip.hint.clone())));
+        Some(deferred(bubble).with_priority(1))
+    }
+
     fn render_rail(&self, apps: &Apps, cx: &mut Context<Self>) -> impl IntoElement {
         let active = apps.active;
-        let rail_button = |id: SharedString, icon: &'static str, selected: bool| {
+        let edge = -(RAIL_WIDTH + STAGE_INSET - RAIL_BUTTON) / 2.;
+        // `.app-rail-button::before`: a short bar on the window's edge, centred on the button.
+        let bar = |height: f32| {
+            div()
+                .absolute()
+                .left(px(edge))
+                .top(px((RAIL_BUTTON - height) / 2.))
+                .w(px(3.))
+                .h(px(height))
+                .rounded_r(px(3.))
+                .bg(theme::primary_mark())
+        };
+        let moving = |id: (&'static str, usize), grows: bool| {
+            bar(BAR_HEIGHT).with_animation(
+                id,
+                Animation::new(BAR_TIME).with_easing(ease_in_out),
+                move |el, delta| {
+                    let height = BAR_HEIGHT * if grows { delta } else { 1. - delta };
+                    el.top(px((RAIL_BUTTON - height) / 2.)).h(px(height))
+                },
+            )
+        };
+        let switches = self.switches;
+        let left = self.left_app;
+        // `.app-rail-button`: 40 square, round corners, its sign 20 in the quiet colour.
+        let rail_button = |id: SharedString, icon: &'static str, selected: bool, label: SharedString| {
+            let group = SharedString::from(format!("rail-{id}"));
             div()
                 .id(id)
+                .group(group.clone())
+                .role(Role::Button)
+                .aria_label(label)
                 .relative()
                 .flex()
+                .flex_none()
                 .items_center()
                 .justify_center()
-                .size(px(40.))
+                .size(px(RAIL_BUTTON))
                 .rounded(px(12.))
                 .when(selected, |el| {
                     // The open app looks like the panels: raised, with the accent on its sign.
-                    el.bg(theme::sidebar())
-                        .border_1()
-                        .border_color(theme::border())
-                        .shadow_sm()
-                        .child(
-                            // A short bar on the window's edge marks it too.
-                            div()
-                                .absolute()
-                                .left(px(-(RAIL_WIDTH + STAGE_INSET - 40.) / 2.))
-                                .top(px(11.))
-                                .w(px(3.))
-                                .h(px(18.))
-                                .rounded_r(px(3.))
-                                .bg(theme::primary_mark()),
-                        )
+                    el.bg(theme::sidebar()).shadow(vec![
+                        BoxShadow {
+                            color: theme::border().into(),
+                            offset: point(px(0.), px(0.)),
+                            blur_radius: px(0.),
+                            spread_radius: px(1.),
+                            inset: false,
+                        },
+                        BoxShadow {
+                            color: theme::mix(theme::foreground(), 10.).into(),
+                            offset: point(px(0.), px(1.)),
+                            blur_radius: px(3.),
+                            spread_radius: px(0.),
+                            inset: false,
+                        },
+                    ])
                 })
-                .child(theme::hi(icon).size(px(20.)).text_color(if selected {
-                    theme::primary_mark()
-                } else {
-                    theme::muted()
-                }))
+                .child(
+                    theme::hi(icon)
+                        .size(px(20.))
+                        .text_color(if selected {
+                            theme::primary_mark()
+                        } else {
+                            theme::muted()
+                        })
+                        .when(!selected, |el| el.group_hover(group, |el| el.text_color(theme::foreground()))),
+                )
         };
-        let app_buttons = AppId::ALL.into_iter().map(|app| {
-            let selected = app == active;
-            rail_button(app.key().into(), app.icon(), selected)
-                .cursor_pointer()
-                .when(!selected, |el| el.hover(|el| el.bg(theme::mix(theme::foreground(), 6.))))
-                .tooltip(ui::tip_with_hint(app.name(), app.shortcut()))
-                .on_click(cx.listener(move |this, _, window, cx| this.select(app, window, cx)))
+        let hovers = Self::rail_hovers;
+        let app_buttons = AppId::ALL
+            .into_iter()
+            .enumerate()
+            .map(|(index, app)| {
+                let selected = app == active;
+                rail_button(app.key().into(), app.icon(), selected, app.name().into())
+                    .aria_keyshortcuts(app.shortcut())
+                    .cursor_pointer()
+                    .when(!selected, |el| el.hover(|el| el.bg(theme::mix(theme::foreground(), 6.))))
+                    // The bar moves from the app that was open to this one.
+                    .when(selected && switches == 0, |el| el.child(bar(BAR_HEIGHT)))
+                    .when(selected && switches > 0, |el| el.child(moving(("rail-bar-in", switches), true)))
+                    .when(!selected && left == Some(app), |el| {
+                        el.child(moving(("rail-bar-out", switches), false))
+                    })
+                    .on_hover(hovers(RailSpot::Top(index), app.name().into(), app.shortcut().into(), cx))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.rail_pressed();
+                        this.select(app, window, cx)
+                    }))
+                    .into_any_element()
+            })
+            .collect::<Vec<_>>();
+        let soon: SharedString = t("Coming soon", "Binnenkort").into();
+        let upcoming = UPCOMING
+            .into_iter()
+            .enumerate()
+            .map(|(index, (name, icon))| {
+                // `.is-upcoming`: greyed out, a little less on hover, and the
+                // tooltip still says what is coming.
+                div()
+                    .id(SharedString::from(format!("rail-upcoming-{index}")))
+                    .role(Role::Button)
+                    .aria_label(format!("{name}, {}", soon.to_lowercase()))
+                    .flex()
+                    .flex_none()
+                    .items_center()
+                    .justify_center()
+                    .size(px(RAIL_BUTTON))
+                    .rounded(px(12.))
+                    .opacity(0.38)
+                    .hover(|el| el.opacity(0.55))
+                    .child(theme::hi(icon).size(px(20.)).text_color(theme::muted()))
+                    .on_hover(hovers(RailSpot::Top(AppId::ALL.len() + index), name.into(), soon.clone(), cx))
+                    .into_any_element()
+            })
+            .collect::<Vec<_>>();
+        let settings_label: SharedString = t("Settings", "Instellingen").into();
+        // packages/ui desktop-app.tsx, UpdateButton: once a new version is
+        // ready, in the accent, so it is seen without shouting.
+        let update = self.updates.read(cx);
+        let (ready, restarting) = (update.ready().map(str::to_string), update.restarting());
+        let update_button = ready.map(|version| {
+            let label: SharedString = if restarting {
+                t("Restarting…", "Herstarten…")
+            } else {
+                t("Restart to update", "Herstart om bij te werken")
+            }
+            .into();
+            let version = SharedString::from(version);
+            let updates = self.updates.clone();
+            div()
+                .id("rail-update")
+                .role(Role::Button)
+                .aria_label(format!("{label}, {version}"))
+                .flex()
+                .flex_none()
+                .items_center()
+                .justify_center()
+                .size(px(RAIL_BUTTON))
+                .rounded(px(12.))
+                .bg(theme::mix(theme::primary_mark(), 14.))
+                .child(theme::hi("refresh").size(px(20.)).text_color(theme::primary_mark()))
+                .on_hover(hovers(RailSpot::Foot(1), label, version, cx))
+                .map(|el| {
+                    if restarting {
+                        el.opacity(0.6)
+                    } else {
+                        el.cursor_pointer()
+                            .hover(|el| el.bg(theme::mix(theme::primary_mark(), 22.)))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.rail_pressed();
+                                updates.update(cx, |updates, cx| updates.install(cx));
+                            }))
+                    }
+                })
         });
-        let upcoming = UPCOMING.into_iter().map(|(name, icon)| {
-            rail_button(name.into(), icon, false)
-                .opacity(0.38)
-                .tooltip(ui::tip_with_hint(name, t("Coming soon", "Binnenkort")))
-        });
-        let settings_label = t("Settings", "Instellingen");
         div()
             .w(px(RAIL_WIDTH))
             .h_full()
             .flex_none()
+            .relative()
             .flex()
             .flex_col()
             .items_center()
             .justify_between()
             .pl(px(STAGE_INSET))
-            .pb(px(18.))
+            .pb(px(RAIL_BOTTOM))
             .child(
                 div()
                     .flex()
@@ -652,24 +948,43 @@ impl Shell {
                     .items_center()
                     .w_full()
                     // On macOS the window buttons sit across its top; that strip drags the window.
-                    .child(div().w_full().h(px(52.)).window_control_area(WindowControlArea::Drag))
+                    .child(
+                        div()
+                            .w_full()
+                            .h(px(RAIL_TOP))
+                            .window_control_area(WindowControlArea::Drag),
+                    )
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .items_center()
-                            .gap(px(6.))
+                            .gap(px(RAIL_GAP))
                             .children(app_buttons)
                             .children(upcoming),
                     ),
             )
             .child(
-                rail_button("settings".into(), "settings-01", false)
-                    .cursor_pointer()
-                    .hover(|el| el.bg(theme::mix(theme::foreground(), 6.)))
-                    .tooltip(ui::tip_with_hint(settings_label, "⌘,"))
-                    .on_click(cx.listener(|this, _, window, cx| this.open_settings(None, window, cx))),
+                // `.app-rail-foot`: "restart to update", then the settings of every app.
+                div()
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .gap(px(RAIL_GAP))
+                    .children(update_button)
+                    .child(
+                        rail_button("settings".into(), "settings-01", false, settings_label.clone())
+                            .aria_keyshortcuts("⌘,")
+                            .cursor_pointer()
+                            .hover(|el| el.bg(theme::mix(theme::foreground(), 6.)))
+                            .on_hover(hovers(RailSpot::Foot(0), settings_label, "⌘,".into(), cx))
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.rail_pressed();
+                                this.open_settings(None, window, cx)
+                            })),
+                    ),
             )
+            .children(self.render_rail_tip())
     }
 
     // The settings window.
@@ -793,7 +1108,7 @@ impl Shell {
         match key {
             PageKey::Shared(id) if id.as_ref() == ACCOUNT => vec![self.render_account(apps, cx).into_any_element()],
             PageKey::Shared(id) if id.as_ref() == APPEARANCE => vec![self.render_appearance(cx).into_any_element()],
-            PageKey::Shared(id) if id.as_ref() == ABOUT => self.render_about(),
+            PageKey::Shared(id) if id.as_ref() == ABOUT => self.render_about(cx),
             PageKey::Shared(id) => {
                 // Every app that has a part in the page, in rail order.
                 let mail = apps.mail.clone();
@@ -912,6 +1227,7 @@ impl Shell {
                 .collect(),
             move |index, _, cx| {
                 i18n::set_preference(languages[index]);
+                even_window::set_menus(cx);
                 cx.refresh_windows();
             },
         );
@@ -948,9 +1264,63 @@ impl Shell {
     }
 
     /// packages/ui/src/components/desktop-app.tsx, AboutSettings.
-    fn render_about(&self) -> Vec<AnyElement> {
+    fn render_about(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let link = |id: &'static str, label: &'static str, url: &'static str| {
             ui::button_sm(id, label, Variant::Outline).on_click(move |_, _, cx| cx.open_url(url))
+        };
+        // The version row: what is installed, and looking for or installing a newer one.
+        let update = self.updates.read(cx);
+        let ready = update.ready().map(str::to_string);
+        let status = update.status();
+        let restarting = update.restarting();
+        let updates = self.updates.clone();
+        let version_help: SharedString = match &ready {
+            Some(version) => t(
+                format!("Version {version} is downloaded and installs when Even restarts."),
+                format!("Versie {version} is gedownload en wordt geïnstalleerd als Even herstart."),
+            )
+            .into(),
+            None if status == updates::Status::Failed => t(
+                "Couldn't check for updates. Try again in a moment.",
+                "Zoeken naar updates lukte niet. Probeer het zo nog eens.",
+            )
+            .into(),
+            None => t(
+                "The version of Even on this computer.",
+                "De versie van Even op deze computer.",
+            )
+            .into(),
+        };
+        let update_button = if ready.is_some() {
+            let button = ui::button_sm(
+                "update-restart",
+                if restarting {
+                    t("Restarting…", "Herstarten…")
+                } else {
+                    t("Restart to update", "Herstart om bij te werken")
+                },
+                Variant::Primary,
+            );
+            if restarting {
+                ui::disabled(button)
+            } else {
+                button.on_click(move |_, _, cx| updates.update(cx, |updates, cx| updates.install(cx)))
+            }
+        } else {
+            let button = ui::button_sm(
+                "update-check",
+                match status {
+                    updates::Status::Checking => t("Checking…", "Zoeken…"),
+                    updates::Status::Current => t("Up to date", "Bijgewerkt"),
+                    _ => t("Check for updates", "Zoek naar updates"),
+                },
+                Variant::Outline,
+            );
+            if status == updates::Status::Checking {
+                ui::disabled(button)
+            } else {
+                button.on_click(move |_, _, cx| updates.update(cx, |updates, cx| updates.check(cx)))
+            }
         };
         vec![
             ui::settings_section(
@@ -959,18 +1329,19 @@ impl Shell {
                 vec![
                     ui::settings_row(
                         t("Version", "Versie"),
-                        Some(
-                            t(
-                                "The version of Even on this computer.",
-                                "De versie van Even op deze computer.",
-                            )
-                            .into(),
-                        ),
+                        Some(version_help),
                         div()
-                            .font_family("Menlo")
-                            .text_size(px(12.))
-                            .text_color(theme::muted())
-                            .child(env!("CARGO_PKG_VERSION")),
+                            .flex()
+                            .items_center()
+                            .gap(px(8.))
+                            .child(
+                                div()
+                                    .font_family("Menlo")
+                                    .text_size(px(12.))
+                                    .text_color(theme::muted())
+                                    .child(env!("CARGO_PKG_VERSION")),
+                            )
+                            .child(update_button),
                     )
                     .into_any_element(),
                     ui::settings_row(
@@ -1281,7 +1652,7 @@ fn brand() -> impl IntoElement {
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let root = div()
+        let root = even_window::title_bar(div())
             .size_full()
             .relative()
             .font_family(theme::FONT)

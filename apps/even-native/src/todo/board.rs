@@ -818,8 +818,23 @@ impl TodoApp {
             .min_h_0()
             .gap(px(12.))
             .overflow_y_scroll()
+            .track_scroll(&self.issue_list_scroll)
             .pr(px(32.))
             .pb(px(32.));
+        // `.issue-list-header { position: sticky; top: 0 }`: the header of the
+        // status whose rows are passing under the top stays there, and is
+        // pushed out by the next one. A section is its 36-point header, 4 of
+        // room and 40-point rows 1 apart; sections are 12 apart.
+        let scrolled = -f32::from(self.issue_list_scroll.offset().y);
+        let mut stuck: Option<(&Column, f32)> = None;
+        let mut top = 0.;
+        for column in columns.iter().filter(|column| !column.issues.is_empty()) {
+            let (place, height) = (top, section_height(column.issues.len()));
+            top += height + 12.;
+            if scrolled > place && scrolled < place + height {
+                stuck = Some((column, (place + height - 36. - scrolled).min(0.)));
+            }
+        }
         for column in columns.iter().filter(|column| !column.issues.is_empty()) {
             let mut rows = div().flex().flex_col().gap(px(1.)).pt(px(4.));
             for issue in &column.issues {
@@ -839,7 +854,24 @@ impl TodoApp {
                     .child(rows),
             );
         }
-        list
+        div()
+            .relative()
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .overflow_hidden()
+            .child(list)
+            .when_some(stuck, |el, (column, y)| {
+                el.child(
+                    div().absolute().top(px(y)).left_0().right(px(32.)).child(
+                        self.column_header(column, read_only, "stuck", cx)
+                            .h(px(36.))
+                            .rounded(px(10.))
+                            .bg(theme::muted_bg()),
+                    ),
+                )
+            })
     }
 
     /// `.issue-row`: the row opens the issue; its priority and status buttons open their menus.
@@ -995,15 +1027,7 @@ impl TodoApp {
 
     fn submit_issue(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(draft) = self.draft() else { return };
-        let title: String = draft
-            .title
-            .read(cx)
-            .value()
-            .replace('\n', " ")
-            .trim()
-            .chars()
-            .take(500)
-            .collect();
+        let title = crate::workspace::clip(draft.title.read(cx).value().replace('\n', " ").trim(), 500);
         if title.is_empty() {
             return;
         }
@@ -1389,4 +1413,10 @@ impl TodoApp {
             cx.listener(|this, _, window, cx| this.close_dialog(window, cx)),
         )
     }
+}
+
+/// How tall a status takes in the board's list view (`.issue-list section`):
+/// its header (36), the room under it (4) and its rows (40 each, 1 apart).
+fn section_height(rows: usize) -> f32 {
+    36. + 4. + rows as f32 * 40. + rows.saturating_sub(1) as f32
 }

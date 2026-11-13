@@ -128,6 +128,7 @@ impl NotesApp {
             // `.dashboard-content`: the whole page scrolls.
             content
                 .overflow_y_scroll()
+                .track_scroll(&self.overview_scroll)
                 .pb(px(48.))
                 .child(self.render_dashboard(window, cx))
         } else if self.selected_note().is_some() {
@@ -155,6 +156,10 @@ impl NotesApp {
             .h_full()
             .overflow_hidden()
             .child(content)
+            // `.dashboard-content.scroll-fade`.
+            .when(overview, |el| {
+                el.children(crate::workspace::scroll_fades(&self.overview_scroll, theme::background()))
+            })
             .child(self.render_sync_status(cx))
     }
 
@@ -328,7 +333,8 @@ impl NotesApp {
                 .bg(theme::card())
                 .overflow_hidden()
                 .cursor_pointer()
-                .hover(|el| el.border_color(theme::mix(theme::foreground(), 30.)))
+                // `.note-card:hover`: the edge a fifth of the way to the text's colour.
+                .hover(|el| el.border_color(parts::blend(theme::foreground(), theme::border(), 0.22)))
                 .child(
                     div()
                         .flex_none()

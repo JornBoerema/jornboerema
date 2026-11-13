@@ -436,7 +436,7 @@ impl MailView {
             self.layout = draft;
             self.fetch(
                 cx,
-                move |client| api::save_preferences(client, &serde_json::json!({ "sidebar": saved })),
+                move |client| api::save_preferences(client, &api::sidebar_body(saved.as_ref())),
                 |this, result, cx| {
                     if let Err(error) = result {
                         this.toast_error(error, cx);

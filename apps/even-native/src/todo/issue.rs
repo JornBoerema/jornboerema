@@ -26,19 +26,16 @@ pub(super) struct IssueView {
     sub: Option<Entity<InputState>>,
     /// The names of files on their way up.
     uploads: Vec<String>,
+    /// The picture that is open full screen (attachments.rs).
+    pub viewing: Option<String>,
+    /// Files are being dragged over the issue: the "drop files" cover shows.
+    pub dropping: bool,
+    /// `EVEN_TODO_SHOW=…,drop`: the cover without a drag, for a picture of it.
+    pub debug_dropping: bool,
     confirm_delete: bool,
     /// Saves the description a moment after typing stops.
     save_timer: Option<Task<()>>,
     _events: Vec<Subscription>,
-}
-
-/// A click that saves the file, for the name and for the button beside it.
-fn download_listener(file: &api::Attachment, cx: &mut Context<TodoApp>) -> impl Fn(&ClickEvent, &mut Window, &mut App) + 'static {
-    let (id, name) = (file.id.clone(), file.name.clone());
-    let app = cx.entity().downgrade();
-    move |_, window, cx| {
-        let _ = app.update(cx, |this, cx| this.download_attachment(id.clone(), name.clone(), window, cx));
-    }
 }
 
 impl TodoApp {
@@ -46,7 +43,9 @@ impl TodoApp {
         // Closing the issue that was open mid-sentence still saves it.
         self.commit_issue_title(window, cx);
         self.flush_description(window, cx);
-        let Some(issue) = self.data.todos.iter().find(|todo| todo.id == id) else { return };
+        let Some(issue) = self.data.todos.iter().find(|todo| todo.id == id).cloned() else { return };
+        // A picture that did not load at an earlier look is tried again.
+        self.load_previews(&issue.attachments, true, cx);
         let title = cx.new(|cx| {
             TextareaState::new(window, cx)
                 .auto_grow(1, 8)
@@ -59,6 +58,8 @@ impl TodoApp {
             window,
             cx,
         );
+        // Files pasted into the description are attached (description-editor.tsx `handlePaste`).
+        description.events().update(cx, |editor, _| editor.set_files_paste(true));
         let events = vec![
             cx.subscribe_in(&title, window, |this, _, event: &InputEvent, window, cx| match event {
                 InputEvent::Blur => this.commit_issue_title(window, cx),
@@ -74,6 +75,9 @@ impl TodoApp {
                 // The description grows with its text: drawn again at its new height.
                 if matches!(event, EditorEvent::ContentHeight(_)) {
                     cx.notify();
+                }
+                if matches!(event, EditorEvent::Shortcut(keys) if keys == "paste-files") {
+                    this.paste_files(window, cx);
                 }
                 match DescriptionEditor::save_on(event) {
                     Some(true) => this.flush_description(window, cx),
@@ -101,6 +105,9 @@ impl TodoApp {
             description,
             sub: None,
             uploads: Vec::new(),
+            viewing: None,
+            dropping: false,
+            debug_dropping: false,
             confirm_delete: false,
             save_timer: None,
             _events: events,
@@ -126,15 +133,7 @@ impl TodoApp {
         let Some(current) = self.data.todos.iter().find(|todo| todo.id == id).map(|todo| todo.title.clone()) else {
             return;
         };
-        let next: String = view
-            .title
-            .read(cx)
-            .value()
-            .replace('\n', " ")
-            .trim()
-            .chars()
-            .take(500)
-            .collect();
+        let next = crate::workspace::clip(view.title.read(cx).value().replace('\n', " ").trim(), 500);
         if next.is_empty() {
             view.title.update(cx, |title, cx| title.set_value(current, window, cx));
             return;
@@ -219,7 +218,7 @@ impl TodoApp {
     fn add_sub_issue(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(view) = &self.issue else { return };
         let Some(input) = view.sub.clone() else { return };
-        let title: String = input.read(cx).value().trim().chars().take(500).collect();
+        let title = crate::workspace::clip(input.read(cx).value().trim(), 500);
         if title.is_empty() {
             return;
         }
@@ -248,7 +247,7 @@ impl TodoApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if files.is_empty() {
+        if files.is_empty() || self.sample {
             return;
         }
         let name_of = |path: &PathBuf| {
@@ -267,7 +266,12 @@ impl TodoApp {
                 let (client, id) = (client.clone(), issue_id.clone());
                 let result = cx
                     .background_executor()
-                    .spawn(async move { api::upload_attachment(&client, &id, &path) })
+                    .spawn(async move {
+                        let result = api::upload_attachment(&client, &id, &path);
+                        // A pasted picture was kept only to be sent.
+                        attachments::forget_pasted(&path);
+                        result
+                    })
                     .await;
                 let updated = this.update_in(cx, |this, window, cx| {
                     if let Some(view) = this.issue.as_mut().filter(|view| view.id == issue_id) {
@@ -318,7 +322,10 @@ impl TodoApp {
     }
 
     /// Saved like a normal download: into the Downloads folder, then shown there.
-    fn download_attachment(&mut self, id: String, name: String, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn download_attachment(&mut self, id: String, name: String, window: &mut Window, cx: &mut Context<Self>) {
+        if self.sample {
+            return;
+        }
         let client = self.client.clone();
         let task = cx.background_executor().spawn(async move {
             let bytes = api::download_attachment(&client, &id)?;
@@ -388,12 +395,23 @@ impl TodoApp {
 
     /// The open issue's dialog, and the delete question above it.
     pub(super) fn render_issue(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
-        let Some(view) = &mut self.issue else { return Vec::new() };
-        let Some(issue) = self.data.todos.iter().find(|todo| todo.id == view.id).cloned() else {
+        let Some(open) = self.issue.as_ref().map(|view| view.id.clone()) else { return Vec::new() };
+        let Some(issue) = self.data.todos.iter().find(|todo| todo.id == open).cloned() else {
             // The open issue was deleted (here or elsewhere): close it.
             self.issue = None;
             return Vec::new();
         };
+        // A file added meanwhile (here or elsewhere) gets its preview.
+        self.load_previews(&issue.attachments, false, cx);
+        let dragging = cx.has_active_drag();
+        let Some(view) = &mut self.issue else { return Vec::new() };
+        if !dragging {
+            view.dropping = view.debug_dropping;
+        }
+        // The picture on show was removed: back to the issue.
+        if view.viewing.as_ref().is_some_and(|id| !issue.attachments.iter().any(|file| &file.id == id)) {
+            view.viewing = None;
+        }
         // Changed elsewhere: show theirs, unless the field is in use.
         if issue.title != view.shown_title && !view.title.read(cx).focus_handle(cx).is_focused(window) {
             view.shown_title = issue.title.clone();
@@ -406,7 +424,12 @@ impl TodoApp {
         let read_only = list.is_some_and(|list| list.role == api::ListRole::Viewer);
         // The description is a system view above everything GPUI draws: off
         // the screen while a menu, a dialog or the delete question shows.
-        let covered = self.covered || self.menu.is_some() || self.dialog.is_some() || view.confirm_delete;
+        let covered = self.covered
+            || self.menu.is_some()
+            || self.dialog.is_some()
+            || view.confirm_delete
+            || view.viewing.is_some()
+            || view.dropping;
         view.description.set_hidden(covered, cx);
         let room = crate::workspace::toast_room(window, cx);
         let description = view.description.render(!read_only, room, window, cx).into_any_element();
@@ -544,7 +567,7 @@ impl TodoApp {
                 .rounded(theme::RADIUS_MD)
                 .hover(|el| el.bg(theme::with_alpha(theme::muted_bg(), 0.6)))
         };
-        let mut sub_issues = div().flex().flex_col().pt(px(16.)).mt(px(8.)).border_t_1().border_color(theme::border()).child(
+        let mut sub_issues = div().flex().flex_col().flex_none().pt(px(16.)).mt(px(8.)).border_t_1().border_color(theme::border()).child(
             section(
                 t("Sub-issues", "Sub-issues"),
                 (!children.is_empty()).then(|| format!("{child_done}/{}", children.len())),
@@ -663,7 +686,7 @@ impl TodoApp {
 
         // ── Attachments ──
         let issue_id = issue.id.clone();
-        let mut attachments = div().flex().flex_col().pt(px(16.)).mt(px(24.)).border_t_1().border_color(theme::border()).child(
+        let mut attachments = div().flex().flex_col().flex_none().pt(px(16.)).mt(px(24.)).border_t_1().border_color(theme::border()).child(
             section(
                 t("Attachments", "Bijlagen"),
                 (!issue.attachments.is_empty()).then(|| issue.attachments.len().to_string()),
@@ -693,63 +716,11 @@ impl TodoApp {
                 )
             }));
         }
-        for file in &issue.attachments {
-            let remove = file.id.clone();
-            attachments = attachments.child(
-                row(SharedString::from(format!("attachment-{}", file.id)))
-                    .child(theme::hi("attachment-01").text_color(theme::muted()))
-                    .child(
-                        div()
-                            .id(SharedString::from(format!("attachment-name-{}", file.id)))
-                            .flex()
-                            .flex_1()
-                            .min_w_0()
-                            .items_center()
-                            .gap(px(8.))
-                            .h(px(36.))
-                            .text_size(px(13.5))
-                            .cursor_pointer()
-                            .child(div().min_w_0().truncate().child(file.name.clone()))
-                            .child(
-                                div()
-                                    .flex_none()
-                                    .text_size(px(12.))
-                                    .text_color(theme::muted())
-                                    .child(kit::format_bytes(file.size)),
-                            )
-                            .on_click(download_listener(file, cx)),
-                    )
-                    .child(
-                        kit::icon_button(SharedString::from(format!("attachment-download-{}", file.id)), "download-04", 28.)
-                            .tooltip(ui::tip(t(
-                                format!("Download {}", file.name),
-                                format!("{} downloaden", file.name),
-                            )))
-                            .on_click(download_listener(file, cx)),
-                    )
-                    .when(!read_only, |el| {
-                        el.child(
-                            kit::icon_button(SharedString::from(format!("attachment-remove-{}", file.id)), "delete-02", 28.)
-                                .tooltip(ui::tip(t(
-                                    format!("Remove {}", file.name),
-                                    format!("{} verwijderen", file.name),
-                                )))
-                                .on_click(cx.listener(move |this, _, window, cx| {
-                                    this.run(Command::DeleteAttachment { id: remove.clone() }, window, cx)
-                                })),
-                        )
-                    }),
-            );
-        }
-        for (index, name) in view.uploads.iter().enumerate() {
-            attachments = attachments.child(
-                row(SharedString::from(format!("upload-{index}")))
-                    .child(theme::hi("attachment-01").text_color(theme::muted()))
-                    .child(div().min_w_0().truncate().text_size(px(14.)).text_color(theme::muted()).child(t(
-                        format!("Uploading {name}…"),
-                        format!("{name} uploaden…"),
-                    ))),
-            );
+        if !issue.attachments.is_empty() || !view.uploads.is_empty() {
+            // The pane beside the properties (260 wide), less its own 40 at each side.
+            let panel_width = f32::from((window.viewport_size().width - px(32.)).min(px(1040.)));
+            let room = (panel_width - 260. - 80.).max(148.);
+            attachments = attachments.child(self.render_attachment_grid(&issue, &view.uploads, read_only, room, cx));
         }
 
         // ── The properties at the right ──
@@ -872,6 +843,7 @@ impl TodoApp {
             .pb(px(40.))
             .child(
                 div()
+                    .flex_none()
                     .mx(px(-10.))
                     .text_size(px(22.))
                     .font_weight(FontWeight::SEMIBOLD)
@@ -909,20 +881,38 @@ impl TodoApp {
             .font_family(theme::FONT)
             .text_size(px(14.))
             .text_color(theme::foreground())
+            .relative()
             .child(topbar)
             .child(div().flex().flex_1().min_h_0().child(main).child(props))
+            .on_action(cx.listener(|this, _: &ViewerPrevious, _, cx| this.step_viewer(-1, cx)))
+            .on_action(cx.listener(|this, _: &ViewerNext, _, cx| this.step_viewer(1, cx)))
             .when(!read_only, |el| {
-                // Files dropped on the issue are attached to it.
-                el.drag_over::<ExternalPaths>(|style, _, _, _| style.border_color(theme::primary_mark()))
-                    .on_drop(cx.listener(move |this, paths: &ExternalPaths, window, cx| {
-                        this.upload_files(drop_id.clone(), paths.paths().to_vec(), true, window, cx)
-                    }))
+                // Files dropped on the issue are attached to it; while they
+                // hang above it the cover says so (`.issue-dropzone`).
+                el.on_drag_move::<ExternalPaths>(cx.listener(|this, event: &DragMoveEvent<ExternalPaths>, _, cx| {
+                    let over = event.bounds.contains(&event.event.position);
+                    if let Some(view) = this.issue.as_mut().filter(|view| view.dropping != over) {
+                        view.dropping = over;
+                        cx.notify();
+                    }
+                }))
+                .on_drop(cx.listener(move |this, paths: &ExternalPaths, window, cx| {
+                    if let Some(view) = &mut this.issue {
+                        view.dropping = false;
+                    }
+                    this.upload_files(drop_id.clone(), paths.paths().to_vec(), true, window, cx)
+                }))
+                .when(view.dropping, |el| el.child(Self::render_dropzone()))
             });
         let panel = on_escape(panel, cx, |this, window, cx| {
-            // Escape closes the delete question first, then the issue.
+            // Escape closes the delete question or the picture first, then the issue.
             match &mut this.issue {
                 Some(view) if view.confirm_delete => {
                     view.confirm_delete = false;
+                    cx.notify();
+                }
+                Some(view) if view.viewing.is_some() => {
+                    view.viewing = None;
                     cx.notify();
                 }
                 _ => this.close_issue(window, cx),
@@ -935,6 +925,9 @@ impl TodoApp {
             panel,
             cx.listener(|this, _, window, cx| this.close_issue(window, cx)),
         )];
+        if let Some(viewing) = &view.viewing {
+            layers.extend(self.render_image_viewer(&issue, viewing, window, cx));
+        }
         if view.confirm_delete {
             let title = issue.title.clone();
             let confirm = dialog_panel("issue-delete-dialog", window)

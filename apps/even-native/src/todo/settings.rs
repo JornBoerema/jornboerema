@@ -231,7 +231,7 @@ impl TodoApp {
         cx: &mut Context<Self>,
         done: impl FnOnce(&mut Self, &mut Window, &mut Context<Self>) + 'static,
     ) {
-        if self.settings.busy.is_some() {
+        if self.settings.busy.is_some() || self.sample {
             return;
         }
         self.settings.busy = Some(action.into());
@@ -264,7 +264,7 @@ impl TodoApp {
 
     fn rename_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(workspace) = self.active().cloned() else { return };
-        let name: String = self.settings.name.read(cx).value().trim().chars().take(60).collect();
+        let name = crate::workspace::clip(self.settings.name.read(cx).value().trim(), 60);
         if name.is_empty() || name == workspace.name || !workspace.role.can_manage() {
             return;
         }
@@ -384,7 +384,7 @@ impl TodoApp {
     fn add_status(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some((category, input, _)) = &self.settings.adding else { return };
         let Some(workspace_id) = self.active().map(|workspace| workspace.id.clone()) else { return };
-        let name: String = input.read(cx).value().trim().chars().take(40).collect();
+        let name = crate::workspace::clip(input.read(cx).value().trim(), 40);
         if name.is_empty() {
             return;
         }
@@ -409,7 +409,7 @@ impl TodoApp {
     fn commit_status_name(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         let Some(status) = self.data.statuses.iter().find(|status| status.id == id) else { return };
         let Some(field) = self.settings.status_names.get_mut(id) else { return };
-        let next: String = field.input.read(cx).value().trim().chars().take(40).collect();
+        let next = crate::workspace::clip(field.input.read(cx).value().trim(), 40);
         if next.is_empty() {
             let name = status.name.clone();
             field.input.update(cx, |input, cx| input.set_value(name, window, cx));
@@ -492,11 +492,11 @@ impl TodoApp {
     fn save_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(SettingsDialog::Project(editor)) = &self.settings.dialog else { return };
         let Some(workspace_id) = self.active().map(|workspace| workspace.id.clone()) else { return };
-        let name: String = editor.name.read(cx).value().trim().chars().take(80).collect();
+        let name = crate::workspace::clip(editor.name.read(cx).value().trim(), 80);
         if name.is_empty() {
             return;
         }
-        let description: String = editor.description.read(cx).value().trim().chars().take(2000).collect();
+        let description = crate::workspace::clip(editor.description.read(cx).value().trim(), 2000);
         let command = match &editor.id {
             Some(id) => Command::UpdateProject {
                 id: id.clone(),

@@ -87,6 +87,9 @@ pub struct TodoMail {
 pub struct Attachment {
     pub id: String,
     pub name: String,
+    /// What the uploader's browser called the file's type.
+    #[serde(default)]
+    pub content_type: String,
     #[serde(default)]
     pub size: u64,
 }
@@ -436,10 +439,27 @@ pub enum WorkspaceCommand {
     Rename { workspace_id: String, name: String },
     Delete { workspace_id: String },
     Leave { workspace_id: String },
-    Invite { workspace_id: String, email: String, role: WorkspaceRole },
-    UpdateMember { workspace_id: String, member_id: String, role: WorkspaceRole },
+    Invite {
+        workspace_id: String,
+        email: String,
+        #[serde(serialize_with = "assignable_role")]
+        role: WorkspaceRole,
+    },
+    UpdateMember {
+        workspace_id: String,
+        member_id: String,
+        #[serde(serialize_with = "assignable_role")]
+        role: WorkspaceRole,
+    },
     RemoveMember { workspace_id: String, member_id: String },
     RevokeInvite { workspace_id: String, invitation_id: String },
+}
+
+/// workspaces.ts `assignableRole`: ownership is never handed out through an
+/// invitation or a role change, so anything but "admin" is written as "member"
+/// (the web's `invite.role === "admin" ? "admin" : "member"`).
+fn assignable_role<S: serde::Serializer>(role: &WorkspaceRole, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+    serializer.serialize_str(if *role == WorkspaceRole::Admin { "admin" } else { "member" })
 }
 
 // ─── packages/todo-core/src/sharing.ts ──────────────────────────────────────
@@ -509,6 +529,7 @@ pub fn members(client: &Client, workspace_id: &str) -> Result<WorkspaceMembers> 
 }
 
 pub fn change_workspace(client: &Client, command: &WorkspaceCommand) -> Result<()> {
+    crate::workspace::before_write("todo workspaces", command)?;
     let _: serde_json::Value = client.post_json("/api/workspaces", command)?;
     Ok(())
 }
@@ -518,6 +539,7 @@ pub fn sharing(client: &Client, list_id: &str) -> Result<SharingData> {
 }
 
 pub fn change_sharing(client: &Client, command: &SharingCommand) -> Result<()> {
+    crate::workspace::before_write("todo sharing", command)?;
     let _: serde_json::Value = client.post_json("/api/sharing", command)?;
     Ok(())
 }
@@ -553,15 +575,9 @@ pub fn upload_attachment(client: &Client, todo_id: &str, path: &std::path::Path)
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "file".into());
     let bytes = std::fs::read(path)?;
-    let created: Created = client.post_json(
-        "/api/todo-attachments",
-        &serde_json::json!({
-            "todoId": todo_id,
-            "name": name,
-            "contentType": content_type(&name),
-            "size": bytes.len(),
-        }),
-    )?;
+    let body = attachment_body(todo_id, &name, bytes.len());
+    crate::workspace::before_write("todo attachments", &serde_json::json!({ "type": "upload-attachment" }))?;
+    let created: Created = client.post_json("/api/todo-attachments", &body)?;
     let chunk = created.chunk_bytes.max(1);
     let chunks: Vec<&[u8]> = if bytes.is_empty() {
         vec![&bytes[..]]
@@ -576,6 +592,17 @@ pub fn upload_attachment(client: &Client, todo_id: &str, path: &std::path::Path)
         &serde_json::json!({}),
     )?;
     Ok(())
+}
+
+/// What announces a file to the API (routes.ts `attachmentBody`): the issue,
+/// the file's name, the type a browser would give it, and its size in bytes.
+pub fn attachment_body(todo_id: &str, name: &str, size: usize) -> serde_json::Value {
+    serde_json::json!({
+        "todoId": todo_id,
+        "name": name,
+        "contentType": content_type(name),
+        "size": size,
+    })
 }
 
 /// Raw bytes, one chunk per request. The shared client only POSTs bytes, so

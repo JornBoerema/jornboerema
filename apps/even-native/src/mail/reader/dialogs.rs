@@ -160,7 +160,7 @@ impl MailView {
                 struct Answer {
                     todo: Todo,
                 }
-                let body = serde_json::json!({ "listId": list.id, "title": title });
+                let body = api::todo_body(&list.id, &title);
                 Ok(client.post_json::<Answer>(&path, &body)?.todo)
             },
             move |this, result, cx| match result {

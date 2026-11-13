@@ -18,6 +18,7 @@ use crate::workspace::realtime;
 use crate::{prefs, theme, ui};
 
 mod api;
+mod attachments;
 mod board;
 mod core;
 mod dashboard;
@@ -28,6 +29,7 @@ mod kit;
 mod lists;
 mod menus;
 mod overlay;
+mod sample;
 mod settings;
 mod sidebar;
 
@@ -51,7 +53,13 @@ actions!(
         MoveListUp,
         MoveListDown,
         /// ⌘R, as the sync button.
-        Refresh
+        Refresh,
+        /// ← and → while a picture of an issue is open full screen.
+        ViewerPrevious,
+        ViewerNext,
+        /// ↑ and ↓ on a task row that has the keyboard: one place up or down.
+        MoveTaskUp,
+        MoveTaskDown
     ]
 );
 
@@ -66,6 +74,10 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("down", MenuDown, Some("TodoMenu")),
         KeyBinding::new("enter", MenuConfirm, Some("TodoMenu")),
         KeyBinding::new("cmd-enter", SubmitIssue, Some("TodoNewIssue")),
+        KeyBinding::new("left", ViewerPrevious, Some("TodoOverlay && !Input")),
+        KeyBinding::new("right", ViewerNext, Some("TodoOverlay && !Input")),
+        KeyBinding::new("up", MoveTaskUp, Some("TodoTask")),
+        KeyBinding::new("down", MoveTaskDown, Some("TodoTask")),
     ]);
 }
 
@@ -174,6 +186,16 @@ pub struct TodoApp {
     /// `server` with the queue applied: what every screen reads.
     data: WorkspaceData,
     saving: bool,
+    /// Changes of a workspace that was left while they waited: they are sent
+    /// all the same, as the web's mutation cache keeps sending them.
+    left: Vec<Command>,
+    /// Bumped by every change, so a reload asked before it never replaces what it shows.
+    changes: u64,
+    /// The API was reached the last time it was asked (the web's `navigator.onLine`).
+    online: bool,
+    /// A made-up workspace is on screen (`EVEN_TODO_SHOW=sample,…`, sample.rs):
+    /// nothing is read from or sent to the API.
+    sample: bool,
     /// The last reload failed: the lists shown are the last ones loaded.
     error: bool,
     connection: Connection,
@@ -188,6 +210,13 @@ pub struct TodoApp {
     /// The open list; `None` is the overview.
     selected_id: Option<String>,
     task_input: Entity<InputState>,
+    /// What scrolls: the open list's tasks, the overview and the board's
+    /// list view, for the faded edges and the header that sticks.
+    list_scroll: ScrollHandle,
+    dashboard_scroll: ScrollHandle,
+    issue_list_scroll: ScrollHandle,
+    /// The keyboard's place on each task row (sortable.tsx: ↑ and ↓ on a row move it).
+    task_focus: HashMap<String, FocusHandle>,
     renaming: Option<Rename>,
     /// The simple list's rows while one is dragged, in the order shown.
     todo_order: sidebar::DraftOrder,
@@ -231,8 +260,10 @@ impl TodoApp {
             }
         });
         // The web reloads every minute, also when realtime is on.
+        // Once offline, often enough to notice the way back.
         let poll = cx.spawn(async move |this, cx| loop {
-            cx.background_executor().timer(Duration::from_secs(60)).await;
+            let wait = this.update(cx, |this, _| if this.online { 60 } else { 5 }).unwrap_or(60);
+            cx.background_executor().timer(Duration::from_secs(wait)).await;
             if this.update(cx, |this, cx| this.refresh_quietly(cx)).is_err() {
                 break;
             }
@@ -251,6 +282,10 @@ impl TodoApp {
             queued: VecDeque::new(),
             data: WorkspaceData::default(),
             saving: false,
+            left: Vec::new(),
+            changes: 0,
+            online: true,
+            sample: false,
             error: false,
             connection: Connection::Connecting,
             covered: false,
@@ -259,6 +294,10 @@ impl TodoApp {
             members_error: None,
             selected_id: None,
             task_input,
+            list_scroll: ScrollHandle::new(),
+            dashboard_scroll: ScrollHandle::new(),
+            issue_list_scroll: ScrollHandle::new(),
+            task_focus: HashMap::new(),
             renaming: None,
             todo_order: None,
             list_order: None,
@@ -324,6 +363,10 @@ impl TodoApp {
             cx.emit(AppEvent::SignedOut);
             return t("Please sign in again.", "Log opnieuw in.").into();
         }
+        if is_offline(error) {
+            self.online = false;
+            cx.notify();
+        }
         match error.downcast_ref::<ApiError>() {
             Some(api) => api.message.clone().into(),
             None => t("No connection. Please try again.", "Geen verbinding. Probeer het opnieuw.").into(),
@@ -333,6 +376,9 @@ impl TodoApp {
     // ─── Loading ────────────────────────────────────────────────────────────
 
     fn load_workspaces(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.sample {
+            return;
+        }
         self.load_failed = false;
         let client = self.client.clone();
         let task = cx.background_executor().spawn(async move { api::workspaces(&client) });
@@ -340,6 +386,7 @@ impl TodoApp {
             let result = task.await;
             let _ = this.update_in(cx, |this, window, cx| match result {
                 Ok(workspaces) => {
+                    this.online = true;
                     this.set_workspaces(workspaces, cx);
                     this.load_workspace(true, window, cx);
                 }
@@ -391,13 +438,19 @@ impl TodoApp {
             return;
         }
         prefs::set(WORKSPACE_PREF, id);
+        self.open_workspace(id, window, cx);
+    }
+
+    /// The workspace `id` on screen, its overview first. Even noteren may have
+    /// picked it (`follow_workspace`), so the choice is not written here.
+    fn open_workspace(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.active_id = Some(id.to_string());
         self.generation += 1;
         self.server = None;
         self.data = WorkspaceData::default();
         self.members = None;
         self.members_error = None;
-        self.queued.clear();
+        self.leave_queue(window, cx);
         self.selected_id = None;
         self.issue = None;
         self.dialog = None;
@@ -410,6 +463,9 @@ impl TodoApp {
     /// Reads the open workspace. `first`: nothing is on screen yet, so a
     /// failure is the whole page's (the web's PageError).
     fn load_workspace(&mut self, first: bool, window: &mut Window, cx: &mut Context<Self>) {
+        if self.sample {
+            return;
+        }
         let Some(id) = self.active().map(|workspace| workspace.id.clone()) else { return };
         let generation = self.generation;
         let client = self.client.clone();
@@ -423,6 +479,7 @@ impl TodoApp {
                 match result {
                     Ok(data) => {
                         let opening = this.server.is_none();
+                        this.online = true;
                         this.error = false;
                         this.server = Some(data);
                         this.rebuild();
@@ -443,7 +500,9 @@ impl TodoApp {
 
     fn load_error(&mut self, first: bool, error: anyhow::Error, window: &mut Window, cx: &mut Context<Self>) {
         // Removed from this workspace: the list of workspaces falls back to another.
-        let gone = error.downcast_ref::<ApiError>().is_some_and(|api| api.status == 404);
+        // `Client::get_json` keeps a failed GET's status only in its words.
+        let gone = error.downcast_ref::<ApiError>().is_some_and(|api| api.status == 404)
+            || error.to_string().starts_with("API answered 404");
         let message = self.message(&error, cx);
         if gone {
             ui::toast_error(
@@ -466,11 +525,12 @@ impl TodoApp {
     /// without touching what is on screen until the answer is there.
     fn refresh_quietly(&mut self, cx: &mut Context<Self>) {
         // Earlier reloads would briefly drop changes that are still waiting to be saved.
-        if self.server.is_none() || !self.queued.is_empty() {
+        if self.server.is_none() || !self.queued.is_empty() || self.sample {
             return;
         }
         let Some(id) = self.active().map(|workspace| workspace.id.clone()) else { return };
         let generation = self.generation;
+        let changes = self.changes;
         let client = self.client.clone();
         let task = cx.background_executor().spawn(async move {
             let workspaces = api::workspaces(&client);
@@ -492,7 +552,10 @@ impl TodoApp {
                 match data {
                     Ok(data) => {
                         this.error = false;
-                        if this.queued.is_empty() {
+                        this.online = true;
+                        // Asked before a change was made: what it holds is older
+                        // than the screen, and the reload after the save follows.
+                        if this.queued.is_empty() && this.changes == changes {
                             this.server = Some(data);
                             this.rebuild();
                             this.load_pictures(cx);
@@ -502,7 +565,12 @@ impl TodoApp {
                         if error.is::<Unauthorized>() {
                             cx.emit(AppEvent::SignedOut);
                         }
-                        this.error = true;
+                        // Offline is said as such; anything else is a failed sync.
+                        if is_offline(&error) {
+                            this.online = false;
+                        } else {
+                            this.error = true;
+                        }
                     }
                 }
                 cx.notify();
@@ -542,6 +610,9 @@ impl TodoApp {
 
     /// lib/workspaces.ts `useWorkspaceMembers`: for the overview and the settings.
     fn load_members(&mut self, cx: &mut Context<Self>) {
+        if self.sample {
+            return;
+        }
         let Some(id) = self.active().map(|workspace| workspace.id.clone()) else { return };
         let generation = self.generation;
         let client = self.client.clone();
@@ -569,11 +640,8 @@ impl TodoApp {
 
     /// `server` with every unsaved change on top.
     fn rebuild(&mut self) {
-        let mut data = self.server.clone().unwrap_or_default();
-        for (command, _) in &self.queued {
-            core::optimistic_update(&mut data, command);
-        }
-        self.data = data;
+        let server = self.server.clone().unwrap_or_default();
+        self.data = core::shown(&server, self.queued.iter().map(|(command, _)| command));
     }
 
     /// Shows the change at once and saves it in the background. Changes reach
@@ -584,6 +652,34 @@ impl TodoApp {
 
     /// As `run`; `after` hears whether the server took it.
     fn run_then(&mut self, command: Command, after: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
+        // use-workspace.ts `run`: offline, nothing is shown or sent.
+        if !self.online {
+            ui::toast_error(
+                t(
+                    "You're offline. Connect before making changes.",
+                    "Je bent offline. Maak verbinding voordat je iets wijzigt.",
+                ),
+                window,
+                cx,
+            );
+            if let Some(after) = after {
+                after(self, false, window, cx);
+            }
+            return;
+        }
+        // The made-up workspace changes on screen only.
+        if self.sample {
+            if let Some(server) = &mut self.server {
+                core::optimistic_update(server, &command);
+            }
+            self.rebuild();
+            if let Some(after) = after {
+                after(self, true, window, cx);
+            }
+            cx.notify();
+            return;
+        }
+        self.changes += 1;
         core::optimistic_update(&mut self.data, &command);
         self.queued.push_back((command, after));
         if !self.saving {
@@ -611,7 +707,15 @@ impl TodoApp {
             let (command, result) = task.await;
             let _ = this.update_in(cx, |this, window, cx| {
                 if this.generation != generation {
+                    // Another workspace is open by now: this change was of the
+                    // one left. What waited behind it follows, then this one's own.
                     this.saving = false;
+                    if let Err(error) = result {
+                        let message = this.message(&error, cx);
+                        ui::toast_error(message, window, cx);
+                    }
+                    this.send_left(window, cx);
+                    this.save_next(window, cx);
                     return;
                 }
                 let after = this.queued.pop_front().and_then(|(_, after)| after);
@@ -619,6 +723,7 @@ impl TodoApp {
                 match result {
                     // Saved: keep showing it, in the server's data now.
                     Ok(()) => {
+                        this.online = true;
                         if let Some(server) = &mut this.server {
                             core::optimistic_update(server, &command);
                         }
@@ -637,6 +742,59 @@ impl TodoApp {
             });
         })
         .detach();
+    }
+
+    /// The open workspace is left with changes still waiting. The web's
+    /// mutation cache sends them all the same, in order; so does this: the one
+    /// on its way first (`save_next` hears it and calls `send_left`).
+    fn leave_queue(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let on_its_way = usize::from(self.saving);
+        self.left
+            .extend(self.queued.drain(..).skip(on_its_way).map(|(command, _)| command));
+        if !self.saving {
+            self.send_left(window, cx);
+        }
+    }
+
+    fn send_left(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let commands = std::mem::take(&mut self.left);
+        if commands.is_empty() {
+            return;
+        }
+        let client = self.client.clone();
+        let task = cx.background_executor().spawn(async move {
+            // One by one and in order; one that fails does not stop the rest.
+            commands
+                .iter()
+                .filter_map(|command| api::run(&client, command).err())
+                .collect::<Vec<_>>()
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let failed = task.await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                for error in failed {
+                    let message = this.message(&error, cx);
+                    ui::toast_error(message, window, cx);
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// Even noteren keeps the open workspace under the same name
+    /// (`evido.todo.workspace`, the web's localStorage key both apps read):
+    /// when it picked another one meanwhile, this app shows that one too.
+    fn follow_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let Some(wanted) = prefs::get(WORKSPACE_PREF) else { return false };
+        let known = self
+            .workspaces
+            .as_ref()
+            .is_some_and(|workspaces| workspaces.iter().any(|workspace| workspace.id == wanted));
+        if !known || self.active().map(|workspace| workspace.id.as_str()) == Some(wanted.as_str()) || self.server.is_none() {
+            return false;
+        }
+        self.open_workspace(&wanted, window, cx);
+        true
     }
 
     // ─── What the screens ask ───────────────────────────────────────────────
@@ -715,8 +873,8 @@ impl TodoApp {
 
     fn finish_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(rename) = &mut self.renaming else { return };
-        let text = rename.input.read(cx).value().split_whitespace().collect::<Vec<_>>().join(" ");
-        if text.chars().count() > rename.max {
+        let text = crate::workspace::single_line(&rename.input.read(cx).value());
+        if crate::workspace::length(&text) > rename.max {
             rename.error = Some(t(
                 format!("Use at most {} characters.", rename.max),
                 format!("Gebruik maximaal {} tekens.", rename.max),
@@ -763,84 +921,202 @@ impl TodoApp {
         }
     }
 
+    /// The made-up workspace of sample.rs instead of the user's own: what is
+    /// on screen from here on is in memory only (`self.sample`).
+    fn use_sample(&mut self, cx: &mut Context<Self>) {
+        self.sample = true;
+        // Answers still on their way for the real workspace are dropped.
+        self.generation += 1;
+        self.workspaces = Some(sample::workspaces());
+        self.active_id = Some(sample::id(sample::WORKSPACE));
+        self.server = Some(sample::data());
+        self.members = Some(sample::members());
+        self.members_error = None;
+        self.queued.clear();
+        self.settings.sync_name = true;
+        self.rebuild();
+        self.load_pictures(cx);
+        cx.notify();
+    }
+
     /// A run that only looks (scripts/shot.sh): `EVEN_TODO_SHOW` opens a
-    /// screen without a click. Nothing here changes any data.
+    /// screen without a click. Nothing here changes any data. With `sample,`
+    /// before the screen's name it shows a made-up workspace (sample.rs), for
+    /// the screens the account has nothing to show for.
     fn debug_show(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Ok(show) = std::env::var("EVEN_TODO_SHOW") else { return };
+        let show = match show.strip_prefix("sample") {
+            Some(rest) => {
+                self.use_sample(cx);
+                rest.trim_start_matches(',').to_string()
+            }
+            None => show,
+        };
         let lists = self.lists();
         let first = |kind: ListKind| lists.iter().find(|list| list.kind == kind).map(|list| list.id.clone());
         let mut parts = show.split(',');
-        match parts.next().unwrap_or("") {
-            "list" => {
+        let what = parts.next().unwrap_or("");
+        match what {
+            "list" | "edit-task" | "delete-list" | "delete-task" | "clear-done" | "share" | "share-new" | "rename" => {
                 if let Some(id) = first(ListKind::Todo) {
                     self.select_list(&id, window, cx);
+                    let tasks = core::sort_todos(self.todos_of(&id));
+                    let name = lists.iter().find(|list| list.id == id).map(|list| list.name.clone()).unwrap_or_default();
+                    match what {
+                        "edit-task" => {
+                            if let Some(task) = tasks.first() {
+                                self.edit_task(&task.id, window, cx);
+                            }
+                        }
+                        "delete-list" => self.ask_delete(dialogs::Deletion::List { id, title: name }, window, cx),
+                        "delete-task" => {
+                            if let Some(task) = tasks.first() {
+                                self.ask_delete(
+                                    dialogs::Deletion::Todo {
+                                        id: task.id.clone(),
+                                        title: task.title.clone(),
+                                    },
+                                    window,
+                                    cx,
+                                );
+                            }
+                        }
+                        "clear-done" => {
+                            let count = tasks.iter().filter(|task| task.completed).count();
+                            self.ask_delete(dialogs::Deletion::ClearDone { list_id: id, count }, window, cx);
+                        }
+                        "share" | "share-new" => self.share_list(window, cx),
+                        "rename" => self.start_rename(RenameTarget::List(id), &name, 80, window, cx),
+                        _ => {}
+                    }
                 }
             }
-            "board" | "board-list" | "issue" | "new-issue" => {
+            "board" | "board-list" | "issue" | "issue-delete" | "viewer" | "drop" | "new-issue" => {
                 if let Some(id) = first(ListKind::Board) {
                     self.select_list(&id, window, cx);
                     self.board.open(&id);
-                    if show.starts_with("board-list") {
+                    if what == "board-list" {
                         self.board.view = board::View::List;
                     }
-                    if show.starts_with("issue") {
-                        let issue = self
+                    if matches!(what, "issue" | "issue-delete" | "viewer" | "drop") {
+                        // The one with files, else the first.
+                        let issues: Vec<&Todo> = self
                             .data
                             .todos
                             .iter()
-                            .find(|todo| todo.list_id == id && todo.parent_id.is_none())
-                            .map(|todo| todo.id.clone());
-                        if let Some(issue) = issue {
+                            .filter(|todo| todo.list_id == id && todo.parent_id.is_none())
+                            .collect();
+                        let issue = issues
+                            .iter()
+                            .find(|todo| !todo.attachments.is_empty())
+                            .or(issues.first())
+                            .map(|todo| (todo.id.clone(), todo.attachments.clone()));
+                        if let Some((issue, files)) = issue {
                             self.open_issue(&issue, window, cx);
-                            if show.contains("delete") {
-                                self.ask_delete_issue(window, cx);
+                            match what {
+                                "issue-delete" => self.ask_delete_issue(window, cx),
+                                "viewer" => {
+                                    let picture = files.iter().find(|file| attachments::is_image(&file.content_type));
+                                    if let (Some(view), Some(picture)) = (&mut self.issue, picture) {
+                                        view.viewing = Some(picture.id.clone());
+                                    }
+                                }
+                                "drop" => {
+                                    if let Some(view) = &mut self.issue {
+                                        view.debug_dropping = true;
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                     }
-                    if show.starts_with("new-issue") {
+                    if what == "new-issue" {
                         self.new_issue(None, window, cx);
                     }
                 }
             }
             "new-list" => self.new_list(ListKind::Todo, window, cx),
             "spotlight" => self.open_spotlight(window, cx),
-            "share" => {
-                if let Some(id) = first(ListKind::Todo) {
-                    self.select_list(&id, window, cx);
-                    self.share_list(window, cx);
+            "settings" => {
+                let page = parts.next().unwrap_or("");
+                cx.emit(AppEvent::OpenSettings(
+                    ["workspace", "members", "statuses", "projects", "connections"]
+                        .into_iter()
+                        .find(|known| *known == page),
+                ));
+                // What lies over the page: a dialog of it.
+                match parts.next().unwrap_or("") {
+                    "project" => {
+                        let first = self.data.projects.first().map(|project| project.id.clone());
+                        self.edit_project(first.as_deref(), window, cx);
+                    }
+                    "new-project" => self.edit_project(None, window, cx),
+                    "delete-project" => {
+                        if let Some(id) = self.data.projects.first().map(|project| project.id.clone()) {
+                            self.ask_delete_project(&id, window, cx);
+                        }
+                    }
+                    "delete-status" => {
+                        let statuses = core::sort_statuses(&self.data.statuses);
+                        if let Some(status) = statuses.get(1).or(statuses.first()) {
+                            self.ask_delete_status(&status.id, window, cx);
+                        }
+                    }
+                    "gone" => self.settings.dialog = Some(settings::SettingsDialog::Gone),
+                    _ => {}
                 }
             }
-            "settings" => cx.emit(AppEvent::OpenSettings(parts.next().and_then(|page| {
-                ["workspace", "members", "statuses", "projects", "connections"]
-                    .into_iter()
-                    .find(|known| *known == page)
-            }))),
             _ => {}
         }
         // EVEN_TODO_SCROLL=<points>: the open issue scrolled that far down.
         if let Some(points) = std::env::var("EVEN_TODO_SCROLL").ok().and_then(|points| points.parse::<f32>().ok()) {
             cx.spawn_in(window, async move |this, cx| {
-                cx.background_executor().timer(Duration::from_millis(1500)).await;
+                cx.background_executor().timer(Duration::from_millis(4000)).await;
                 let _ = this.update_in(cx, |this, _, cx| {
-                    if let Some(issue) = &this.issue {
-                        let scroller = issue.description.scroller();
+                    // The open issue, else whatever page scrolls.
+                    let scrollers = match &this.issue {
+                        Some(issue) => vec![issue.description.scroller().clone()],
+                        None => vec![
+                            this.list_scroll.clone(),
+                            this.dashboard_scroll.clone(),
+                            this.issue_list_scroll.clone(),
+                        ],
+                    };
+                    for scroller in scrollers {
                         scroller.set_offset(point(px(0.), -px(points).min(scroller.max_offset().y)));
-                        cx.notify();
                     }
+                    cx.notify();
                 });
             })
             .detach();
         }
         if let Some(menu) = std::env::var("EVEN_TODO_MENU").ok().as_deref() {
-            let (kind, anchor) = match menu {
-                "workspace" => (MenuKind::Workspace, "workspace-switcher"),
-                "list" => (MenuKind::ListOptions, "list-options"),
-                "filter" => (MenuKind::Filter, "board-filter"),
-                "issue-options" => (MenuKind::IssueOptions, "issue-options"),
+            let statuses = core::sort_statuses(&self.data.statuses);
+            let settings_menu = |kind: MenuKind, anchor: String| (kind, SharedString::from(anchor));
+            let (kind, anchor): (MenuKind, SharedString) = match menu {
+                // The menus of the settings pages (`EVEN_TODO_SHOW=settings,statuses` and the like).
+                "status-color" => match statuses.get(2).or(statuses.first()) {
+                    Some(status) => settings_menu(MenuKind::StatusColor(status.id.clone()), format!("status-color-{}", status.id)),
+                    None => return,
+                },
+                "status-options" => match statuses.get(2).or(statuses.first()) {
+                    Some(status) => settings_menu(MenuKind::StatusOptions(status.id.clone()), format!("status-options-{}", status.id)),
+                    None => return,
+                },
+                "project-color" => match self.data.projects.first() {
+                    Some(project) => settings_menu(MenuKind::ProjectColor(project.id.clone()), format!("project-color-{}", project.id)),
+                    None => return,
+                },
+                "editing-color" => settings_menu(MenuKind::EditingProjectColor, "project-editor-color".into()),
+                "invite-role" => settings_menu(MenuKind::InviteRole, "invite-role".into()),
+                "workspace" => (MenuKind::Workspace, "workspace-switcher".into()),
+                "list" => (MenuKind::ListOptions, "list-options".into()),
+                "filter" => (MenuKind::Filter, "board-filter".into()),
+                "issue-options" => (MenuKind::IssueOptions, "issue-options".into()),
                 "status" => match &self.issue {
                     Some(issue) => (
                         MenuKind::Status(overlay::Target::Issue(issue.id.clone())),
-                        "issue-prop-status",
+                        "issue-prop-status".into(),
                     ),
                     None => return,
                 },
@@ -874,7 +1150,10 @@ impl EvenApp for TodoApp {
         if self.dialog.is_none() && self.issue.is_none() && self.renaming.is_none() {
             window.focus(&self.focus, cx);
         }
-        self.refresh_quietly(cx);
+        // Even noteren may have switched workspace since: follow it, as the Tauri app does.
+        if !self.follow_workspace(window, cx) {
+            self.refresh_quietly(cx);
+        }
     }
 
     fn set_covered(&mut self, covered: bool, _window: &mut Window, cx: &mut Context<Self>) {
@@ -934,6 +1213,11 @@ impl Render for TodoApp {
     }
 }
 
+/// The API was not reached at all, as against an answer that says no.
+fn is_offline(error: &anyhow::Error) -> bool {
+    matches!(error.downcast_ref::<ureq::Error>(), Some(ureq::Error::Transport(_)))
+}
+
 /// components/page-loading.tsx.
 fn render_page_loading() -> impl IntoElement {
     div().flex().flex_1().justify_center().child(
@@ -981,7 +1265,9 @@ impl TodoApp {
     /// status in its corner, then the overview, a list or a board.
     fn render_main(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let pending = !self.queued.is_empty();
-        let status: SharedString = if self.error {
+        let status: SharedString = if !self.online {
+            "Offline"
+        } else if self.error {
             t("Sync failed", "Synchroniseren mislukt")
         } else if pending {
             t("Saving…", "Opslaan…")
@@ -993,7 +1279,7 @@ impl TodoApp {
             }
         }
         .into();
-        let icon = if self.error {
+        let icon = if !self.online || self.error {
             theme::hi("cloud-alert").text_color(theme::muted()).into_any_element()
         } else if pending {
             kit::spinning("refresh").into_any_element()
@@ -1045,6 +1331,19 @@ impl TodoApp {
 
     /// The alert above a page while the last reload failed.
     fn render_sync_alert(&self) -> Option<Div> {
+        if !self.online {
+            return Some(
+                kit::alert(
+                    Some(t("You're offline", "Je bent offline").into()),
+                    t(
+                        "You can still view your lists. Once you're back online, you can carry on.",
+                        "Je kunt je lijsten bekijken. Zodra je weer verbinding hebt, kun je verder.",
+                    ),
+                    false,
+                )
+                .mb(px(24.)),
+            );
+        }
         self.error.then(|| {
             kit::alert(
                 Some(t("Syncing didn't work", "Synchroniseren is niet gelukt").into()),

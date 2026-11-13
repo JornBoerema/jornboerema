@@ -29,10 +29,21 @@ mod parts;
 mod sidebar;
 
 use api::{Command, Failure, List, WorkspaceSummary};
-use note::{Editor, Naming};
+use note::{Editor, Leaving, Naming};
 use overlays::Overlay;
 
-actions!(notes, [Spotlight, NoteUp, NoteDown, Dismiss]);
+actions!(
+    notes,
+    [
+        Spotlight,
+        NoteUp,
+        NoteDown,
+        Dismiss,
+        /// Tab and Enter in the delete question (the web's AlertDialog).
+        NextButton,
+        PressButton
+    ]
+);
 
 pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
@@ -42,6 +53,9 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("alt-up", NoteUp, Some("Notes && !Input")),
         KeyBinding::new("alt-down", NoteDown, Some("Notes && !Input")),
         KeyBinding::new("escape", Dismiss, Some("Notes && !Input")),
+        KeyBinding::new("tab", NextButton, Some("Notes && !Input")),
+        KeyBinding::new("shift-tab", NextButton, Some("Notes && !Input")),
+        KeyBinding::new("enter", PressButton, Some("Notes && !Input")),
     ]);
 }
 
@@ -108,6 +122,8 @@ pub struct NotesApp {
     /// The open note; `None` is the overview.
     selected: Option<String>,
     editor: Option<Editor>,
+    /// The note that was closed while a save of it was on its way.
+    leaving: Option<Leaving>,
     /// The open note's title while it is being renamed.
     naming: Option<Naming>,
     overlay: Option<Overlay>,
@@ -121,6 +137,8 @@ pub struct NotesApp {
     connection: Connection,
     /// The settings window lies over the app, or another app shows.
     covered: bool,
+    /// What the overview scrolls by, for its faded edges.
+    overview_scroll: ScrollHandle,
     /// What the open note leaves free at its foot while toasts show there.
     toast_room: f32,
     realtime: Option<realtime::Realtime>,
@@ -162,6 +180,7 @@ impl NotesApp {
             generation: 0,
             selected: None,
             editor: None,
+            leaving: None,
             naming: None,
             overlay: None,
             menu: None,
@@ -170,6 +189,7 @@ impl NotesApp {
             sync_error: false,
             connection: Connection::Polling,
             covered: false,
+            overview_scroll: ScrollHandle::new(),
             toast_room: 0.,
             realtime: None,
             _realtime: None,
@@ -296,13 +316,19 @@ impl NotesApp {
                 }
                 match result {
                     Ok(data) => {
+                        // note-editor.tsx: back online, the draft that waited is saved.
+                        let back_online = !this.online;
                         this.lists = data.lists;
                         this.load = Load::Ready;
-                        this.online = true;
+                        // `EVEN_NOTES_SHOW=…,offline` stays offline for its picture.
+                        this.online = !shown_offline();
                         this.sync_error = false;
                         this.recompute();
                         this.incoming(cx);
                         this.settle(window, cx);
+                        if back_online {
+                            this.save(window, cx);
+                        }
                         #[cfg(debug_assertions)]
                         this.show_for_a_picture(window, cx);
                     }
@@ -707,12 +733,13 @@ impl NotesApp {
                 "spotlight" => self.open_spotlight(window, cx),
                 "new" => self.open_new_note(window, cx),
                 "workspace" => self.open_new_workspace(window, cx),
-                "delete" => {
-                    if let Some(note) = self.selected_note() {
-                        self.overlay = Some(Overlay::Delete {
-                            id: note.id.clone(),
-                            title: note.name.clone(),
-                        })
+                "delete" | "delete-tab" => {
+                    if let Some((id, title)) = self.selected_note().map(|note| (note.id.clone(), note.name.clone())) {
+                        self.ask_delete(id, title, window, cx);
+                        // `delete-tab`: after a Tab, the keyboard shows on Delete.
+                        if what.contains("delete-tab") {
+                            self.next_button(cx);
+                        }
                     }
                 }
                 "share" => self.open_share(window, cx),
@@ -728,6 +755,12 @@ impl NotesApp {
         }
         cx.notify();
     }
+}
+
+/// A run that only looks asked for the offline state (`EVEN_NOTES_SHOW=…,offline`).
+fn shown_offline() -> bool {
+    cfg!(debug_assertions)
+        && std::env::var("EVEN_NOTES_SHOW").is_ok_and(|show| show.split(',').any(|part| part == "offline"))
 }
 
 impl EventEmitter<AppEvent> for NotesApp {}
@@ -780,6 +813,8 @@ impl Render for NotesApp {
             .on_action(cx.listener(|this, _: &NoteUp, window, cx| this.step_note(-1, window, cx)))
             .on_action(cx.listener(|this, _: &NoteDown, window, cx| this.step_note(1, window, cx)))
             .on_action(cx.listener(|this, _: &Dismiss, window, cx| this.dismiss(window, cx)))
+            .on_action(cx.listener(|this, _: &NextButton, _, cx| this.next_button(cx)))
+            .on_action(cx.listener(|this, _: &PressButton, window, cx| this.press_button(window, cx)))
             // A field's own Escape comes up here when it has nothing of its own to undo.
             .on_action(cx.listener(|this, _: &Escape, window, cx| this.dismiss(window, cx)))
             .size_full()

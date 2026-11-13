@@ -4,6 +4,8 @@
 //! `/api/mail/preferences`. Notifications and the delivered-parcels filter
 //! stay per device.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use crate::api::Client;
 use crate::prefs;
 
@@ -84,6 +86,7 @@ impl Feature {
     /// so a switch flips at once. Follow it with `api::save_preferences` in
     /// the background, so it reaches the account.
     pub fn keep_locally(self, on: bool) {
+        CHANGES.fetch_add(1, Ordering::Relaxed);
         self.keep(on);
     }
 
@@ -91,9 +94,13 @@ impl Feature {
     #[allow(dead_code)]
     pub fn set(self, on: bool, client: &Client) -> anyhow::Result<()> {
         self.keep(on);
-        api::save_preferences(client, &serde_json::json!({ self.key(): on }))
+        api::save_preferences(client, &api::feature_body(self.key(), on))
     }
 }
+
+/// Counts the choices made on this Mac, so an answer from the account that
+/// was asked for before one of them doesn't undo it.
+static CHANGES: AtomicU64 = AtomicU64::new(0);
 
 const SIDEBAR: &str = "mail.sidebar";
 const NOTIFY: &str = "mail.notifications";
@@ -120,6 +127,7 @@ fn keep_sidebar(layout: Option<&Layout>) {
 /// (`setSidebar`). The UI thread's half: follow it with
 /// `api::save_preferences` in the background, so it reaches other devices.
 pub fn keep_sidebar_locally(layout: Option<&Layout>) {
+    CHANGES.fetch_add(1, Ordering::Relaxed);
     keep_sidebar(layout);
 }
 
@@ -178,8 +186,14 @@ pub fn set_sidebar_collapsed(collapsed: bool) {
 /// account without saved settings, this Mac's sent up. Blocking: background
 /// executor. True when something here changed.
 pub fn sync(client: &Client) -> anyhow::Result<bool> {
+    let changes = CHANGES.load(Ordering::Relaxed);
     match api::preferences(client)? {
         Some(remote) => {
+            // A switch flipped here while the question was out: that answer is
+            // from before it and would flip it back. The next round is right.
+            if CHANGES.load(Ordering::Relaxed) != changes {
+                return Ok(false);
+            }
             let before = (Feature::ALL.map(Feature::on), sidebar());
             for feature in Feature::ALL {
                 // Older accounts saved before a setting existed have its default.
@@ -196,16 +210,54 @@ pub fn sync(client: &Client) -> anyhow::Result<bool> {
             Ok(before != (Feature::ALL.map(Feature::on), sidebar()))
         }
         None => {
-            let mut local = serde_json::Map::new();
-            for feature in Feature::ALL {
-                local.insert(feature.key().into(), feature.on().into());
+            // Changed here while the question was out: the next round brings it.
+            if CHANGES.load(Ordering::Relaxed) != changes {
+                return Ok(false);
             }
-            local.insert(
-                "sidebar".into(),
-                prefs::get_json::<serde_json::Value>(SIDEBAR).unwrap_or(serde_json::Value::Null),
-            );
-            api::save_preferences(client, &serde_json::Value::Object(local))?;
+            let arranged = prefs::get_json::<serde_json::Value>(SIDEBAR).map(|raw| Layout::normalize(&raw));
+            api::save_preferences(client, &local_preferences(Feature::ALL.map(Feature::on), arranged.as_ref()))?;
             Ok(false)
         }
+    }
+}
+
+/// What this Mac has chosen, for the first device to bring along
+/// (`localPreferences`): every setting, and the sidebar if it was arranged
+/// (made whole first, as the API only takes places it knows).
+pub fn local_preferences(features: [bool; 11], sidebar: Option<&Layout>) -> serde_json::Value {
+    let mut local = serde_json::Map::new();
+    for (feature, on) in Feature::ALL.into_iter().zip(features) {
+        local.insert(feature.key().into(), on.into());
+    }
+    local.insert("sidebar".into(), serde_json::json!(sidebar));
+    serde_json::Value::Object(local)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{local_preferences, Feature};
+    use crate::mail::places::Layout;
+    use crate::mail::schema;
+
+    #[test]
+    fn every_setting_has_the_name_the_account_keeps_it_under() {
+        let keys: Vec<&str> = Feature::ALL.into_iter().map(Feature::key).collect();
+        assert_eq!(keys, schema::PREFERENCES);
+    }
+
+    #[test]
+    fn the_first_device_brings_what_it_chose() {
+        // Everything, and the sidebar only when it was arranged (`localPreferences`).
+        let features = Feature::ALL.map(|feature| feature != Feature::RemoteImages);
+        let body = local_preferences(features, None);
+        assert_eq!(schema::preferences(&body), Ok(()));
+        assert_eq!(body.as_object().unwrap().len(), 12);
+        assert!(body["sidebar"].is_null());
+        assert_eq!((&body["remoteImages"], &body["pins"]), (&serde_json::json!(false), &serde_json::json!(true)));
+        // An arrangement from an older app is made whole first: the API takes no place it doesn't know.
+        let old = serde_json::json!({ "main": ["inbox", "labels", "sent"], "more": [], "hidden": ["trash"] });
+        let body = local_preferences(features, Some(&Layout::normalize(&old)));
+        assert_eq!(schema::preferences(&body), Ok(()));
+        assert_eq!(body["sidebar"]["hidden"], serde_json::json!(["trash"]));
     }
 }

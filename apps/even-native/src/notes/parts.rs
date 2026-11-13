@@ -104,3 +104,19 @@ pub fn backdrop(window: &Window, dialog: impl IntoElement) -> impl IntoElement {
     )
     .with_priority(1)
 }
+
+/// CSS `color-mix(in oklab, a <share>, b)`, near enough in sRGB: `share` of
+/// `a` and the rest of `b`, each weighed by how solid it is.
+pub fn blend(a: Rgba, b: Rgba, share: f32) -> Rgba {
+    let (wa, wb) = (share * a.a, (1. - share) * b.a);
+    let alpha = wa + wb;
+    if alpha <= 0. {
+        return Rgba { r: 0., g: 0., b: 0., a: 0. };
+    }
+    Rgba {
+        r: (a.r * wa + b.r * wb) / alpha,
+        g: (a.g * wa + b.g * wb) / alpha,
+        b: (a.b * wa + b.b * wb) / alpha,
+        a: alpha,
+    }
+}

@@ -430,6 +430,18 @@ impl Client {
         self.send_json("POST", path, body)
     }
 
+    /// POST that waits `patience` for its answer instead of the usual half
+    /// minute: for what must not be given up on while the server still works
+    /// on it (sending mail), or it would be done twice.
+    pub fn post_json_within<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &impl Serialize,
+        patience: Duration,
+    ) -> Result<T> {
+        read_lenient(self.request("POST", path).timeout(patience).send_json(body))
+    }
+
     pub fn patch_json<T: serde::de::DeserializeOwned>(&self, path: &str, body: &impl Serialize) -> Result<T> {
         self.send_json("PATCH", path, body)
     }
@@ -612,8 +624,9 @@ impl Client {
 /// Mail allows 25 MB in all; more than that is not an attachment we asked for.
 const MAX_ATTACHMENT_BYTES: u64 = 30 * 1024 * 1024;
 
+/// As `encodeURIComponent`: a space is `%20`, which a path reads as one too.
 fn encode(segment: &str) -> String {
-    url::form_urlencoded::byte_serialize(segment.as_bytes()).collect()
+    url::form_urlencoded::byte_serialize(segment.as_bytes()).collect::<String>().replace('+', "%20")
 }
 
 /// What the API said went wrong, in the user's language when it has words for it.
@@ -721,7 +734,7 @@ mod tests {
 
     #[test]
     fn conversation_paths_follow_the_web() {
-        assert_eq!(conversation_path("m 1", ""), "/api/mail/threads/m+1");
+        assert_eq!(conversation_path("m 1", ""), "/api/mail/threads/m%201");
         assert_eq!(conversation_path("m1", "/actions"), "/api/mail/threads/m1/actions");
         assert_eq!(
             conversation_path("remote:a1:-:AAk/x=:y", "/actions"),
