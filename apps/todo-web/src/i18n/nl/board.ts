@@ -112,6 +112,15 @@ export const board: typeof en = {
     confirmDelete: "Verwijderen",
     notFound: "Dit issue bestaat niet meer.",
   },
+  shortcuts: {
+    spotlightDescription: "Zoek, kies met de pijltjestoetsen en bevestig met Enter.",
+    placeholder: (field: string) => `${field} wijzigen…`,
+    empty: "Niets gevonden.",
+    choose: "↑ ↓ kiezen",
+    apply: "↵ toepassen",
+    toggle: "↵ aan/uit",
+    close: "esc sluiten",
+  },
   subIssues: {
     title: "Sub-issues",
     add: "Sub-issue toevoegen",

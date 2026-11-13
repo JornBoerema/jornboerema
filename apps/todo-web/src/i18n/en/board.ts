@@ -112,6 +112,15 @@ export const board = {
     confirmDelete: "Delete",
     notFound: "This issue no longer exists.",
   },
+  shortcuts: {
+    spotlightDescription: "Search, use the arrow keys to choose and Enter to apply.",
+    placeholder: (field: string) => `Change ${field.toLowerCase()}…`,
+    empty: "Nothing found.",
+    choose: "↑ ↓ choose",
+    apply: "↵ apply",
+    toggle: "↵ toggle",
+    close: "esc close",
+  },
   subIssues: {
     title: "Sub-issues",
     add: "Add sub-issue",

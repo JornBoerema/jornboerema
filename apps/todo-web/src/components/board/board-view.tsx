@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { sortIssues, type Command, type Todo, type TodoList, type WorkspaceData } from "@evido/todo-core/workspace";
 import { defaultStatus, sortStatuses, type BoardMember, type BoardProject, type BoardStatus } from "@evido/todo-core/board";
@@ -35,6 +35,7 @@ import {
   StatusMenu,
 } from "./board-meta";
 import { IssueDetail } from "./issue-detail";
+import { fieldForKey, isTyping, IssueSpotlight, type IssueField } from "./issue-spotlight";
 
 type Run = (command: Command) => Promise<boolean>;
 type View = "board" | "list";
@@ -105,6 +106,40 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
     if (issueId && !openIssue && !disabled) setIssue(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [issueId, openIssue]);
+
+  // Keyboard: C makes an issue; S, P, A and ⇧P change the hovered (or open) issue.
+  // The pointer wins over keyboard focus, like in Linear.
+  const hovered = useRef<{ pointer: string | null; focus: string | null }>({ pointer: null, focus: null });
+  const [editing, setEditing] = useState<{ field: IssueField; issueId: string } | null>(null);
+  const editIssue = editing ? all.find((issue) => issue.id === editing.issueId) : undefined;
+  const keys = useRef({ locked, all, openIssue, members, shareToken });
+  useLayoutEffect(() => { keys.current = { locked, all, openIssue, members, shareToken }; });
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.repeat || event.isComposing || isTyping(event.target)) return;
+      const { locked, all, openIssue, members, shareToken } = keys.current;
+      if (locked || document.querySelector('[role="menu"], [role="alertdialog"]')) return;
+      // Only the open issue's own dialog may be up; any other dialog keeps its keys.
+      const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+      if (dialogs.some((dialog) => !dialog.classList.contains("issue-dialog"))) return;
+      if (event.key.toLowerCase() === "c" && !event.shiftKey) {
+        if (dialogs.length) return;
+        event.preventDefault();
+        setCreating({});
+        return;
+      }
+      const field = fieldForKey(event);
+      if (!field) return;
+      if (field === "assignees" && (!members.length || shareToken)) return;
+      const issue = openIssue ?? all.find((todo) => todo.id === (hovered.current.pointer ?? hovered.current.focus));
+      if (!issue) return;
+      event.preventDefault();
+      setEditing({ field, issueId: issue.id });
+    };
+    document.addEventListener("keydown", keydown);
+    return () => document.removeEventListener("keydown", keydown);
+  }, []);
+  const hover = (kind: "pointer" | "focus", id: string | null) => { hovered.current[kind] = id; };
 
   const changeView = (next: View) => { setView(next); writePref(`${prefKey}:view`, next); };
   const filtered = projectFilter !== "all" || assigneeFilter !== "all";
@@ -179,7 +214,7 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
         </div>
         <div className="board-toolbar-group">
           <span className="board-summary">{t.summary(open)}</span>
-          {!readOnly && <button className="board-tool is-primary" disabled={disabled} onClick={() => setCreating({})}><Plus className="size-3.5" aria-hidden="true" /><span>{t.toolbar.newIssue}</span></button>}
+          {!readOnly && <button className="board-tool is-primary" disabled={disabled} title={`${t.toolbar.newIssue} (C)`} onClick={() => setCreating({})}><Plus className="size-3.5" aria-hidden="true" /><span>{t.toolbar.newIssue}</span></button>}
         </div>
       </div>
       {!all.length ? (
@@ -192,9 +227,9 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
           {!readOnly && <EmptyContent><Button disabled={disabled} onClick={() => setCreating({})}><Plus data-icon="inline-start" />{t.toolbar.newIssue}</Button></EmptyContent>}
         </Empty>
       ) : view === "board" ? (
-        <KanbanBoard columns={columns} data={data} locked={locked} run={run} onOpen={setIssue} onCreate={(statusId) => setCreating({ statusId })} />
+        <KanbanBoard columns={columns} data={data} locked={locked} run={run} onOpen={setIssue} onHover={hover} onCreate={(statusId) => setCreating({ statusId })} />
       ) : (
-        <IssueList columns={columns} data={data} locked={locked} run={run} onOpen={setIssue} onCreate={(statusId) => setCreating({ statusId })} />
+        <IssueList columns={columns} data={data} locked={locked} run={run} onOpen={setIssue} onHover={hover} onCreate={(statusId) => setCreating({ statusId })} />
       )}
       {filtered && all.length > 0 && !visible.length && <p className="board-filter-empty">{t.empty.filtered}</p>}
 
@@ -207,12 +242,20 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
         <IssueDetail issue={openIssue} list={list} data={data} run={run} readOnly={locked} shareToken={shareToken}
           canUpload={canUpload && !disabled} onOpen={setIssue} onClose={() => setIssue(null)} />
       )}
+      {editing && editIssue && (
+        <IssueSpotlight field={editing.field} issue={editIssue} data={data} run={run} onClose={() => setEditing(null)} />
+      )}
     </div>
   );
 }
 
 type Column = { status: BoardStatus; issues: Todo[] };
-type ViewProps = { columns: Column[]; data: WorkspaceData; locked: boolean; run: Run; onOpen: (id: string) => void; onCreate: (statusId: string) => void };
+type ViewProps = {
+  columns: Column[]; data: WorkspaceData; locked: boolean; run: Run;
+  onOpen: (id: string) => void; onCreate: (statusId: string) => void;
+  /** The issue under the pointer or focus, for S / P / A / ⇧P. */
+  onHover: (kind: "pointer" | "focus", id: string | null) => void;
+};
 
 function IssueChips({ issue, data, compact }: { issue: Todo; data: WorkspaceData; compact?: boolean }) {
   const { t: { board: t } } = useI18n();
@@ -229,7 +272,7 @@ function IssueChips({ issue, data, compact }: { issue: Todo; data: WorkspaceData
   );
 }
 
-function KanbanBoard({ columns, data, locked, run, onOpen, onCreate }: ViewProps) {
+function KanbanBoard({ columns, data, locked, run, onOpen, onCreate, onHover }: ViewProps) {
   const { t: { board: t } } = useI18n();
   const [dragId, setDragId] = useState<string | null>(null);
   const [drop, setDrop] = useState<Drop | null>(null);
@@ -289,6 +332,8 @@ function KanbanBoard({ columns, data, locked, run, onOpen, onCreate }: ViewProps
                     draggable={!locked} aria-label={t.card.open(issue.number ?? 0, issue.title)}
                     onDragStart={(event) => { event.dataTransfer.setData(ISSUE_MIME, issue.id); event.dataTransfer.effectAllowed = "move"; setDragId(issue.id); }}
                     onDragEnd={() => { setDragId(null); setDrop(null); }}
+                    onMouseEnter={() => onHover("pointer", issue.id)} onMouseLeave={() => onHover("pointer", null)}
+                    onFocus={() => onHover("focus", issue.id)} onBlur={() => onHover("focus", null)}
                     onClick={() => onOpen(issue.id)}>
                     <span className="issue-card-top">
                       <span className="issue-number">#{issue.number}</span>
@@ -309,7 +354,7 @@ function KanbanBoard({ columns, data, locked, run, onOpen, onCreate }: ViewProps
   );
 }
 
-function IssueList({ columns, data, locked, run, onOpen, onCreate }: ViewProps) {
+function IssueList({ columns, data, locked, run, onOpen, onCreate, onHover }: ViewProps) {
   const { t: { board: t } } = useI18n();
   const members = data.members ?? [];
   const statuses = data.statuses ?? [];
@@ -327,6 +372,8 @@ function IssueList({ columns, data, locked, run, onOpen, onCreate }: ViewProps) 
             {column.issues.map((issue) => (
               // The row opens the issue; its own buttons (priority, status, title) keep their action.
               <li key={issue.id} className={cn("issue-row", issue.completed && "is-complete")}
+                onMouseEnter={() => onHover("pointer", issue.id)} onMouseLeave={() => onHover("pointer", null)}
+                onFocus={() => onHover("focus", issue.id)} onBlur={() => onHover("focus", null)}
                 onClick={(event) => { if (!(event.target as HTMLElement).closest("button, [role=menu]")) onOpen(issue.id); }}>
                 <PriorityMenu value={issue.priority ?? 0} disabled={locked} onChange={(priority) => void run({ type: "update-issue", id: issue.id, priority })}>
                   <button className="issue-row-icon" data-priority={issue.priority ?? 0} aria-label={`${t.properties.priority}: ${t.priority.name(issue.priority ?? 0)}`}><PriorityIcon priority={issue.priority ?? 0} /></button>
