@@ -50,6 +50,8 @@ function providerToken({ key, keyId, teamId }: NonNullable<ReturnType<typeof con
 
 export type PushMessage = {
   title: string
+  /** A second line in bold, as mail apps show the subject. */
+  subtitle?: string
   body: string
   /** Notifications of one mailbox stack together on the lock screen. */
   group: string
@@ -115,7 +117,7 @@ async function sendAll(environment: PushEnvironment, tokens: string[], messages:
             headers,
             JSON.stringify({
               aps: {
-                alert: { title: message.title, body: message.body },
+                alert: { title: message.title, ...(message.subtitle && { subtitle: message.subtitle }), body: message.body },
                 sound: "default",
                 "thread-id": message.group,
               },
@@ -187,9 +189,11 @@ export function newMailMessages(mail: NewMail[], language: string): PushMessage[
       },
     ]
   }
+  // Sender, then the subject in bold, then how the mail begins: as Gmail's own notification reads.
   return newest.map((item) => ({
     title: sender(item),
-    body: [item.subject || t.noSubject, item.snippet].filter(Boolean).join("\n").slice(0, 400),
+    ...(item.snippet ? { subtitle: (item.subject || t.noSubject).slice(0, 200) } : {}),
+    body: (item.snippet || item.subject || t.noSubject).slice(0, 400),
     group: item.accountId,
     thread: item.id,
   }))

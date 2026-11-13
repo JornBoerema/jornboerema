@@ -20,8 +20,9 @@ final class Push {
 
     struct Tapped: Equatable {
         let thread: String
-        let title: String
-        let body: String
+        let sender: String
+        let subject: String
+        let snippet: String
     }
 
     private var token: String? {
@@ -114,7 +115,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let content = response.notification.request.content
         guard let thread = content.userInfo["thread"] as? String else { return }
         await MainActor.run {
-            Push.shared.opened = Push.Tapped(thread: thread, title: content.title, body: content.body)
+            // The subject is the bold second line; a mail without text has it as its only line.
+            let subject = content.subtitle.isEmpty ? content.body : content.subtitle
+            Push.shared.opened = Push.Tapped(thread: thread, sender: content.title, subject: subject, snippet: content.subtitle.isEmpty ? "" : content.body)
         }
     }
 }

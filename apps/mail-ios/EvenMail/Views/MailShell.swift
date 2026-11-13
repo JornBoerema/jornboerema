@@ -174,10 +174,9 @@ extension MailShell {
             return
         }
         // Not in the first page (or a filter hides it): the notification's own words stand in.
-        let lines = tapped.body.split(separator: "\n", maxSplits: 1).map(String.init)
         navigator.reading = MailThread(
-            id: tapped.thread, accountId: "", subject: lines.first ?? "", snippet: lines.count > 1 ? lines[1] : "",
-            fromName: tapped.title, fromEmail: nil, receivedAt: Date(), isRead: false, isStarred: false,
+            id: tapped.thread, accountId: "", subject: tapped.subject, snippet: tapped.snippet,
+            fromName: tapped.sender, fromEmail: nil, receivedAt: Date(), isRead: false, isStarred: false,
             hasAttachments: false, messageCount: 1, to: nil
         )
     }
