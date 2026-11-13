@@ -53,6 +53,7 @@ export function useAboutPage(): SettingsPage | null {
     id: "about",
     label: desktop.texts.about,
     icon: <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={1.75} aria-hidden="true" />,
+    end: true,
   }
 }
 

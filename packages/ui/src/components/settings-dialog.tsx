@@ -36,6 +36,8 @@ export type SettingsPage = {
   group?: string
   /** Extra words the search box should match. */
   keywords?: string[]
+  /** Listed on its own below every group, such as the about page. */
+  end?: boolean
 }
 
 /**
@@ -82,8 +84,12 @@ function SettingsDialog({
         )
       )
     : pages
-  const groups = visible.reduce<Map<string, SettingsPage[]>>((map, page) => {
-    const key = page.group ?? ""
+  // The key of the pages listed below every group; no heading has it.
+  const END = "\u0000end"
+  const groups = [...visible.filter((page) => !page.end), ...visible.filter((page) => page.end)].reduce<
+    Map<string, SettingsPage[]>
+  >((map, page) => {
+    const key = page.end ? END : (page.group ?? "")
     map.set(key, [...(map.get(key) ?? []), page])
     return map
   }, new Map())
@@ -131,7 +137,8 @@ function SettingsDialog({
           {/* Padding keeps the active item's ring inside the scroll clip. */}
           <div className="-m-1 flex gap-1 overflow-x-auto p-1 md:flex-col md:gap-4 md:overflow-y-auto">
             {[...groups].map(([group, items]) => {
-              const foldable = collapsibleGroups && !!group
+              const heading = group === END ? "" : group
+              const foldable = collapsibleGroups && !!heading
               // A search shows every match, also in folded groups.
               const folded = foldable && !needle && collapsed.has(group)
               const buttons = items.map((page) => (
@@ -155,7 +162,7 @@ function SettingsDialog({
               const listId = `settings-group-${group.replace(/\W+/g, "-")}`
               return (
                 <div key={group} className="flex gap-1 md:flex-col">
-                  {group &&
+                  {heading &&
                     (foldable ? (
                       <button
                         type="button"
