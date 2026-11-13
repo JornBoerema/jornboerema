@@ -475,7 +475,8 @@ a.todo-mail:focus-visible {
 }
 
 /* ─── Advanced boards (Linear-style) ─────────────────────────────────────── */
-.board-content { max-width: none; padding-left: 32px; padding-right: 0; }
+/* .task-content.board-content: in the desktop app Even noteren's .task-content rules load after these. */
+.task-content.board-content { max-width: none; padding-left: 32px; padding-right: 0; }
 .board-content > .task-heading { padding-right: 32px; margin-bottom: 12px; }
 .board-content > [data-slot="alert"] { margin-right: 32px; }
 .board { display: flex; flex-direction: column; flex: 1; min-height: 0; }
@@ -548,7 +549,7 @@ a.todo-mail:focus-visible {
 .issue-row-meta { flex-wrap: nowrap; }
 .issue-row > [title] { flex-shrink: 0; }
 @media (max-width: 700px) {
-  .board-content { padding-left: 16px; }
+  .task-content.board-content { padding-left: 16px; }
   .board-content > .task-heading, .board-toolbar, .kanban, .issue-list { padding-right: 16px; }
   .kanban-column { flex-basis: 82vw; }
   .issue-row-meta { display: none; }
