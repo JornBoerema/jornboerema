@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "cn"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Cancel01Icon, SearchIcon } from "@hugeicons/core-free-icons"
+import { ArrowDown01Icon, Cancel01Icon, SearchIcon } from "@hugeicons/core-free-icons"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { Button } from "@evido/ui/components/button"
@@ -49,6 +49,7 @@ function SettingsDialog({
   activePage,
   onActivePageChange,
   labels: customLabels,
+  collapsibleGroups = false,
   children,
 }: {
   open: boolean
@@ -58,8 +59,17 @@ function SettingsDialog({
   onActivePageChange: (id: string) => void
   /** Texts in the app's language; English by default. */
   labels?: Partial<SettingsLabels>
+  /** Group headings fold their pages away; all groups start open. */
+  collapsibleGroups?: boolean
   children: React.ReactNode
 }) {
+  const [collapsed, setCollapsed] = React.useState<ReadonlySet<string>>(() => new Set())
+  const toggleGroup = (group: string) =>
+    setCollapsed((current) => {
+      const next = new Set(current)
+      if (!next.delete(group)) next.add(group)
+      return next
+    })
   const labels = { ...defaultLabels, ...customLabels }
   const title = labels.title
   const [query, setQuery] = React.useState("")
@@ -120,33 +130,82 @@ function SettingsDialog({
           </label>
           {/* Padding keeps the active item's ring inside the scroll clip. */}
           <div className="-m-1 flex gap-1 overflow-x-auto p-1 md:flex-col md:gap-4 md:overflow-y-auto">
-            {[...groups].map(([group, items]) => (
-              <div key={group} className="flex gap-1 md:flex-col">
-                {group && (
-                  <p className="hidden px-3 pb-1 text-xs text-muted-foreground md:block">
-                    {group}
-                  </p>
-                )}
-                {items.map((page) => (
-                  <button
-                    key={page.id}
-                    type="button"
-                    aria-current={page.id === active?.id ? "page" : undefined}
-                    onClick={() => onActivePageChange(page.id)}
-                    className={cn(
-                      "flex shrink-0 items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors [&_svg]:size-4 [&_svg]:shrink-0",
-                      // The active item keeps its own look on hover.
-                      page.id === active?.id
-                        ? "bg-background font-medium text-foreground shadow-xs ring-1 ring-border"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    {page.icon}
-                    {page.label}
-                  </button>
-                ))}
-              </div>
-            ))}
+            {[...groups].map(([group, items]) => {
+              const foldable = collapsibleGroups && !!group
+              // A search shows every match, also in folded groups.
+              const folded = foldable && !needle && collapsed.has(group)
+              const buttons = items.map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  aria-current={page.id === active?.id ? "page" : undefined}
+                  onClick={() => onActivePageChange(page.id)}
+                  className={cn(
+                    "flex shrink-0 items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors [&_svg]:size-4 [&_svg]:shrink-0",
+                    // The active item keeps its own look on hover.
+                    page.id === active?.id
+                      ? "bg-background font-medium text-foreground shadow-xs ring-1 ring-border"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {page.icon}
+                  {page.label}
+                </button>
+              ))
+              const listId = `settings-group-${group.replace(/\W+/g, "-")}`
+              return (
+                <div key={group} className="flex gap-1 md:flex-col">
+                  {group &&
+                    (foldable ? (
+                      <button
+                        type="button"
+                        aria-expanded={!folded}
+                        aria-controls={listId}
+                        onClick={() => toggleGroup(group)}
+                        className="hidden items-center justify-between gap-2 rounded-md px-3 pb-1 text-left text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:flex"
+                      >
+                        {group}
+                        <HugeiconsIcon
+                          icon={ArrowDown01Icon}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                          className={cn(
+                            "size-3.5 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none",
+                            folded && "-rotate-90"
+                          )}
+                        />
+                      </button>
+                    ) : (
+                      <p className="hidden px-3 pb-1 text-xs text-muted-foreground md:block">
+                        {group}
+                      </p>
+                    ))}
+                  {foldable ? (
+                    // Rows from 1fr to 0fr: the pages slide shut at their own height.
+                    <div
+                      id={listId}
+                      inert={folded}
+                      className={cn(
+                        "contents md:grid md:transition-[grid-template-rows,opacity] md:duration-200 md:ease-out motion-reduce:transition-none",
+                        folded ? "md:grid-rows-[0fr] md:opacity-0" : "md:grid-rows-[1fr]"
+                      )}
+                    >
+                      {/* The padding keeps the active item's ring clear of the clip; it folds away too. */}
+                      <div
+                        className={cn(
+                          "contents md:-mx-1 md:flex md:min-h-0 md:flex-col md:gap-1 md:overflow-hidden md:px-1 md:transition-[margin,padding] md:duration-200 md:ease-out motion-reduce:transition-none",
+                          folded ? "md:my-0 md:py-0" : "md:-my-1 md:py-1"
+                        )}
+                      >
+                        {buttons}
+                      </div>
+                    </div>
+                  ) : (
+                    buttons
+                  )}
+                </div>
+              )
+            })}
             {!visible.length && (
               <p className="px-3 py-2 text-sm text-muted-foreground">
                 {labels.noResults}

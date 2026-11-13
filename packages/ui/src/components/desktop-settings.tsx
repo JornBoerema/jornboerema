@@ -118,6 +118,7 @@ export function DesktopSettingsProvider({
           setTarget({ app: app!, page: page! })
         }}
         labels={labels}
+        collapsibleGroups
       >
         {contributors.map((app) => (
           <div key={app.id} ref={slotRef(app.id)} className="flex flex-col gap-8" />
