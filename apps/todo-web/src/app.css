@@ -555,18 +555,34 @@ a.todo-mail:focus-visible {
 .issue-section-heading h3 { display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 600; }
 .issue-section-heading h3 span { font-weight: 400; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .issue-empty-note { font-size: 13px; color: var(--muted-foreground); }
-.sub-issue-list, .attachment-list { display: flex; flex-direction: column; }
-.sub-issue, .attachment { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 6px; border-radius: 8px; }
-.sub-issue:hover, .attachment:hover { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+.sub-issue-list { display: flex; flex-direction: column; }
+.sub-issue { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 6px; border-radius: 8px; }
+.sub-issue:hover { background: color-mix(in oklab, var(--muted) 60%, transparent); }
 .sub-issue-toggle { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; }
 .sub-issue-toggle:hover:not(:disabled) { background: var(--muted); }
 .sub-issue-title { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; height: 36px; text-align: left; font-size: 13.5px; }
 .sub-issue.is-complete .sub-issue-title > span:last-child { color: var(--muted-foreground); text-decoration: line-through; text-decoration-color: color-mix(in oklab, var(--muted-foreground) 50%, transparent); }
 .sub-issue-form { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
 .sub-issue-form input { flex: 1; min-width: 0; height: 32px; background: transparent; outline: none; font-size: 13.5px; }
-.attachment-name { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 8px; height: 36px; align-items: center; text-align: left; font-size: 13.5px; }
-.attachment-name:hover > span:first-child { text-decoration: underline; text-underline-offset: 3px; }
 .attachment-size { flex-shrink: 0; font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+/* Attachments as a grid of tiles: image previews, file type for the rest; actions on hover. */
+.attachment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+.attachment-tile { position: relative; min-width: 0; border-radius: 10px; border: 1px solid var(--border); background: var(--card); overflow: hidden; transition: border-color 120ms; }
+.attachment-tile:hover { border-color: color-mix(in oklab, var(--foreground) 22%, transparent); }
+.attachment-tile:focus-within:has(:focus-visible) { outline: 2px solid var(--ring); outline-offset: 1px; }
+.attachment-tile-open { display: flex; flex-direction: column; width: 100%; text-align: left; outline: none; }
+.attachment-tile-preview { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; aspect-ratio: 4 / 3; background: color-mix(in oklab, var(--muted) 70%, transparent); overflow: hidden; }
+.attachment-tile-image { width: 100%; height: 100%; object-fit: cover; }
+.attachment-tile-type { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.attachment-tile-loading { width: 100%; height: 100%; background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--foreground) 6%, transparent), transparent); background-size: 200% 100%; animation: attachment-shimmer 1.2s linear infinite; }
+@keyframes attachment-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.attachment-tile-meta { display: flex; flex-direction: column; gap: 1px; padding: 7px 10px 8px; min-width: 0; }
+.attachment-tile-name { font-size: 12.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-tile-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity 120ms; }
+.attachment-tile:hover .attachment-tile-actions, .attachment-tile:focus-within .attachment-tile-actions { opacity: 1; }
+@media (hover: none) { .attachment-tile-actions { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .attachment-tile-loading { animation: none; } }
+.attachment-tile.is-uploading .attachment-tile-name { color: var(--muted-foreground); font-weight: 400; }
 /* Full-screen image attachment: the image fills the window, controls sit on a dark bar. */
 .image-viewer { inset: 0; top: 0; left: 0; translate: none; transform: none; width: 100vw; max-width: none !important; height: 100dvh; padding: 0; gap: 0; border: 0; border-radius: 0; box-shadow: none; background: oklch(0.14 0 0 / 0.96); color: #fff; display: flex; flex-direction: column; }
 .image-viewer-bar { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px 8px 20px; }

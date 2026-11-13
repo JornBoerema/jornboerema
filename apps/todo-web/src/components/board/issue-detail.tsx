@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { sortSubIssues, type Command, type Todo, type TodoList, type WorkspaceData } from "@evido/todo-core/workspace";
-import { defaultStatus, sortStatuses, type BoardStatus } from "@evido/todo-core/board";
+import { defaultStatus, sortStatuses, type BoardStatus, type TodoAttachment } from "@evido/todo-core/board";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog";
 import { Button } from "@evido/ui/components/button";
 import {
@@ -24,7 +24,7 @@ import {
 import { cn } from "@evido/ui/lib/utils";
 import { Download, ImageIcon, Kanban, MoreHorizontal, Paperclip, Plus, Share, Trash2, X } from "@/components/icons";
 import { useI18n } from "@/i18n";
-import { AttachmentTooLarge, downloadAttachment, formatBytes, isImage, uploadAttachment } from "@/lib/attachments";
+import { AttachmentTooLarge, downloadAttachment, formatBytes, isImage, uploadAttachment, useAttachmentUrl } from "@/lib/attachments";
 import { ImageViewer } from "./image-viewer";
 import {
   AssigneeMenu,
@@ -64,6 +64,43 @@ function TitleField({ value, disabled, label, onSave }: { value: string; disable
         if (event.key === "Escape") { setDraft(value); }
       }} />
   );
+}
+
+/** One file in the attachments grid: a preview for images, the file type for the rest. */
+function AttachmentTile({ file, shareToken, locale, canRemove, onOpen, onRemove }: {
+  file: TodoAttachment; shareToken?: string; locale: string; canRemove: boolean; onOpen: () => void; onRemove: () => void;
+}) {
+  const { t: { board: { attachments: t } } } = useI18n();
+  const image = isImage(file.contentType);
+  const extension = file.name.includes(".") ? file.name.split(".").pop()!.slice(0, 5).toUpperCase() : "";
+  return (
+    <li className="attachment-tile">
+      <button className="attachment-tile-open" aria-label={image ? t.view(file.name) : t.download(file.name)} title={file.name} onClick={onOpen}>
+        <span className="attachment-tile-preview">
+          {image ? <Preview file={file} shareToken={shareToken} /> : <>
+            <Paperclip className="size-5 text-muted-foreground" aria-hidden="true" />
+            {extension && <span className="attachment-tile-type">{extension}</span>}
+          </>}
+        </span>
+        <span className="attachment-tile-meta">
+          <span className="attachment-tile-name">{file.name}</span>
+          <span className="attachment-size">{formatBytes(file.size, locale)}</span>
+        </span>
+      </button>
+      <span className="attachment-tile-actions">
+        <Button variant="secondary" size="icon-xs" aria-label={t.download(file.name)} title={t.download(file.name)}
+          onClick={() => void downloadAttachment(file, shareToken).catch(() => toast.error(t.downloadFailed))}><Download /></Button>
+        {canRemove && <Button variant="secondary" size="icon-xs" aria-label={t.remove(file.name)} title={t.remove(file.name)} onClick={onRemove}><Trash2 /></Button>}
+      </span>
+    </li>
+  );
+}
+
+function Preview({ file, shareToken }: { file: TodoAttachment; shareToken?: string }) {
+  const url = useAttachmentUrl(file, shareToken);
+  if (url === "failed") return <ImageIcon className="size-5 text-muted-foreground" aria-hidden="true" />;
+  if (!url) return <span className="attachment-tile-loading" aria-hidden="true" />;
+  return <img src={url} alt="" className="attachment-tile-image" draggable={false} />;
 }
 
 function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -264,31 +301,19 @@ export function IssueDetail({ issue, list, data, run, readOnly, shareToken, canU
                   </>}
                 </div>
                 {issue.attachments?.length || uploads.length ? (
-                  <ul className="attachment-list">
-                    {issue.attachments?.map((file) => {
-                      const image = isImage(file.contentType);
-                      const Icon = image ? ImageIcon : Paperclip;
-                      return (
-                      <li key={file.id} className="attachment">
-                        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                        <button className="attachment-name" aria-label={image ? t.attachments.view(file.name) : t.attachments.download(file.name)}
-                          onClick={() => image
-                            ? setViewing(file.id)
-                            : void downloadAttachment(file, shareToken).catch(() => toast.error(t.attachments.downloadFailed))}>
-                          <span className="truncate">{file.name}</span>
-                          <span className="attachment-size">{formatBytes(file.size, locale)}</span>
-                        </button>
-                        <Button variant="ghost" size="icon-sm" aria-label={t.attachments.download(file.name)}
-                          onClick={() => void downloadAttachment(file, shareToken).catch(() => toast.error(t.attachments.downloadFailed))}><Download /></Button>
-                        {!readOnly && !shareToken && <Button variant="ghost" size="icon-sm" aria-label={t.attachments.remove(file.name)}
-                          onClick={() => void run({ type: "delete-attachment", id: file.id })}><Trash2 /></Button>}
-                      </li>
-                      );
-                    })}
+                  <ul className="attachment-grid">
+                    {issue.attachments?.map((file) => (
+                      <AttachmentTile key={file.id} file={file} shareToken={shareToken} locale={locale}
+                        canRemove={!readOnly && !shareToken}
+                        onOpen={() => isImage(file.contentType)
+                          ? setViewing(file.id)
+                          : void downloadAttachment(file, shareToken).catch(() => toast.error(t.attachments.downloadFailed))}
+                        onRemove={() => void run({ type: "delete-attachment", id: file.id })} />
+                    ))}
                     {uploads.map((name, index) => (
-                      <li key={`${name}-${index}`} className="attachment is-uploading" aria-live="polite">
-                        <Paperclip className="size-4 shrink-0 animate-pulse text-muted-foreground" aria-hidden="true" />
-                        <span className="truncate text-sm text-muted-foreground">{t.attachments.uploading(name)}</span>
+                      <li key={`${name}-${index}`} className="attachment-tile is-uploading" aria-live="polite">
+                        <span className="attachment-tile-preview"><Paperclip className="size-5 animate-pulse text-muted-foreground" aria-hidden="true" /></span>
+                        <span className="attachment-tile-meta"><span className="attachment-tile-name">{t.attachments.uploading(name)}</span></span>
                       </li>
                     ))}
                   </ul>

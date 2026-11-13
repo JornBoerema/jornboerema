@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { TodoAttachment } from "@evido/todo-core/board";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog";
 import { Button } from "@evido/ui/components/button";
 import { ChevronLeft, ChevronRight, Download, LoaderCircle, X } from "@/components/icons";
 import { useI18n } from "@/i18n";
-import { downloadAttachment, fetchAttachment } from "@/lib/attachments";
+import { attachmentUrl, downloadAttachment, useAttachmentUrl } from "@/lib/attachments";
 
 /** Image attachments full screen; ← and → step through the issue's images. */
 export function ImageViewer({ images, startId, shareToken, onClose }: {
@@ -16,33 +16,19 @@ export function ImageViewer({ images, startId, shareToken, onClose }: {
 }) {
   const { t: { board: { attachments: t } } } = useI18n();
   const [currentId, setCurrentId] = useState(startId);
-  const [urls, setUrls] = useState<Record<string, string | "failed">>({});
-  const loading = useRef(new Set<string>());
   const index = Math.max(0, images.findIndex((image) => image.id === currentId));
   const image = images[index];
+  const url = useAttachmentUrl(image ?? images[0], shareToken);
   const step = (by: number) => {
     if (images.length > 1) setCurrentId(images[(index + by + images.length) % images.length].id);
   };
-
-  // Loads the current image and its neighbours, so stepping feels instant.
+  // Loads the neighbours too, so stepping feels instant.
   useEffect(() => {
-    const wanted = [0, 1, -1].map((by) => images[(index + by + images.length) % images.length]).filter(Boolean);
-    for (const file of wanted) {
-      if (loading.current.has(file.id)) continue;
-      loading.current.add(file.id);
-      fetchAttachment(file, shareToken)
-        .then((blob) => setUrls((current) => ({ ...current, [file.id]: URL.createObjectURL(blob) })))
-        .catch(() => setUrls((current) => ({ ...current, [file.id]: "failed" })));
-    }
+    if (images.length < 2) return;
+    for (const by of [1, -1]) void attachmentUrl(images[(index + by + images.length) % images.length], shareToken).catch(() => {});
   }, [images, index, shareToken]);
-  const all = useRef(urls);
-  useEffect(() => { all.current = urls; }, [urls]);
-  useEffect(() => () => {
-    for (const url of Object.values(all.current)) if (url !== "failed") URL.revokeObjectURL(url);
-  }, []);
 
   if (!image) return null;
-  const url = urls[image.id];
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent showCloseButton={false} className="image-viewer"

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { MAX_ATTACHMENT_BYTES } from "@evido/todo-core/board";
 import { apiFetch } from "@/lib/api";
 
@@ -39,6 +40,33 @@ export const isImage = (contentType: string) => /^image\/(png|jpe?g|gif|webp|avi
 export async function fetchAttachment(attachment: { id: string }, shareToken?: string) {
   const path = shareToken ? `/api/shared/${shareToken}/attachments/${attachment.id}` : `/api/todo-attachments/${attachment.id}`;
   return (await ok(await apiFetch(path))).blob();
+}
+
+// Files never change after upload, so one object URL per file serves previews and the viewer.
+const objectUrls = new Map<string, Promise<string>>();
+export function attachmentUrl(attachment: { id: string }, shareToken?: string) {
+  let url = objectUrls.get(attachment.id);
+  if (!url) {
+    url = fetchAttachment(attachment, shareToken).then((blob) => URL.createObjectURL(blob));
+    url.catch(() => objectUrls.delete(attachment.id)); // A later look tries again.
+    objectUrls.set(attachment.id, url);
+  }
+  return url;
+}
+
+/** Object URL of an attachment: undefined while loading, "failed" when it didn't load. */
+export function useAttachmentUrl(attachment: { id: string }, shareToken?: string) {
+  const [state, setState] = useState<{ id: string; url: string } | null>(null);
+  const id = attachment.id;
+  useEffect(() => {
+    let live = true;
+    attachmentUrl({ id }, shareToken).then(
+      (url) => live && setState({ id, url }),
+      () => live && setState({ id, url: "failed" }),
+    );
+    return () => { live = false; };
+  }, [id, shareToken]);
+  return state?.id === id ? state.url : undefined;
 }
 
 /** Saved like a normal download. */
