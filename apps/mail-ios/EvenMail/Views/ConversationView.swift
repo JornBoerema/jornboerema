@@ -7,10 +7,13 @@ private let markReadDelay: UInt64 = 1_200_000_000
 /// An opened conversation (`pages/conversation.tsx`).
 struct ConversationView: View {
     let thread: MailThread
+    /// Shown on top of a place that isn't a list of conversations.
+    var inSheet = false
 
     @Environment(MailStore.self) private var store
     @Environment(Navigator.self) private var navigator
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dismiss) private var dismiss
     @State private var detail: ThreadDetail?
     @State private var error: String?
     @State private var summary: MailSummary?
@@ -20,8 +23,9 @@ struct ConversationView: View {
     @State private var starred: Bool
     @State private var seen: Bool
 
-    init(thread: MailThread) {
+    init(thread: MailThread, inSheet: Bool = false) {
         self.thread = thread
+        self.inSheet = inSheet
         _starred = State(initialValue: thread.isStarred)
         _seen = State(initialValue: thread.isRead)
     }
@@ -57,6 +61,8 @@ struct ConversationView: View {
                 } else if summarizing {
                     SummaryPlaceholder().padding(.vertical, 8)
                 }
+                ConversationExtras(thread: thread, messages: detail?.messages ?? [])
+                    .padding(.vertical, 4)
                 if imagesBlocked {
                     Button { showImagesOnce = true } label: {
                         Notice(icon: "image-02", text: t("Pictures in this mail are hidden. Tap to show them.", "Afbeeldingen in deze mail zijn verborgen. Tik om ze te tonen."))
@@ -134,6 +140,11 @@ struct ConversationView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        if inSheet {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(t("Close", "Sluiten")) { dismiss() }.foregroundStyle(Theme.foreground)
+            }
+        }
         ToolbarItemGroup(placement: .topBarTrailing) {
             ForEach(place.moveActions(canDelete: account?.canDeleteForever ?? false), id: \.self) { action in
                 Button { act(action) } label: { Icon(action.icon) }
@@ -151,6 +162,17 @@ struct ConversationView: View {
                 if place == .inbox {
                     Button { navigator.snoozing = SnoozeRequest(thread: thread) } label: {
                         Label { Text(t("Snooze", "Uitstellen")) } icon: { Image("hi-alarm-clock") }
+                    }
+                    if store.pinsEnabled, !thread.id.hasPrefix("remote:") {
+                        let isPinned = store.pinned.contains { $0.id == thread.id }
+                        Button { store.pin(thread, !isPinned) } label: {
+                            Label { Text(isPinned ? t("Unpin", "Losmaken") : t("Pin to top", "Bovenaan vastpinnen")) } icon: { Image(isPinned ? "hi-pin-off" : "hi-pin") }
+                        }
+                    }
+                }
+                if store.preferences.todos != false {
+                    Button { navigator.todo = thread } label: {
+                        Label { Text(t("Make a task", "Taak maken")) } icon: { Image("hi-task-add-01") }
                     }
                 }
                 if place.canReportSpam {
@@ -354,6 +376,9 @@ private struct MessageView: View {
     @State private var downloading: String?
     @State private var translated = false
     @State private var translation: MailTranslation?
+    @State private var confirmUnsubscribe = false
+    @State private var unsubscribing = false
+    @State private var unsubscribed = false
 
     init(thread: MailThread, message: MailMessage, latest: Bool, allowImages: Bool) {
         self.thread = thread
@@ -397,23 +422,31 @@ private struct MessageView: View {
             .accessibilityHint(latest ? "" : expanded ? t("Collapses the message", "Klapt het bericht in") : t("Opens the message", "Opent het bericht"))
 
             if expanded {
-                if translatable {
-                    Button {
-                        translated.toggle()
-                        if translated { Task { await translate() } }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Icon("translate", size: 15)
-                            Text(translated ? t("Show original", "Origineel tonen") : t("Translate", "Vertalen"))
-                                .font(.inter(13, .medium, relativeTo: .footnote))
+                if translatable || canUnsubscribe {
+                    HStack(spacing: 18) {
+                        if translatable {
+                            Button {
+                                translated.toggle()
+                                if translated { Task { await translate() } }
+                            } label: {
+                                quietLabel("translate", translated ? t("Show original", "Origineel tonen") : t("Translate", "Vertalen"))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .foregroundStyle(Theme.mutedForeground)
-                        .frame(minHeight: 32)
-                        .contentShape(Rectangle())
+                        if canUnsubscribe {
+                            Button { confirmUnsubscribe = true } label: {
+                                quietLabel(unsubscribed ? "tick-02" : "filter-mail-remove", unsubscribed ? t("Unsubscribed", "Uitgeschreven") : t("Unsubscribe", "Uitschrijven"))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(unsubscribing || unsubscribed)
+                        }
                     }
-                    .buttonStyle(.plain)
                     .padding(.leading, 44)
                     .padding(.top, -8)
+                    .confirmationDialog(t("Unsubscribe from \(sender)?", "Uitschrijven bij \(sender)?"), isPresented: $confirmUnsubscribe, titleVisibility: .visible) {
+                        Button(t("Unsubscribe", "Uitschrijven")) { Task { await unsubscribe() } }
+                        Button(t("Cancel", "Annuleren"), role: .cancel) {}
+                    }
                 }
                 if translated {
                     if let translation {
@@ -449,6 +482,42 @@ private struct MessageView: View {
         }
         .padding(.vertical, 14)
         .quickLookPreview($preview)
+    }
+
+    private var canUnsubscribe: Bool { message.unsubscribe != nil && store.preferences.unsubscribe != false }
+
+    private func quietLabel(_ icon: String, _ title: String) -> some View {
+        HStack(spacing: 5) {
+            Icon(icon, size: 15)
+            Text(title).font(.inter(13, .medium, relativeTo: .footnote))
+        }
+        .foregroundStyle(Theme.mutedForeground)
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
+    }
+
+    private struct UnsubscribeBody: Encodable { let messageId: String }
+    private struct Unsubscribed: Decodable {
+        let done: Bool
+        let url: String?
+    }
+
+    /// The server reads the list's own headers: one request does it, or the
+    /// list's page opens to finish there (`components/unsubscribe-button.tsx`).
+    private func unsubscribe() async {
+        unsubscribing = true
+        defer { unsubscribing = false }
+        do {
+            let result: Unsubscribed = try await API.post(conversationPath(thread.id, "/unsubscribe"), UnsubscribeBody(messageId: message.id))
+            if result.done {
+                unsubscribed = true
+                store.present(Toast(message: t("Unsubscribed from \(sender)", "Uitgeschreven bij \(sender)")))
+            } else if let link = result.url, let url = URL(string: link) {
+                await UIApplication.shared.open(url)
+            }
+        } catch {
+            store.present(Toast(message: t("Unsubscribing failed. Try the link in the mail.", "Uitschrijven lukte niet. Probeer de link in de mail."), isError: true))
+        }
     }
 
     private var translatable: Bool {

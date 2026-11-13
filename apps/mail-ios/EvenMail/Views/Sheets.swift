@@ -7,8 +7,23 @@ struct SnoozeSheet: View {
 
     @Environment(MailStore.self) private var store
     @Environment(Navigator.self) private var navigator
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var sizeClass
+
+    var body: some View {
+        WhenSheet(title: t("Snooze", "Uitstellen"), confirm: { t("Snooze until \($0)", "Uitstellen tot \($0)") }) { date in
+            navigator.act(.archive, on: thread, store: store, compact: sizeClass == .compact, until: date)
+        }
+    }
+}
+
+/// Picks a moment: for snoozing a conversation, or for sending a message later.
+struct WhenSheet: View {
+    let title: String
+    /// The words on the button for a moment picked by hand, given that moment.
+    let confirm: (String) -> String
+    let pick: (Date) -> Void
+
+    @Environment(\.dismiss) private var dismiss
     @State private var picking = false
     @State private var custom = Date().addingTimeInterval(24 * 3600)
 
@@ -83,7 +98,7 @@ struct SnoozeSheet: View {
                             .labelsHidden()
                             .tint(Theme.accentText)
                             .padding(.horizontal, 8)
-                        PrimaryButton(title: t("Snooze until \(formatMoment(custom))", "Uitstellen tot \(formatMoment(custom))")) { snooze(custom) }
+                        PrimaryButton(title: confirm(formatMoment(custom))) { snooze(custom) }
                             .padding(.horizontal, 12)
                             .padding(.top, 4)
                     }
@@ -91,7 +106,7 @@ struct SnoozeSheet: View {
                 .padding(8)
             }
             .background(Theme.background)
-            .navigationTitle(t("Snooze", "Uitstellen"))
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -103,7 +118,7 @@ struct SnoozeSheet: View {
 
     private func snooze(_ date: Date) {
         dismiss()
-        navigator.act(.archive, on: thread, store: store, compact: sizeClass == .compact, until: date)
+        pick(date)
     }
 }
 

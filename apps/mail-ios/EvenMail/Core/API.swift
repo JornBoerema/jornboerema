@@ -149,6 +149,15 @@ enum API {
         }
     }
 
+    /// Raw bytes, for one chunk of a file.
+    static func upload(_ path: String, _ data: Data) async throws {
+        var request = request(path, method: "PUT")
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
+        request.timeoutInterval = 120
+        _ = try await send(request)
+    }
+
     /// Binary answers, such as attachments.
     static func bytes(_ path: String, _ body: any Encodable) async throws -> Data {
         var request = request(path, method: "POST", body: body)

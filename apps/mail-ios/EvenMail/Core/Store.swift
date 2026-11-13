@@ -44,6 +44,10 @@ final class MailStore {
     var snoozedCount = 0
     var preferences = MailPreferences()
     var signatures: [MailSignature] = []
+    /// Conversations pinned to the top of the inbox, for the mailbox shown.
+    var pinned: [MailThread] = []
+    var connections: [Connection] = []
+    var scheduledCount = 0
     var syncing = false
     var syncFailed = false
     var toast: Toast?
@@ -123,6 +127,57 @@ final class MailStore {
     private func loadPreferences() async {
         if let answer: Preferences = try? await API.get("/api/mail/preferences") { preferences = answer.preferences }
         if let answer: Signatures = try? await API.get("/api/mail/signatures") { signatures = answer.signatures }
+        if let answer: Connections = try? await API.get("/api/connections") { connections = answer.connections }
+    }
+
+    private struct Connections: Decodable { let connections: [Connection] }
+    private struct Threads: Decodable { let threads: [MailThread] }
+    private struct ScheduledList: Decodable { let scheduled: [ScheduledMail] }
+
+    /// Moneybird when it is connected and usable.
+    var moneybird: Connection? { connections.first { $0.provider == "moneybird" && $0.status == "active" } }
+
+    /// The places of the sidebar: in the order set on the web, without the
+    /// hidden ones and the features that are turned off.
+    var places: [Place] {
+        let layout = preferences.sidebar
+        var order = ((layout?.main ?? []) + (layout?.more ?? [])).compactMap(Place.init(rawValue:))
+        let hidden = Set((layout?.hidden ?? []).compactMap(Place.init(rawValue:)))
+        for place in Place.allCases where !order.contains(place) && !hidden.contains(place) { order.append(place) }
+        if layout == nil { order = Place.allCases }
+        return order.filter { place in
+            switch place {
+            case .parcels: preferences.parcels != false
+            case .invoices: preferences.invoices != false
+            case .senders: preferences.senders != false
+            default: true
+            }
+        }
+    }
+
+    // MARK: Pins
+
+    var pinsEnabled: Bool { preferences.pins != false }
+
+    func loadPins() async {
+        guard !Demo.enabled, pinsEnabled else { return }
+        let query = accountFilter.isEmpty ? "" : "?account=\(accountFilter.queryEncoded)"
+        if let answer: Threads = try? await API.get("/api/mail/pins\(query)") { pinned = answer.threads }
+    }
+
+    private struct PinBody: Encodable { let pinned: Bool }
+
+    /// Pins or unpins, moving the line at once.
+    func pin(_ thread: MailThread, _ on: Bool) {
+        withAnimation(.snappy(duration: 0.28)) {
+            pinned.removeAll { $0.id == thread.id }
+            if on { pinned = (pinned + [thread]).sorted { $0.receivedAt > $1.receivedAt } }
+        }
+        guard !Demo.enabled else { return }
+        Task {
+            do { try await API.run("/api/mail/threads/\(thread.id.queryEncoded)/pin", PinBody(pinned: on)) } catch { show(error) }
+            await loadPins()
+        }
     }
 
     func account(_ id: String) -> MailAccount? { accounts.first { $0.id == id } }
@@ -152,7 +207,8 @@ final class MailStore {
 
     /// Loads a list's first page. Further pages already shown stay below it.
     func load(_ place: Place) async {
-        guard !Demo.enabled else { return }
+        guard !Demo.enabled, !place.isSpecial else { return }
+        if place == .inbox { Task { await loadPins() } }
         let key = key(place)
         let filter = accountFilter
         var current = lists[key] ?? ThreadList()
@@ -218,6 +274,7 @@ final class MailStore {
         guard !Demo.enabled else { return }
         if let unread: UnreadSummary = try? await API.get("/api/mail/unread") { unreadCount = unread.count }
         if let snoozes: Snoozes = try? await API.get("/api/mail/snoozes") { snoozedCount = snoozes.snoozed.count }
+        if let answer: ScheduledList = try? await API.get("/api/mail/scheduled") { scheduledCount = answer.scheduled.count }
     }
 
     // MARK: Sync
@@ -308,6 +365,16 @@ final class MailStore {
         let ids = threads.map(\.id).filter { !$0.hasPrefix(draftPrefix) }
         guard !ids.isEmpty else { return }
         let moves = until != nil || [.archive, .trash, .inbox, .spam, .delete].contains(action)
+        if until != nil || [.archive, .trash, .spam, .delete].contains(action) { pinned.removeAll { ids.contains($0.id) } }
+        for index in pinned.indices where ids.contains(pinned[index].id) {
+            switch action {
+            case .read: pinned[index].isRead = true
+            case .unread: pinned[index].isRead = false
+            case .star: pinned[index].isStarred = true
+            case .unstar: pinned[index].isStarred = false
+            default: break
+            }
+        }
         withAnimation(.snappy(duration: 0.25)) {
             for key in lists.keys {
                 guard var list = lists[key] else { continue }

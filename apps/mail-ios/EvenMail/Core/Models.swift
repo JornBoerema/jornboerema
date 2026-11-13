@@ -78,6 +78,13 @@ struct MailMessage: Codable, Identifiable, Hashable {
     let text: String?
     let attachments: [MailAttachment]
     let inline: [MailInlineImage]
+    /// How to leave the mailing list this came from, when it says.
+    var unsubscribe: Unsubscribe?
+
+    struct Unsubscribe: Codable, Hashable {
+        let url: String?
+        let oneClick: Bool?
+    }
 }
 
 struct ThreadDetail: Codable {
@@ -200,6 +207,168 @@ struct MailPreferences: Codable {
     var aiWriting: Bool?
     var replySuggestions: Bool?
     var remoteImages: Bool?
+    var parcels: Bool?
+    var invoices: Bool?
+    var senders: Bool?
+    var todos: Bool?
+    var pins: Bool?
+    var unsubscribe: Bool?
+    /// The places in the order the user gave them on the web.
+    var sidebar: Sidebar?
+
+    struct Sidebar: Codable {
+        let main: [String]
+        let more: [String]
+        let hidden: [String]
+    }
+}
+
+/// A parcel followed in the mail (`MailShipmentView`).
+struct Shipment: Codable {
+    let carrier: String?
+    let trackingCode: String?
+    let trackingUrl: String?
+    let merchant: String?
+    let status: String?
+    let subject: String
+    let receivedAt: Date
+    let thread: MailThread?
+
+    static let carriers = ["postnl": "PostNL", "dhl": "DHL", "dpd": "DPD", "gls": "GLS", "ups": "UPS", "budbee": "Budbee", "trunkrs": "Trunkrs", "dragonfly": "Dragonfly", "amazon": "Amazon"]
+
+    var carrierName: String? { carrier.flatMap { Shipment.carriers[$0] } }
+    var title: String { merchant ?? carrierName ?? subject }
+
+    var statusLabel: String {
+        switch status {
+        case "announced": t("Announced", "Aangemeld")
+        case "in_transit": t("On its way", "Onderweg")
+        case "out_for_delivery": t("Arrives today", "Komt vandaag")
+        case "pickup": t("Ready to collect", "Ligt klaar")
+        case "delivered": t("Delivered", "Bezorgd")
+        case "problem": t("Needs attention", "Let op")
+        default: t("Parcel", "Pakketje")
+        }
+    }
+}
+
+/// An invoice, receipt or payment request from mail (`MailInvoiceView`).
+struct Invoice: Codable {
+    let vendor: String?
+    let amountCents: Int?
+    let currency: String?
+    let dueDate: String?
+    let invoiceNumber: String?
+    let payUrl: String?
+    let status: String
+    let overdue: Bool
+    let subject: String
+    let receivedAt: Date
+    let thread: MailThread?
+
+    /// Waiting to be paid by you: neither paid, nor collected automatically.
+    var isOpen: Bool { status == "due" || status == "failed" }
+
+    var statusLabel: String {
+        switch status {
+        case "paid": t("Paid", "Betaald")
+        case "auto": t("Collected automatically", "Wordt automatisch afgeschreven")
+        case "failed": t("Payment failed", "Betaling mislukt")
+        default: t("To pay", "Te betalen")
+        }
+    }
+
+    /// "€ 121,00" in the reader's locale, in the invoice's currency.
+    var amount: String? {
+        guard let amountCents else { return nil }
+        return formatMoney(amountCents, currency: currency)
+    }
+
+    var due: Date? {
+        guard let dueDate else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: String(dueDate.prefix(10)))
+    }
+}
+
+func formatMoney(_ cents: Int, currency: String?, round: Bool = false) -> String {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .currency
+    formatter.locale = Prefs.shared.locale
+    formatter.currencyCode = currency ?? "EUR"
+    if round { formatter.maximumFractionDigits = 0 }
+    return formatter.string(from: NSNumber(value: Double(cents) / 100)) ?? "\(currency ?? "") \(cents / 100)"
+}
+
+/// Someone who fills the inbox, for tidying up per sender (`MailSenderView`).
+struct Sender: Codable, Identifiable {
+    let email: String
+    let name: String?
+    let messages: Int
+    let unread: Int
+    let conversations: Int
+    let latest: Date
+    let providerMessageId: String
+    let thread: MailThread?
+
+    var id: String { email }
+    var label: String { name ?? email }
+}
+
+/// A message waiting to be sent (`MailScheduledView`).
+struct ScheduledMail: Codable, Identifiable {
+    let id: String
+    let accountId: String
+    let draftId: String
+    let subject: String
+    let to: [MailAddress]
+    let sendAt: Date
+    let failed: Bool
+}
+
+/// A task list in Even doen that a task from mail can go to.
+struct TodoList: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let workspaceId: String
+    let workspaceName: String
+}
+
+/// A task in Even doen made from a conversation, and where it opens.
+struct MailTodo: Codable, Identifiable, Hashable {
+    let id: String
+    let title: String
+    let completed: Bool
+    let inProgress: Bool
+    let listName: String
+    let url: String
+}
+
+struct MoneybirdAdministration: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+}
+
+/// A connected service (`ConnectionView`); only Moneybird for now.
+struct Connection: Codable {
+    let provider: String
+    let status: String
+    let defaultTarget: MoneybirdAdministration?
+    let administrations: [MoneybirdAdministration]
+}
+
+struct MoneybirdExport: Codable, Hashable {
+    let attachmentKey: String
+    let administrationId: String
+    let administrationName: String
+    let url: String
+}
+
+struct MoneybirdThread: Codable {
+    var exports: [MoneybirdExport]
+    var suggestedAdministrationId: String?
 }
 
 /// A reply a model suggests: a few words to pick it by, and the reply itself.
@@ -263,7 +432,10 @@ enum ThreadAction: String {
 
 /// The places of the sidebar that the phone shows (`packages/mail-core/src/sidebar.ts`).
 enum Place: String, CaseIterable, Identifiable {
-    case inbox, starred, snoozed, drafts, sent, archive, spam, trash
+    case inbox, starred, parcels, invoices, snoozed, drafts, scheduled, sent, senders, archive, spam, trash
+
+    /// Places that are lists of something other than conversations.
+    var isSpecial: Bool { [.parcels, .invoices, .scheduled, .senders].contains(self) }
 
     var id: String { rawValue }
 
@@ -271,7 +443,7 @@ enum Place: String, CaseIterable, Identifiable {
     var folder: String? {
         switch self {
         case .starred, .sent, .archive, .spam, .trash: rawValue
-        case .inbox, .snoozed, .drafts: nil
+        case .inbox, .snoozed, .drafts, .parcels, .invoices, .scheduled, .senders: nil
         }
     }
 
@@ -280,7 +452,11 @@ enum Place: String, CaseIterable, Identifiable {
         case .inbox: "inbox"
         case .starred: "star"
         case .snoozed: "alarm-clock"
-        case .drafts: "pencil-edit-02"
+        case .drafts: "file-01"
+        case .parcels: "package"
+        case .invoices: "invoice-02"
+        case .scheduled: "mail-send-01"
+        case .senders: "clean"
         case .sent: "sent"
         case .archive: "archive"
         case .spam: "spam"
@@ -292,8 +468,12 @@ enum Place: String, CaseIterable, Identifiable {
         switch self {
         case .inbox: t("Inbox", "Inbox")
         case .starred: t("Starred", "Met ster")
-        case .snoozed: t("Snoozed", "Uitgesteld")
+        case .snoozed: t("Snoozed", "Gesnoozed")
         case .drafts: t("Drafts", "Concepten")
+        case .parcels: t("Parcels", "Pakketjes")
+        case .invoices: t("Invoices", "Facturen")
+        case .scheduled: t("Scheduled", "Gepland")
+        case .senders: t("Tidy up", "Opruimen")
         case .sent: t("Sent", "Verzonden")
         case .archive: t("Archive", "Archief")
         case .spam: t("Spam", "Spam")
@@ -309,7 +489,7 @@ enum Place: String, CaseIterable, Identifiable {
         case .archive: [.trash, .inbox, .spam].contains(action)
         case .spam: [.trash, .inbox, .delete].contains(action)
         case .trash: [.inbox, .delete].contains(action)
-        case .inbox, .snoozed, .drafts: [.archive, .trash, .spam].contains(action)
+        case .inbox, .snoozed, .drafts, .parcels, .invoices, .scheduled, .senders: [.archive, .trash, .spam].contains(action)
         }
     }
 
@@ -320,7 +500,7 @@ enum Place: String, CaseIterable, Identifiable {
         case .spam: canDelete ? [.inbox, .trash, .delete] : [.inbox, .trash]
         case .archive: [.inbox, .trash]
         case .sent: [.trash]
-        case .inbox, .starred, .snoozed, .drafts: [.archive, .trash]
+        case .inbox, .starred, .snoozed, .drafts, .parcels, .invoices, .scheduled, .senders: [.archive, .trash]
         }
     }
 

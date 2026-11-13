@@ -13,7 +13,13 @@ struct ThreadListView: View {
     @State private var searchError: String?
 
     private var list: ThreadList { store.list(place) }
-    private var rows: [MailThread] { results ?? list.threads }
+    /// Pinned conversations lead the inbox; the rest follows without them.
+    private var pinned: [MailThread] { place == .inbox && results == nil ? store.pinned : [] }
+    private var rows: [MailThread] {
+        if let results { return results }
+        let ids = Set(pinned.map(\.id))
+        return pinned + list.threads.filter { !ids.contains($0.id) }
+    }
     private var compact: Bool { sizeClass == .compact }
     /// The dot that names the mailbox only helps when several share the list.
     private var showsMailbox: Bool { store.accountFilter.isEmpty && store.accounts.count > 1 }
@@ -31,7 +37,8 @@ struct ThreadListView: View {
                 ThreadRow(
                     thread: thread,
                     mailbox: showsMailbox ? store.account(thread.accountId) : nil,
-                    until: list.until[thread.id]
+                    until: list.until[thread.id],
+                    pinned: pinned.contains { $0.id == thread.id }
                 )
                 .tag(thread.id)
                 .listRowSeparator(.hidden)
@@ -176,6 +183,18 @@ struct ThreadListView: View {
         if thread.draftId == nil {
             Button { act(thread.isRead ? .unread : .read, thread) } label: { ActionLabel(action: thread.isRead ? .unread : .read, place: place) }
             Button { act(thread.isStarred ? .unstar : .star, thread) } label: { ActionLabel(action: thread.isStarred ? .unstar : .star, place: place) }
+            // Only conversations synced to the inbox can be pinned.
+            if place == .inbox, store.pinsEnabled, !thread.id.hasPrefix("remote:") {
+                let isPinned = store.pinned.contains { $0.id == thread.id }
+                Button { store.pin(thread, !isPinned) } label: {
+                    Label { Text(isPinned ? t("Unpin", "Losmaken") : t("Pin to top", "Bovenaan vastpinnen")) } icon: { Image(isPinned ? "hi-pin-off" : "hi-pin") }
+                }
+            }
+            if store.preferences.todos != false {
+                Button { navigator.todo = thread } label: {
+                    Label { Text(t("Make a task", "Taak maken")) } icon: { Image("hi-task-add-01") }
+                }
+            }
             if place == .snoozed {
                 Button { Task { await store.unsnooze(thread) } } label: {
                     Label { Text(t("Back to inbox now", "Nu terug naar inbox")) } icon: { Image("hi-alarm-clock-off") }
@@ -263,6 +282,8 @@ struct ThreadRow: View {
     let mailbox: MailAccount?
     /// When it comes back, in the Snoozed list.
     var until: Date?
+    /// Pinned to the top of the inbox.
+    var pinned = false
 
     private var unread: Bool { !thread.isRead }
 
@@ -282,6 +303,10 @@ struct ThreadRow: View {
                         .foregroundStyle(Theme.mutedForeground))
                         .lineLimit(1)
                     Spacer(minLength: 4)
+                    if pinned {
+                        Icon("pin", size: 14).foregroundStyle(Theme.accentText)
+                            .accessibilityLabel(t("Pinned", "Vastgepind"))
+                    }
                     if thread.isStarred {
                         Icon("star-filled", size: 14).foregroundStyle(Theme.starred)
                             .accessibilityLabel(t("Starred", "Met ster"))

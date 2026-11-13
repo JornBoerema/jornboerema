@@ -62,5 +62,30 @@ enum Demo {
 
     static let written = "Hoi Lars,\n\nDank voor het doorsturen. Donderdag past prima, zet het gerust in de agenda.\n\nGroet,\nSam"
 
+    static let shipments = [
+        Shipment(carrier: "postnl", trackingCode: "3SDEMO123456", trackingUrl: "https://example.com/track", merchant: "Boekhandel Leeslust", status: "out_for_delivery", subject: "Je pakket komt vandaag", receivedAt: Date().addingTimeInterval(-3600), thread: threads[1]),
+        Shipment(carrier: "dhl", trackingCode: "JVGL0612345", trackingUrl: nil, merchant: "Fietsenmaker Rap", status: "in_transit", subject: "Je bestelling is onderweg", receivedAt: Date().addingTimeInterval(-86_400), thread: threads[9]),
+        Shipment(carrier: "dpd", trackingCode: nil, trackingUrl: nil, merchant: "Tuincentrum Groen", status: "delivered", subject: "Bezorgd", receivedAt: Date().addingTimeInterval(-3 * 86_400), thread: nil),
+    ]
+
+    static let invoices = [
+        Invoice(vendor: "Energie Direct", amountCents: 12_100, currency: "EUR", dueDate: "2026-11-28", invoiceNumber: "2026-1182", payUrl: "https://example.com/pay", status: "due", overdue: false, subject: "Je termijnbedrag", receivedAt: Date().addingTimeInterval(-7200), thread: threads[5]),
+        Invoice(vendor: "Studio Lars Visser", amountCents: 84_700, currency: "EUR", dueDate: "2026-11-05", invoiceNumber: "F-204", payUrl: nil, status: "due", overdue: true, subject: "Factuur website", receivedAt: Date().addingTimeInterval(-9 * 86_400), thread: threads[2]),
+        Invoice(vendor: "Bibliotheek", amountCents: 4_500, currency: "EUR", dueDate: nil, invoiceNumber: nil, payUrl: nil, status: "paid", overdue: false, subject: "Betaling ontvangen", receivedAt: Date().addingTimeInterval(-12 * 86_400), thread: threads[7]),
+        Invoice(vendor: "Telefoon & Co", amountCents: 2_250, currency: "EUR", dueDate: nil, invoiceNumber: nil, payUrl: nil, status: "auto", overdue: false, subject: "Je maandfactuur", receivedAt: Date().addingTimeInterval(-15 * 86_400), thread: nil),
+    ]
+
+    static let senders = [
+        Sender(email: "nieuws@winkel.example", name: "Winkel Nieuwsbrief", messages: 48, unread: 31, conversations: 48, latest: Date(), providerMessageId: "p1", thread: threads[1]),
+        Sender(email: "noreply@gemeente.example", name: "Gemeente Voorbeeldstad", messages: 12, unread: 0, conversations: 9, latest: Date(), providerMessageId: "p2", thread: threads[3]),
+        Sender(email: "service@energie.example", name: "Energie Direct", messages: 7, unread: 2, conversations: 7, latest: Date(), providerMessageId: "p3", thread: threads[5]),
+    ]
+
+    static let todoLists = [
+        TodoList(id: "l1", name: "Deze week", workspaceId: "w1", workspaceName: "Privé"),
+        TodoList(id: "l2", name: "Later", workspaceId: "w1", workspaceName: "Privé"),
+        TodoList(id: "l3", name: "Klanten", workspaceId: "w2", workspaceName: "Studio"),
+    ]
+
     static let summary = MailSummary(kind: "summary", code: nil, summary: "Vraagt of het voorstel past en wil het daarna in de agenda zetten. Verwacht een kort antwoord.")
 }

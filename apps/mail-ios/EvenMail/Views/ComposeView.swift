@@ -1,4 +1,25 @@
+import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// A file in the composer: uploading, uploaded, or failed (`lib/uploads.ts`).
+struct ComposerFile: Identifiable {
+    let id = UUID()
+    let name: String
+    let contentType: String
+    let size: Int
+    var uploadId: String?
+    /// 0 to 1.
+    var progress = 0.0
+    var failed = false
+
+    var isUploaded: Bool { uploadId != nil && progress >= 1 && !failed }
+}
+
+/// All files on one message, as Gmail allows; they are uploaded in chunks first.
+private let maxAttachmentBytes = 25 * 1024 * 1024
+/// One chunk per request, comfortably under the server's request limit.
+private let uploadChunkBytes = 2 * 1024 * 1024
 
 /// Writing a message (`pages/compose.tsx` and `components/reply-forms.tsx`): a
 /// new one, a reply, a forward, or a draft picked up again.
@@ -29,6 +50,11 @@ struct ComposeView: View {
     /// What stood there before the model wrote, to take its text back.
     @State private var aiBefore: (text: String, subject: String)?
     @FocusState private var aiFocused: Bool
+    @State private var files: [ComposerFile] = []
+    @State private var pickingFiles = false
+    @State private var pickingPhotos = false
+    @State private var photos: [PhotosPickerItem] = []
+    @State private var scheduling = false
     @FocusState private var focus: Field?
 
     private enum Field { case subject, body }
@@ -76,7 +102,7 @@ struct ComposeView: View {
     }
 
     private var canSend: Bool {
-        guard !sending, !loadingDraft, account != nil else { return false }
+        guard !sending, !loadingDraft, account != nil, !uploading else { return false }
         let recipients = all(to, toText).count + all(cc, ccText).count + all(bcc, bccText).count
         if isReply { return written && !to.isEmpty }
         if isForward { return !all(to, toText).isEmpty }
@@ -162,24 +188,41 @@ struct ComposeView: View {
                             .padding(.horizontal, 16)
                             .padding(.bottom, 24)
                     }
-                    if let draft, !draft.attachments.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(draft.attachments, id: \.uploadId) { file in
-                                HStack(spacing: 8) {
-                                    Icon("attachment-01", size: 16)
-                                    Text("\(file.name) · \(formatSize(file.size))").font(.inter(13, relativeTo: .footnote)).lineLimit(1)
-                                }
-                                .foregroundStyle(Theme.mutedForeground)
+                    if !(draft?.attachments ?? []).isEmpty || !files.isEmpty {
+                        VStack(spacing: 6) {
+                            ForEach(draft?.attachments ?? [], id: \.uploadId) { file in
+                                fileRow(name: file.name, detail: formatSize(file.size), progress: 1, failed: false, remove: nil)
+                            }
+                            ForEach(files) { file in
+                                fileRow(
+                                    name: file.name,
+                                    detail: file.failed ? t("Upload failed", "Uploaden mislukt") : formatSize(file.size),
+                                    progress: file.progress, failed: file.failed
+                                ) { remove(file) }
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 24)
                     }
                 }
             }
             .scrollDismissesKeyboard(.interactively)
-            .safeAreaInset(edge: .bottom, spacing: 0) { if store.aiWriting { aiBar } }
+            .safeAreaInset(edge: .bottom, spacing: 0) { aiBar }
+            .fileImporter(isPresented: $pickingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { Task { await attach(urls) } }
+            }
+            .photosPicker(isPresented: $pickingPhotos, selection: $photos, maxSelectionCount: 10, matching: .any(of: [.images, .videos]))
+            .onChange(of: photos) { _, items in
+                guard !items.isEmpty else { return }
+                photos = []
+                Task { await attach(items) }
+            }
+            .sheet(isPresented: $scheduling) {
+                WhenSheet(title: t("Send later", "Later versturen"), confirm: { t("Send \($0)", "Versturen \($0)") }) { date in
+                    Task { await schedule(date) }
+                }
+                .presentationDetents([.medium, .large])
+            }
             .background(Theme.background)
             .overlay { if loadingDraft { ProgressView() } }
             .navigationTitle(title)
@@ -299,6 +342,7 @@ struct ComposeView: View {
                     .disabled(!ready)
                     .accessibilityLabel(aiPending ? t("Stop writing", "Stoppen met schrijven") : t("Write", "Schrijven"))
                 } else {
+                    if store.aiWriting {
                     Button {
                         aiOpen = true
                         aiFocused = true
@@ -317,6 +361,7 @@ struct ComposeView: View {
                         .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    }
                     Spacer(minLength: 0)
                     if aiBefore != nil {
                         Button(t("Undo", "Ongedaan maken")) { undoWriting() }
@@ -326,12 +371,153 @@ struct ComposeView: View {
                             .fixedSize()
                             .accessibilityHint(t("Takes back what the AI wrote", "Haalt weg wat de AI schreef"))
                     }
+                    // A forward carries the original's files; it takes none of its own.
+                    if !isForward {
+                        Menu {
+                            Button { pickingPhotos = true } label: { Label { Text(t("Photos", "Foto's")) } icon: { Image("hi-image-02") } }
+                            Button { pickingFiles = true } label: { Label { Text(t("Files", "Bestanden")) } icon: { Image("hi-folder-01") } }
+                        } label: {
+                            Icon("attachment-01", size: 20).foregroundStyle(Theme.foreground).frame(width: 40, height: 40)
+                        }
+                        .accessibilityLabel(t("Attach", "Bijlage toevoegen"))
+                    }
+                    if !isReply, !isForward {
+                        Button { scheduling = true } label: {
+                            Icon("clock-01", size: 20)
+                                .foregroundStyle(canSend ? Theme.foreground : Theme.mutedForeground)
+                                .frame(width: 40, height: 40)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSend)
+                        .accessibilityLabel(t("Send later", "Later versturen"))
+                    }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 9)
         }
         .background(Theme.background)
+    }
+
+    // MARK: Files (`components/attachment-picker.tsx`)
+
+    private var uploading: Bool { files.contains { !$0.failed && $0.progress < 1 } }
+
+    /// The finished files, as a message refers to them.
+    private var attachmentRefs: [AttachmentRef] {
+        (draft?.attachments ?? []) + files.filter(\.isUploaded).map { AttachmentRef(uploadId: $0.uploadId ?? "", name: $0.name, contentType: $0.contentType, size: $0.size) }
+    }
+
+    private func fileRow(name: String, detail: String, progress: Double, failed: Bool, remove: (() -> Void)?) -> some View {
+        HStack(spacing: 10) {
+            Icon("attachment-01", size: 18).foregroundStyle(failed ? Theme.destructive : Theme.mutedForeground)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name).font(.inter(14, .medium, relativeTo: .subheadline)).foregroundStyle(Theme.foreground).lineLimit(1)
+                if progress < 1, !failed {
+                    ProgressView(value: progress).tint(Theme.accentText)
+                } else {
+                    Text(detail).font(.inter(12, relativeTo: .caption)).foregroundStyle(failed ? Theme.destructive : Theme.mutedForeground)
+                }
+            }
+            Spacer(minLength: 0)
+            if let remove {
+                Button(action: remove) { Icon("cancel-01", size: 16).foregroundStyle(Theme.mutedForeground).frame(width: 36, height: 36) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(t("Remove \(name)", "Verwijder \(name)"))
+            }
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, remove == nil ? 12 : 2)
+        .frame(minHeight: 50)
+        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.border))
+    }
+
+    private func attach(_ urls: [URL]) async {
+        for url in urls {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else { continue }
+            let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+            await upload(data, name: url.lastPathComponent, contentType: type)
+        }
+    }
+
+    private func attach(_ items: [PhotosPickerItem]) async {
+        for (index, item) in items.enumerated() {
+            guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+            let type = item.supportedContentTypes.first
+            let name = "\(type?.conforms(to: .movie) == true ? "video" : "foto")-\(index + 1).\(type?.preferredFilenameExtension ?? "jpg")"
+            await upload(data, name: name, contentType: type?.preferredMIMEType ?? "image/jpeg")
+        }
+    }
+
+    private struct NewUpload: Encodable {
+        let name: String
+        let contentType: String
+        let size: Int
+    }
+
+    private struct Created: Decodable { let id: String }
+
+    /// Sends a file in chunks, one request each, so no request comes near the
+    /// server's size limit.
+    private func upload(_ data: Data, name: String, contentType: String) async {
+        let total = attachmentRefs.reduce(0) { $0 + $1.size } + files.filter { !$0.isUploaded && !$0.failed }.reduce(0) { $0 + $1.size }
+        guard total + data.count <= maxAttachmentBytes else {
+            store.present(Toast(message: t("Together the files are larger than 25 MB.", "Samen zijn de bestanden groter dan 25 MB."), isError: true))
+            return
+        }
+        let file = ComposerFile(name: name, contentType: contentType, size: data.count)
+        files.append(file)
+        func change(_ update: (inout ComposerFile) -> Void) {
+            if let index = files.firstIndex(where: { $0.id == file.id }) { update(&files[index]) }
+        }
+        if Demo.enabled {
+            change { $0.uploadId = "demo"; $0.progress = 1 }
+            return
+        }
+        do {
+            let created: Created = try await API.post("/api/mail/uploads", NewUpload(name: name, contentType: contentType, size: data.count))
+            change { $0.uploadId = created.id }
+            let chunks = max(1, Int((Double(data.count) / Double(uploadChunkBytes)).rounded(.up)))
+            for index in 0..<chunks {
+                // Removed meanwhile: stop sending the rest.
+                guard files.contains(where: { $0.id == file.id }) else { return }
+                let part = data.subdata(in: index * uploadChunkBytes..<min(data.count, (index + 1) * uploadChunkBytes))
+                try await API.upload("/api/mail/uploads/\(created.id)/chunks/\(index)", part)
+                change { $0.progress = Double(index + 1) / Double(chunks) }
+            }
+        } catch {
+            change { $0.failed = true }
+            store.show(error)
+        }
+    }
+
+    private func remove(_ file: ComposerFile) {
+        files.removeAll { $0.id == file.id }
+        if let id = file.uploadId, !Demo.enabled { Task { try? await API.run("/api/mail/uploads/\(id)", method: "DELETE") } }
+    }
+
+    // MARK: Sending later
+
+    private func schedule(_ date: Date) async {
+        guard canSend, let account else { return }
+        sending = true
+        defer { sending = false }
+        var message = outgoing()
+        message.isDraft = true
+        if case .draft(_, let draftId) = request.mode { message.draftId = draftId }
+        message.attachmentsChanged = !files.isEmpty
+        message.reply = draft?.reply
+        message.sendAt = date
+        do {
+            try await API.run("/api/mail/accounts/\(account.id.queryEncoded)/scheduled", message)
+            store.present(Toast(message: t("Will be sent \(formatMoment(date))", "Wordt verstuurd \(formatMoment(date))")))
+            await store.refreshCounts()
+            dismiss()
+        } catch {
+            store.show(error)
+        }
     }
 
     private struct WriteBody: Encodable {
@@ -424,6 +610,12 @@ struct ComposeView: View {
         switch request.mode {
         case .new:
             accountId = store.defaultAccount?.id ?? ""
+            if Demo.enabled, request.prefill == "attach" {
+                to = [MailAddress(name: "Lars Visser", email: "lars@example.com")]
+                subject = "Offerte website"
+                text = "Hoi Lars,\n\nHierbij de getekende offerte.\n\nGroet,\nSam"
+                files = [ComposerFile(name: "Offerte-getekend.pdf", contentType: "application/pdf", size: 312_000, uploadId: "demo", progress: 1)]
+            }
         case .reply(let thread, let message, let all):
             accountId = thread.accountId
             let recipients = replyRecipients(message, selfEmail: account?.email ?? "", all: all)
@@ -482,11 +674,12 @@ struct ComposeView: View {
         var draftId: String?
         var attachmentsChanged: Bool?
         var reply: DraftReply?
+        var sendAt: Date?
         /// Saving a draft: the API wants `draftId` named even when there is none yet.
         var isDraft = false
 
         private enum CodingKeys: String, CodingKey {
-            case messageId, to, cc, bcc, subject, text, html, attachments, inline, draftId, attachmentsChanged, reply
+            case messageId, to, cc, bcc, subject, text, html, attachments, inline, draftId, attachmentsChanged, reply, sendAt
         }
 
         func encode(to encoder: Encoder) throws {
@@ -503,6 +696,7 @@ struct ComposeView: View {
             if isDraft { try container.encode(draftId, forKey: .draftId) }
             try container.encodeIfPresent(attachmentsChanged, forKey: .attachmentsChanged)
             try container.encodeIfPresent(reply, forKey: .reply)
+            try container.encodeIfPresent(sendAt, forKey: .sendAt)
         }
     }
 
@@ -520,7 +714,7 @@ struct ComposeView: View {
         }
         return Outgoing(
             to: all(to, toText), cc: all(cc, ccText), bcc: all(bcc, bccText), subject: subject,
-            text: body, html: wrapEmailHtml(html), attachments: draft?.attachments ?? [], inline: inline.isEmpty ? nil : inline
+            text: body, html: wrapEmailHtml(html), attachments: attachmentRefs, inline: inline.isEmpty ? nil : inline
         )
     }
 
@@ -536,7 +730,7 @@ struct ComposeView: View {
             case .draft(_, let draftId):
                 message.isDraft = true
                 message.draftId = draftId
-                message.attachmentsChanged = false
+                message.attachmentsChanged = !files.isEmpty
                 message.reply = draft?.reply
                 try await API.run("/api/mail/accounts/\(account.id.queryEncoded)/drafts/\(draftId.queryEncoded)/send", message)
             case .reply(let thread, let original, _):
@@ -569,7 +763,7 @@ struct ComposeView: View {
         message.inline = nil
         message.isDraft = true
         if case .draft(_, let draftId) = request.mode { message.draftId = draftId }
-        message.attachmentsChanged = false
+        message.attachmentsChanged = !files.isEmpty
         message.reply = draft?.reply
         do {
             try await API.run("/api/mail/accounts/\(account.id.queryEncoded)/drafts", message)

@@ -30,6 +30,10 @@ final class Navigator {
     var compose: ComposeRequest?
     var snoozing: SnoozeRequest?
     var settings = false
+    /// A conversation opened from a place that isn't a list of conversations,
+    /// shown on top of it.
+    var reading: MailThread?
+    var todo: MailThread?
 
     var shownPlace: Place { place ?? .inbox }
 
@@ -47,6 +51,7 @@ final class Navigator {
             }
         }
         store.act(action, on: [thread], in: place, until: until)
+        if leaves, reading?.id == thread.id { reading = nil }
         guard leaves, selection == thread.id || opened?.id == thread.id else { return }
         selection = next
         if next == nil { opened = nil }
@@ -109,7 +114,7 @@ struct MailShell: View {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 320)
         } content: {
-            ThreadListView(place: navigator.shownPlace)
+            PlaceView(place: navigator.shownPlace)
                 .navigationSplitViewColumnWidth(min: 320, ideal: 380, max: 460)
         } detail: {
             if let thread = navigator.opened {
@@ -130,6 +135,14 @@ struct MailShell: View {
         }
         .sheet(isPresented: $navigator.settings) {
             SettingsView().environment(store)
+        }
+        .sheet(item: $navigator.todo) { thread in
+            TodoSheet(thread: thread).environment(store).presentationDetents([.medium, .large])
+        }
+        .sheet(item: $navigator.reading) { thread in
+            NavigationStack { ConversationView(thread: thread, inSheet: true) }
+                .environment(store)
+                .environment(navigator)
         }
         .onChange(of: navigator.place) { _, place in
             store.showing(place ?? .inbox)
@@ -160,6 +173,11 @@ extension MailShell {
         case "ai": navigator.compose = ComposeRequest(mode: .reply(thread: thread, message: message, all: false), prefill: "ai")
         case "snooze": navigator.snoozing = SnoozeRequest(thread: thread)
         case "settings": navigator.settings = true
+        case "parcels": navigator.place = .parcels
+        case "invoices": navigator.place = .invoices
+        case "senders": navigator.place = .senders
+        case "todo": navigator.todo = thread
+        case "attach": navigator.compose = ComposeRequest(mode: .new, prefill: "attach")
         case "toast": store.act(.archive, on: [Demo.threads[0]], in: .inbox)
         default: break
         }
@@ -207,7 +225,7 @@ struct SidebarView: View {
             .sidebarRow(insets: Self.rowInsets)
             .padding(.bottom, 10)
 
-            ForEach(Place.allCases) { place in
+            ForEach(store.places) { place in
                 let selected = navigator.place == place
                 SidebarRow(selected: selected, count: count(place)) {
                     Icon(place.icon, size: 20).foregroundStyle(selected ? Theme.accentText : Theme.mutedForeground)
@@ -286,6 +304,7 @@ struct SidebarView: View {
         switch place {
         case .inbox: store.unreadCount
         case .snoozed: store.snoozedCount
+        case .scheduled: store.scheduledCount
         default: 0
         }
     }
