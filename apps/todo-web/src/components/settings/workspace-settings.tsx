@@ -137,6 +137,7 @@ export function WorkspaceSettings({
     return () => window.removeEventListener("keydown", onKeyDown)
   })
   const pages = useSettingsPages(desktop)
+  const { t } = useI18n()
   const active = pages.some((p) => p.id === page) ? page! : "account"
   const content = (id: string) =>
     id === "account" ? (
@@ -170,7 +171,7 @@ export function WorkspaceSettings({
       pages={pages}
       activePage={active}
       onActivePageChange={(id) => setPage(id, true)}
-      labels={s.dialog}
+      labels={t.settings.dialog}
     >
       {content(active)}
     </SettingsDialog>
