@@ -444,6 +444,35 @@ a.todo-mail:focus-visible {
 
 /* Sidebar lists can be dragged; rows keep the sidebar background while moving. */
 .sidebar-sortable-item { border-radius: var(--radius-lg); background: var(--sidebar); }
+/* A sidebar row: the link, with the open count and a ⋯ menu sharing its end. */
+.sidebar-row { position: relative; }
+.sidebar-row > .list-link { padding-right: 38px; }
+.sidebar-row-end { position: absolute; top: 0; right: 5px; bottom: 0; display: grid; place-items: center end; pointer-events: none; }
+.sidebar-row-end > * { grid-area: 1 / 1; }
+.sidebar-row-end .list-count { margin: 0 5px 0 0; transition: opacity 140ms ease, scale 160ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.sidebar-row-more {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px;
+  color: var(--muted-foreground); pointer-events: auto; cursor: pointer;
+  opacity: 0; scale: 0.82;
+  transition: opacity 140ms ease, scale 180ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 120ms ease, color 120ms ease;
+}
+.sidebar-row-more:hover, .sidebar-row-more[data-state="open"] { color: var(--foreground); background: color-mix(in oklab, var(--foreground) 9%, transparent); }
+.sidebar-row-more:focus-visible { outline: 2px solid var(--ring); outline-offset: -1px; }
+/* Hover, keyboard focus or an open menu shows the button and hides the count. */
+.sidebar-row.has-menu:hover .sidebar-row-more,
+.sidebar-row.has-menu:has(:focus-visible) .sidebar-row-more,
+.sidebar-row-more[data-state="open"] { opacity: 1; scale: 1; }
+.sidebar-row.has-menu:hover .list-count,
+.sidebar-row.has-menu:has(:focus-visible) .list-count,
+.sidebar-row.has-menu:has([data-state="open"]) .list-count { opacity: 0; scale: 0.82; }
+/* The row looks hovered while its menu is open. */
+.sidebar-row:has(.sidebar-row-more[data-state="open"]) > .list-link:not(.is-selected) { background: var(--muted); }
+.sidebar-row-more:disabled { display: none; }
+/* Touch has no hover: share and delete stay in the list's own header there. */
+@media (hover: none) { .sidebar-row-more { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-row-more, .sidebar-row-end .list-count { scale: 1 !important; transition: opacity 100ms ease; }
+}
 
 /* ─── Advanced boards (Linear-style) ─────────────────────────────────────── */
 .board-content { max-width: none; padding-left: 32px; padding-right: 0; }

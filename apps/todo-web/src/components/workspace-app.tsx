@@ -70,6 +70,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@evido/ui/components/dropdown-menu";
 import {
   Empty,
@@ -243,15 +244,40 @@ export function WorkspaceApp({
               </div>
               <nav aria-label={kind === "todo" ? t.sidebar.taskLists : heading}>
                 <Sortable className="sidebar-section-links" items={sectionLists} label={(list) => list.name} keyboard="content" itemClassName="sidebar-sortable-item" disabled={disabled} onMove={(move) => run({ type: "move-list", ...move })}>
-                  {(list) => <button className={cn("list-link", selected?.id === list.id && "is-selected")} onClick={() => selectList(list.id)} aria-current={selected?.id === list.id ? "page" : undefined}>
-                    <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{list.name}</span>
-                    {(() => {
-                      // Only show a count when there is something left to do.
-                      const open = data.todos.filter((item) => item.listId === list.id && !item.completed && !item.parentId).length;
-                      return open > 0 && <span className="list-count">{open}</span>;
-                    })()}
-                  </button>}
+                  {(list) => {
+                    // Only show a count when there is something left to do.
+                    const open = data.todos.filter((item) => item.listId === list.id && !item.completed && !item.parentId).length;
+                    const board = list.kind === "board";
+                    return <div className={cn("sidebar-row", list.role === "owner" && "has-menu")}>
+                      <button className={cn("list-link", selected?.id === list.id && "is-selected")} onClick={() => selectList(list.id)} aria-current={selected?.id === list.id ? "page" : undefined}>
+                        <Icon className="size-4 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{list.name}</span>
+                        {open > 0 && <span className="sr-only">{open}</span>}
+                      </button>
+                      {/* The count and the ⋯ button share one spot at the end; hovering swaps them. */}
+                      <span className="sidebar-row-end">
+                        {open > 0 && <span className="list-count" aria-hidden="true">{open}</span>}
+                        {list.role === "owner" && <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="sidebar-row-more" aria-label={t.list.optionsFor(list.name)} title={t.list.options} disabled={disabled}
+                              // Not the start of dragging the row.
+                              onPointerDown={(event) => event.stopPropagation()}>
+                              <MoreHorizontal className="size-4" aria-hidden="true" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="min-w-44">
+                            <DropdownMenuItem onSelect={() => setSharingList(list)}>
+                              <Share aria-hidden="true" />{board ? bt.list.share : t.list.shareList}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onSelect={() => setDeletion({ type: "delete-list", id: list.id, title: list.name })}>
+                              <Trash2 aria-hidden="true" />{board ? bt.list.delete : t.list.deleteList}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>}
+                      </span>
+                    </div>;
+                  }}
                 </Sortable>
                 {!sectionLists.length && (
                   <button className="list-link is-ghost" onClick={() => setEditor({ type: "create-list", value: "", kind })} disabled={disabled}>

@@ -37,6 +37,7 @@ export const workspace = {
     readOnly: "Read only",
     allDone: "All done. Nice work.",
     tasksToDo: (count: number) => `${count} ${count === 1 ? "task" : "tasks"} to do`,
+    optionsFor: (name: string) => `Options for ${name}`,
     options: "List options",
     shareList: "Share list",
     deleteList: "Delete list",

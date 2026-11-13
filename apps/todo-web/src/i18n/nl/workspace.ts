@@ -38,6 +38,7 @@ export const workspace: typeof en = {
     readOnly: "Alleen lezen",
     allDone: "Alles afgevinkt. Lekker gedaan.",
     tasksToDo: (count) => `${count} ${count === 1 ? "taak" : "taken"} te doen`,
+    optionsFor: (name: string) => `Opties voor ${name}`,
     options: "Lijstopties",
     shareList: "Lijst delen",
     deleteList: "Lijst verwijderen",
