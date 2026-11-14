@@ -158,7 +158,7 @@ export const nl: typeof en = {
     sendResetLink: "Stuur een herstellink",
     resetSent: "De herstellink is verstuurd. Bekijk je inbox en eventueel je spammap.",
     plan: "Abonnement",
-    planName: "Even mailen Pro",
+    planName: "Even Pro",
     planFree: "Geen abonnement",
     planNone: "Voor Even mailen heb je een abonnement nodig. De andere Even-apps zijn gratis.",
     planTrial: (date) => `Gratis proefperiode tot ${date}. Daarna begint je abonnement.`,

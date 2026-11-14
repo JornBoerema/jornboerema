@@ -12,7 +12,8 @@ if (!key) {
   process.exit(1)
 }
 
-const PRODUCT = { id: "even_mail_pro", name: "Even mailen Pro" }
+// The id stays even_mail_pro: Stripe cannot rename an id, and customers never see it.
+const PRODUCT = { id: "even_mail_pro", name: "Even Pro" }
 // Euro cents, without VAT: Stripe Tax adds the VAT of the customer's country on top.
 const PRICES = [
   { lookupKey: "even_mail_pro_monthly", amount: 2500, interval: "month", nickname: "Monthly" },
@@ -65,7 +66,11 @@ console.log(`Account ${account.id} (${account.settings?.dashboard?.display_name 
 let product
 try {
   product = await stripe("GET", `products/${PRODUCT.id}`)
-  console.log(`Product ${product.id} exists`)
+  if (product.name === PRODUCT.name) console.log(`Product ${product.id} exists`)
+  else {
+    product = await stripe("POST", `products/${PRODUCT.id}`, { name: PRODUCT.name })
+    console.log(`Product ${product.id} renamed to ${PRODUCT.name}`)
+  }
 } catch (error) {
   if (error.status !== 404) throw error
   product = await stripe("POST", "products", {
@@ -112,7 +117,7 @@ for (const wanted of PRICES) {
 
 // Customer portal: where a customer changes card, switches between monthly and yearly, or cancels.
 const portal = {
-  business_profile: { headline: "Even mailen", privacy_policy_url: `${SITE}/privacy`, terms_of_service_url: `${SITE}/terms` },
+  business_profile: { headline: "Even Pro", privacy_policy_url: `${SITE}/privacy`, terms_of_service_url: `${SITE}/terms` },
   features: {
     customer_update: { enabled: true, allowed_updates: { 0: "email", 1: "name", 2: "address", 3: "tax_id" } },
     invoice_history: { enabled: true },

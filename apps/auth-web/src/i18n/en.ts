@@ -156,7 +156,7 @@ export const en = {
     sendResetLink: "Send a reset link",
     resetSent: "The reset link has been sent. Check your inbox and spam folder.",
     plan: "Subscription",
-    planName: "Even mailen Pro",
+    planName: "Even Pro",
     planFree: "No subscription",
     planNone: "Even mailen takes a subscription. The other Even apps are free.",
     planTrial: (date: string) => `Free trial until ${date}. After that your subscription starts.`,
