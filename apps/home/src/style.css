@@ -246,6 +246,16 @@ main.is-download {
   gap: 40px;
 }
 
+.download h2 {
+  font-size: 30px;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+.download .intro {
+  margin-block: 8px 20px;
+}
+
 .download-button {
   display: flex;
   align-items: baseline;

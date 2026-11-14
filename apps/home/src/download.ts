@@ -20,13 +20,22 @@ export type DownloadTexts = {
   switchTo: string
 }
 
-export type DownloadPage<T extends DownloadTexts> = {
+/** One app to download: where its installers are and how its releases are tagged. */
+export type DownloadApp = {
   /** The release tags of this app start with this, e.g. "capture-v". */
   tagPrefix: string
   /** Where the installers live under stable names. */
   downloadUrl: (asset: string) => string
   assets: Record<Platform, string>
+}
+
+export type DownloadPage<T extends DownloadTexts> = DownloadApp & {
   texts: Record<Language, T>
+  /**
+   * More apps on the same page. Each fills the elements whose ids end in its
+   * suffix: "capture" fills #primary-capture, #others-capture and #version-capture.
+   */
+  more?: Record<string, DownloadApp>
 }
 
 const STORAGE_KEY = "evido.language"
@@ -48,7 +57,9 @@ const $ = <E extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 export function startDownloadPage<T extends DownloadTexts>(page: DownloadPage<T>, onRender?: (texts: T) => void) {
   let language = initialLanguage()
-  let version: string | null = null
+  /** The page's own app has no suffix; the others carry theirs. */
+  const apps: [suffix: string, app: DownloadApp][] = [["", page], ...Object.entries(page.more ?? {}).map(([name, app]) => [`-${name}`, app] as [string, DownloadApp])]
+  const versions = new Map<DownloadApp, string>()
 
   const render = () => {
     const t = page.texts[language]
@@ -58,25 +69,28 @@ export function startDownloadPage<T extends DownloadTexts>(page: DownloadPage<T>
       if (typeof value === "string") element.textContent = value
     }
 
-    // One button for this computer; the other installers as quiet links below.
-    const primary = $<HTMLAnchorElement>("primary")
-    if (primary) {
-      primary.href = page.downloadUrl(page.assets[platform])
-      primary.querySelector(".label")!.textContent = t.download[platform]
-      primary.querySelector(".file")!.textContent = t.file[platform]
-    }
-    const others = (Object.keys(page.assets) as Platform[]).filter((p) => p !== platform)
-    $("others")?.replaceChildren(
-      ...others.flatMap((p, i) => {
-        const link = Object.assign(document.createElement("a"), {
-          href: page.downloadUrl(page.assets[p]),
-          textContent: t.platform[p],
+    for (const [suffix, app] of apps) {
+      // One button for this computer; the other installers as quiet links below.
+      const primary = $<HTMLAnchorElement>(`primary${suffix}`)
+      if (primary) {
+        primary.href = app.downloadUrl(app.assets[platform])
+        primary.querySelector(".label")!.textContent = t.download[platform]
+        primary.querySelector(".file")!.textContent = t.file[platform]
+      }
+      const others = (Object.keys(app.assets) as Platform[]).filter((p) => p !== platform)
+      $(`others${suffix}`)?.replaceChildren(
+        ...others.flatMap((p, i) => {
+          const link = Object.assign(document.createElement("a"), {
+            href: app.downloadUrl(app.assets[p]),
+            textContent: t.platform[p],
+          })
+          return i ? [document.createTextNode(" · "), link] : [link]
         })
-        return i ? [document.createTextNode(" · "), link] : [link]
-      })
-    )
-    const versionLine = $("version")
-    if (versionLine) versionLine.textContent = version ? t.version(version) : ""
+      )
+      const versionLine = $(`version${suffix}`)
+      const version = versions.get(app)
+      if (versionLine) versionLine.textContent = version ? t.version(version) : ""
+    }
 
     const toggle = $<HTMLButtonElement>("language")
     if (toggle) {
@@ -98,15 +112,15 @@ export function startDownloadPage<T extends DownloadTexts>(page: DownloadPage<T>
 
   render()
 
-  // The newest version of this app, for the line under the downloads. The links work without it.
+  // The newest version of each app, for the line under its downloads. The links work without it.
   fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`)
     .then((response) => (response.ok ? response.json() : []))
     .then((releases: { tag_name: string; draft: boolean; prerelease: boolean }[]) => {
-      const release = releases.find((r) => !r.draft && !r.prerelease && r.tag_name.startsWith(page.tagPrefix))
-      if (release) {
-        version = release.tag_name.slice(page.tagPrefix.length)
-        render()
+      for (const [, app] of apps) {
+        const release = releases.find((r) => !r.draft && !r.prerelease && r.tag_name.startsWith(app.tagPrefix))
+        if (release) versions.set(app, release.tag_name.slice(app.tagPrefix.length))
       }
+      if (versions.size) render()
     })
     .catch(() => {})
 }

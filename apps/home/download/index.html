@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Even for macOS and Windows: Even mailen and Even doen in one desktop app." />
+    <meta name="description" content="Download Even for macOS and Windows: Even mailen and Even doen in one desktop app, and Even vastleggen for screenshots." />
     <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#f07a2b" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
@@ -15,15 +15,26 @@
     <main class="is-download">
       <header>
         <nav class="crumb" aria-label="Breadcrumb"><a href="/">Even</a> / download</nav>
-        <h1>Even</h1>
-        <p class="intro" data-i18n="intro">Even mailen and Even doen in one desktop app.</p>
+        <h1>Download</h1>
       </header>
 
-      <section aria-label="Download">
+      <section class="download" aria-labelledby="app-even">
+        <h2 id="app-even">Even</h2>
+        <p class="intro" data-i18n="intro">Even mailen and Even doen in one desktop app.</p>
         <a class="download-button" id="primary" href="#"><span class="label">download</span><span class="file">↓</span></a>
         <p class="download-meta">
           <span><span data-i18n="alsoFor">also for</span> <span id="others"></span></span>
           <span id="version"></span>
+        </p>
+      </section>
+
+      <section class="download" aria-labelledby="app-capture">
+        <h2 id="app-capture">Even vastleggen</h2>
+        <p class="intro" data-i18n="introCapture">Screenshots in a moment: capture, draw on it, copy or save.</p>
+        <a class="download-button" id="primary-capture" href="#"><span class="label">download</span><span class="file">↓</span></a>
+        <p class="download-meta">
+          <span><span data-i18n="alsoFor">also for</span> <span id="others-capture"></span></span>
+          <span id="version-capture"></span>
         </p>
       </section>
 
