@@ -4,8 +4,9 @@ import { realtimeEnabled } from "@evido/realtime/server"
 export const env = {
   port: Number(process.env.PORT ?? process.env.API_PORT ?? 4000),
   apiUrl: (process.env.BETTER_AUTH_URL ?? "http://localhost:4000").replace(/\/$/, ""),
-  todoWebUrl: (process.env.TODO_WEB_URL ?? "http://localhost:3000").replace(/\/$/, ""),
-  mailWebUrl: (process.env.MAIL_WEB_URL ?? "http://localhost:3004").replace(/\/$/, ""),
+  /** Each app's place in the Even web app; may carry a path ("…/todo"). */
+  todoWebUrl: (process.env.TODO_WEB_URL ?? "http://localhost:3007/todo").replace(/\/$/, ""),
+  mailWebUrl: (process.env.MAIL_WEB_URL ?? "http://localhost:3007/mail").replace(/\/$/, ""),
   /** jornboerema.nl, whose /admin manages every app. */
   adminWebUrl: (process.env.ADMIN_WEB_URL ?? "http://localhost:3002").replace(/\/$/, ""),
   /** Who may use the admin portal, by verified sign-in email. */

@@ -5,7 +5,7 @@ import "./tailwind.css"
 import "@evido/ui/sidebar.css"
 import "@evido/ui/auth.css"
 import "@evido/ui/spotlight.css"
-import "./desktop.css"
+import "@evido/shell/shell.css"
 import { Desktop } from "./desktop"
 import { keepMailOnDisk } from "./mail-storage"
 

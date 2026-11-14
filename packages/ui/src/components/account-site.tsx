@@ -13,14 +13,17 @@ const isPath = (value: string | null): value is string =>
  * to the same page on the account site, keeping its query (a reset token, an
  * error). Unless `keepQuery` alone, a returnTo path becomes this app's address
  * so the account site can send people back; `home` is where that defaults to.
+ * `base` is the app's own path when it lives under one ("/todo").
  */
 export function ToAccountSite({
   path,
   home = "/",
+  base = "",
   keepQuery = false,
 }: {
   path: string
   home?: string
+  base?: string
   /** For signed OAuth requests (/connect), which must reach the account site unchanged. */
   keepQuery?: boolean
 }) {
@@ -28,10 +31,10 @@ export function ToAccountSite({
     const params = new URLSearchParams(window.location.search)
     if (!keepQuery) {
       const returnTo = params.get("returnTo")
-      params.set("returnTo", new URL(isPath(returnTo) ? returnTo : home, window.location.origin).toString())
+      params.set("returnTo", new URL(base + (isPath(returnTo) ? returnTo : home), window.location.origin).toString())
     }
     window.location.replace(authUrl(path, Object.fromEntries(params)))
-  }, [path, home, keepQuery])
+  }, [path, home, base, keepQuery])
   return null
 }
 

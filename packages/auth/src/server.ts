@@ -61,17 +61,35 @@ function required(name: string) {
 /** Where the Even desktop app runs: tauri://localhost on macOS, tauri.localhost on Windows. */
 const DESKTOP_ORIGINS = ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"]
 
-/** Web origins (all Evido front-ends) that may call the API with credentials. */
+/**
+ * "https://app.jornboerema.nl/mail" is on the origin "https://app.jornboerema.nl".
+ * An address the browser has no origin for (tauri://localhost) stays as it is written.
+ */
+function originOf(address: string) {
+  const written = address.trim().replace(/\/$/, "")
+  try {
+    const { origin } = new URL(written)
+    return origin === "null" ? written : origin
+  } catch {
+    return written
+  }
+}
+
+/**
+ * Web origins (all Evido front-ends) that may call the API with credentials. The
+ * app addresses may carry a path (the apps share app.jornboerema.nl); only their origin counts.
+ */
 export function trustedOrigins() {
   const origins = [
     ...(process.env.TRUSTED_ORIGINS ?? "").split(","),
     ...DESKTOP_ORIGINS,
     process.env.AUTH_UI_URL ?? "",
+    process.env.TODO_WEB_URL ?? "",
     process.env.MAIL_WEB_URL ?? "",
     process.env.NOTES_WEB_URL ?? "",
     process.env.ADMIN_WEB_URL ?? "",
   ]
-    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .map(originOf)
     .filter(Boolean)
   return [...new Set(origins)]
 }

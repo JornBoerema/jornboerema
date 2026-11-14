@@ -1,26 +1,7 @@
-import { resolve, sep } from "node:path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import { defineConfig, loadEnv, type Plugin } from "vite"
-
-const apps = resolve(import.meta.dirname, "..")
-
-/**
- * Even mailen, Even doen and Even noteren each import their own files as "@/…". Each such
- * import resolves inside the app it comes from; anything else is this app's.
- */
-function appAlias(): Plugin {
-  const roots = ["mail-web", "todo-web", "notes-web", "desktop"].map((app) => resolve(apps, app) + sep)
-  return {
-    name: "evido-app-alias",
-    enforce: "pre",
-    resolveId(source, importer, options) {
-      if (!source.startsWith("@/")) return null
-      const root = roots.find((candidate) => importer?.startsWith(candidate)) ?? roots[roots.length - 1]
-      return this.resolve(resolve(root, "src", source.slice(2)), importer, { ...options, skipSelf: true })
-    },
-  }
-}
+import { defineConfig, loadEnv } from "vite"
+import { appAlias, shellResolve } from "../../packages/shell/vite"
 
 /** Where a production build talks to, whatever a local .env says; development reads apps/desktop/.env. */
 const PRODUCTION = {
@@ -43,15 +24,14 @@ export default defineConfig(({ mode }) => {
   const env =
     mode === "production" ? PRODUCTION : { ...DEVELOPMENT, ...loadEnv(mode, import.meta.dirname, "VITE_") }
   return {
-    plugins: [appAlias(), react(), tailwindcss()],
+    plugins: [appAlias("desktop"), react(), tailwindcss()],
     clearScreen: false,
     server: { port: 1430, strictPort: true },
     envPrefix: ["VITE_", "TAURI_ENV_"],
     define: Object.fromEntries(
       Object.entries(env).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)])
     ),
-    // One React, router, query cache and toaster for every app.
-    resolve: { dedupe: ["react", "react-dom", "react-router", "@tanstack/react-query", "sonner"] },
+    resolve: shellResolve,
     // Served from disk inside the app, so one large chunk costs nothing.
     build: { target: "es2022", chunkSizeWarningLimit: 4000 },
   }

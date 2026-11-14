@@ -1,0 +1,37 @@
+{
+  "name": "@evido/shell",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "The Even shell: one window with every Even app, a rail to switch between them and one place for their settings. Used by the desktop app and by app.jornboerema.nl.",
+  "exports": {
+    "./shell": "./src/shell.tsx",
+    "./brand": "./src/brand.tsx",
+    "./splash": "./src/splash.ts",
+    "./shell.css": "./src/shell.css",
+    "./vite": "./vite.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@evido/auth": "workspace:*",
+    "@evido/i18n": "workspace:*",
+    "@evido/mail-web": "workspace:*",
+    "@evido/notes-web": "workspace:*",
+    "@evido/todo-web": "workspace:*",
+    "@evido/ui": "workspace:*",
+    "@hugeicons/core-free-icons": "^4.4.0",
+    "@hugeicons/react": "^1.1.10",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "~6.0.2",
+    "vite": "^8"
+  }
+}

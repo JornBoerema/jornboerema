@@ -18,9 +18,10 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@evido/mail-web/embed": ["./src/embeds/mail.d.ts"],
-      "@evido/todo-web/embed": ["./src/embeds/todo.d.ts"],
-      "@evido/notes-web/embed": ["./src/embeds/notes.d.ts"],
+      "@evido/mail-web/embed": ["../../packages/shell/src/embeds/mail.d.ts"],
+      "@evido/todo-web/embed": ["../../packages/shell/src/embeds/todo.d.ts"],
+      "@evido/notes-web/embed": ["../../packages/shell/src/embeds/notes.d.ts"],
+      "@evido/shell/*": ["../../packages/shell/src/*"],
       "@evido/ui/*": ["../../packages/ui/src/*"]
     }
   },

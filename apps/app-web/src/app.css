@@ -1,0 +1,22 @@
+/* What app.jornboerema.nl adds to the shell: the screens before the apps are there. */
+.app-notice {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  height: 100dvh;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+.app-notice h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+/* The rail is tight on a phone; the desktop download is for a computer anyway. */
+@media (max-width: 700px) {
+  .app-rail-download {
+    display: none;
+  }
+}

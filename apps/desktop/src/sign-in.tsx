@@ -7,7 +7,7 @@ import { authUrl, setSessionToken } from "@evido/auth/client"
 import { currentLanguage } from "@evido/i18n/react"
 import { Alert, AlertDescription } from "@evido/ui/components/alert"
 import { Button } from "@evido/ui/components/button"
-import { Brand } from "./brand"
+import { Brand } from "@evido/shell/brand"
 
 const TEXTS = {
   en: {

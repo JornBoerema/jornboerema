@@ -219,7 +219,8 @@ function AiSettings() {
 
 /** The page a link back into the app asks for, such as after confirming a new email. */
 /** The first page, unless a connect flow just returned here: then its result, under its page. */
-function linkedPage() {
+/** The settings page a link asks for: after connecting a mailbox or a service, or from an e-mail. */
+export function linkedSettingsPage() {
   const params = new URLSearchParams(window.location.search)
   if (params.get("settings") === "account") return "account"
   if (params.get("settings") === "connections") return "connections"
@@ -256,10 +257,10 @@ export function MailSettings({
 }) {
   const strings = useI18n().t
   const t = strings.shell
-  const [page, setPage] = useState(linkedPage)
+  const [page, setPage] = useState(linkedSettingsPage)
   // Every time the settings open, they start at the first page.
   useEffect(() => {
-    if (open) setPage(linkedPage())
+    if (open) setPage(linkedSettingsPage())
   }, [open])
   const about = useAboutPage()
   const desktop = useDesktopSettings("mail")

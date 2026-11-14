@@ -1,4 +1,5 @@
-/* The Even desktop window: the app rail on the left, the chosen app beside it. */
+/* The Even shell (the desktop app, and app.jornboerema.nl): the app rail on the left,
+   the chosen app beside it. On a phone the rail lies along the bottom. */
 body {
   background: var(--background);
 }
@@ -161,4 +162,48 @@ body {
 
 .desktop-sign-in.mac .auth-layout > header {
   padding-top: 44px;
+}
+
+/* On a phone, on the web: the apps take the screen and the rail becomes a bar below them.
+   The apps lay themselves out for a narrow screen from 700px down, so the shell stops
+   setting their columns there. */
+@media (max-width: 700px) {
+  .desktop-app.is-web {
+    --rail-height: 56px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .is-web .desktop-stage {
+    height: auto;
+    min-height: 0;
+  }
+  /* The apps fill the screen on their own site; here they fill what the bar leaves. */
+  .is-web .desktop-stage .workspace-shell {
+    height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .is-web .desktop-stage .list-sidebar {
+    margin-left: 0;
+  }
+  .is-web .app-rail {
+    order: 2;
+    flex-direction: row;
+    height: calc(var(--rail-height) + env(safe-area-inset-bottom));
+    padding: 0 10px env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border);
+    background: var(--background);
+  }
+  .is-web .app-rail-apps,
+  .is-web .app-rail-foot {
+    flex-direction: row;
+    gap: 4px;
+  }
+  .is-web .app-rail-button {
+    width: 44px;
+    height: 44px;
+  }
+  /* The raised button is mark enough on a bar this small. */
+  .is-web .app-rail-button::before {
+    display: none;
+  }
 }

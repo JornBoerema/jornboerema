@@ -35,7 +35,8 @@ export function Paywall({ email }: { email: string }) {
       return api<{ url: string }>("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ annual, returnTo: window.location.origin + "/" }),
+        // Back to where this is: the app's own site, or its place in the shell (/mail).
+        body: JSON.stringify({ annual, returnTo: window.location.origin + window.location.pathname }),
       })
     },
     onSuccess: ({ url, external }: { url: string; external?: boolean }) =>

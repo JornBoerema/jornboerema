@@ -9,7 +9,7 @@ import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
 import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
-import { MailSettings } from "@/components/mail-settings"
+import { linkedSettingsPage, MailSettings } from "@/components/mail-settings"
 import { useDesktopSettings } from "@evido/ui/components/desktop-settings"
 import { useInvoices, useParcels, usePreferencesSync, useSenders } from "@/lib/preferences"
 import { MailSpotlight } from "@/components/mail-spotlight"
@@ -87,6 +87,12 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   // In the desktop app one window holds every app's settings.
   const desktopSettings = useDesktopSettings("mail")
   const openSettings = () => (desktopSettings ? desktopSettings.open() : setSettingsOpen(true))
+  // Back from connecting a mailbox or a service: the shared settings open at its page, as the app's own would.
+  useEffect(() => {
+    if (desktopSettings && returnedFromProvider()) desktopSettings.open(linkedSettingsPage())
+    // Once, with the address the page was loaded on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [editingSidebar, setEditingSidebar] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)

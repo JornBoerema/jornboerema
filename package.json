@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "dev:app": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/app-web",
     "dev:todo": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/todo-web",
     "dev:mail": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/mail-web",
     "dev:notes": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/notes-web",

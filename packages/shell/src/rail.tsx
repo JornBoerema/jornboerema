@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Settings01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
@@ -9,9 +10,10 @@ const isMac = navigator.userAgent.includes("Mac")
 export type RailApp = { id: string; name: string; icon: IconSvgElement; shortcut?: string }
 
 /**
- * The strip along the left of the window with every Even app. On macOS the
- * window buttons sit at its top; at its foot "restart to update" (once a new
- * version is ready) and the settings of every app. Apps still to come show
+ * The strip along the left of the window with every Even app; on a phone it lies
+ * along the bottom. In the desktop app on macOS the window buttons sit at its top.
+ * At its foot "restart to update" (once a new version is ready), whatever the
+ * holder adds (`foot`), and the settings of every app. Apps still to come show
  * greyed out.
  */
 export function AppRail({
@@ -21,6 +23,8 @@ export function AppRail({
   onSelect,
   settingsLabel,
   onSettings,
+  soonLabel,
+  foot,
 }: {
   apps: RailApp[]
   upcoming: RailApp[]
@@ -28,6 +32,9 @@ export function AppRail({
   onSelect: (id: string) => void
   settingsLabel: string
   onSettings: () => void
+  /** "Coming soon", in the app's language. */
+  soonLabel: string
+  foot?: ReactNode
 }) {
   return (
     <TooltipProvider delayDuration={300} skipDelayDuration={400}>
@@ -42,11 +49,12 @@ export function AppRail({
             />
           ))}
           {upcoming.map((app) => (
-            <RailButton key={app.id} app={app} upcoming />
+            <RailButton key={app.id} app={app} upcoming soonLabel={soonLabel} />
           ))}
         </div>
         <div className="app-rail-foot">
           <UpdateButton />
+          {foot}
           <Tooltip>
             <TooltipTrigger asChild>
               <button type="button" className="app-rail-button" aria-label={settingsLabel} aria-keyshortcuts="Meta+Comma Control+Comma" onClick={onSettings}>
@@ -68,11 +76,13 @@ function RailButton({
   app,
   selected = false,
   upcoming = false,
+  soonLabel = "",
   onClick,
 }: {
   app: RailApp
   selected?: boolean
   upcoming?: boolean
+  soonLabel?: string
   onClick?: () => void
 }) {
   return (
@@ -81,7 +91,7 @@ function RailButton({
         <button
           type="button"
           className={cn("app-rail-button", selected && "is-selected", upcoming && "is-upcoming")}
-          aria-label={upcoming ? `${app.name}, coming soon` : app.name}
+          aria-label={upcoming ? `${app.name}, ${soonLabel}` : app.name}
           aria-current={selected ? "page" : undefined}
           // Not `disabled`: the tooltip still says what is coming.
           aria-disabled={upcoming || undefined}
@@ -93,7 +103,7 @@ function RailButton({
       <TooltipContent side="right" sideOffset={10}>
         <span>{app.name}</span>
         {upcoming ? (
-          <span className="app-rail-hint">Coming soon</span>
+          <span className="app-rail-hint">{soonLabel}</span>
         ) : (
           app.shortcut && <span className="app-rail-hint">{app.shortcut}</span>
         )}

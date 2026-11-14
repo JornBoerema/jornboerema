@@ -1,0 +1,6 @@
+/* Tailwind only sees the files under the app it builds; the apps and the shell live next door. */
+@import "@evido/ui/globals.css";
+@source "../../mail-web/src";
+@source "../../todo-web/src";
+@source "../../notes-web/src";
+@source "../../../packages/shell/src";
