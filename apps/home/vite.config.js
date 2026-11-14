@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-/** Every /admin path is the admin app, as vercel.json rewrites it in production. */
+/** Every /admin path is the admin app, and /privacy, /terms and /download are their own pages, as on Vercel. */
 const adminFallback = {
   name: "admin-fallback",
   configureServer(server) {
@@ -14,9 +14,14 @@ const adminFallback = {
   },
 }
 
+/** The plain pages, which Vercel serves without a trailing slash. */
+const PAGES = ["/privacy", "/terms", "/download"]
+
 function rewrite(req, _res, next) {
   const path = req.url?.split("?")[0] ?? ""
   if ((path === "/admin" || path.startsWith("/admin/")) && !path.includes(".")) req.url = "/admin/index.html"
+  // Without this the dev server answers /privacy with the home page.
+  else if (PAGES.includes(path)) req.url = `${path}/index.html`
   next()
 }
 
