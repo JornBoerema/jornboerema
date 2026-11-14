@@ -292,6 +292,7 @@ kbd {
   gap: 22px;
   font-size: 16px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .language {
@@ -590,6 +591,11 @@ kbd {
   padding: 11px 0;
   border-top: 1px solid var(--rule);
   color: var(--soft);
+}
+
+.more a {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 /* Privé */
@@ -1051,7 +1057,8 @@ a.spine:hover {
 
 @media (max-width: 420px) {
   .top-links {
-    gap: 14px;
+    gap: 12px;
+    font-size: 15px;
   }
 
   .demo {

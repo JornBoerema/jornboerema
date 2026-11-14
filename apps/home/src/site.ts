@@ -60,7 +60,7 @@ const english: Record<string, string> = {
   x5: "Track parcels from the confirmation mail",
   x6: "Invoices from your mail, on to Moneybird",
   x7: "Several mailboxes in one inbox",
-  x8: "In the browser, and as an app for Mac and Windows",
+  x8: 'In the browser, and as an <a href="/download">app for Mac and Windows</a>',
   privateTitle: "Your mail stays yours.",
   p1: "Your mailbox stays with Microsoft. Even mailen works on top of it, and Outlook keeps working as it did.",
   p2: "No AI model is trained on your mail. Nothing is sold, nothing is used for advertising.",
