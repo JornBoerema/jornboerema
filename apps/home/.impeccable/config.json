@@ -11,15 +11,6 @@
         ],
         "createdAt": "2026-11-14T19:17:33.016Z",
         "reason": "builder: checked in the 390, 1440 and 1920 captures; the inset sits on the section padding and on the children of each ruled row, so no text touches an edge"
-      },
-      {
-        "rule": "border-accent-on-rounded",
-        "value": "*",
-        "files": [
-          "src/home.css"
-        ],
-        "createdAt": "2026-11-14T19:17:33.037Z",
-        "reason": "builder: the 6px line is the shelf under the binder spines, part of the drawing, not an accent stripe on a card"
       }
     ]
   }
