@@ -14,12 +14,12 @@ if (!key) {
 
 // The id stays even_mail_pro: Stripe cannot rename an id, and customers never see it.
 const PRODUCT = { id: "even_mail_pro", name: "Even Pro" }
-// Euro cents, without VAT: Stripe Tax adds the VAT of the customer's country on top.
+// Euro cents, VAT included: Stripe Tax takes the VAT of the customer's country out of this amount.
 const PRICES = [
   { lookupKey: "even_mail_pro_monthly", amount: 2500, interval: "month", nickname: "Monthly" },
   { lookupKey: "even_mail_pro_yearly", amount: 24000, interval: "year", nickname: "Yearly" },
 ]
-const TAX_BEHAVIOR = "exclusive"
+const TAX_BEHAVIOR = "inclusive"
 const SITE = "https://jornboerema.nl"
 const WEBHOOK_EVENTS = [
   "checkout.session.completed",

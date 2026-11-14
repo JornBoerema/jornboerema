@@ -31,7 +31,7 @@ The visitor is at a desk, mid-workday, usually with Outlook open in another tab.
 Even mailen, real today: connects Outlook and Gmail mailboxes (several at once); keyboard shortcuts for everything; command search; AI summary of a conversation; reply suggestions; AI help with writing; translation; snooze; send later; unsubscribe button; turn a mail into a task; parcel tracking from mail; invoices from mail, optionally on to Moneybird; signatures.
 
 - Outlook is open to everyone. Gmail is invite-only until Google's verification is done.
-- Even Pro: 25 euro per month or 240 euro per year, without VAT. 14 days free trial.
+- Even Pro: 25 euro per month or 240 euro per year, VAT included. 14 days free trial.
 - Even doen and Even noteren: free. Even plannen (agenda) and Even chatten: not built yet, "soon".
 - Site is plain HTML and CSS in a Vite multi-page app (`apps/home`), with /privacy, /terms, /download and /admin beside it. Dutch and English; language follows the browser, with a switch.
 - Domain stays jornboerema.nl for now; the site is for "Even", not for the person.

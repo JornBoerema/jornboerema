@@ -20,7 +20,7 @@ const english: Record<string, string> = {
   heroLead:
     "Even mailen is the fast mail app for Outlook. Everything from the keyboard, with AI that summarises and helps you write. Made in the Netherlands.",
   trial: "Try it free for 14 days",
-  heroPrice: "Then € 25 a month, excl. VAT",
+  heroPrice: "Then € 25 a month, incl. VAT",
   demoTag: "example",
   t1: "09:12",
   t2: "08:47",
@@ -79,7 +79,7 @@ const english: Record<string, string> = {
   perMonth: "a month",
   billedMonthly: "Paid every month.",
   billedYearly: "€ 240 once a year.",
-  exVat: "Excluding VAT.",
+  exVat: "Including VAT.",
   i1: "Even mailen, with all your mailboxes",
   i2: "Summaries, replies and writing with AI",
   i3: "Even doen and Even noteren",
