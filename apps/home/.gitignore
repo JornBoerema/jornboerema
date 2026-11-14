@@ -1,0 +1,4 @@
+# Impeccable working files: captures and decision mocks stay local.
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/config.local.json

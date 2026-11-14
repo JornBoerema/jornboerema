@@ -1,83 +1,338 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Jorn Boerema makes small apps for everyday things: Even doen, Even vastleggen, Even noteren, Even mailen, Even plannen and Even chatten." />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#111110" />
+    <meta name="description" content="Even mailen is de snelle mailapp voor Outlook: alles met het toetsenbord, met AI die samenvat en meeschrijft. Gemaakt in Nederland. 14 dagen gratis, daarna 25 euro per maand." />
+    <meta property="og:title" content="Even. De snelle mailapp voor Outlook" />
+    <meta property="og:description" content="Alles met het toetsenbord, met AI die samenvat en meeschrijft. Gemaakt in Nederland." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://jornboerema.nl" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#f07a2b" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="preload" href="/src/fonts/dm-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/src/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/src/style.css" />
-    <title>jornboerema</title>
+    <link rel="stylesheet" href="/src/home.css" />
+    <title>Even. De snelle mailapp voor Outlook</title>
+    <script>
+      // The page is written in Dutch. Anyone else gets English: hide the page for the
+      // moment it takes site.ts to swap the words, so no Dutch flashes by.
+      ;(function () {
+        var language = null
+        try {
+          language = localStorage.getItem("evido.language")
+        } catch (error) {}
+        if (language !== "en" && language !== "nl") {
+          language = (navigator.languages || [navigator.language || "en"]).some(function (tag) {
+            return tag.toLowerCase().indexOf("nl") === 0
+          })
+            ? "nl"
+            : "en"
+        }
+        var root = document.documentElement
+        root.classList.add("js")
+        if (language === "en") {
+          root.lang = "en"
+          root.classList.add("i18n-wait")
+          setTimeout(function () {
+            root.classList.remove("i18n-wait")
+          }, 1500)
+        }
+      })()
+    </script>
   </head>
-  <body>
-    <main>
-      <header>
-        <h1>Jorn Boerema</h1>
-        <p class="tagline">Small apps for everyday things</p>
-      </header>
+  <body class="home">
+    <a class="skip" href="#mail" data-i18n="skip">Naar de inhoud</a>
 
-      <section aria-labelledby="apps">
-        <h2 id="apps" class="visually-hidden">Apps</h2>
-        <!-- The desktop app, then live apps, invite-only ones, and the ones coming soon. -->
-        <ol class="apps">
-          <li>
-            <a class="app" href="/download">
-              <span class="name">Even for desktop</span>
-              <span class="status is-live">download</span>
-            </a>
-          </li>
-          <li>
-            <a class="app" href="https://todo.jornboerema.nl" target="_blank" rel="noopener">
-              <span class="name">Even doen</span>
-              <span class="status is-live">live</span>
-            </a>
-          </li>
-          <li>
-            <a class="app" href="https://capture.jornboerema.nl" target="_blank" rel="noopener">
-              <span class="name">Even vastleggen</span>
-              <span class="status is-live">live</span>
-            </a>
-          </li>
-          <li>
-            <a class="app" href="https://notes.jornboerema.nl" target="_blank" rel="noopener">
-              <span class="name">Even noteren</span>
-              <span class="status is-live">live</span>
-            </a>
-          </li>
-          <li>
-            <a class="app" href="https://mail.jornboerema.nl" target="_blank" rel="noopener">
-              <span class="name">Even mailen</span>
-              <span class="status is-invite">invite only</span>
-            </a>
-          </li>
-          <li>
-            <div class="app">
-              <span class="name">Even plannen</span>
-              <span class="status">soon</span>
+    <nav class="tabs" aria-label="Secties" data-i18n-label="tabsLabel">
+      <a class="tab is-orange" href="#mail" data-i18n="tabMail">Mail</a>
+      <a class="tab is-paper" href="#toetsen" data-i18n="tabKeys">Toetsen</a>
+      <a class="tab is-blue" href="#prive" data-i18n="tabPrivate">Privé</a>
+      <a class="tab is-yellow" href="#erbij" data-i18n="tabIncluded">Erbij</a>
+      <a class="tab is-green" href="#prijs" data-i18n="tabPrice">Prijs</a>
+      <a class="tab is-paper" href="#vragen" data-i18n="tabQuestions">Vragen</a>
+      <a class="tab is-cover" href="#begin" data-i18n="tabStart">Begin</a>
+    </nav>
+
+    <div class="binder">
+      <section id="mail" class="divider is-orange">
+        <header class="top">
+          <a class="brand" href="/" aria-label="Even">
+            <img src="/icon.svg" alt="" width="30" height="30" />
+            <span>Even</span>
+          </a>
+          <div class="top-links">
+            <a href="https://mail.jornboerema.nl" data-i18n="signIn">Inloggen</a>
+            <button type="button" class="language" data-language>EN</button>
+          </div>
+        </header>
+
+        <div class="hero">
+          <div class="hero-text">
+            <h1 data-i18n="heroTitle">Even je mail doen.</h1>
+            <p class="lead" data-i18n="heroLead">
+              Even mailen is de snelle mailapp voor Outlook. Alles met het toetsenbord, met AI
+              die samenvat en meeschrijft. Gemaakt in Nederland.
+            </p>
+            <div class="hero-action">
+              <a class="button" href="https://mail.jornboerema.nl" data-i18n="trial">Probeer 14 dagen gratis</a>
+              <a class="quiet" href="#prijs" data-i18n="heroPrice">Daarna € 25 per maand, excl. btw</a>
             </div>
-          </li>
-          <li>
-            <div class="app">
-              <span class="name">Even chatten</span>
-              <span class="status">soon</span>
+          </div>
+
+          <div class="sheet demo drop" id="demo">
+            <div class="demo-head">
+              <h2 class="demo-title">Inbox <span class="demo-count" id="demo-count">6</span></h2>
+              <span class="demo-tag" data-i18n="demoTag">voorbeeld</span>
             </div>
-          </li>
-        </ol>
+            <ol class="mails" id="demo-mails">
+              <li class="mail">
+                <div class="mail-in">
+                  <b>Sanne de Vries</b><time data-i18n="t1">09:12</time>
+                  <span data-i18n="m1">Offerte website, graag je reactie voor vrijdag</span>
+                </div>
+              </li>
+              <li class="mail">
+                <div class="mail-in">
+                  <b>Bouwbedrijf Hoekstra</b><time data-i18n="t2">08:47</time>
+                  <span data-i18n="m2">Re: planning week 47</span>
+                </div>
+              </li>
+              <li class="mail">
+                <div class="mail-in">
+                  <b>Drukkerij Veenstra</b><time data-i18n="t3">08:30</time>
+                  <span data-i18n="m3">Factuur 2026-0412 voor de visitekaartjes</span>
+                </div>
+              </li>
+              <li class="mail">
+                <div class="mail-in">
+                  <b data-i18n="s4">Pakketdienst</b><time data-i18n="t4">gisteren</time>
+                  <span data-i18n="m4">Je pakket komt morgen tussen 11 en 13 uur</span>
+                </div>
+              </li>
+              <li class="mail">
+                <div class="mail-in">
+                  <b data-i18n="s5">Nieuwsbrief Ondernemen</b><time data-i18n="t5">gisteren</time>
+                  <span data-i18n="m5">Tien tips voor het vierde kwartaal</span>
+                </div>
+              </li>
+              <li class="mail">
+                <div class="mail-in">
+                  <b>Jeroen Postma</b><time data-i18n="t6">ma</time>
+                  <span data-i18n="m6">Koffie volgende week?</span>
+                </div>
+              </li>
+            </ol>
+            <div class="demo-empty" id="demo-empty" hidden>
+              <p class="display" data-i18n="demoEmpty">Leeg.</p>
+              <p data-i18n="demoEmptyLine">Zes mails, zes toetsen.</p>
+              <button type="button" class="again" id="demo-again" data-i18n="demoAgain">Nog een keer</button>
+            </div>
+            <div class="demo-keys" id="demo-keys">
+              <button type="button" data-act="archive"><kbd>E</kbd><span data-i18n="actArchive">Archiveer</span></button>
+              <button type="button" data-act="snooze"><kbd>B</kbd><span data-i18n="actSnooze">Snooze</span></button>
+              <button type="button" data-act="task"><kbd>T</kbd><span data-i18n="actTask">Taak</span></button>
+            </div>
+            <p class="demo-status" id="demo-status" role="status" data-i18n="demoHint">Druk op E, of klik.</p>
+          </div>
+        </div>
       </section>
 
-      <p class="note">
-        <em>Even</em> is Dutch for “just a moment”, which is about how long each of them
-        should take.
-      </p>
+      <section id="toetsen" class="divider is-paper">
+        <h2 data-i18n="keysTitle">Elke handeling is één toets.</h2>
+        <div class="index">
+          <dl class="keys">
+            <div><dt><kbd>E</kbd></dt><dd data-i18n="k1">Archiveren</dd></div>
+            <div><dt><kbd>R</kbd></dt><dd data-i18n="k2">Beantwoorden, met een voorstel dat al klaarstaat</dd></div>
+            <div><dt><kbd>B</kbd></dt><dd data-i18n="k3">Snoozen tot het je uitkomt</dd></div>
+            <div><dt><kbd>T</kbd></dt><dd data-i18n="k4">Taak maken in Even doen</dd></div>
+            <div><dt><kbd>C</kbd></dt><dd data-i18n="k5">Nieuw bericht</dd></div>
+            <div><dt><kbd>⌘</kbd><kbd>K</kbd></dt><dd data-i18n="k6">Zoeken in al je mailboxen tegelijk</dd></div>
+            <div><dt><kbd>⌘</kbd><kbd>J</kbd></dt><dd data-i18n="k7">Laten schrijven door AI</dd></div>
+            <div><dt><kbd>?</kbd></dt><dd data-i18n="k8">Alle toetsen op een rij</dd></div>
+          </dl>
+          <div class="more">
+            <h3 data-i18n="moreTitle">En zonder toets</h3>
+            <ul>
+              <li data-i18n="x1">Een samenvatting boven elk lang gesprek</li>
+              <li data-i18n="x2">Later versturen, op het uur dat jij kiest</li>
+              <li data-i18n="x3">Vertalen wat je niet kunt lezen</li>
+              <li data-i18n="x4">Uitschrijven van nieuwsbrieven met één klik</li>
+              <li data-i18n="x5">Pakketten volgen vanuit de bevestigingsmail</li>
+              <li data-i18n="x6">Facturen uit je mail, door naar Moneybird</li>
+              <li data-i18n="x7">Meerdere mailboxen in één inbox</li>
+              <li data-i18n="x8">In de browser, en als app voor Mac en Windows</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
-      <footer>
-        <span>© 2026</span>
-        <a href="/privacy">Privacy</a>
-        <a href="/terms">Terms</a>
-        <a href="https://github.com/JornBoerema" target="_blank" rel="noopener">GitHub</a>
+      <section id="prive" class="divider is-blue">
+        <h2 data-i18n="privateTitle">Je mail blijft van jou.</h2>
+        <div class="claims">
+          <p data-i18n="p1">Je mailbox blijft bij Microsoft staan. Even mailen werkt erbovenop, en Outlook blijft gewoon werken.</p>
+          <p data-i18n="p2">Geen AI-model wordt getraind op jouw mail. Niets wordt verkocht, niets wordt gebruikt voor reclame.</p>
+          <p data-i18n="p3">Erachter zit een Nederlandse eenmanszaak. Je krijgt een factuur met btw en antwoord van een mens.</p>
+        </div>
+        <a class="quiet" href="/privacy" data-i18n="privateLink">Lees precies wat er met je gegevens gebeurt</a>
+      </section>
+
+      <section id="erbij" class="divider is-yellow">
+        <h2 data-i18n="includedTitle">De rest zit erbij.</h2>
+        <p class="lead" data-i18n="includedLead">
+          Taken en notities zijn gratis, met of zonder abonnement. Agenda en chat komen bij
+          Even Pro zodra ze af zijn.
+        </p>
+        <ul class="shelf">
+          <li>
+            <a class="spine is-orange drop" href="https://mail.jornboerema.nl">
+              <span class="label"><small>Even</small><b>mailen</b></span>
+              <span class="state">Even Pro</span><span class="ring"></span>
+            </a>
+          </li>
+          <li>
+            <a class="spine is-blue drop" href="https://todo.jornboerema.nl">
+              <span class="label"><small>Even</small><b>doen</b></span>
+              <span class="state" data-i18n="free">gratis</span><span class="ring"></span>
+            </a>
+          </li>
+          <li>
+            <a class="spine is-green drop" href="https://notes.jornboerema.nl">
+              <span class="label"><small>Even</small><b>noteren</b></span>
+              <span class="state" data-i18n="free">gratis</span><span class="ring"></span>
+            </a>
+          </li>
+          <li>
+            <a class="spine is-ink drop" href="https://capture.jornboerema.nl">
+              <span class="label"><small>Even</small><b>vastleggen</b></span>
+              <span class="state" data-i18n="free">gratis</span><span class="ring"></span>
+            </a>
+          </li>
+          <li>
+            <div class="spine is-soon drop">
+              <span class="label"><small>Even</small><b>plannen</b></span>
+              <span class="state" data-i18n="soon">binnenkort</span><span class="ring"></span>
+            </div>
+          </li>
+          <li>
+            <div class="spine is-soon drop">
+              <span class="label"><small>Even</small><b>chatten</b></span>
+              <span class="state" data-i18n="soon">binnenkort</span><span class="ring"></span>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section id="prijs" class="divider is-green">
+        <div class="price">
+          <div class="price-text">
+            <h2 data-i18n="priceTitle">Eén abonnement. Even Pro.</h2>
+            <p class="lead" data-i18n="priceLead">
+              Veertien dagen gratis. Je betaalt niets tot de proefperiode afloopt, en opzeggen
+              kan altijd.
+            </p>
+            <p class="note" data-i18n="gmailNote">
+              Outlook en Microsoft 365 werken direct. Gmail gaat voorlopig op uitnodiging, tot
+              Google zijn controle heeft afgerond.
+            </p>
+          </div>
+
+          <div class="sheet ticket drop">
+            <fieldset class="period">
+              <legend class="visually-hidden" data-i18n="periodLabel">Betaalperiode</legend>
+              <label><input type="radio" name="period" value="monthly" checked /><span data-i18n="monthly">Per maand</span></label>
+              <label><input type="radio" name="period" value="yearly" /><span data-i18n="yearly">Per jaar</span></label>
+            </fieldset>
+            <p class="amount">
+              <span class="display"><span class="euro">€</span><span class="is-monthly">25</span><span class="is-yearly">20</span></span>
+              <span class="per" data-i18n="perMonth">per maand</span>
+            </p>
+            <p class="billed">
+              <span class="is-monthly" data-i18n="billedMonthly">Elke maand betaald.</span>
+              <span class="is-yearly" data-i18n="billedYearly">€ 240 één keer per jaar.</span>
+              <span data-i18n="exVat">Exclusief btw.</span>
+            </p>
+            <ul class="in">
+              <li data-i18n="i1">Even mailen, met al je mailboxen</li>
+              <li data-i18n="i2">Samenvatten, antwoorden en schrijven met AI</li>
+              <li data-i18n="i3">Even doen en Even noteren</li>
+              <li data-i18n="i4">Agenda en chat, zodra ze er zijn</li>
+            </ul>
+            <a class="button" href="https://mail.jornboerema.nl" data-i18n="trial">Probeer 14 dagen gratis</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="vragen" class="divider is-paper">
+        <h2 data-i18n="questionsTitle">Nog even dit.</h2>
+        <div class="questions">
+          <details>
+            <summary data-i18n="q1">Werkt het met mijn zakelijke Outlook?</summary>
+            <p data-i18n="a1">
+              Ja, met Microsoft 365 en met Outlook.com. Bij sommige bedrijven moet de beheerder
+              één keer toestemming geven; de app wijst dan de weg.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="q2">Moet ik overstappen naar een ander mailadres?</summary>
+            <p data-i18n="a2">
+              Nee. Je houdt je adres en je mailbox. Even mailen laat dezelfde mail zien, alleen
+              sneller, en wat je hier doet staat ook in Outlook.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="q3">Wat doet de AI met mijn mail?</summary>
+            <p data-i18n="a3">
+              Samenvatten, antwoorden voorstellen en meeschrijven als je erom vraagt. De
+              aanbieders bewaren niets en trainen nergens op. Je kunt het ook uitzetten.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="q4">Hoe zeg ik op?</summary>
+            <p data-i18n="a4">
+              In je account, wanneer je wilt. Je houdt toegang tot het einde van de periode
+              die je hebt betaald.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="q5">En Gmail?</summary>
+            <p data-i18n="a5">
+              Gmail werkt, maar voorlopig alleen op uitnodiging. Google controleert elke app
+              die bij mail mag, en die controle loopt nog.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="q6">Wie zit hierachter?</summary>
+            <p data-i18n="a6">
+              Jorn Boerema, een eenmanszaak uit Oosterwolde. Mail naar
+              <a href="mailto:support@jornboerema.nl">support@jornboerema.nl</a> en je krijgt
+              antwoord van degene die het bouwt.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <footer id="begin" class="cover">
+        <p class="display">Even<span>.</span></p>
+        <p class="lead" data-i18n="coverLine">Zo lang hoort het te duren.</p>
+        <a class="button" href="https://mail.jornboerema.nl" data-i18n="trial">Probeer 14 dagen gratis</a>
+        <div class="legal">
+          <p>
+            Jorn Boerema · Snellingerdijk 30, 8431 EN Oosterwolde<br />
+            <span data-i18n="legalIds">KvK 42064465 · btw NL005468091B10</span>
+          </p>
+          <p class="legal-links">
+            <a href="mailto:support@jornboerema.nl">support@jornboerema.nl</a>
+            <a href="/download">Download</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms" data-i18n="terms">Voorwaarden</a>
+            <button type="button" class="language" data-language>EN</button>
+          </p>
+        </div>
       </footer>
-    </main>
+    </div>
+
+    <script type="module" src="/src/site.ts"></script>
   </body>
 </html>

@@ -1,0 +1,1081 @@
+/* The home page: an opened binder. Divider sheets in flat colour, each with its
+   tab on the rail at the right; white punched sheets lie on top of them. */
+
+html.i18n-wait body {
+  visibility: hidden;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 0;
+}
+
+body.home {
+  --rail: 60px;
+  background: var(--ink);
+}
+
+.skip {
+  position: fixed;
+  left: 16px;
+  top: -80px;
+  z-index: 20;
+  padding: 12px 18px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 700;
+}
+
+.skip:focus {
+  top: 16px;
+}
+
+/* Sheet colours. Each sets its ground, its text, and the softer text mixed from both. */
+.is-orange {
+  --sheet: var(--orange);
+  --fg: var(--ink);
+}
+.is-paper {
+  --sheet: var(--paper);
+  --fg: var(--ink);
+}
+.is-yellow {
+  --sheet: var(--yellow);
+  --fg: var(--ink);
+}
+.is-blue {
+  --sheet: var(--blue);
+  --fg: var(--paper);
+}
+.is-green {
+  --sheet: var(--green);
+  --fg: var(--paper);
+}
+.is-ink {
+  --sheet: var(--ink);
+  --fg: var(--paper);
+}
+
+/* The rail: the binder's black cover showing beside the sheets, with their tabs on it. */
+.tabs {
+  position: fixed;
+  z-index: 10;
+  top: 0;
+  right: 0;
+  width: var(--rail);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding-block: 28px;
+}
+
+.tab {
+  flex: 0 1 108px;
+  width: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 0 10px 10px 0;
+  background: var(--sheet);
+  color: var(--fg);
+  font-size: 15px;
+  font-stretch: 88%;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  writing-mode: vertical-rl;
+  transition: width 0.35s var(--ease-out);
+}
+
+.tab:hover {
+  width: 48px;
+}
+
+.tab[aria-current="true"] {
+  width: 54px;
+  font-weight: 800;
+}
+
+.tab:focus-visible {
+  outline-color: var(--fg);
+  outline-offset: -5px;
+}
+
+/* The last tab belongs to the black cover, so it is drawn in outline on the black rail. */
+.tab.is-cover {
+  --fg: var(--paper);
+  background: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--paper);
+}
+
+/* A mail filed from the example lands under the Mail tab, which gives way for a moment. */
+.tab.is-receiving {
+  width: 66px;
+}
+
+.binder {
+  margin-right: var(--rail);
+}
+
+@media (min-width: 1200px) {
+  body.home {
+    --rail: 88px;
+  }
+
+  .tabs {
+    gap: 8px;
+  }
+
+  .tab {
+    flex-basis: 122px;
+    width: 60px;
+    border-radius: 0 13px 13px 0;
+    font-size: 19px;
+  }
+
+  .tab:hover {
+    width: 68px;
+  }
+
+  .tab[aria-current="true"] {
+    width: 78px;
+  }
+
+  .tab.is-receiving {
+    width: 88px;
+  }
+}
+
+/* A divider sheet, with the two punched holes every sheet in a binder has. */
+.divider {
+  --pad: clamp(24px, 6vw, 96px);
+  --soft: color-mix(in srgb, var(--fg) 78%, var(--sheet));
+  --rule: color-mix(in srgb, var(--fg) 22%, var(--sheet));
+  position: relative;
+  padding: clamp(72px, 12vh, 136px) var(--pad) clamp(80px, 13vh, 152px) calc(var(--pad) + 56px);
+  background: var(--sheet);
+  color: var(--fg);
+  /* A filed mail slides off its sheet; it must not widen the page on its way. */
+  overflow-x: clip;
+}
+
+/* The ground runs edge to edge; what lies on it stops at a readable width. */
+.divider > *,
+.cover > * {
+  max-width: 1280px;
+}
+
+/* Each sheet lies under the one before it, which leaves a little shade along the top. */
+.divider + .divider,
+.divider + .cover {
+  box-shadow: inset 0 14px 16px -16px color-mix(in srgb, var(--sheet) 55%, var(--ink));
+}
+
+/* On the dark sheets the softer text stays close to white, to keep it readable. */
+.divider.is-blue,
+.divider.is-green {
+  --soft: color-mix(in srgb, var(--paper) 92%, var(--sheet));
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  position: absolute;
+  left: 28px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.divider::before {
+  top: clamp(96px, 20%, 220px);
+}
+
+.divider::after {
+  bottom: clamp(96px, 20%, 220px);
+}
+
+.divider > h2,
+.price h2 {
+  max-width: 14ch;
+  font-size: clamp(2.6rem, 6.4vw, 5.5rem);
+}
+
+.lead {
+  max-width: 34rem;
+  font-size: clamp(1.1rem, 1.5vw, 1.3rem);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.divider > h2 + .lead {
+  margin-top: 28px;
+}
+
+.quiet {
+  color: var(--soft);
+  font-size: 16px;
+  font-weight: 550;
+}
+
+.quiet:hover {
+  color: var(--fg);
+}
+
+.is-blue .button,
+.is-green .price-text .button {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.is-blue :focus-visible,
+.is-green :focus-visible,
+.cover :focus-visible {
+  outline-color: var(--paper);
+}
+
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+/* Mail: the orange divider, first thing you see. */
+#mail {
+  min-height: 100dvh;
+  padding-top: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-stretch: 86%;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.brand img {
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.top-links {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.language {
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.hero {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 470px);
+  align-items: center;
+  gap: clamp(32px, 5vw, 88px);
+  padding-block: clamp(40px, 7vh, 88px) clamp(24px, 5vh, 64px);
+}
+
+.hero h1 {
+  max-width: 7ch;
+  font-size: clamp(3.6rem, 9.4vw, 8.5rem);
+  line-height: 0.88;
+  letter-spacing: -0.04em;
+}
+
+.hero .lead {
+  margin-top: clamp(24px, 4vh, 40px);
+  max-width: 30rem;
+}
+
+.hero-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  margin-top: clamp(28px, 4vh, 40px);
+}
+
+.hero-action .quiet {
+  color: var(--ink);
+}
+
+/* A white punched sheet lying on a divider. */
+.sheet {
+  --sheet: var(--paper);
+  --fg: var(--ink);
+  --soft: color-mix(in srgb, var(--ink) 70%, var(--paper));
+  --rule: color-mix(in srgb, var(--ink) 16%, var(--paper));
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 22px 44px -18px color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.demo {
+  padding: 30px 30px 26px 62px;
+  rotate: 1.6deg;
+}
+
+.demo::before,
+.demo::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--orange);
+}
+
+.demo::before {
+  top: 22%;
+}
+
+.demo::after {
+  bottom: 22%;
+}
+
+.demo-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 14px;
+}
+
+.demo-title {
+  font-size: 30px;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+.demo-count {
+  display: inline-block;
+  min-width: 1ch;
+  font-variant-numeric: tabular-nums;
+  color: var(--orange-deep);
+}
+
+.demo-tag {
+  color: var(--soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mails {
+  list-style: none;
+  border-bottom: 2px solid var(--ink);
+}
+
+/* A mail folds shut after it has slid off the sheet: the row is a grid whose one track closes. */
+.mail {
+  display: grid;
+  grid-template-rows: 1fr;
+  border-top: 2px solid var(--ink);
+  cursor: pointer;
+  transition:
+    grid-template-rows 0.34s var(--ease-out),
+    border-width 0.34s var(--ease-out);
+}
+
+.mail-in {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  align-items: baseline;
+  margin-inline: -12px;
+  padding-inline: 12px;
+  font-size: 15px;
+  line-height: 1.35;
+  transition:
+    translate 0.42s var(--ease-out),
+    opacity 0.2s ease-out 0.16s,
+    background-color 0.2s;
+}
+
+.mail-in b {
+  padding-top: 10px;
+  font-weight: 700;
+}
+
+.mail-in time {
+  color: var(--soft);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mail-in span {
+  grid-column: 1 / -1;
+  padding-bottom: 10px;
+  color: var(--soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail.is-current .mail-in {
+  background: var(--yellow);
+}
+
+.mail.is-current .mail-in span,
+.mail.is-current .mail-in time {
+  color: var(--ink);
+}
+
+.mail.is-leaving .mail-in {
+  translate: 130% 0;
+  opacity: 0;
+}
+
+.mail.is-leaving.is-down .mail-in {
+  translate: 0 80%;
+}
+
+.mail.is-gone {
+  grid-template-rows: 0fr;
+  border-top-width: 0;
+}
+
+.demo-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 18px;
+}
+
+.demo-keys button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.demo-keys button:hover kbd,
+.demo-keys button.is-pressed kbd {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.demo-keys kbd {
+  transition: translate 0.12s;
+}
+
+.demo-keys button.is-pressed kbd {
+  translate: 0 2px;
+}
+
+.demo-status {
+  min-height: 1.5em;
+  margin-top: 12px;
+  color: var(--soft);
+  font-size: 14px;
+}
+
+.demo-empty {
+  padding: 34px 0 30px;
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+}
+
+.demo-empty .display {
+  font-size: 72px;
+}
+
+.demo-empty p + p {
+  margin-top: 6px;
+  color: var(--soft);
+}
+
+.again {
+  margin-top: 18px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* Toetsen: the index sheet at the front of the binder. */
+.index {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(40px, 7vw, 112px);
+  margin-top: clamp(40px, 7vh, 72px);
+}
+
+.keys div {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  align-items: center;
+  padding: 13px 0;
+  border-top: 2px solid var(--ink);
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.keys div:last-child {
+  border-bottom: 2px solid var(--ink);
+}
+
+.keys dt {
+  display: flex;
+  gap: 5px;
+}
+
+.more h3 {
+  padding-bottom: 14px;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.more ul {
+  list-style: none;
+}
+
+.more li {
+  padding: 11px 0;
+  border-top: 1px solid var(--rule);
+  color: var(--soft);
+}
+
+/* Privé */
+.claims {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 4vw, 56px);
+  margin-block: clamp(40px, 7vh, 72px) 36px;
+}
+
+.claims p {
+  padding-top: 18px;
+  border-top: 2px solid var(--paper);
+  font-size: clamp(1.1rem, 1.55vw, 1.35rem);
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+/* Erbij: the other binders on the shelf. */
+.shelf {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  max-width: 940px;
+  align-items: end;
+  gap: clamp(8px, 1.4vw, 18px);
+  margin-top: clamp(48px, 8vh, 88px);
+  padding-inline: 4px;
+  border-bottom: 6px solid var(--ink);
+}
+
+.spine {
+  --soft: color-mix(in srgb, var(--fg) 82%, var(--sheet));
+  height: clamp(250px, 30vw, 340px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 10px 18px;
+  border-radius: 7px 7px 0 0;
+  background: var(--sheet);
+  color: var(--fg);
+  text-decoration: none;
+  transition: translate 0.4s var(--ease-out);
+}
+
+a.spine:hover {
+  translate: 0 -14px;
+}
+
+.spine .label {
+  display: grid;
+  gap: 1px;
+  padding: 10px 9px 12px;
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.05;
+}
+
+.spine .label small {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.spine .label b {
+  font-size: clamp(15px, 1.55vw, 21px);
+  font-stretch: 76%;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.spine .state {
+  padding-inline: 2px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.spine .ring {
+  width: 34px;
+  height: 34px;
+  margin: auto auto 0;
+  border: 5px solid var(--paper);
+  border-radius: 50%;
+  background: var(--yellow);
+}
+
+.spine.is-soon {
+  --fg: var(--ink);
+  background: none;
+  border: 2px dashed var(--ink);
+  border-bottom: 0;
+}
+
+.spine.is-soon .label {
+  background: none;
+  border: 2px solid var(--ink);
+}
+
+.spine.is-soon .ring {
+  border: 2px dashed var(--ink);
+  background: none;
+}
+
+/* Prijs */
+.price {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  align-items: center;
+  gap: clamp(40px, 6vw, 96px);
+}
+
+.price .lead {
+  margin-top: 28px;
+}
+
+.note {
+  max-width: 32rem;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 2px solid var(--rule);
+  color: var(--soft);
+  font-size: 16px;
+}
+
+.ticket {
+  padding: 30px 32px 32px;
+  rotate: -1.2deg;
+}
+
+.period {
+  display: inline-flex;
+  border: 2px solid var(--ink);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.period label {
+  cursor: pointer;
+}
+
+.period input {
+  position: absolute;
+  opacity: 0;
+}
+
+.period span {
+  display: block;
+  padding: 7px 14px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.period input:checked + span {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.period:has(:focus-visible) {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.amount {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.amount .display {
+  font-size: clamp(5rem, 9vw, 7.5rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 0.85;
+}
+
+.amount .euro {
+  margin-right: 0.08em;
+  font-size: 0.5em;
+  vertical-align: 0.62em;
+}
+
+.amount .per {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.billed {
+  margin-top: 12px;
+  color: var(--soft);
+  font-size: 15px;
+}
+
+.ticket .is-yearly,
+.ticket:has(input[value="yearly"]:checked) .is-monthly {
+  display: none;
+}
+
+.ticket:has(input[value="yearly"]:checked) .is-yearly {
+  display: inline;
+}
+
+.in {
+  list-style: none;
+  margin-block: 22px 26px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.in li {
+  padding: 10px 0;
+  border-top: 2px solid var(--ink);
+  font-size: 16px;
+  font-weight: 550;
+}
+
+.ticket .button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Vragen */
+.questions {
+  max-width: 46rem;
+  margin-top: clamp(40px, 7vh, 72px);
+  border-bottom: 2px solid var(--ink);
+}
+
+.questions details {
+  border-top: 2px solid var(--ink);
+}
+
+.questions summary {
+  position: relative;
+  padding: 18px 44px 18px 0;
+  font-size: clamp(1.1rem, 1.6vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.25;
+  list-style: none;
+  cursor: pointer;
+}
+
+.questions summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The plus that turns into a minus: two bars, one of which lies down. */
+.questions summary::before,
+.questions summary::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 18px;
+  height: 3px;
+  margin-top: -1.5px;
+  background: var(--ink);
+  transition: rotate 0.3s var(--ease-out);
+}
+
+.questions summary::after {
+  rotate: 90deg;
+}
+
+.questions details[open] summary::after {
+  rotate: 0deg;
+}
+
+.questions summary:hover {
+  color: color-mix(in srgb, var(--ink) 60%, var(--orange));
+}
+
+.questions details p {
+  max-width: 38rem;
+  padding-bottom: 22px;
+  color: var(--soft);
+  text-wrap: pretty;
+}
+
+/* The back cover. */
+.cover {
+  --sheet: var(--ink);
+  --fg: var(--paper);
+  --soft: color-mix(in srgb, var(--paper) 68%, var(--ink));
+  padding: clamp(80px, 14vh, 160px) clamp(24px, 6vw, 96px) 40px calc(clamp(24px, 6vw, 96px) + 56px);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.cover > .display {
+  font-size: clamp(5rem, 15vw, 13rem);
+  line-height: 0.8;
+}
+
+.cover > .display span {
+  color: var(--orange);
+}
+
+.cover .lead {
+  margin-block: 26px 32px;
+  color: var(--soft);
+}
+
+.cover .button {
+  background: var(--orange);
+  color: var(--ink);
+}
+
+.legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px 40px;
+  margin-top: clamp(64px, 12vh, 128px);
+  padding-top: 22px;
+  border-top: 2px solid color-mix(in srgb, var(--paper) 26%, var(--ink));
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+}
+
+.legal a:hover {
+  color: var(--paper);
+}
+
+/* Sheets drop into the binder the first time they come into view. */
+@keyframes drop {
+  from {
+    translate: 0 -34px;
+  }
+}
+
+.drop.is-in {
+  animation: drop 0.7s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* Narrow screens: the rail lies along the bottom, and tabs hang from the page. */
+@media (max-width: 860px) {
+  body.home {
+    --rail: 58px;
+  }
+
+  .tabs {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    height: var(--rail);
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 0 6px;
+    background: var(--ink);
+  }
+
+  .tab {
+    flex: 1 1 0;
+    width: auto;
+    height: 44px;
+    border-radius: 0 0 9px 9px;
+    font-size: 12px;
+    font-stretch: 78%;
+    letter-spacing: 0;
+    writing-mode: horizontal-tb;
+    transition: height 0.35s var(--ease-out);
+  }
+
+  .tab:hover {
+    width: auto;
+  }
+
+  .tab[aria-current="true"],
+  .tab.is-receiving {
+    width: auto;
+    height: 52px;
+  }
+
+  .binder {
+    margin-right: 0;
+    padding-bottom: var(--rail);
+  }
+
+  /* The holes keep a margin of their own, so they never sit beside a line like a bullet. */
+  .divider {
+    padding-left: calc(var(--pad) + 18px);
+  }
+
+  .divider::before,
+  .divider::after {
+    left: 9px;
+    width: 13px;
+    height: 13px;
+  }
+
+  /* Punched in the empty margin above and below the text, never beside a line. */
+  .divider::before {
+    top: 34px;
+  }
+
+  .divider::after {
+    bottom: 34px;
+  }
+
+  #mail::before {
+    top: 82px;
+  }
+
+  .cover {
+    padding-left: calc(clamp(24px, 6vw, 96px) + 18px);
+  }
+
+  .hero,
+  .index,
+  .price {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero h1 {
+    max-width: none;
+    font-size: clamp(3.2rem, 16.5vw, 6rem);
+  }
+
+  .demo {
+    rotate: 0.8deg;
+    margin-top: 12px;
+  }
+
+  .claims {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shelf {
+    max-width: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 0;
+  }
+
+  .shelf li:nth-child(-n + 3) .spine {
+    border-bottom: 6px solid var(--ink);
+    margin-bottom: 26px;
+  }
+
+  .spine {
+    height: 210px;
+  }
+
+  .ticket {
+    rotate: -0.6deg;
+  }
+}
+
+@media (max-width: 420px) {
+  .top-links {
+    gap: 14px;
+  }
+
+  .demo {
+    padding: 24px 20px 22px 44px;
+  }
+
+  .demo::before,
+  .demo::after {
+    left: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .keys div {
+    grid-template-columns: 78px 1fr;
+  }
+
+  .ticket {
+    padding: 24px 22px 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

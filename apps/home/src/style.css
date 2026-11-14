@@ -1,30 +1,32 @@
-@font-face {
-  font-family: "DM Mono";
-  src: url("./fonts/dm-mono-latin-400-normal.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* The Even site is a ring binder: flat coloured divider sheets, white punched
+   paper, black cover. This file holds what every page shares (type, colours,
+   the plain pages: privacy, terms, download). The home page adds home.css. */
 
 @font-face {
-  font-family: "DM Mono";
-  src: url("./fonts/dm-mono-latin-500-normal.woff2") format("woff2");
-  font-weight: 500;
+  font-family: "Archivo";
+  src: url("./fonts/archivo-latin-wdth-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
   font-style: normal;
   font-display: swap;
 }
 
 :root {
-  --bg: #111110;
-  --fg: #f2f1ee;
-  --muted: #9b9a95;
-  --faint: #85847f;
-  --line: #262624;
-  --accent: #f07a2b;
-  --mono: "DM Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --orange: #f07a2b;
+  /* Orange for text on white paper, where the plain orange is too light to read. */
+  --orange-deep: #b84f0c;
+  --ink: #17140f;
+  --paper: #fffdf8;
+  --blue: #2a57d6;
+  --yellow: #f6c62e;
+  --green: #17794f;
+  /* Text one step back from the ink, mixed with the sheet it sits on. */
+  --soft: color-mix(in srgb, var(--ink) 72%, var(--sheet, var(--paper)));
+  --rule: color-mix(in srgb, var(--ink) 16%, var(--sheet, var(--paper)));
+  --sans: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  color-scheme: dark;
-  scrollbar-color: var(--line) var(--bg);
+  color-scheme: light;
+  scrollbar-color: var(--orange) var(--ink);
 }
 
 * {
@@ -34,78 +36,47 @@
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
-  color: var(--fg);
+  background: var(--ink);
+  color: var(--yellow);
+}
+
+html {
+  background: var(--ink);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   min-height: 100dvh;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.6;
+  background: var(--paper);
+  color: var(--ink);
+  caret-color: var(--orange);
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 420;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
-main {
-  --column: 26rem;
-  --gutter: 24px;
-  min-height: 100dvh;
-  max-width: calc(var(--column) + 2 * var(--gutter));
-  margin-inline: auto;
-  padding: clamp(64px, 12vh, 120px) var(--gutter);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 64px;
+h1,
+h2,
+.display {
+  font-stretch: 82%;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  word-spacing: 0.08em;
+  text-wrap: balance;
 }
 
-main:has(.prose) {
-  --column: 38rem;
-  justify-content: flex-start;
+a {
+  color: inherit;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
-h1 {
-  font-size: 18px;
-  line-height: 1.4;
-  font-weight: 500;
-  text-transform: lowercase;
-}
-
-h1::after {
-  content: ".";
-  color: var(--accent);
-}
-
-.tagline,
-.note {
-  color: var(--faint);
-  text-transform: lowercase;
-}
-
-.tagline {
-  margin-top: 4px;
-}
-
-.note {
-  text-wrap: pretty;
-}
-
-.note em {
-  font-style: normal;
-  color: var(--muted);
-}
-
-.intro {
-  margin-top: 12px;
-  color: var(--muted);
-  text-wrap: pretty;
-}
-
-.intro em {
-  font-style: normal;
-  color: var(--fg);
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
 }
 
 .visually-hidden {
@@ -117,95 +88,95 @@ h1::after {
   white-space: nowrap;
 }
 
-.apps {
-  list-style: none;
-  margin-block: -11px;
-}
-
-.app {
-  display: grid;
-  grid-template-columns: 1fr auto;
+/* The black button, the one action of every sheet. */
+.button {
+  display: inline-flex;
   align-items: baseline;
-  column-gap: 12px;
-  padding: 11px 0;
-  color: var(--faint);
+  gap: 12px;
+  padding: 17px 26px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font: inherit;
+  font-size: 19px;
+  font-stretch: 92%;
+  font-weight: 700;
   text-decoration: none;
-  text-transform: lowercase;
+  cursor: pointer;
+  transition: transform 0.25s var(--ease-out);
 }
 
-.name {
-  transition:
-    color 0.2s,
-    transform 0.5s var(--ease-out);
+.button:hover {
+  transform: translateY(-2px);
 }
 
-a.app .name {
-  color: var(--fg);
+.button:active {
+  transform: translateY(1px);
 }
 
-.status.is-live {
-  color: var(--accent);
-}
-
-.status.is-invite {
-  color: var(--muted);
-}
-
-a:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-  border-radius: 2px;
-}
-
-@media (hover: hover) {
-  a.app:hover .name {
-    color: var(--accent);
-    transform: translateX(1ch);
-  }
-}
-
-footer {
+/* Plain pages: one white sheet in the binder. */
+main {
+  --sheet: var(--paper);
+  /* Mixed again here, so a page on another ground (the orange download page) gets its own. */
+  --soft: color-mix(in srgb, var(--ink) 72%, var(--sheet));
+  --rule: color-mix(in srgb, var(--ink) 16%, var(--sheet));
+  --gutter: 24px;
+  position: relative;
+  min-height: 100dvh;
+  max-width: calc(26rem + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: clamp(56px, 10vh, 104px) var(--gutter);
   display: flex;
-  gap: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
-  color: var(--faint);
-  text-transform: lowercase;
+  flex-direction: column;
+  justify-content: center;
+  gap: 48px;
 }
 
-footer span {
-  margin-right: auto;
+main:has(.prose) {
+  max-width: calc(40rem + 2 * var(--gutter));
+  justify-content: flex-start;
 }
 
-footer a,
-.crumb a {
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-footer a:hover,
-.crumb a:hover {
-  color: var(--accent);
+main h1 {
+  font-size: clamp(40px, 7vw, 64px);
 }
 
 .crumb {
-  margin-bottom: 40px;
-  color: var(--faint);
-  text-transform: lowercase;
+  margin-bottom: 28px;
+  color: var(--soft);
+  font-size: 15px;
+}
+
+.crumb a {
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.intro {
+  margin-top: 18px;
+  color: var(--soft);
+  text-wrap: pretty;
+}
+
+.intro em {
+  font-style: normal;
+  font-weight: 650;
+  color: var(--ink);
 }
 
 .prose {
-  font-size: 14px;
-  line-height: 1.75;
-  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--soft);
 }
 
 .prose h2 {
-  margin: 40px 0 8px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--fg);
+  margin: 44px 0 10px;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
 }
 
 .prose h2:first-child {
@@ -218,7 +189,7 @@ footer a:hover,
 }
 
 .prose ul {
-  padding-left: 18px;
+  padding-left: 20px;
 }
 
 .prose li {
@@ -226,24 +197,53 @@ footer a:hover,
 }
 
 .prose li::marker {
-  color: var(--faint);
+  color: var(--orange);
 }
 
 .prose a {
-  color: var(--fg);
-  text-underline-offset: 3px;
-  text-decoration-color: var(--faint);
-  transition: color 0.2s;
+  color: var(--ink);
+  font-weight: 600;
 }
 
-.prose a:hover {
-  color: var(--accent);
-  text-decoration-color: currentColor;
+.prose a:hover,
+.crumb a:hover,
+main > footer a:hover {
+  text-decoration-color: var(--orange);
 }
 
-/* Download pages (/download, capture.jornboerema.nl): a name, a line, a button. */
+main > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding-top: 20px;
+  border-top: 2px solid var(--ink);
+  color: var(--soft);
+  font-size: 15px;
+}
+
+main > footer span:first-child {
+  margin-right: auto;
+}
+
+main > footer button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* Download pages (/download, capture.jornboerema.nl): an orange divider with one button. */
+body:has(main.is-download) {
+  background: var(--orange);
+}
+
 main.is-download {
-  gap: 48px;
+  --sheet: var(--orange);
+  gap: 40px;
 }
 
 .download-button {
@@ -251,25 +251,23 @@ main.is-download {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 18px 22px;
   border-radius: 6px;
-  background: var(--accent);
-  color: var(--bg);
-  font-weight: 500;
+  background: var(--ink);
+  color: var(--paper);
+  font-stretch: 92%;
+  font-weight: 700;
   text-decoration: none;
-  text-transform: lowercase;
-  transition:
-    background-color 0.2s,
-    transform 0.2s var(--ease-out);
+  transition: transform 0.25s var(--ease-out);
 }
 
 .download-button .file {
-  opacity: 0.7;
-  font-weight: 400;
+  font-weight: 500;
+  color: var(--orange);
 }
 
 .download-button:hover {
-  background: color-mix(in srgb, var(--accent) 88%, white);
+  transform: translateY(-2px);
 }
 
 .download-button:active {
@@ -281,57 +279,16 @@ main.is-download {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 4px 16px;
-  margin-top: 12px;
-  color: var(--faint);
-  text-transform: lowercase;
-}
-
-.download-meta a {
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.download-meta a:hover {
-  color: var(--accent);
-}
-
-footer button {
-  font: inherit;
-  color: var(--muted);
-  background: none;
-  border: 0;
-  cursor: pointer;
-  text-transform: lowercase;
-  transition: color 0.2s;
-}
-
-footer button:hover {
-  color: var(--accent);
-}
-
-footer button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-  border-radius: 2px;
-}
-
-@media (max-width: 30rem) {
-  body {
-    font-size: 14px;
-  }
-
-  h1 {
-    font-size: 17px;
-  }
+  margin-top: 14px;
+  color: var(--soft);
+  font-size: 15px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
-  }
-
-  a.app:hover .name {
-    transform: none;
+    animation: none !important;
   }
 }

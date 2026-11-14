@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "jornboerema.nl: a minimal page linking to the Even apps, and /admin to manage them.",
+  "description": "jornboerema.nl: the Even website (home, privacy, terms, download), and /admin to manage the apps.",
   "scripts": {
     "dev": "vite --port 3002",
     "build": "tsc --noEmit -p tsconfig.admin.json && vite build",

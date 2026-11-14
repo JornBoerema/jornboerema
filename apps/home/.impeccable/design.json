@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-14T20:30:00Z",
+  "title": "Design System: Even",
+  "extensions": {
+    "colorMeta": {
+      "orange": {
+        "role": "primary",
+        "displayName": "Even Orange",
+        "canonical": "oklch(70.4% 0.169 50)",
+        "tonalRamp": ["oklch(18% 0.04 50)", "oklch(30% 0.08 50)", "oklch(42% 0.12 50)", "oklch(55% 0.155 50)", "oklch(70.4% 0.169 50)", "oklch(80% 0.12 50)", "oklch(89% 0.07 50)", "oklch(96% 0.03 50)"]
+      },
+      "orange-deep": {
+        "role": "primary",
+        "displayName": "Deep Orange",
+        "canonical": "oklch(55.6% 0.152 46)",
+        "tonalRamp": ["oklch(16% 0.04 46)", "oklch(27% 0.08 46)", "oklch(38% 0.11 46)", "oklch(47% 0.135 46)", "oklch(55.6% 0.152 46)", "oklch(70% 0.13 46)", "oklch(84% 0.08 46)", "oklch(95% 0.03 46)"]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Divider Blue",
+        "canonical": "oklch(50.7% 0.201 265)",
+        "tonalRamp": ["oklch(16% 0.06 265)", "oklch(27% 0.11 265)", "oklch(38% 0.16 265)", "oklch(50.7% 0.201 265)", "oklch(63% 0.16 265)", "oklch(75% 0.11 265)", "oklch(87% 0.06 265)", "oklch(95% 0.025 265)"]
+      },
+      "yellow": {
+        "role": "secondary",
+        "displayName": "Divider Yellow",
+        "canonical": "oklch(84.6% 0.162 90)",
+        "tonalRamp": ["oklch(18% 0.04 90)", "oklch(32% 0.07 90)", "oklch(46% 0.1 90)", "oklch(60% 0.13 90)", "oklch(73% 0.155 90)", "oklch(84.6% 0.162 90)", "oklch(91% 0.1 90)", "oklch(96% 0.05 90)"]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "Divider Green",
+        "canonical": "oklch(51.1% 0.109 159)",
+        "tonalRamp": ["oklch(16% 0.035 159)", "oklch(27% 0.06 159)", "oklch(39% 0.09 159)", "oklch(51.1% 0.109 159)", "oklch(64% 0.1 159)", "oklch(76% 0.08 159)", "oklch(87% 0.05 159)", "oklch(95% 0.02 159)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Cover Black",
+        "canonical": "oklch(19.3% 0.011 81)",
+        "tonalRamp": ["oklch(12% 0.008 81)", "oklch(19.3% 0.011 81)", "oklch(32% 0.011 81)", "oklch(45% 0.01 81)", "oklch(58% 0.009 81)", "oklch(72% 0.008 81)", "oklch(86% 0.007 81)", "oklch(95% 0.006 81)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Sheet White",
+        "canonical": "oklch(99.4% 0.007 89)",
+        "tonalRamp": ["oklch(20% 0.01 89)", "oklch(36% 0.01 89)", "oklch(52% 0.01 89)", "oklch(68% 0.01 89)", "oklch(82% 0.009 89)", "oklch(91% 0.008 89)", "oklch(96% 0.007 89)", "oklch(99.4% 0.007 89)"]
+      }
+    },
+    "derivedColors": [
+      { "name": "soft (coloured divider)", "value": "color-mix(in srgb, var(--fg) 78%, var(--sheet))", "purpose": "Secondary text on orange and yellow dividers." },
+      { "name": "soft (paper)", "value": "color-mix(in srgb, var(--ink) 72%, var(--paper))", "purpose": "Secondary text on white sheets and plain pages; 70% on a loose sheet." },
+      { "name": "soft (blue, green)", "value": "color-mix(in srgb, var(--paper) 92%, var(--sheet))", "purpose": "Secondary text on the dark dividers, kept close to white." },
+      { "name": "soft (cover)", "value": "color-mix(in srgb, var(--paper) 68%, var(--ink))", "purpose": "Secondary text on the black cover." },
+      { "name": "rule (paper)", "value": "color-mix(in srgb, var(--ink) 16%, var(--paper))", "purpose": "The 1px soft rule of secondary lists; 22% of the text colour on a coloured divider." }
+    ],
+    "typographyMeta": {
+      "display-hero": { "displayName": "Display hero", "purpose": "The one headline of the first divider, about 7 characters a line." },
+      "display": { "displayName": "Display", "purpose": "The claim of each divider; scaled up for the price and closing wordmark, down for sheet and plain-page titles." },
+      "title": { "displayName": "Title", "purpose": "Questions and index rows." },
+      "lead": { "displayName": "Lead", "purpose": "The one explanation under a claim, max 34rem." },
+      "body": { "displayName": "Body", "purpose": "Running text; long-form prose is 16px at 1.7." },
+      "button": { "displayName": "Button", "purpose": "The action label, slightly narrowed." },
+      "label": { "displayName": "Label", "purpose": "Tabs, key legends, inline links, switch options; weight 600 to 750." },
+      "small": { "displayName": "Small", "purpose": "Times, the example mark, spine states; tabular figures where numbers change." }
+    },
+    "shadows": [
+      { "name": "loose-sheet", "value": "0 22px 44px -18px color-mix(in srgb, #17140f 55%, transparent)", "purpose": "Under a white paper sheet lying on a divider." },
+      { "name": "sheet-overlap", "value": "inset 0 16px 18px -18px color-mix(in srgb, #17140f 60%, transparent)", "purpose": "Shade along the top of every divider after the first." },
+      { "name": "cover-outline", "value": "inset 0 0 0 2px #fffdf8", "purpose": "Outline of the black cover tab on the black rail; not a shadow." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "The one easing for every movement." },
+      { "name": "press", "value": "transform 0.25s", "purpose": "Button lifts 2px on hover, presses 1px on active." },
+      { "name": "tab", "value": "width 0.35s (height on narrow screens)", "purpose": "A tab extends on hover, for the current section, and when it receives a filed mail (420ms)." },
+      { "name": "drop", "value": "translate 0 -34px to 0, 0.7s, 60ms stagger", "purpose": "A loose sheet or spine drops in once when it first comes into view." },
+      { "name": "file", "value": "translate 130% 0 in 0.42s, then grid row to 0fr in 0.34s", "purpose": "A filed mail slides off towards the tabs, then its row closes; a snoozed mail drops 80% down instead." },
+      { "name": "lift", "value": "translate 0 -14px, 0.4s", "purpose": "A linked binder spine pulls up off the shelf on hover." },
+      { "name": "reduced-motion", "value": "transition: none; animation: none; scroll-behavior: auto", "purpose": "All movement switches off under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "small", "value": "420px" },
+      { "name": "narrow", "value": "860px" },
+      { "name": "wide", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action of a sheet, on orange, yellow and paper.",
+      "html": "<a class=\"ds-button\" href=\"#\">Probeer 14 dagen gratis</a>",
+      "css": ".ds-button { display: inline-flex; align-items: baseline; padding: 17px 26px; border-radius: 6px; background: var(--ink, #17140f); color: var(--paper, #fffdf8); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 19px; font-stretch: 92%; font-weight: 700; text-decoration: none; transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); } .ds-button:hover { transform: translateY(-2px); } .ds-button:active { transform: translateY(1px); } .ds-button:focus-visible { outline: 3px solid var(--ink, #17140f); outline-offset: 3px; }"
+    },
+    {
+      "name": "Button on a dark sheet",
+      "kind": "button",
+      "refersTo": "button-on-dark",
+      "description": "The same button on blue and green: paper ground, ink label.",
+      "html": "<div class=\"ds-dark\"><a class=\"ds-button-light\" href=\"#\">Probeer 14 dagen gratis</a></div>",
+      "css": ".ds-dark { padding: 28px; background: var(--blue, #2a57d6); } .ds-button-light { display: inline-flex; padding: 17px 26px; border-radius: 6px; background: var(--paper, #fffdf8); color: var(--ink, #17140f); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 19px; font-stretch: 92%; font-weight: 700; text-decoration: none; transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); } .ds-button-light:hover { transform: translateY(-2px); } .ds-button-light:active { transform: translateY(1px); } .ds-button-light:focus-visible { outline: 3px solid var(--paper, #fffdf8); outline-offset: 3px; }"
+    },
+    {
+      "name": "Cover Button",
+      "kind": "button",
+      "refersTo": "button-cover",
+      "description": "The trial button on the black cover: orange ground, ink label.",
+      "html": "<div class=\"ds-cover\"><a class=\"ds-button-cover\" href=\"#\">Probeer 14 dagen gratis</a></div>",
+      "css": ".ds-cover { padding: 28px; background: var(--ink, #17140f); } .ds-button-cover { display: inline-flex; padding: 17px 26px; border-radius: 6px; background: var(--orange, #f07a2b); color: var(--ink, #17140f); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 19px; font-stretch: 92%; font-weight: 700; text-decoration: none; transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); } .ds-button-cover:hover { transform: translateY(-2px); } .ds-button-cover:active { transform: translateY(1px); } .ds-button-cover:focus-visible { outline: 3px solid var(--paper, #fffdf8); outline-offset: 3px; }"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "The rail of section tabs; the current one sticks out further, the cover tab is outlined.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-tab-orange\" href=\"#\" aria-current=\"true\">Mail</a><a class=\"ds-tab ds-tab-paper\" href=\"#\">Toetsen</a><a class=\"ds-tab ds-tab-blue\" href=\"#\">Privé</a><a class=\"ds-tab ds-tab-yellow\" href=\"#\">Erbij</a><a class=\"ds-tab ds-tab-green\" href=\"#\">Prijs</a><a class=\"ds-tab ds-tab-cover\" href=\"#\">Begin</a></nav>",
+      "css": ".ds-tabs { display: flex; flex-direction: column; gap: 6px; width: 60px; padding-block: 12px; background: var(--ink, #17140f); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); } .ds-tab { width: 40px; height: 92px; display: grid; place-items: center; border-radius: 0 10px 10px 0; font-size: 15px; font-stretch: 88%; font-weight: 650; letter-spacing: 0.01em; text-decoration: none; writing-mode: vertical-rl; color: var(--ink, #17140f); transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1); } .ds-tab:hover { width: 48px; } .ds-tab[aria-current='true'] { width: 54px; font-weight: 800; } .ds-tab-orange { background: var(--orange, #f07a2b); } .ds-tab-paper { background: var(--paper, #fffdf8); } .ds-tab-yellow { background: var(--yellow, #f6c62e); } .ds-tab-blue { background: var(--blue, #2a57d6); color: var(--paper, #fffdf8); } .ds-tab-green { background: var(--green, #17794f); color: var(--paper, #fffdf8); } .ds-tab-cover { background: var(--ink, #17140f); color: var(--paper, #fffdf8); box-shadow: inset 0 0 0 2px var(--paper, #fffdf8); } .ds-tab:focus-visible { outline: 3px solid var(--ink, #17140f); outline-offset: -5px; } .ds-tab-blue:focus-visible, .ds-tab-green:focus-visible, .ds-tab-cover:focus-visible { outline-color: var(--paper, #fffdf8); }"
+    },
+    {
+      "name": "Key control",
+      "kind": "chip",
+      "refersTo": "key",
+      "description": "A key legend with its word; the key fills and goes down when pressed.",
+      "html": "<div class=\"ds-keys\"><button type=\"button\" class=\"ds-key-button\"><kbd class=\"ds-key\">E</kbd><span>Archiveer</span></button><button type=\"button\" class=\"ds-key-button\"><kbd class=\"ds-key\">B</kbd><span>Snooze</span></button><button type=\"button\" class=\"ds-key-button\"><kbd class=\"ds-key\">T</kbd><span>Taak</span></button></div>",
+      "css": ".ds-keys { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 20px; background: var(--paper, #fffdf8); color: var(--ink, #17140f); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); } .ds-key-button { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: inherit; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; } .ds-key { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 7px; border: 2px solid currentColor; border-radius: 6px; font: inherit; font-size: 15px; font-weight: 750; line-height: 1; transition: translate 0.12s; } .ds-key-button:hover .ds-key { background: var(--ink, #17140f); color: var(--paper, #fffdf8); border-color: var(--ink, #17140f); } .ds-key-button:active .ds-key { background: var(--ink, #17140f); color: var(--paper, #fffdf8); border-color: var(--ink, #17140f); translate: 0 2px; } .ds-key-button:focus-visible { outline: 3px solid var(--ink, #17140f); outline-offset: 3px; }"
+    },
+    {
+      "name": "Loose sheet with ruled list",
+      "kind": "card",
+      "refersTo": "sheet",
+      "description": "A white punched sheet lying on a divider, with rows between 2px ink rules and the current row in yellow.",
+      "html": "<div class=\"ds-ground\"><div class=\"ds-sheet\"><div class=\"ds-sheet-head\"><p class=\"ds-sheet-title\">Inbox <span class=\"ds-sheet-count\">3</span></p><span class=\"ds-sheet-tag\">voorbeeld</span></div><ol class=\"ds-rows\"><li class=\"ds-row ds-row-current\"><b>Sanne de Vries</b><time>09:12</time><span>Offerte website, graag je reactie voor vrijdag</span></li><li class=\"ds-row\"><b>Bouwbedrijf Hoekstra</b><time>08:47</time><span>Re: planning week 47</span></li><li class=\"ds-row\"><b>Drukkerij Veenstra</b><time>08:30</time><span>Factuur voor de visitekaartjes</span></li></ol></div></div>",
+      "css": ".ds-ground { padding: 40px; background: var(--orange, #f07a2b); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); } .ds-sheet { position: relative; max-width: 470px; padding: 30px 30px 26px 62px; background: var(--paper, #fffdf8); color: var(--ink, #17140f); box-shadow: 0 22px 44px -18px color-mix(in srgb, #17140f 55%, transparent); rotate: 1.6deg; } .ds-sheet::before, .ds-sheet::after { content: ''; position: absolute; left: 22px; width: 18px; height: 18px; border-radius: 50%; background: var(--orange, #f07a2b); } .ds-sheet::before { top: 22%; } .ds-sheet::after { bottom: 22%; } .ds-sheet-head { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 14px; } .ds-sheet-title { margin: 0; font-size: 30px; font-stretch: 82%; font-weight: 800; letter-spacing: -0.025em; line-height: 1; } .ds-sheet-count { color: var(--orange-deep, #b84f0c); font-variant-numeric: tabular-nums; } .ds-sheet-tag { color: color-mix(in srgb, #17140f 70%, #fffdf8); font-size: 13px; font-weight: 600; } .ds-rows { margin: 0; padding: 0; list-style: none; border-bottom: 2px solid var(--ink, #17140f); } .ds-row { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: baseline; margin-inline: -12px; padding-inline: 12px; font-size: 15px; line-height: 1.35; cursor: pointer; background-image: linear-gradient(var(--ink, #17140f), var(--ink, #17140f)); background-size: calc(100% - 24px) 2px; background-position: 12px 0; background-repeat: no-repeat; } .ds-row b { padding-top: 10px; font-weight: 700; } .ds-row time { color: color-mix(in srgb, #17140f 70%, #fffdf8); font-size: 13px; font-variant-numeric: tabular-nums; } .ds-row span { grid-column: 1 / -1; padding-bottom: 10px; color: color-mix(in srgb, #17140f 70%, #fffdf8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-row-current { background-color: var(--yellow, #f6c62e); } .ds-row-current span, .ds-row-current time { color: var(--ink, #17140f); }"
+    },
+    {
+      "name": "Binder spine",
+      "kind": "custom",
+      "refersTo": "spine",
+      "description": "A product as a binder on the shelf; linked ones lift on hover, unbuilt ones are dashed outlines.",
+      "html": "<div class=\"ds-shelf-ground\"><ul class=\"ds-shelf\"><li><a class=\"ds-spine ds-spine-blue\" href=\"#\"><span class=\"ds-spine-label\"><small>Even</small><b>doen</b></span><span class=\"ds-spine-state\">gratis</span><span class=\"ds-spine-ring\"></span></a></li><li><a class=\"ds-spine ds-spine-green\" href=\"#\"><span class=\"ds-spine-label\"><small>Even</small><b>noteren</b></span><span class=\"ds-spine-state\">gratis</span><span class=\"ds-spine-ring\"></span></a></li><li><div class=\"ds-spine ds-spine-soon\"><span class=\"ds-spine-label\"><small>Even</small><b>plannen</b></span><span class=\"ds-spine-state\">binnenkort</span><span class=\"ds-spine-ring\"></span></div></li></ul></div>",
+      "css": ".ds-shelf-ground { padding: 40px 32px; background: var(--yellow, #f6c62e); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); } .ds-shelf { list-style: none; margin: 0; padding: 0 4px; display: grid; grid-template-columns: repeat(3, 130px); align-items: end; gap: 14px; border-bottom: 6px solid var(--ink, #17140f); } .ds-spine { height: 260px; display: flex; flex-direction: column; gap: 12px; padding: 12px 10px 18px; border-radius: 7px 7px 0 0; color: var(--paper, #fffdf8); text-decoration: none; transition: translate 0.4s cubic-bezier(0.16, 1, 0.3, 1); } a.ds-spine:hover { translate: 0 -14px; } a.ds-spine:focus-visible { outline: 3px solid var(--ink, #17140f); outline-offset: 3px; } .ds-spine-blue { background: var(--blue, #2a57d6); } .ds-spine-green { background: var(--green, #17794f); } .ds-spine-label { display: grid; gap: 1px; padding: 10px 9px 12px; border-radius: 3px; background: var(--paper, #fffdf8); color: var(--ink, #17140f); line-height: 1.05; } .ds-spine-label small { font-size: 13px; font-weight: 600; } .ds-spine-label b { font-size: 19px; font-stretch: 76%; font-weight: 800; letter-spacing: -0.01em; } .ds-spine-state { padding-inline: 2px; font-size: 13px; font-weight: 650; } .ds-spine-ring { width: 34px; height: 34px; margin: auto auto 0; border: 5px solid var(--paper, #fffdf8); border-radius: 50%; background: var(--yellow, #f6c62e); } .ds-spine-soon { color: var(--ink, #17140f); border: 2px dashed var(--ink, #17140f); border-bottom: 0; } .ds-spine-soon .ds-spine-label { background: none; border: 2px solid var(--ink, #17140f); } .ds-spine-soon .ds-spine-ring { border: 2px dashed var(--ink, #17140f); background: none; }"
+    },
+    {
+      "name": "Two-way switch",
+      "kind": "input",
+      "refersTo": "switch-option-checked",
+      "description": "Two options in one ink outline; the chosen one is filled.",
+      "html": "<fieldset class=\"ds-switch\"><label><input type=\"radio\" name=\"ds-period\" checked /><span>Per maand</span></label><label><input type=\"radio\" name=\"ds-period\" /><span>Per jaar</span></label></fieldset>",
+      "css": ".ds-switch { display: inline-flex; margin: 0; padding: 0; border: 2px solid var(--ink, #17140f); border-radius: 7px; overflow: hidden; background: var(--paper, #fffdf8); color: var(--ink, #17140f); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); } .ds-switch label { cursor: pointer; } .ds-switch input { position: absolute; opacity: 0; } .ds-switch span { display: block; padding: 7px 14px; font-size: 15px; font-weight: 650; } .ds-switch input:checked + span { background: var(--ink, #17140f); color: var(--paper, #fffdf8); } .ds-switch input:focus-visible + span { outline: 3px solid var(--orange, #f07a2b); outline-offset: -3px; }"
+    },
+    {
+      "name": "Question row",
+      "kind": "custom",
+      "refersTo": "title",
+      "description": "A native disclosure between 2px ink rules; the plus lies down to a minus when open.",
+      "html": "<div class=\"ds-questions\"><details><summary>Hoe zeg ik op?</summary><p>In je account, wanneer je wilt. Je houdt toegang tot het einde van de periode die je hebt betaald.</p></details><details><summary>En Gmail?</summary><p>Gmail werkt, maar voorlopig alleen op uitnodiging.</p></details></div>",
+      "css": ".ds-questions { max-width: 46rem; padding: 0 24px; background: var(--paper, #fffdf8); color: var(--ink, #17140f); border-bottom: 2px solid var(--ink, #17140f); font-family: var(--sans, 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 17px; line-height: 1.55; } .ds-questions details { border-top: 2px solid var(--ink, #17140f); } .ds-questions summary { position: relative; padding: 18px 44px 18px 0; font-size: 1.3rem; font-weight: 700; line-height: 1.25; list-style: none; cursor: pointer; } .ds-questions summary::-webkit-details-marker { display: none; } .ds-questions summary::before, .ds-questions summary::after { content: ''; position: absolute; right: 6px; top: 50%; width: 18px; height: 3px; margin-top: -1.5px; background: var(--ink, #17140f); transition: rotate 0.3s cubic-bezier(0.16, 1, 0.3, 1); } .ds-questions summary::after { rotate: 90deg; } .ds-questions details[open] summary::after { rotate: 0deg; } .ds-questions summary:hover { color: color-mix(in srgb, #17140f 60%, #f07a2b); } .ds-questions summary:focus-visible { outline: 3px solid var(--ink, #17140f); outline-offset: 3px; } .ds-questions details p { max-width: 38rem; margin: 0; padding-bottom: 22px; color: color-mix(in srgb, #17140f 72%, #fffdf8); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "De ordner",
+    "overview": "The site is an opened ring binder, the entrepreneur's own administration. Every section is a divider sheet in one flat colour that runs edge to edge, with two punched holes on its left and its tab on the black rail beside it. White punched sheets lie on top of the dividers and carry the things you can read closely or operate: an example inbox, a price. The black of the binder's cover shows wherever no sheet is: the rail, the page behind the sheets, the last section.\n\nIt is dense in colour and sparse in parts. A divider holds one claim in heavy condensed lettering, a short explanation, and at most one black button. Structure is drawn with thick black rules, as on a printed form, and with the sheets themselves; there are no boxes inside boxes. Movement follows gravity: sheets drop in from above once, a filed mail slides off towards the tabs, and nothing else moves on its own.\n\nThe build refuses gradients, glass and rows of cards with icons. The one exception is the Even icon, a fixed brand asset that carries its own gradient.",
+    "keyCharacteristics": [
+      "One flat saturated colour per section, edge to edge, text colour set by the sheet.",
+      "One type family, Archivo, with weight and width doing all the hierarchy.",
+      "Thick black rules (2px) for lists, tables and footers.",
+      "A fixed column of tabs as navigation; the tab of the current sheet sticks out further.",
+      "White paper sheets, slightly turned, as the only raised objects.",
+      "Motion is dropping and sliding, eased out, and switches off under reduced motion."
+    ],
+    "rules": [
+      { "name": "The Sheet Sets The Text Rule", "body": "Every surface declares its ground (`--sheet`) and its text (`--fg`) together. Orange, yellow and paper take ink; blue, green and black take paper. Soft text is always a mix of those two, declared on the sheet itself, never a grey carried over from another sheet.", "section": "colors" },
+      { "name": "The Flat Ground Rule", "body": "A sheet is one colour from edge to edge. No gradients, no tints of a divider colour, no translucent layers.", "section": "colors" },
+      { "name": "The Deep Orange Rule", "body": "Orange as text on paper is always `orange-deep`. Plain orange is a ground, a mark or a button, never small text on white.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "Archivo only. Hierarchy comes from weight (420 to 800) and width (76% to 100%); a second typeface is never the answer.", "section": "typography" },
+      { "name": "The Narrow Is For Lettering Rule", "body": "Width below 100% belongs to display type, buttons, tabs and spine labels. Text meant to be read in sentences stays at full width.", "section": "typography" },
+      { "name": "The Only Paper Lifts Rule", "body": "A shadow means a sheet of paper is lying on something. Buttons, tabs, spines and lists cast none; a button answers hover by moving 2px up, not by gaining a shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do give every new section its own divider: one flat colour edge to edge, two holes on the left, a tab on the rail in the same colour.",
+      "Do set `--sheet` and `--fg` together on any new surface and mix its soft text from those two on that same surface.",
+      "Do keep one claim, one short explanation and at most one black button per divider.",
+      "Do draw structure with 2px ink rules and with sheets; put anything that must look like an object on a white loose sheet.",
+      "Do use Archivo for everything; narrow it (76–92%) for lettering, tabs, buttons and labels, and leave reading text at full width.",
+      "Do show state by length or position: a tab sticks out, a spine lifts, a key goes down.",
+      "Do let things enter by dropping from above and leave by sliding off, with `cubic-bezier(0.16, 1, 0.3, 1)`, and keep the reduced-motion switch that turns all of it off.",
+      "Do mark any made-up content shown as a demonstration as an example, on the sheet itself."
+    ],
+    "donts": [
+      "Don't use gradients, glass, blur or translucent panels on any sheet. The Even icon is the single exception and stays as it is.",
+      "Don't build a row of cards with icons; a list is ruled rows, a set of products is spines on a shelf.",
+      "Don't set plain orange as text on paper; use deep orange.",
+      "Don't put a shadow on anything but a white sheet lying on a divider, and never a hard offset one.",
+      "Don't round the corners of a divider or a loose sheet; paper is cut square.",
+      "Don't add a second typeface or a monospace, not even for keys.",
+      "Don't change a tab's colour to show state, and don't turn the tab column into a different kind of menu on small screens; a tab stays a tab.",
+      "Don't blend two divider colours on one sheet or invent a sixth divider colour without a section to file under it."
+    ]
+  }
+}
