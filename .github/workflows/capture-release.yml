@@ -2,7 +2,7 @@
 # publishes a GitHub Release. Start one by pushing a tag, e.g. `capture-v0.2.0`
 # (the version in apps/capture-desktop/src-tauri/tauri.conf.json must match).
 #
-# Each release gets stable download names (used by capture.jornboerema.nl) and
+# Each release gets stable download names (used by jornboerema.nl/download) and
 # a latest.json that running apps check for updates.
 #
 # Secrets:
@@ -88,7 +88,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: Even vastleggen __VERSION__
           releaseBody: |
-            Download Even vastleggen from https://capture.jornboerema.nl.
+            Download Even vastleggen from https://jornboerema.nl/download.
             Installed apps update themselves.
           releaseDraft: false
           prerelease: false

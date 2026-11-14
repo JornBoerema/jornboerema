@@ -80,7 +80,7 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 - Update-bestanden zijn ondertekend met de sleutel in `~/.tauri/even-vastleggen.key` (GitHub-secret `TAURI_SIGNING_PRIVATE_KEY`). **Bewaar een back-up**: zonder die sleutel kunnen geïnstalleerde apps geen updates meer krijgen. De publieke sleutel staat in `tauri.conf.json`.
 - Geen Apple Developer-account: macOS-gebruikers kiezen eenmalig "Open toch" in Privacy en beveiliging, Windows toont SmartScreen.
 - Releases voor macOS zijn ondertekend met een eigen (self-signed) certificaat, `Even vastleggen (Jorn Boerema)`: `~/.tauri/even-vastleggen-signing.p12` + `.password`, als secrets `MACOS_SIGNING_P12` (base64) en `MACOS_SIGNING_PASSWORD`, gekozen via `tauri.macos-release.conf.json`. Gatekeeper vertrouwt het niet, maar omdat elke versie hetzelfde certificaat heeft blijft de Schermopname-toestemming na updates staan. **Bewaar ook hiervan een back-up**: een nieuw certificaat betekent één keer opnieuw toestemming geven. Lokale builds zijn ad-hoc ondertekend (`signingIdentity: "-"`).
-- Downloadpagina: `apps/capture-web` (statisch, EN/NL) op `capture.jornboerema.nl`. Vercel-project met Root Directory `apps/capture-web`.
+- Downloadpagina: `jornboerema.nl/download` (in `apps/home`). `capture.jornboerema.nl` (`apps/capture-web`, eigen Vercel-project) stuurt daarheen door, zodat oude links blijven werken.
 
 ## Auth-architectuur
 

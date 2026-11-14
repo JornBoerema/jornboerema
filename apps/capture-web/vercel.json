@@ -4,5 +4,8 @@
   "framework": "vite",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/((?!icon\\.).*)", "destination": "https://jornboerema.nl/download", "permanent": false }
+  ]
 }
