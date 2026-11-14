@@ -1,20 +1,15 @@
 import { authOrigin } from "@evido/auth/client"
 
-/** The Even apps next to this site: todo.<domain>, mail.<domain>, notes.<domain> and the download page. */
+/** The Even apps next to this site, each at its place in the Even web app (app.<domain>), and the download page. */
 export function appLinks() {
   const { hostname, protocol } = new URL(authOrigin())
-  if (hostname === "localhost")
-    return {
-      todo: "http://localhost:3000",
-      mail: "http://localhost:3004",
-      notes: "http://localhost:3006",
-      download: "http://localhost:3002/download/",
-    }
+  const local = hostname === "localhost"
   const domain = hostname.replace(/^auth\./, "")
+  const app = local ? "http://localhost:3007" : `${protocol}//app.${domain}`
   return {
-    todo: `${protocol}//todo.${domain}`,
-    mail: `${protocol}//mail.${domain}`,
-    notes: `${protocol}//notes.${domain}`,
-    download: `${protocol}//${domain}/download/`,
+    todo: `${app}/todo`,
+    mail: `${app}/mail`,
+    notes: `${app}/notes`,
+    download: local ? "http://localhost:3002/download/" : `${protocol}//${domain}/download/`,
   }
 }

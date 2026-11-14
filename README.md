@@ -86,7 +86,7 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 
 - De API is de enige Better Auth-server. Web-apps praten er rechtstreeks mee met `credentials: "include"`; CORS staat alleen `TRUSTED_ORIGINS` toe en schrijfverzoeken controleren de `Origin`.
 - Alle inlogschermen staan op de accountsite `auth.jornboerema.nl` (`apps/auth-web`, lokaal `:3005`). De apps hebben geen eigen loginformulier: hun `/login`, `/signup`, `/forgot-password` en `/reset-password` sturen door met `?returnTo=<app-URL>`. De accountsite stuurt alleen terug naar zichzelf en naar apps op hetzelfde domein (`isAllowedReturn` in `@evido/auth/client`).
-- Lokaal delen alle `localhost`-poorten dezelfde cookie. In productie draaien API en apps op subdomeinen van één domein (`api.`, `auth.`, `todo.`, `mail.jornboerema.nl`) met `AUTH_COOKIE_DOMAIN`.
+- Lokaal delen alle `localhost`-poorten dezelfde cookie. In productie draaien API en apps op subdomeinen van één domein (`api.`, `auth.`, `app.jornboerema.nl`) met `AUTH_COOKIE_DOMAIN`.
 - Het accountportaal (`/` op de accountsite) beheert naam, e-mail, wachtwoord, ingelogde apparaten en account verwijderen. De instellingen van de apps linken ernaar.
 - Desktop (Even): de knop "Inloggen via je browser" opent `auth.jornboerema.nl/desktop` met een PKCE-challenge en een poort op `127.0.0.1`. Na bevestigen stuurt de accountsite een eenmalige code (2 minuten geldig) naar de app, die hem met de verifier inwisselt via `POST /api/auth/desktop/token` (`packages/auth/src/desktop-sign-in.ts`). De app krijgt een eigen sessie als bearer-token.
 - MCP: `${BETTER_AUTH_URL}/mcp`, OAuth met PKCE via de Better Auth MCP-plugin. Login en toestemming lopen via `AUTH_UI_URL`.
@@ -129,8 +129,10 @@ Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig voor 
 | --- | --- | --- |
 | `evido-api` | `apps/api` | `api.jornboerema.nl` |
 | `evido-auth` | `apps/auth-web` | `auth.jornboerema.nl` |
-| `evido-todo` | `apps/todo-web` | `todo.jornboerema.nl` |
-| `even-mailen` | `apps/mail-web` | `mail.jornboerema.nl` |
+| `even-app` | `apps/app-web` | `app.jornboerema.nl`: mail, taken en notities in één web-app (`/mail`, `/todo`, `/notes`) |
+| `even-doen` | `apps/todo-web` | `todo.jornboerema.nl`, stuurt door naar `app.jornboerema.nl/todo` |
+| `even-mailen` | `apps/mail-web` | `mail.jornboerema.nl`, stuurt door naar `app.jornboerema.nl/mail` |
+| `even-noteren` | `apps/notes-web` | `notes.jornboerema.nl`, stuurt door naar `app.jornboerema.nl/notes` |
 | `evido-home` | `apps/home` | `jornboerema.nl` (geen env vars nodig) |
 
 Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met tsup gebundeld en draait als één Vercel Function (`apps/api/api/index.js`); de web-app is een statische Vite-build met een SPA-fallback.
@@ -142,11 +144,12 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `DATABASE_URL` | Neon pooled connection string (productie) |
 | `BETTER_AUTH_URL` | `https://api.jornboerema.nl` |
 | `BETTER_AUTH_SECRET` | `openssl rand -hex 32` (productie-geheim) |
-| `TRUSTED_ORIGINS` | `https://todo.jornboerema.nl` |
+| `TRUSTED_ORIGINS` | Extra origins, met komma's; de origins van de app-adressen hieronder zijn al vertrouwd |
 | `AUTH_UI_URL` | `https://auth.jornboerema.nl` |
-| `TODO_WEB_URL` | `https://todo.jornboerema.nl` |
+| `TODO_WEB_URL` | `https://app.jornboerema.nl/todo` |
 | `AUTH_COOKIE_DOMAIN` | `.jornboerema.nl` |
-| `MAIL_WEB_URL` | `https://mail.jornboerema.nl` |
+| `MAIL_WEB_URL` | `https://app.jornboerema.nl/mail` |
+| `NOTES_WEB_URL` | `https://app.jornboerema.nl/notes` |
 | `MAIL_TOKEN_KEY` | Zelfde waarde als elke omgeving op deze database; anders zijn tokens onleesbaar |
 | `GOOGLE_MAIL_CLIENT_ID` / `_SECRET` | Google-client; redirect `https://api.jornboerema.nl/api/mail/callback/gmail` |
 | `MICROSOFT_MAIL_CLIENT_ID` / `_SECRET` | Entra-app; redirect `https://api.jornboerema.nl/api/mail/callback/outlook` |

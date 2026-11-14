@@ -79,7 +79,7 @@ export async function askModel(
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://mail.jornboerema.nl",
+      "HTTP-Referer": "https://app.jornboerema.nl",
       "X-Title": "Even mailen",
     },
     body: JSON.stringify({
