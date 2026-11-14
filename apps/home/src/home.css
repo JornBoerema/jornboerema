@@ -726,11 +726,12 @@ a.spine:hover {
   rotate: -1.2deg;
 }
 
+/* The two halves each draw their own border and corners. One clipped outline around both
+   left slivers of paper showing in the corners of the black half. */
 .period {
   display: inline-flex;
-  border: 2px solid var(--ink);
-  border-radius: 7px;
-  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
 }
 
 .period label {
@@ -745,8 +746,19 @@ a.spine:hover {
 .period span {
   display: block;
   padding: 7px 14px;
+  border: 2px solid var(--ink);
   font-size: 15px;
   font-weight: 650;
+}
+
+.period label:first-of-type span {
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+}
+
+.period label:last-of-type span {
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
 }
 
 .period input:checked + span {
