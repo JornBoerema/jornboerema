@@ -59,7 +59,6 @@ export const en = {
     mailGroup: "Mail",
     menu: "Menu",
     more: "More",
-    sidebarPage: "Sidebar",
     customizeSidebar: "Arrange sidebar",
     signOut: "Sign out",
     downloadDesktop: "Download Even for desktop",
@@ -366,11 +365,6 @@ export const en = {
     cancel: "Cancel",
     save: "Save",
     dragHelp: "Press space or enter to pick it up, the arrow keys to move it, and space or enter again to drop it. Escape puts it back.",
-  },
-  sidebarPage: {
-    description: "Put the places in the order you like, tuck some under More, or hide them. On a wider screen, in the sidebar itself.",
-    start: "Arrange",
-    arrange: "Arrange sidebar",
   },
   pins: {
     pin: "Pin to top",

@@ -310,7 +310,6 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         user={user}
-        onCustomizeSidebar={navigation.onCustomizeSidebar}
       />
       <ShortcutsSpotlight
         open={shortcutsOpen}

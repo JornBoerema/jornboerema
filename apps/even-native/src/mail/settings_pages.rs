@@ -17,7 +17,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use crate::api::{ApiError, Client, Unauthorized};
-use crate::app::{AppEvent, SettingsPage};
+use crate::app::SettingsPage;
 use crate::i18n::t;
 use crate::ui::{self, Variant};
 use crate::{api as even, theme};
@@ -28,12 +28,11 @@ use super::settings_signatures::SignatureEditor;
 use super::{Loaded, MailView, SignedOut, View};
 
 /// The pages by the web's ids, in its order.
-const PAGES: [&str; 8] = [
+const PAGES: [&str; 7] = [
     "mailboxes",
     "signatures",
     "notifications",
     "ai",
-    "sidebar",
     "features",
     "connections",
     "privacy",
@@ -54,7 +53,6 @@ pub(super) fn pages() -> Vec<SettingsPage> {
         page("signatures", t("Signatures", "Handtekeningen"), "signature"),
         page("notifications", t("Notifications", "Meldingen"), "notification-03"),
         page("ai", "AI", "sparkles"),
-        page("sidebar", "Sidebar", "layout-left"),
         page("features", t("Features", "Functies"), "puzzle"),
         page("connections", t("Connections", "Koppelingen"), "plug-01"),
         page("privacy", "Privacy", "security-check"),
@@ -374,7 +372,6 @@ impl MailView {
             "signatures" => self.render_signatures(window, cx),
             "notifications" => vec![self.render_notifications(cx)],
             "ai" => vec![self.render_ai(cx)],
-            "sidebar" => vec![self.render_sidebar_page(cx)],
             "features" => vec![self.render_features(cx)],
             "connections" => self.render_connections(cx),
             "privacy" => vec![self.render_privacy(cx)],
@@ -909,35 +906,6 @@ impl MailView {
                     cx,
                 ),
             ],
-        )
-        .into_any_element()
-    }
-
-    /// `SidebarSettings`: the sidebar is arranged in place; this only starts it.
-    fn render_sidebar_page(&self, cx: &mut Context<Self>) -> AnyElement {
-        ui::settings_section(
-            "Sidebar",
-            None,
-            vec![row(
-                t("Arrange sidebar", "Sidebar indelen"),
-                Some(
-                    t(
-                        "Put the places in the order you like, tuck some under More, or hide them. On a wider screen, in the sidebar itself.",
-                        "Zet de onderdelen in de volgorde die jij fijn vindt, stop er een paar onder Meer of verberg ze. Op een breder scherm, in de sidebar zelf.",
-                    )
-                    .into(),
-                ),
-                false,
-                Some(
-                    ui::button("arrange-sidebar", t("Arrange", "Indelen"), Variant::Outline)
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            // The settings close and Even mailen comes to the front first.
-                            cx.emit(AppEvent::Show);
-                            this.customize_sidebar(cx);
-                        }))
-                        .into_any_element(),
-                ),
-            )],
         )
         .into_any_element()
     }

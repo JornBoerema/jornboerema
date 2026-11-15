@@ -60,7 +60,6 @@ export const nl: typeof en = {
     mailGroup: "Mail",
     menu: "Menu",
     more: "Meer",
-    sidebarPage: "Sidebar",
     customizeSidebar: "Sidebar indelen",
     signOut: "Uitloggen",
     downloadDesktop: "Even voor desktop downloaden",
@@ -367,11 +366,6 @@ export const nl: typeof en = {
     cancel: "Annuleren",
     save: "Opslaan",
     dragHelp: "Druk op spatie of enter om op te pakken, gebruik de pijltjes om te verplaatsen en druk nogmaals op spatie of enter om neer te zetten. Escape zet het terug.",
-  },
-  sidebarPage: {
-    description: "Zet de onderdelen in de volgorde die jij fijn vindt, stop er een paar onder Meer of verberg ze. Op een breder scherm, in de sidebar zelf.",
-    start: "Indelen",
-    arrange: "Sidebar indelen",
   },
   pins: {
     pin: "Bovenaan vastpinnen",

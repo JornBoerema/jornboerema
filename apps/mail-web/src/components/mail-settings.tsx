@@ -11,7 +11,6 @@ import {
   SignatureIcon,
   SparklesIcon,
   UserCircleIcon,
-  LayoutLeftIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LANGUAGE_NAMES, LANGUAGES } from "@even/i18n"
@@ -24,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@even/ui/components/select"
-import { useAppSwitcher } from "@even/ui/components/app-switcher"
 import { DesktopSettingsPages, useDesktopSettings } from "@even/ui/components/desktop-settings"
 import {
   SettingsDialog,
@@ -32,7 +30,6 @@ import {
   SettingsSection,
   type SettingsPage,
 } from "@even/ui/components/settings-dialog"
-import { Button } from "@even/ui/components/button"
 import { Switch } from "@even/ui/components/switch"
 import { useTheme, type Theme } from "@even/ui/lib/theme"
 import { useI18n } from "@/i18n"
@@ -227,33 +224,14 @@ export function linkedSettingsPage() {
   return params.has("connected") || params.has("error") ? "mailboxes" : "account"
 }
 
-/** The sidebar is arranged in place; this only starts it. */
-function SidebarSettings({ onArrange }: { onArrange: () => void }) {
-  const strings = useI18n().t
-  const t = strings.sidebarPage
-  // Arranged in place, where the sidebar is open: only on wider screens.
-  return (
-    <SettingsSection title={strings.shell.sidebarPage}>
-      <SettingsRow title={t.arrange} description={t.description}>
-        <Button variant="outline" className="max-lg:hidden" onClick={onArrange}>
-          {t.start}
-        </Button>
-      </SettingsRow>
-    </SettingsSection>
-  )
-}
-
 export function MailSettings({
   open,
   onOpenChange,
   user,
-  onCustomizeSidebar,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: { name: string; email: string }
-  /** Closes the settings and arranges the sidebar in place. */
-  onCustomizeSidebar: () => void
 }) {
   const strings = useI18n().t
   const t = strings.shell
@@ -264,15 +242,6 @@ export function MailSettings({
   }, [open])
   const about = useAboutPage()
   const desktop = useDesktopSettings("mail")
-  const switcher = useAppSwitcher()
-  // In the desktop app the settings close and Even mailen comes to the front first.
-  const arrange = () => {
-    if (desktop) {
-      desktop.close()
-      switcher?.onSelect("mail")
-    }
-    onCustomizeSidebar()
-  }
   // As in Even doen: the account first, then what belongs to this app.
   const pages: SettingsPage[] = [
     {
@@ -310,12 +279,6 @@ export function MailSettings({
       icon: <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.75} aria-hidden="true" />,
     },
     {
-      id: "sidebar",
-      label: t.sidebarPage,
-      group: t.mailGroup,
-      icon: <HugeiconsIcon icon={LayoutLeftIcon} strokeWidth={1.75} aria-hidden="true" />,
-    },
-    {
       id: "features",
       label: strings.features.title,
       group: t.mailGroup,
@@ -345,7 +308,6 @@ export function MailSettings({
       {id === "notifications" && <NotificationSettings />}
       {id === "ai" && <AiSettings />}
       {id === "features" && <FeatureSettings />}
-      {id === "sidebar" && <SidebarSettings onArrange={arrange} />}
       {id === "appearance" && <AppearanceSettings />}
       {id === "about" && <AboutSettings />}
       {id === "privacy" && <PrivacySettings />}
