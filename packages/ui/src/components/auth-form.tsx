@@ -442,22 +442,31 @@ export function AuthForm({
                 {t.passkey.signIn}
               </Button>
             )}
-            {providers.map((provider) => (
-              <Button
-                key={provider}
-                type="button"
-                variant="outline"
-                disabled={busy}
-                onClick={() => signInWith(provider)}
-              >
-                {socialPending === provider ? (
-                  <HugeiconsIcon icon={Loading03Icon} {...ICON} className="animate-spin" data-icon="inline-start" />
-                ) : (
-                  <ProviderLogo provider={provider} />
-                )}
-                {t.social.continueWith.replace("{provider}", PROVIDER_NAMES[provider])}
-              </Button>
-            ))}
+            {/* Side by side, logo only: the page fits without scrolling. */}
+            {providers.length > 0 && (
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${providers.length}, minmax(0, 1fr))` }}>
+                {providers.map((provider) => {
+                  const label = t.social.continueWith.replace("{provider}", PROVIDER_NAMES[provider]);
+                  return (
+                    <Button
+                      key={provider}
+                      type="button"
+                      variant="outline"
+                      disabled={busy}
+                      aria-label={label}
+                      title={label}
+                      onClick={() => signInWith(provider)}
+                    >
+                      {socialPending === provider ? (
+                        <HugeiconsIcon icon={Loading03Icon} {...ICON} className="animate-spin" />
+                      ) : (
+                        <ProviderLogo provider={provider} />
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
             <div className="auth-divider" role="separator">
               <span>{t.social.divider}</span>
             </div>

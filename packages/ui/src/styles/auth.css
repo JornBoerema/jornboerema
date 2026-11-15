@@ -95,3 +95,18 @@
   height: 1px;
   background: var(--border);
 }
+/* Short windows: less air around the form, so it fits without scrolling. */
+@media (max-height: 820px) {
+  .auth-layout > header {
+    padding-block: 20px;
+  }
+  .auth-main {
+    padding-block: 8px 24px;
+  }
+  .auth-form {
+    gap: 22px;
+  }
+  .auth-layout footer {
+    padding-block: 16px;
+  }
+}
