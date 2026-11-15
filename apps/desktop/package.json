@@ -1,9 +1,9 @@
 {
   "name": "@evido/desktop",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "type": "module",
   "private": true,
-  "description": "Even: Even mailen and Even doen in one desktop app for macOS and Windows (Tauri 2 + React).",
+  "description": "Even: Even mailen, Even doen and Even noteren in one desktop app for macOS and Windows (Tauri 2 + React), in the same shell as app.jornboerema.nl.",
   "scripts": {
     "dev:vite": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
