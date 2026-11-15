@@ -101,6 +101,7 @@ const english: Record<string, string> = {
   coverLine: "Dutch for “just a moment”. That is how long it should take.",
   legalIds: "Chamber of Commerce 42064465 · VAT NL005468091B10",
   terms: "Terms",
+  dpa: "DPA",
 }
 
 /** What the example inbox says after each key, and the page's own labels. */
