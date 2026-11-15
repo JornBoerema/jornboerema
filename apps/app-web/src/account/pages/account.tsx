@@ -2,15 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
-  ArrowUpRight01Icon,
-  CheckmarkSquare02Icon,
   ComputerIcon,
   Delete02Icon,
-  Download04Icon,
   LaptopIcon,
   Logout03Icon,
   Mail01Icon,
-  Note01Icon,
   SmartPhone01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
@@ -33,7 +29,6 @@ import { Brand } from "@even/shell/brand"
 import { RequireSession } from "@/account/components/require-session"
 import { Subscription } from "@/account/components/subscription"
 import { useI18n } from "@/account/i18n"
-import { appLinks } from "@/account/lib/apps"
 import { authClient } from "@/account/lib/auth-client"
 import { useTitle } from "@/account/lib/use-title"
 
@@ -75,7 +70,6 @@ function Account({ user, sessionToken }: { user: User; sessionToken: string }) {
           <h1 className="text-[28px] leading-tight font-semibold tracking-[-1px]">{t.title}</h1>
           <p className="text-sm text-muted-foreground">{t.description}</p>
         </div>
-        <Apps />
         <Subscription />
         <Profile user={user} />
         <SignIn user={user} />
@@ -83,40 +77,6 @@ function Account({ user, sessionToken }: { user: User; sessionToken: string }) {
         <DeleteAccount />
       </main>
     </div>
-  )
-}
-
-function Apps() {
-  const t = useI18n().t.account
-  const links = appLinks()
-  const apps: { title: string; help: string; href: string; icon: IconSvgElement; action: string; actionIcon: IconSvgElement }[] = [
-    { title: t.appTodo, help: t.appTodoHelp, href: links.todo, icon: CheckmarkSquare02Icon, action: t.open, actionIcon: ArrowUpRight01Icon },
-    { title: t.appMail, help: t.appMailHelp, href: links.mail, icon: Mail01Icon, action: t.open, actionIcon: ArrowUpRight01Icon },
-    { title: t.appNotes, help: t.appNotesHelp, href: links.notes, icon: Note01Icon, action: t.open, actionIcon: ArrowUpRight01Icon },
-    { title: t.appDesktop, help: t.appDesktopHelp, href: links.download, icon: ComputerIcon, action: t.download, actionIcon: Download04Icon },
-  ]
-  return (
-    <SettingsSection title={t.apps}>
-      {apps.map((app) => (
-        <SettingsRow
-          key={app.href}
-          title={app.title}
-          description={
-            <span className="flex items-center gap-2">
-              {icon(app.icon, "size-3.5 shrink-0")}
-              {app.help}
-            </span>
-          }
-        >
-          <Button asChild variant="outline" size="sm">
-            <a href={app.href}>
-              {app.action}
-              <HugeiconsIcon icon={app.actionIcon} strokeWidth={1.75} aria-hidden="true" data-icon="inline-end" />
-            </a>
-          </Button>
-        </SettingsRow>
-      ))}
-    </SettingsSection>
   )
 }
 

@@ -1,6 +1,8 @@
 /* Sign-in pages shared by the Even web apps. Tokens come from globals.css. */
+/* The page scrolls itself: the web app's body doesn't (index.html). */
 .auth-layout {
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   background: var(--sidebar);
