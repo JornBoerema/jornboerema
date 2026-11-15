@@ -13,7 +13,8 @@ const PAGE_SIZE = 100
 const FIRST_PAGE_SIZE = 25
 // Each read costs 5 of the 250 quota units a user gets per second. Three at a time
 // leaves room for what the user does meanwhile: a send alone costs 100.
-const READ_CONCURRENCY = 3
+/** Gmail allows 50 message reads a second per user; ten at a time stays well under it. */
+const READ_CONCURRENCY = 10
 /** Cursors from before every folder was synced lack this, which starts a full sync. */
 const CURSOR_VERSION = 2
 

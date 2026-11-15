@@ -85,7 +85,8 @@ import { FileTooLargeForMoneybirdError, moneybirdForConversation, NoAdministrati
 import { connectionFailure } from "../connections/routes"
 import { createTodoFromMail, TodoListGoneError, todoLists, todosForConversation } from "./todo-server"
 import { RECOGNITION_KINDS, REPORT_REASONS, reportRecognition } from "./recognition-server"
-import { syncAccount } from "./sync-server"
+import { startBackfill, syncAccount } from "./sync-server"
+import { getDb } from "@even/db"
 import { forgetDevice, PUSH_ENVIRONMENTS, pushEnabled, registerDevice } from "./push-server"
 import {
   createUpload,
@@ -384,6 +385,8 @@ mailRoutes.get("/callback/:provider", async (c) => {
   try {
     const account = await finishConnect(session.user.id, provider, state, code)
     defer(() => ensureWatch(account))
+    // Its past year is fetched in the background, whether or not the app stays open.
+    defer(() => startBackfill(account.id))
     return c.redirect(`${back}/?connected=1`)
   } catch (error) {
     if (error instanceof ConnectExpiredError) return fail("expired")
@@ -847,6 +850,24 @@ mailRoutes.post("/scheduled/:id/send", requireTrustedOrigin, requireSession, asy
   try {
     await sendScheduledNow(c.get("session").user.id, c.req.param("id"))
     return c.json({ ok: true }, 200, noStore)
+  } catch (error) {
+    return failure(c, error)
+  }
+})
+
+// The background fetch of a new mailbox's past year (trigger/mail-backfill.ts): one round per call.
+const backfillBody = z.object({ accountId: z.string().min(1).max(100) })
+mailRoutes.post("/jobs/backfill", async (c) => {
+  const secret = process.env.MAIL_JOBS_SECRET
+  const header = c.req.header("authorization")
+  if (!secret || !header || !secretsMatch(header, `Bearer ${secret}`)) return c.body(null, 401)
+  const body = await readBody(c, backfillBody)
+  if (!body) return c.json({ error: "invalid job" }, 400)
+  const account = await getDb().mailAccount.findUnique({ where: { id: body.accountId }, select: { userId: true, status: true } })
+  if (!account) return c.body(null, 404)
+  if (account.status !== "active") return c.body(null, 409)
+  try {
+    return c.json(await syncAccount(account.userId, body.accountId), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }

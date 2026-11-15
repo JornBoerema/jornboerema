@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import { idempotencyKeys, tasks } from "@trigger.dev/sdk"
 import { getDb, type MailAccount } from "@even/db"
 import {
   isRateLimited,
@@ -9,6 +10,7 @@ import {
 import type { MailSyncResult } from "@even/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 import { isNews, pushEnabled, pushNewMail } from "./push-server"
+import type { mailBackfill } from "../../trigger/mail-backfill"
 
 /** How far back mail is kept: a year, for every synced folder. */
 const WINDOW_MS = 365 * 24 * 60 * 60 * 1000
@@ -91,8 +93,36 @@ async function acquireLock(accountId: string) {
   return count === 1
 }
 
+/**
+ * Has Trigger.dev fetch a just-connected mailbox's past year in the background.
+ * Without its key (development) the app's own sync does it while it is open.
+ */
+export async function startBackfill(accountId: string) {
+  if (!process.env.TRIGGER_SECRET_KEY) return
+  try {
+    // A second connect of the same mailbox within the hour joins the run under way.
+    const idempotencyKey = await idempotencyKeys.create(`backfill:${accountId}`, { scope: "global" })
+    await tasks.trigger<typeof mailBackfill>("mail-backfill", { accountId }, {
+      idempotencyKey,
+      idempotencyKeyTTL: "1h",
+      tags: ["mail-backfill"],
+      region: "eu-central-1",
+    })
+  } catch (error) {
+    console.error("Starting a mailbox backfill failed", error)
+  }
+}
+
+const stored = (accountId: string) => getDb().mailMessage.count({ where: { accountId } })
+
 /** Advances one mailbox for as long as the time budget allows. */
 export async function syncAccount(userId: string, id: string): Promise<MailSyncResult> {
+  const result = await syncRound(userId, id)
+  // Not caught up: how much is in, so the app can show how far along it is.
+  return result.done ? result : { ...result, stored: await stored(id) }
+}
+
+async function syncRound(userId: string, id: string): Promise<MailSyncResult> {
   const account = await ownedAccount(userId, id)
   if (!(await acquireLock(account.id))) return { done: false, busy: true, rateLimited: false, changed: 0 }
 

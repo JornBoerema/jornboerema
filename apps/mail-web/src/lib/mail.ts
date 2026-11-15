@@ -36,6 +36,9 @@ const SYNC_INTERVAL_MS = 5 * 60 * 1000
 /** After a failed round: try again this soon, before saying anything. */
 const SYNC_RETRY_MS = 30 * 1000
 const BUSY_RETRY_MS = 3 * 1000
+/** After a provider's "slow down": the pause, and how many in a row before waiting for the next round. */
+const RATE_LIMIT_PAUSE_MS = 20 * 1000
+const RATE_LIMIT_PAUSES = 6
 
 export type SyncStatus = "idle" | "syncing" | "failed"
 
@@ -271,14 +274,23 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
     let retry: number | undefined
 
     async function syncOne(id: string) {
+      let slowDowns = 0
       while (!stopped) {
         const result = await api<MailSyncResult>(`/api/mail/accounts/${id}/sync`, { method: "POST" })
-        if (!result.done && !result.busy) setFetched((count) => (count ?? 0) + result.changed)
-        else if (result.changed > 0) setFetched((count) => (count === null ? null : count + result.changed))
-        if (result.changed > 0) void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
-        if (result.changed > 0 && queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
+        // Not caught up (a new mailbox, or long away): how much is in so far.
+        if (!result.done && result.stored !== undefined) setFetched(result.stored)
+        // Busy means another sync (the background fetch of a new mailbox) holds it:
+        // what it fetched shows all the same.
+        const fresh = result.changed > 0 || result.busy
+        if (fresh) void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
+        if (fresh && queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
           void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
-        if (result.done || result.rateLimited) return
+        if (result.done) return
+        if (result.rateLimited) {
+          // The provider asked to slow down: a pause, then on, instead of waiting for the next round.
+          if (++slowDowns > RATE_LIMIT_PAUSES) return
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_PAUSE_MS))
+        } else slowDowns = 0
         if (result.busy) await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_MS))
       }
     }

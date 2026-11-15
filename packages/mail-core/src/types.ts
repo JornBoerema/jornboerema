@@ -125,6 +125,8 @@ export type MailSyncResult = {
   /** The provider asked to slow down. Progress is saved; continue on the next round. */
   rateLimited: boolean
   changed: number
+  /** Messages kept for the mailbox so far; given while it is not caught up. */
+  stored?: number
 }
 
 /**
