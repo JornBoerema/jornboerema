@@ -861,27 +861,6 @@ function LoadMore({
   )
 }
 
-/** A new mailbox while its first mail comes in: what is happening, and the rows to come. */
-function FirstSync({ fetched }: { fetched: number | null }) {
-  const { t, locale } = useI18n()
-  return (
-    <div role="status" className="flex flex-col">
-      <div className="flex flex-col gap-1.5 px-4 pt-4 pb-2">
-        <p className="flex items-center gap-2 text-sm font-medium">
-          <Spinner />
-          {t.inbox.firstSyncTitle}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {fetched ? t.inbox.fetched(fetched.toLocaleString(locale)) : t.inbox.firstSyncBody}
-        </p>
-      </div>
-      <div className="opacity-60">
-        <ListSkeleton />
-      </div>
-    </div>
-  )
-}
-
 export function InboxPage({
   navigation,
   syncStatus,
@@ -1200,11 +1179,15 @@ export function InboxPage({
             className="flex items-center text-muted-foreground"
           >
             {syncStatus === "syncing" &&
-              (syncFetched !== null && rows.length > 0 ? (
-                // A long sync with mail already shown: how far along, beside the spinner.
+              (!folder && (rows.length === 0 || syncFetched !== null) ? (
+                // A new mailbox or a long sync: what is happening and how far along, beside the spinner.
                 <span className="flex items-center gap-1.5 text-xs whitespace-nowrap">
                   <Spinner className="size-3.5" />
-                  {t.backfilling(syncFetched.toLocaleString(locale))}
+                  {rows.length === 0
+                    ? syncFetched
+                      ? t.fetched(syncFetched.toLocaleString(locale))
+                      : t.firstSync
+                    : t.backfilling((syncFetched ?? 0).toLocaleString(locale))}
                 </span>
               ) : (
                 <IconTip label={t.syncing}>
@@ -1572,7 +1555,8 @@ export function InboxPage({
                     (folder ? (
                       <ListEmpty icon={FOLDER_ICONS[folder]} title={strings.folders.empty} />
                     ) : syncStatus === "syncing" ? (
-                      <FirstSync fetched={syncFetched} />
+                      // A new mailbox: the rows to come; the header says what is happening.
+                      <ListSkeleton />
                     ) : (
                       <ListEmpty icon={InboxIcon} title={t.emptyTitle}>
                         {t.empty}

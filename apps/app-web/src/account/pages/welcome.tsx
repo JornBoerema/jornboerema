@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent, type ReactNode } from "react"
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useSearchParams } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -77,6 +77,7 @@ function Welcome({ name }: { name: string }) {
     queryKey: ["welcome", "mailboxes"],
     queryFn: () => api<{ accounts: Mailbox[] }>("/api/mail/accounts").then((data) => data.accounts),
   })
+  useEarlySync(mailboxes.data)
   const organizations = useQuery({
     queryKey: ["welcome", "organizations"],
     queryFn: () => api<Organization[]>("/api/workspaces", { language: locale }),
@@ -145,6 +146,33 @@ function Welcome({ name }: { name: string }) {
       )}
     </section>
   )
+}
+
+/**
+ * Fetches a connected mailbox's mail while the remaining steps are filled in,
+ * so the inbox is there when Even opens instead of starting from nothing.
+ * The mail app takes over where this stops; the API lets one sync run at a time.
+ */
+function useEarlySync(accounts: Mailbox[] | undefined) {
+  const ids = (accounts ?? []).map((account) => account.id).join(",")
+  useEffect(() => {
+    if (!ids) return
+    let stopped = false
+    async function run(id: string) {
+      for (let round = 0; round < 200 && !stopped; round++) {
+        const result = await api<{ done: boolean; busy: boolean; rateLimited: boolean }>(
+          `/api/mail/accounts/${id}/sync`,
+          { method: "POST" }
+        ).catch(() => null)
+        if (!result || result.done || result.rateLimited) return
+        if (result.busy) await new Promise((resolve) => setTimeout(resolve, 2000))
+      }
+    }
+    for (const id of ids.split(",")) void run(id)
+    return () => {
+      stopped = true
+    }
+  }, [ids])
 }
 
 function StepHeader({ title, description }: { title: string; description: ReactNode }) {

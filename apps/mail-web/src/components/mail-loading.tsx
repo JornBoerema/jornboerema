@@ -6,13 +6,41 @@ import { EmptyPaneView } from "@/components/empty-pane"
 import { useI18n } from "@/i18n"
 
 /** Lines while a list loads, inset like the lines that follow: drafts flush, mail and parcels past the gutter. */
+/** Sender and subject widths per row, so the rows read as mail rather than as a grid of bars. */
+const ROW_SHAPES: [string, string][] = [
+  ["w-[34%]", "w-[86%]"],
+  ["w-[22%]", "w-[72%]"],
+  ["w-[41%]", "w-[90%]"],
+  ["w-[28%]", "w-[64%]"],
+  ["w-[36%]", "w-[80%]"],
+  ["w-[25%]", "w-[76%]"],
+  ["w-[44%]", "w-[68%]"],
+  ["w-[31%]", "w-[84%]"],
+  ["w-[38%]", "w-[70%]"],
+  ["w-[27%]", "w-[88%]"],
+  ["w-[35%]", "w-[74%]"],
+  ["w-[24%]", "w-[82%]"],
+]
+
+/**
+ * The list while it loads, shaped like its rows (sender and time, then the
+ * subject), fading out towards the bottom so it suggests more without a wall of bars.
+ */
 export function ListSkeleton({ inset = true }: { inset?: boolean }) {
   return (
-    <div aria-hidden="true" className="px-2 pb-2">
-      {Array.from({ length: 10 }, (_, index) => (
-        <div key={index} className={cn("flex flex-col gap-2 py-3 pr-2.5", inset ? "pl-8" : "pl-2.5")}>
-          <Skeleton className="h-3.5 w-2/5" />
-          <Skeleton className="h-3.5 w-4/5" />
+    <div
+      aria-hidden="true"
+      className="flex flex-col gap-0.5 px-2 pb-2 [mask-image:linear-gradient(to_bottom,black_45%,transparent)]"
+    >
+      {ROW_SHAPES.map(([sender, subject], index) => (
+        <div key={index} className={cn("flex flex-col gap-0.5 py-2 pr-2.5", inset ? "pl-8" : "pl-2.5")}>
+          <div className="flex h-5 items-center gap-2">
+            <Skeleton className={cn("h-3 rounded-sm", sender)} />
+            <Skeleton className="ml-auto h-2.5 w-9 rounded-sm" />
+          </div>
+          <div className="flex h-5 items-center">
+            <Skeleton className={cn("h-3 rounded-sm opacity-70", subject)} />
+          </div>
         </div>
       ))}
     </div>
