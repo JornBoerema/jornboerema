@@ -148,7 +148,7 @@ export const nl: typeof en = {
     firstSyncTitle: "Je mail wordt opgehaald",
     firstSyncBody: "De nieuwste berichten staan hier zo. Oudere mail komt er daarna vanzelf bij.",
     fetched: (count: string) => `${count} berichten binnen. De nieuwste staan hier zo.`,
-    backfilling: (count: string) => `Oudere mail ophalen · ${count} binnen`,
+    backfilling: (count: string) => `Oudere mail · ${count} binnen`,
     emptyTitle: "Geen berichten",
     empty: "Er is de afgelopen 90 dagen niets binnengekomen.",
     noMailboxes: "Nog geen mailboxen",

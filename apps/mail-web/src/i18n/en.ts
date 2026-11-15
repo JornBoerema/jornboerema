@@ -147,7 +147,7 @@ export const en = {
     firstSyncTitle: "Fetching your mail",
     firstSyncBody: "Your newest messages will be here in a moment. Older mail follows by itself.",
     fetched: (count: string) => `${count} messages in. The newest will be here in a moment.`,
-    backfilling: (count: string) => `Fetching older mail · ${count} in`,
+    backfilling: (count: string) => `Older mail · ${count} in`,
     emptyTitle: "No messages",
     empty: "Nothing arrived in the last 90 days.",
     noMailboxes: "No mailboxes yet",

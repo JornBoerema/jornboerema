@@ -882,17 +882,6 @@ function FirstSync({ fetched }: { fetched: number | null }) {
   )
 }
 
-/** Above the newest mail while the older mail is still coming in. */
-function Backfilling({ fetched }: { fetched: number }) {
-  const { t, locale } = useI18n()
-  return (
-    <p role="status" className="mx-4 mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-      <Spinner className="size-3" />
-      {t.inbox.backfilling(fetched.toLocaleString(locale))}
-    </p>
-  )
-}
-
 export function InboxPage({
   navigation,
   syncStatus,
@@ -1210,14 +1199,21 @@ export function InboxPage({
             role="status"
             className="flex items-center text-muted-foreground"
           >
-            {syncStatus === "syncing" && (
-              <IconTip label={t.syncing}>
-                <span className="flex">
-                  <Spinner />
-                  <span className="sr-only">{t.syncing}</span>
+            {syncStatus === "syncing" &&
+              (syncFetched !== null && rows.length > 0 ? (
+                // A long sync with mail already shown: how far along, beside the spinner.
+                <span className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+                  <Spinner className="size-3.5" />
+                  {t.backfilling(syncFetched.toLocaleString(locale))}
                 </span>
-              </IconTip>
-            )}
+              ) : (
+                <IconTip label={t.syncing}>
+                  <span className="flex">
+                    <Spinner />
+                    <span className="sr-only">{t.syncing}</span>
+                  </span>
+                </IconTip>
+              ))}
             {syncStatus === "failed" && (
               <IconTip label={t.syncFailed}>
                 <span className="flex">
@@ -1582,7 +1578,6 @@ export function InboxPage({
                         {t.empty}
                       </ListEmpty>
                     ))}
-                  {!folder && rows.length > 0 && syncFetched !== null && <Backfilling fetched={syncFetched} />}
                   <ThreadList
                     rows={rows}
                     scroller={scroller}

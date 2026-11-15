@@ -9,6 +9,8 @@ import {
 
 export const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 const PAGE_SIZE = 100
+/** The first page of a new mailbox: small, so its newest mail shows within seconds. */
+const FIRST_PAGE_SIZE = 25
 // Each read costs 5 of the 250 quota units a user gets per second. Three at a time
 // leaves room for what the user does meanwhile: a send alone costs 100.
 const READ_CONCURRENCY = 3
@@ -150,7 +152,7 @@ async function backfillPage(
   // Every folder, spam and trash included; drafts and chats are dropped below.
   const params = new URLSearchParams({
     includeSpamTrash: "true",
-    maxResults: String(PAGE_SIZE),
+    maxResults: String(state.pageToken ? PAGE_SIZE : FIRST_PAGE_SIZE),
     q: `after:${Math.floor(since.getTime() / 1000)}`,
   })
   if (state.pageToken) params.set("pageToken", state.pageToken)
