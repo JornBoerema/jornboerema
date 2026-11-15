@@ -163,7 +163,11 @@ export function WorkspaceSettings({
         onGone={() => onSelectWorkspace((workspaces.find((w) => w.personal) ?? workspaces.find((w) => w.id !== activeWorkspace.id))!.id)}
       />
     ) : id === "billing" ? (
-      <OrganizationBillingSettings key={activeWorkspace.id} workspace={activeWorkspace} />
+      <OrganizationBillingSettings
+        key={activeWorkspace.id}
+        workspace={activeWorkspace}
+        onShowMembers={() => (desktop ? open("members") : setPage("members", true))}
+      />
     ) : id === "statuses" ? (
       <StatusesSettings workspaceId={activeWorkspace.id} {...board} />
     ) : id === "projects" ? (

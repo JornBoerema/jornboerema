@@ -194,3 +194,6 @@ export async function endSubscriptions(user: { id: string }) {
   await db.organization.deleteMany({ where: { id: { in: alone.map((organization) => organization.id) } } })
   return memberships.map((m) => m.organization.id).filter((id) => !alone.some((organization) => organization.id === id))
 }
+
+/** Stripe's types, for code that reads what the client answers. */
+export type { Stripe }
