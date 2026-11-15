@@ -1,3 +1,4 @@
+import { useAppSwitcher } from "@evido/ui/components/app-switcher";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
@@ -153,9 +154,12 @@ export function WorkspaceApp({
     else url.searchParams.delete("list");
     navigate({ search: url.searchParams.toString() }, { replace: true });
   }, [activeListId, selectedId, pending, movedNoteId, navigate]);
+  // In the Even shell only the app in front names the tab.
+  const shellApp = useAppSwitcher()?.active;
+  const inFront = !shellApp || shellApp === "todo";
   useEffect(() => {
-    document.title = selected?.name ? t.pageTitle(selected.name) : t.appName;
-  }, [selected?.name, t]);
+    if (inFront) document.title = selected?.name ? t.pageTitle(selected.name) : t.appName;
+  }, [selected?.name, t, inFront]);
   const items = sortTodos(data.todos.filter((t) => t.listId === selected?.id));
   const canEditTasks = selected?.role !== "viewer";
   const remaining = items.filter((t) => !t.completed).length;

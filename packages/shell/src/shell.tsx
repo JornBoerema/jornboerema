@@ -144,7 +144,11 @@ export function EvenShell({
   // The settings hold every app's pages, so while they are open every app runs.
   const [settingsOpen, setSettingsOpen] = useState(false)
   const openSettingsWindow = (open: boolean) => {
-    if (open) setOpened(APP_LIST.map((app) => app.id))
+    // Added to what is open, not instead: the dashboard (no settings of its own) stays.
+    if (open)
+      setOpened((current) => [
+        ...new Set([...current, ...APP_LIST.map((app) => app.id)]),
+      ])
     setSettingsOpen(open)
   }
 

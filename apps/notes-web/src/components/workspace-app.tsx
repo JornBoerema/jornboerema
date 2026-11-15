@@ -1,3 +1,4 @@
+import { useAppSwitcher } from "@evido/ui/components/app-switcher";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -117,9 +118,12 @@ export function WorkspaceApp({
     else url.searchParams.delete("note");
     navigate({ search: url.searchParams.toString() }, { replace: true });
   }, [activeNoteId, selectedId, pending, navigate]);
+  // In the Even shell only the app in front names the tab.
+  const shellApp = useAppSwitcher()?.active;
+  const inFront = !shellApp || shellApp === "notes";
   useEffect(() => {
-    document.title = selected?.name ? t.pageTitle(selected.name) : t.appName;
-  }, [selected?.name, t]);
+    if (inFront) document.title = selected?.name ? t.pageTitle(selected.name) : t.appName;
+  }, [selected?.name, t, inFront]);
   // Saving happens in the background; only offline (or a broken link) blocks editing.
   const disabled = !online || (!!shareToken && error);
   function createNote(event: React.FormEvent) {

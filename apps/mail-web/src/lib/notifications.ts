@@ -1,3 +1,4 @@
+import { useAppSwitcher } from "@evido/ui/components/app-switcher"
 import { useEffect, useRef } from "react"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { useNotifyNewMail } from "@/lib/preferences"
@@ -59,7 +60,10 @@ export function useNewMailNotifications(
 
 /** The unread count in the tab, like "(3) Even mailen". */
 export function useUnreadTitle(count: number | undefined, base: string) {
+  // In the Even shell only the app in front names the tab.
+  const shellApp = useAppSwitcher()?.active
+  const inFront = !shellApp || shellApp === "mail"
   useEffect(() => {
-    document.title = count ? `(${count.toLocaleString()}) ${base}` : base
-  }, [count, base])
+    if (inFront) document.title = count ? `(${count.toLocaleString()}) ${base}` : base
+  }, [count, base, inFront])
 }
