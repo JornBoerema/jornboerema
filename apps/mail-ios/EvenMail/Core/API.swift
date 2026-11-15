@@ -21,7 +21,7 @@ enum API {
 
     static let authURL: URL = {
         let environment = ProcessInfo.processInfo.environment["EVEN_AUTH_URL"]
-        return URL(string: environment ?? "https://auth.jornboerema.nl")!
+        return URL(string: environment ?? "https://app.jornboerema.nl")!
     }()
 
     /// Writes are refused without a known origin (the API's CSRF guard for

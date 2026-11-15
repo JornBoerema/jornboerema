@@ -1,6 +1,6 @@
 import { Link, Outlet } from "react-router"
-import { Brand } from "@/components/brand"
-import { useI18n } from "@/i18n"
+import { Brand } from "@evido/shell/brand"
+import { useI18n } from "@/account/i18n"
 
 /** The sign-in pages: the brand, one centred form and the tagline. */
 export function AuthLayout() {

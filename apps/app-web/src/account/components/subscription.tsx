@@ -2,9 +2,9 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@evido/ui/components/button"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { useI18n } from "@/i18n"
-import { API_URL } from "@/lib/api"
-import { appLinks } from "@/lib/apps"
+import { useI18n } from "@/account/i18n"
+import { API_URL } from "@/account/lib/api"
+import { appLinks } from "@/account/lib/apps"
 
 type Billing = {
   enabled: boolean

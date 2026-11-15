@@ -6,17 +6,11 @@ import { appAlias, shellResolve } from "../../packages/shell/vite"
 /** Where a production build talks to, whatever a local .env says; development reads apps/desktop/.env. */
 const PRODUCTION = {
   VITE_API_URL: "https://api.jornboerema.nl",
-  VITE_AUTH_URL: "https://auth.jornboerema.nl",
-  VITE_TODO_WEB_URL: "https://todo.jornboerema.nl",
-  VITE_MAIL_WEB_URL: "https://mail.jornboerema.nl",
-  VITE_NOTES_WEB_URL: "https://notes.jornboerema.nl",
+  VITE_WEB_URL: "https://app.jornboerema.nl",
 }
 const DEVELOPMENT = {
   VITE_API_URL: "http://localhost:4000",
-  VITE_AUTH_URL: "http://localhost:3005",
-  VITE_TODO_WEB_URL: "http://localhost:3000",
-  VITE_MAIL_WEB_URL: "http://localhost:3004",
-  VITE_NOTES_WEB_URL: "http://localhost:3006",
+  VITE_WEB_URL: "http://localhost:3007",
 }
 
 // Tauri loads the dev server on a fixed port (see src-tauri/tauri.conf.json).

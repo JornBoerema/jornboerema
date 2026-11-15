@@ -137,7 +137,7 @@ export function App() {
         <QueryClientProvider client={client}>
           <BrowserRouter basename="/admin">
             <Routes>
-              {/* Signing in happens on the account site (auth.jornboerema.nl). */}
+              {/* Signing in happens in the Even web app (app.jornboerema.nl). */}
               <Route path="login" element={<ToAccountSite path="/login" home="/admin/" />} />
               <Route element={<Shell />}>
                 <Route index element={<DashboardPage />} />

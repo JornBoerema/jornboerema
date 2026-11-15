@@ -7,7 +7,7 @@ the Tauri app and replaces nothing: nothing outside this folder changes for it.
 
 ```sh
 cargo run --release          # from apps/even-native
-EVEN_API_URL=http://localhost:4000 EVEN_AUTH_URL=http://localhost:3005 cargo run
+EVEN_API_URL=http://localhost:4000 EVEN_AUTH_URL=http://localhost:3007 cargo run
 ```
 
 Needs the Metal toolchain once: `xcodebuild -downloadComponent MetalToolchain`.

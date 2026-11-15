@@ -29,13 +29,13 @@ import { Button } from "@evido/ui/components/button"
 import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field"
 import { Input } from "@evido/ui/components/input"
 import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { Brand } from "@/components/brand"
-import { RequireSession } from "@/components/require-session"
-import { Subscription } from "@/components/subscription"
-import { useI18n } from "@/i18n"
-import { appLinks } from "@/lib/apps"
-import { authClient } from "@/lib/auth-client"
-import { useTitle } from "@/lib/use-title"
+import { Brand } from "@evido/shell/brand"
+import { RequireSession } from "@/account/components/require-session"
+import { Subscription } from "@/account/components/subscription"
+import { useI18n } from "@/account/i18n"
+import { appLinks } from "@/account/lib/apps"
+import { authClient } from "@/account/lib/auth-client"
+import { useTitle } from "@/account/lib/use-title"
 
 const icon = (svg: IconSvgElement, className = "size-4") => (
   <HugeiconsIcon icon={svg} strokeWidth={1.75} aria-hidden="true" className={className} />
@@ -214,7 +214,7 @@ function SignIn({ user }: { user: User }) {
             event.preventDefault()
             if (emailUnchanged) return
             void perform("email", async () => {
-              const result = await authClient.changeEmail({ newEmail: nextEmail, callbackURL: webUrl("/") })
+              const result = await authClient.changeEmail({ newEmail: nextEmail, callbackURL: webUrl("/account") })
               if (result.error) throw new Error()
               setEmailSent(nextEmail)
             })
@@ -440,7 +440,7 @@ function Sessions({ current }: { current: string }) {
               size="sm"
               onClick={async () => {
                 await authClient.signOut()
-                window.location.assign("/login?returnTo=%2F")
+                window.location.assign("/login?returnTo=%2Faccount")
               }}
             >
               {t.signInAgain}

@@ -77,7 +77,7 @@ export function AccountSiteSection({
         description={user.name ? user.email : undefined}
       >
         <Button asChild variant="outline">
-          <a href={authUrl("/")} target="_blank" rel="noopener">
+          <a href={authUrl("/account")} target="_blank" rel="noopener">
             {texts.manage}
             <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={1.75} aria-hidden="true" data-icon="inline-end" />
           </a>

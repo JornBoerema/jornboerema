@@ -76,17 +76,14 @@ function originOf(address: string) {
 }
 
 /**
- * Web origins (all Evido front-ends) that may call the API with credentials. The
- * app addresses may carry a path (the apps share app.jornboerema.nl); only their origin counts.
+ * Web origins that may call the API with credentials: the Even web app, the
+ * website's admin, the desktop app, and whatever TRUSTED_ORIGINS adds.
  */
 export function trustedOrigins() {
   const origins = [
     ...(process.env.TRUSTED_ORIGINS ?? "").split(","),
     ...DESKTOP_ORIGINS,
-    process.env.AUTH_UI_URL ?? "",
-    process.env.TODO_WEB_URL ?? "",
-    process.env.MAIL_WEB_URL ?? "",
-    process.env.NOTES_WEB_URL ?? "",
+    process.env.APP_WEB_URL ?? "",
     process.env.ADMIN_WEB_URL ?? "",
   ]
     .map(originOf)
@@ -96,8 +93,8 @@ export function trustedOrigins() {
 
 function createAuth() {
   const baseURL = required("BETTER_AUTH_URL").replace(/\/$/, "")
-  // The account site (auth.jornboerema.nl): login, OAuth consent and account screens.
-  const authUiUrl = required("AUTH_UI_URL").replace(/\/$/, "")
+  // Signing in and the consent page are pages of the Even web app.
+  const authUiUrl = required("APP_WEB_URL").replace(/\/$/, "")
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN
 
   return betterAuth({

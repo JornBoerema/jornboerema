@@ -3,9 +3,9 @@ import { useSearchParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@evido/ui/components/button"
 import { Skeleton } from "@evido/ui/components/skeleton"
-import { useI18n } from "@/i18n"
-import { authClient } from "@/lib/auth-client"
-import { useTitle } from "@/lib/use-title"
+import { useI18n } from "@/account/i18n"
+import { authClient } from "@/account/lib/auth-client"
+import { useTitle } from "@/account/lib/use-title"
 
 /** OAuth consent for MCP clients such as ChatGPT; Better Auth sends them here. */
 export function ConsentPage() {

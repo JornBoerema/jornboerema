@@ -108,10 +108,10 @@ struct ThreadListView: View {
             EmptyState(
                 icon: "mail-01",
                 title: t("No mailboxes yet", "Nog geen mailboxen"),
-                text: t("Connect a Gmail or Outlook mailbox on mail.jornboerema.nl to see your mail here.", "Koppel een Gmail- of Outlook-mailbox op mail.jornboerema.nl om je mail hier te zien.")
+                text: t("Connect a Gmail or Outlook mailbox on app.jornboerema.nl to see your mail here.", "Koppel een Gmail- of Outlook-mailbox op app.jornboerema.nl om je mail hier te zien.")
             ) {
                 OutlineButton(title: t("Open Even mailen on the web", "Open Even mailen op het web"), icon: "arrow-up-right-01") {
-                    UIApplication.shared.open(URL(string: "https://mail.jornboerema.nl")!)
+                    UIApplication.shared.open(URL(string: "https://app.jornboerema.nl/mail/?settings=mailboxes")!)
                 }
                 .frame(maxWidth: 300)
             }

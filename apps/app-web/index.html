@@ -9,17 +9,8 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#c2410c" />
-    <!-- Apply the saved theme before first paint. Mirrors @evido/ui/lib/theme. -->
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem("evido.theme")
-          var d = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
-          document.documentElement.classList.add(d ? "dark" : "light")
-          document.documentElement.style.colorScheme = d ? "dark" : "light"
-        } catch (e) {}
-      })()
-    </script>
+    <!-- Applies the saved theme before first paint. A file, so the sign-in pages can forbid inline scripts. -->
+    <script src="/theme.js"></script>
     <!-- The splash: the Even mark from the first paint until the session is known (see splash.ts). -->
     <style>
       #splash {

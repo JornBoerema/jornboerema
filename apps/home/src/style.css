@@ -236,7 +236,7 @@ main > footer button {
   cursor: pointer;
 }
 
-/* Download pages (/download, capture.jornboerema.nl): an orange divider with one button. */
+/* The download page: an orange divider with one button per app. */
 body:has(main.is-download) {
   background: var(--orange);
 }

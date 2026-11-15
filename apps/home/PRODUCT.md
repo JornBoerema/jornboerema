@@ -35,7 +35,7 @@ Even mailen, real today: connects Outlook and Gmail mailboxes (several at once);
 - Even doen and Even noteren: free. Even plannen (agenda) and Even chatten: not built yet, "soon".
 - Site is plain HTML and CSS in a Vite multi-page app (`apps/home`), with /privacy, /terms, /download and /admin beside it. Dutch and English; language follows the browser, with a switch.
 - Domain stays jornboerema.nl for now; the site is for "Even", not for the person.
-- Sign-up and sign-in live on auth.jornboerema.nl; the apps together on app.jornboerema.nl (mail at /mail).
+- The apps, sign-up, sign-in and the account all live on app.jornboerema.nl (mail at /mail).
 
 ## Brand Commitments
 

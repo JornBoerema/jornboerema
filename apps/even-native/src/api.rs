@@ -16,10 +16,10 @@ pub fn api_url() -> String {
         .to_string()
 }
 
-/// The account site, unless `EVEN_AUTH_URL` points elsewhere.
+/// The Even web app, which holds signing in and the account, unless `EVEN_AUTH_URL` points elsewhere.
 pub fn auth_url() -> String {
     std::env::var("EVEN_AUTH_URL")
-        .unwrap_or_else(|_| "https://auth.jornboerema.nl".into())
+        .unwrap_or_else(|_| "https://app.jornboerema.nl".into())
         .trim_end_matches('/')
         .to_string()
 }
@@ -29,7 +29,7 @@ pub fn auth_url() -> String {
 /// doesn't have). `EVEN_MAIL_WEB_URL` points elsewhere.
 pub fn mail_web_url() -> String {
     std::env::var("EVEN_MAIL_WEB_URL")
-        .unwrap_or_else(|_| "https://mail.jornboerema.nl".into())
+        .unwrap_or_else(|_| "https://app.jornboerema.nl/mail".into())
         .trim_end_matches('/')
         .to_string()
 }

@@ -1,4 +1,4 @@
-import { isDesktop, webUrl } from "@evido/auth/client"
+import { appUrl, isDesktop } from "@evido/auth/client"
 import { useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -31,7 +31,7 @@ export function Paywall({ email }: { email: string }) {
   const checkout = useMutation({
     mutationFn: async () => {
       // Checkout comes back with a cookie session, which the desktop app doesn't have.
-      if (isDesktop()) return { url: webUrl("/", "mail"), external: true }
+      if (isDesktop()) return { url: appUrl("mail"), external: true }
       return api<{ url: string }>("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

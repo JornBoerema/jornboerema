@@ -28,16 +28,12 @@ pub fn new_id() -> String {
 }
 
 /// Where Even doen lives on the web, for links that leave the app (a shared
-/// list, an issue): todo.<domain> next to the account site, as the web's `appOrigin`.
+/// list, an issue): /todo in the Even web app, as the web's `appUrl`.
 pub fn web_origin() -> String {
     if let Ok(url) = std::env::var("EVEN_TODO_URL") {
         return url.trim_end_matches('/').to_string();
     }
-    let auth = auth_url();
-    if auth.contains("localhost") || auth.contains("127.0.0.1") {
-        return "http://localhost:3000".into();
-    }
-    auth.replacen("://auth.", "://todo.", 1)
+    format!("{}/todo", auth_url())
 }
 
 // ─── packages/todo-core/src/workspace.ts and board.ts ───────────────────────

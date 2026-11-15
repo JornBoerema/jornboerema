@@ -12,6 +12,7 @@ import { DESKTOP_DOWNLOAD_URL } from "@evido/ui/components/desktop-download"
 import { Toaster } from "@evido/ui/components/sonner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@evido/ui/components/tooltip"
 import { ThemeProvider } from "@evido/ui/lib/theme"
+import { ACCOUNT_PATHS, AccountSite } from "@/account/site"
 
 const TEXTS = {
   en: {
@@ -76,12 +77,19 @@ function Gate() {
   return <EvenShell web railFoot={<DownloadButton label={t.download} />} />
 }
 
+function Account() {
+  useEffect(hideSplash, [])
+  return <AccountSite />
+}
+
 function Public({ app }: { app: "todo" | "notes" }) {
   useEffect(hideSplash, [])
   return app === "todo" ? <TodoPublic base={APP_PATHS.todo} /> : <NotesPublic base={APP_PATHS.notes} />
 }
 
 export function App() {
+  // Signing in and the account have pages of their own, with or without a session.
+  if (ACCOUNT_PATHS.test(window.location.pathname)) return <Account />
   const open = PUBLIC.exec(window.location.pathname)
   // Those pages bring their own theme and toaster, as they do on the apps' own sites.
   if (open) return <Public app={open[1] as "todo" | "notes"} />

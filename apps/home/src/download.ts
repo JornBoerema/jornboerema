@@ -1,7 +1,7 @@
-// Download pages for the Even desktop apps (jornboerema.nl/download and
-// capture.jornboerema.nl): a button for this computer's installer, the others
-// below it, the newest version, and English or Dutch. Each page brings its own texts
-// and installers; elements with data-i18n="key" get the text for that key.
+// The download page for the Even desktop apps (jornboerema.nl/download): per app a
+// button for this computer's installer, the others below it, the newest version, and
+// English or Dutch. The page brings its own texts and installers; elements with
+// data-i18n="key" get the text for that key.
 
 const REPO = "JornBoerema/jornboerema"
 

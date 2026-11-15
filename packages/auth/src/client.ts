@@ -37,60 +37,55 @@ export function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-/** The Evido web apps, and the account site that holds every sign-in screen. */
-export type WebApp = "todo" | "mail" | "notes" | "auth"
+/** The apps in the Even web app, each under its own path: app.jornboerema.nl/mail, /todo, /notes. */
+export type WebApp = "todo" | "mail" | "notes"
 
-let webOrigins: Partial<Record<WebApp, string>> = {}
+/** Where the Even web app runs while developing (apps/app-web). */
+const LOCAL_WEB_ORIGIN = "http://localhost:3007"
+
+let webOriginSet: string | null = null
 
 /**
  * The desktop app has no web address of its own, so links in e-mails
  * (verification, password reset) and hand-offs to the browser point at the
- * web apps set here.
+ * Even web app set here.
  */
-export function setWebOrigins(origins: Partial<Record<WebApp, string>>) {
-  webOrigins = Object.fromEntries(
-    Object.entries(origins).map(([app, origin]) => [app, origin.replace(/\/$/, "")])
-  )
+export function setWebOrigin(origin: string) {
+  webOriginSet = origin.replace(/\/$/, "")
 }
-
-/** Absolute URL in the web app, for links the API puts in e-mails and redirects. */
-export const webUrl = (path: string, app: WebApp = "todo") =>
-  new URL(path, webOrigins[app] ?? window.location.origin).toString()
 
 const isLocal = (hostname: string) => hostname === "localhost" || hostname === "127.0.0.1"
 
-/** Each web app's subdomain, and the port it runs on in development. */
-const SIBLINGS: Record<WebApp, { subdomain: string; port: number }> = {
-  todo: { subdomain: "todo", port: 3000 },
-  mail: { subdomain: "mail", port: 3004 },
-  notes: { subdomain: "notes", port: 3006 },
-  auth: { subdomain: "auth", port: 3005 },
-}
+/** jornboerema.nl for app.jornboerema.nl, www.jornboerema.nl and jornboerema.nl alike. */
+const siteDomain = (hostname: string) => hostname.replace(/^(app|www)\./, "")
 
 /**
- * Another Even web app next to this one: <app>.<domain> (todo.jornboerema.nl
- * and jornboerema.nl both find notes.jornboerema.nl), or set with setWebOrigins.
+ * The Even web app, which holds the apps, signing in and the account pages:
+ * app.<domain>. From the web app itself that is this origin; the website
+ * (jornboerema.nl) finds it next door; the desktop app sets it with setWebOrigin.
  */
-export function appOrigin(app: WebApp) {
-  if (webOrigins[app]) return webOrigins[app]
-  const { protocol, hostname } = window.location
-  if (isLocal(hostname)) return `http://localhost:${SIBLINGS[app].port}`
-  const labels = hostname.split(".")
-  const domain = labels.length > 2 ? labels.slice(1).join(".") : hostname
-  return `${protocol}//${SIBLINGS[app].subdomain}.${domain}`
+export function webOrigin() {
+  if (webOriginSet) return webOriginSet
+  const { protocol, hostname, origin } = window.location
+  if (isLocal(hostname)) return LOCAL_WEB_ORIGIN
+  if (hostname.startsWith("app.")) return origin
+  return `${protocol}//app.${siteDomain(hostname)}`
 }
 
-/** The account site: auth.<domain> next to this app, or set with setWebOrigins. */
-export const authOrigin = () => appOrigin("auth")
+/** A page in the Even web app, for links the API puts in e-mails and redirects. */
+export const webUrl = (path: string) => new URL(path, webOrigin()).toString()
 
-/** A page on the account site. */
+/** A place in one of the apps: appUrl("mail", "/?settings=mailboxes") is …/mail/?settings=mailboxes. */
+export const appUrl = (app: WebApp, path = "/") => `${webOrigin()}/${app}${path}`
+
+/** A sign-in or account page (/login, /signup, /account, …), with its query. */
 export const authUrl = (path: string, params: Record<string, string> = {}) => {
-  const url = new URL(path, authOrigin())
+  const url = new URL(path, webOrigin())
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value)
   return url.toString()
 }
 
-/** Sends the browser to the account site to sign in, and back here afterwards. */
+/** Sends the browser to sign in, and back here afterwards. */
 export function goToSignIn(options: { returnTo?: string; mode?: "login" | "signup"; error?: string | null } = {}) {
   const params: Record<string, string> = { returnTo: options.returnTo ?? window.location.href }
   if (options.error) params.error = options.error
@@ -98,15 +93,15 @@ export function goToSignIn(options: { returnTo?: string; mode?: "login" | "signu
 }
 
 /**
- * Where the account site may send someone after signing in: its own pages, and
- * the apps on the same domain (any localhost port while developing). Anything
- * else would make it an open redirect.
+ * Where signing in may send someone afterwards: the web app's own pages and
+ * the website on the same domain (any localhost port while developing).
+ * Anything else would make it an open redirect.
  */
 export function isAllowedReturn(url: URL, here: Location = window.location) {
   if (url.origin === here.origin) return true
   if (isLocal(here.hostname)) return isLocal(url.hostname)
   if (url.protocol !== "https:") return false
-  const domain = here.hostname.replace(/^auth\./, "")
+  const domain = siteDomain(here.hostname)
   return url.hostname === domain || url.hostname.endsWith(`.${domain}`)
 }
 

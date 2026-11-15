@@ -1,4 +1,4 @@
-import { isDesktop, webUrl } from "@evido/auth/client"
+import { appUrl, isDesktop } from "@evido/auth/client"
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -52,7 +52,7 @@ function useConnect() {
     mutationFn: async (provider: MailProviderId) => {
       // The provider sends the browser back with a cookie session, which the
       // desktop app doesn't have, so mailboxes are connected on the web.
-      if (isDesktop()) return { url: webUrl("/?settings=mailboxes", "mail"), external: true }
+      if (isDesktop()) return { url: appUrl("mail", "/?settings=mailboxes"), external: true }
       return api<{ url: string }>(`/api/mail/connect/${provider}`, { method: "POST" })
     },
     onSuccess: ({ url, external }: { url: string; external?: boolean }) =>

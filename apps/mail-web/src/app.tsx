@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { MailDraftView } from "@evido/mail-core/types"
 import { errorText } from "@/lib/api"
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router"
-import { Toaster } from "@evido/ui/components/sonner"
+import { Navigate, useLocation } from "react-router"
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
-import { ThemeProvider } from "@evido/ui/lib/theme"
 import type { MailThreadView } from "@evido/mail-core/types"
 import { linkedSettingsPage, MailSettings } from "@/components/mail-settings"
 import { useDesktopSettings } from "@evido/ui/components/desktop-settings"
@@ -15,7 +13,7 @@ import { useInvoices, useParcels, usePreferencesSync, useSenders } from "@/lib/p
 import { MailSpotlight } from "@/components/mail-spotlight"
 import { ShortcutsSpotlight } from "@/components/shortcuts-spotlight"
 import { Sidebar, type MailNavigation, type MailView } from "@/components/sidebar"
-import { I18nProvider, useI18n } from "@/i18n"
+import { useI18n } from "@/i18n"
 import { authClient } from "@/lib/auth-client"
 import { forgetSignedOutUser, persistMailCache } from "@/lib/cache"
 import { deleteDraft, DRAFTS_KEY, useDrafts, type DraftRef } from "@/lib/drafts"
@@ -24,11 +22,7 @@ import { useNewMailNotifications, useUnreadTitle } from "@/lib/notifications"
 import { useSignatures } from "@/lib/signatures"
 import { isWaiting } from "@/lib/undo"
 import { InboxPage } from "@/pages/inbox"
-import { ToAccountSite } from "@evido/ui/components/account-site"
 import { AccessGate } from "@/components/access-gate"
-import { TooltipProvider } from "@evido/ui/components/tooltip"
-import { MotionConfig } from "motion/react"
-import { TIP_DELAY_MS } from "@/components/icon-tip"
 
 /** A provider redirect lands here with its result, which the settings report. */
 const returnedFromProvider = () =>
@@ -308,7 +302,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   )
 }
 
-/** The signed-in app, or a redirect to sign in. Also used by the desktop app. */
+/** The signed-in app; without a session the route falls through and the shell signs in. */
 export function Root() {
   const { data, isPending, error: sessionError } = authClient.useSession()
   const location = useLocation()
@@ -327,34 +321,4 @@ export function Root() {
   const error = new URLSearchParams(location.search).get("error")
   const verificationFailed = error && error !== "session"
   return <Navigate replace to={verificationFailed ? `/login?error=${encodeURIComponent(error)}` : "/login"} />
-}
-
-export function App() {
-  const [client] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15000 } } })
-  )
-  return (
-    <ThemeProvider>
-      <I18nProvider>
-        <QueryClientProvider client={client}>
-          <MotionConfig reducedMotion="user">
-          <TooltipProvider delayDuration={TIP_DELAY_MS} skipDelayDuration={400}>
-            <BrowserRouter>
-              <Routes>
-                <Route index element={<Root />} />
-                {/* Signing in happens on the account site (auth.jornboerema.nl). */}
-                <Route path="login" element={<ToAccountSite path="/login" />} />
-                <Route path="signup" element={<ToAccountSite path="/signup" />} />
-                <Route path="forgot-password" element={<ToAccountSite path="/forgot-password" />} />
-                <Route path="reset-password" element={<ToAccountSite path="/reset-password" />} />
-                <Route path="*" element={<Navigate replace to="/" />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-          </MotionConfig>
-          <Toaster position="bottom-right" closeButton />
-        </QueryClientProvider>
-      </I18nProvider>
-    </ThemeProvider>
-  )
 }

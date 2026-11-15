@@ -35,7 +35,7 @@ import { Sortable } from "@/components/sortable";
 import { ShareListDialog } from "@/components/share-list-dialog";
 import type { TodoList, TodoMail } from "@evido/todo-core/workspace";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { appOrigin } from "@evido/auth/client";
+import { appUrl } from "@evido/auth/client";
 import { useI18n } from "@/i18n";
 import { cn } from "@evido/ui/lib/utils";
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar";
@@ -139,7 +139,7 @@ export function WorkspaceApp({
   const workspaceId = activeWorkspace?.id;
   useEffect(() => {
     if (!movedNoteId) return;
-    const url = new URL("/", appOrigin("notes"));
+    const url = new URL(appUrl("notes"));
     if (workspaceId) url.searchParams.set("workspace", workspaceId);
     url.searchParams.set("note", movedNoteId);
     window.location.replace(url.toString());

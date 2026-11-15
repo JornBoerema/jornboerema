@@ -3,16 +3,15 @@
   "version": "0.0.1",
   "type": "module",
   "private": true,
+  "description": "Even noteren: one of the apps in the Even shell (app.jornboerema.nl and the desktop app). It has no site of its own; ./embed is what the shell mounts.",
   "exports": {
     "./embed": "./src/embed.tsx"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@evido/auth": "workspace:*",

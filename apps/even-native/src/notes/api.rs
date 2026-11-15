@@ -191,10 +191,10 @@ pub enum LinkRole {
 }
 
 /// Where a public link opens: Even noteren on the web. The desktop app has
-/// no address of its own (the Tauri app's `VITE_NOTES_WEB_URL`).
+/// no address of its own (the Tauri app's `VITE_WEB_URL`).
 pub fn notes_web_url() -> String {
     std::env::var("EVEN_NOTES_URL")
-        .unwrap_or_else(|_| "https://notes.jornboerema.nl".into())
+        .unwrap_or_else(|_| "https://app.jornboerema.nl/notes".into())
         .trim_end_matches('/')
         .to_string()
 }

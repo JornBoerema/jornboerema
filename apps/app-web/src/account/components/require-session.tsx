@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { Navigate } from "react-router"
-import { authClient } from "@/lib/auth-client"
-import { here } from "@/lib/return-to"
+import { authClient } from "@/account/lib/auth-client"
+import { here } from "@/account/lib/return-to"
 
 type SessionData = NonNullable<ReturnType<typeof authClient.useSession>["data"]>
 

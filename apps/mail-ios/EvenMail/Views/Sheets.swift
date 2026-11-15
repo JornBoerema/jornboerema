@@ -148,7 +148,7 @@ struct SettingsView: View {
                         .padding(14)
                     }
 
-                    section(t("Mailboxes", "Mailboxen"), footer: t("Mailboxes are connected and removed on mail.jornboerema.nl.", "Mailboxen koppel en verwijder je op mail.jornboerema.nl.")) {
+                    section(t("Mailboxes", "Mailboxen"), footer: t("Mailboxes are connected and removed on app.jornboerema.nl.", "Mailboxen koppel en verwijder je op app.jornboerema.nl.")) {
                         if store.accounts.isEmpty {
                             Text(t("No mailboxes yet", "Nog geen mailboxen"))
                                 .font(.inter(15, relativeTo: .subheadline))

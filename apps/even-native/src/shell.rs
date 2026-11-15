@@ -1179,7 +1179,7 @@ impl Shell {
                     email,
                     ui::button("manage-account", t("Manage account", "Account beheren"), Variant::Outline)
                         .child(theme::hi("arrow-up-right-01"))
-                        .on_click(|_, _, cx| cx.open_url(&format!("{}/", api::auth_url()))),
+                        .on_click(|_, _, cx| cx.open_url(&format!("{}/account", api::auth_url()))),
                 )
                 .into_any_element(),
                 ui::settings_row(

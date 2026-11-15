@@ -1,4 +1,4 @@
-import { isDesktop, webUrl } from "@evido/auth/client"
+import { appUrl, isDesktop } from "@evido/auth/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { ConnectionsView, MoneybirdExportView, MoneybirdThreadView } from "@evido/mail-core/connections"
@@ -27,7 +27,7 @@ export function useConnectMoneybird() {
     mutationFn: async () => {
       // Moneybird sends the browser back with a cookie session, which the
       // desktop app doesn't have, so it is connected on the web.
-      if (isDesktop()) return { url: webUrl("/?settings=connections", "mail"), external: true }
+      if (isDesktop()) return { url: appUrl("mail", "/?settings=connections"), external: true }
       return api<{ url: string }>("/api/connections/moneybird/connect", { method: "POST" })
     },
     onSuccess: ({ url, external }: { url: string; external?: boolean }) =>

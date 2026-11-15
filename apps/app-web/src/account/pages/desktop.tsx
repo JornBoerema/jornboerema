@@ -4,11 +4,11 @@ import { CheckmarkCircle02Icon, ComputerIcon, Loading03Icon } from "@hugeicons/c
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Alert, AlertDescription } from "@evido/ui/components/alert"
 import { Button } from "@evido/ui/components/button"
-import { RequireSession } from "@/components/require-session"
-import { useI18n } from "@/i18n"
-import { authClient } from "@/lib/auth-client"
-import { here } from "@/lib/return-to"
-import { useTitle } from "@/lib/use-title"
+import { RequireSession } from "@/account/components/require-session"
+import { useI18n } from "@/account/i18n"
+import { authClient } from "@/account/lib/auth-client"
+import { here } from "@/account/lib/return-to"
+import { useTitle } from "@/account/lib/use-title"
 
 const PKCE = /^[A-Za-z0-9._~-]{43,128}$/
 const STATE = /^[A-Za-z0-9_-]{16,128}$/

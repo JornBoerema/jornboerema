@@ -3,15 +3,14 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
+  "description": "Even mailen: one of the apps in the Even shell (app.jornboerema.nl and the desktop app). It has no site of its own; ./embed is what the shell mounts.",
   "exports": {
     "./embed": "./src/embed.tsx"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "build": "tsc --noEmit -p tsconfig.app.json",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "tsc --noEmit -p tsconfig.app.json",
-    "preview": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {

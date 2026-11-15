@@ -5,10 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "dev:app": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/app-web",
-    "dev:todo": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/todo-web",
-    "dev:mail": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/mail-web",
-    "dev:notes": "turbo dev --filter=@evido/api --filter=@evido/auth-web --filter=@evido/notes-web",
+    "dev:app": "turbo dev --filter=@evido/api --filter=@evido/app-web",
     "lint": "turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
@@ -21,7 +18,7 @@
     "db:deploy:prod": "pnpm --filter @evido/db db:deploy:prod",
     "db:studio": "pnpm --filter @evido/db db:studio",
     "dev:capture": "pnpm --filter @evido/capture-desktop app",
-    "dev:desktop": "turbo dev app --filter=@evido/api --filter=@evido/auth-web --filter=@evido/desktop"
+    "dev:desktop": "turbo dev app --filter=@evido/api --filter=@evido/app-web --filter=@evido/desktop"
   },
   "devDependencies": {
     "prettier": "^3.9.10",
