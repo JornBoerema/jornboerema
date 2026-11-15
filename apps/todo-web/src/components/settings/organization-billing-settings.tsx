@@ -206,7 +206,7 @@ export function OrganizationBillingSettings({
             tagline={b.freeTagline}
             price={money(0)}
             unit={b.perSeat(annual ? b.year : b.month)}
-            features={b.freeFeatures}
+            features={b.freeFeatures.split(" | ")}
           >
             <Button variant="outline" disabled className="w-full">
               {b.current}
@@ -217,7 +217,7 @@ export function OrganizationBillingSettings({
             tagline={b.proTagline}
             price={prices ? money(annual ? prices.yearly : prices.monthly) : "—"}
             unit={b.perSeat(annual ? b.year : b.month)}
-            features={b.proFeatures}
+            features={b.proFeatures.split(" | ")}
             highlight
           >
             {organization.manages ? (
