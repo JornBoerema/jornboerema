@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { encode } from "uqr"
 import {
   ComputerIcon,
+  Copy01Icon,
   Delete02Icon,
+  Download04Icon,
+  FingerPrintIcon,
   LaptopIcon,
   Logout03Icon,
   Mail01Icon,
@@ -12,6 +16,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { webUrl, type SocialProvider } from "@even/auth/client"
 import { Alert, AlertDescription } from "@even/ui/components/alert"
+import { PASSKEY_DISMISSED } from "@even/ui/components/auth-form"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -37,7 +42,7 @@ const icon = (svg: IconSvgElement, className = "size-4") => (
   <HugeiconsIcon icon={svg} strokeWidth={1.75} aria-hidden="true" className={className} />
 )
 
-type User = { name: string; email: string }
+type User = { name: string; email: string; twoFactorEnabled?: boolean | null }
 
 export function AccountPage() {
   const t = useI18n().t.account
@@ -74,6 +79,7 @@ function Account({ user, sessionToken }: { user: User; sessionToken: string }) {
         <Subscription />
         <Profile user={user} />
         <SignIn user={user} />
+        <Security user={user} />
         <ConnectedAccounts />
         <Sessions current={sessionToken} />
         <DeleteAccount />
@@ -260,6 +266,342 @@ function SignIn({ user }: { user: User }) {
             )}
       </SettingsRow>
     </SettingsSection>
+  )
+}
+
+/** Errors for changes that want a recent sign-in, or the password. */
+function securityError(t: ReturnType<typeof useI18n>["t"], code?: string) {
+  if (code === "SESSION_NOT_FRESH" || code === "SESSION_EXPIRED") return t.account.signInAgainFirst
+  if (code === "INVALID_PASSWORD") return t.account.wrongPassword
+  if (code === "INVALID_CODE") return t.auth.twoFactor.invalidCode
+  return t.common.failed
+}
+
+function Security({ user }: { user: User }) {
+  const t = useI18n().t.account
+  const accounts = useAccounts()
+  const hasPassword = !accounts.data || accounts.data.some((account) => account.providerId === "credential")
+  return (
+    <SettingsSection title={t.security} description={t.securityHelp}>
+      <Passkeys />
+      <TwoFactor enabled={!!user.twoFactorEnabled} hasPassword={hasPassword} />
+    </SettingsSection>
+  )
+}
+
+const PASSKEYS = ["passkeys"]
+
+function Passkeys() {
+  const { t: all, language } = useI18n()
+  const t = all.account
+  const queryClient = useQueryClient()
+  const { busy, perform } = useBusy()
+  const supported = typeof window !== "undefined" && typeof window.PublicKeyCredential === "function"
+  const passkeys = useQuery({
+    queryKey: PASSKEYS,
+    queryFn: async () => {
+      const result = await authClient.$fetch<{ id: string; name?: string | null; createdAt: string }[]>(
+        "/passkey/list-user-passkeys",
+        { method: "GET" }
+      )
+      if (result.error) throw new Error()
+      return [...result.data].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    },
+  })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: PASSKEYS })
+  const added = (date: string) =>
+    new Date(date).toLocaleDateString(language, { day: "numeric", month: "long", year: "numeric" })
+  return (
+    <>
+      <SettingsRow
+        title={t.passkeys}
+        description={supported ? t.passkeysHelp : t.passkeysUnsupported}
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!supported || !!busy}
+          onClick={() =>
+            void perform("add", async () => {
+              // Named after this browser and device, e.g. "Safari · Mac".
+              const name = describe(navigator.userAgent, t).label
+              const result = await authClient.passkey.addPasskey({ name })
+              if (result?.error) {
+                const code = (result.error as { code?: string }).code ?? ""
+                if (PASSKEY_DISMISSED.has(code)) return
+                if (code === "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED") throw new Error(t.passkeyExists)
+                if (code === "SESSION_NOT_FRESH") throw new Error(t.signInAgainFirst)
+                throw new Error(t.passkeyFailed)
+              }
+              await refresh()
+              toast.success(t.passkeyAdded)
+            })
+          }
+        >
+          {busy === "add" ? t.addingPasskey : t.addPasskey}
+        </Button>
+      </SettingsRow>
+      {passkeys.data?.map((passkey) => (
+        <SettingsRow
+          key={passkey.id}
+          title={
+            <span className="flex items-center gap-2.5">
+              {icon(FingerPrintIcon, "size-4 text-muted-foreground")}
+              {passkey.name || t.passkeyUnnamed}
+            </span>
+          }
+          description={t.passkeyAddedOn(added(passkey.createdAt))}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!!busy}
+            onClick={() =>
+              void perform(passkey.id, async () => {
+                const result = await authClient.passkey.deletePasskey({ id: passkey.id })
+                if (result.error) throw new Error(t.passkeyRemoveFailed)
+                await refresh()
+                toast.success(t.passkeyRemoved)
+              })
+            }
+          >
+            {busy === passkey.id ? t.removing : t.remove}
+          </Button>
+        </SettingsRow>
+      ))}
+    </>
+  )
+}
+
+/** The authenticator app's otpauth:// link as a QR code: dark on white, also in dark mode. */
+function QrCode({ value, label }: { value: string; label: string }) {
+  const path = useMemo(() => {
+    const { data } = encode(value, { border: 0 })
+    let d = ""
+    data.forEach((row, y) => row.forEach((dark, x) => dark && (d += `M${x} ${y}h1v1h-1z`)))
+    return { d, size: data.length }
+  }, [value])
+  return (
+    <svg
+      role="img"
+      aria-label={label}
+      viewBox={`-2 -2 ${path.size + 4} ${path.size + 4}`}
+      className="size-44 shrink-0 rounded-md bg-white"
+      shapeRendering="crispEdges"
+    >
+      <path d={path.d} fill="#000" />
+    </svg>
+  )
+}
+
+function BackupCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
+  const { t: all } = useI18n()
+  const t = all.account
+  const text = codes.join("\n")
+  return (
+    <div className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4">
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">{t.backupCodesTitle}</p>
+        <p className="text-sm text-muted-foreground">{t.backupCodesHelp}</p>
+      </div>
+      <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5 font-mono text-sm tabular-nums">
+        {codes.map((code) => (
+          <li key={code}>{code}</li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            void navigator.clipboard.writeText(text).then(
+              () => toast.success(t.codesCopied),
+              () => toast.error(all.common.failed)
+            )
+          }
+        >
+          {icon(Copy01Icon)}
+          {t.copyCodes}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const link = document.createElement("a")
+            link.href = URL.createObjectURL(new Blob([`${t.backupCodesFile}\n\n${text}\n`], { type: "text/plain" }))
+            link.download = "even-backup-codes.txt"
+            link.click()
+            URL.revokeObjectURL(link.href)
+          }}
+        >
+          {icon(Download04Icon)}
+          {t.downloadCodes}
+        </Button>
+        <Button type="button" size="sm" onClick={onDone}>
+          {t.done}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Turning on: password, then the QR code and a first code, then the backup codes. */
+type TwoFactorFlow =
+  | { step: "password"; action: "enable" | "disable" | "codes" }
+  | { step: "scan"; uri: string; codes: string[] }
+  | { step: "codes"; codes: string[] }
+
+function TwoFactor({ enabled, hasPassword }: { enabled: boolean; hasPassword: boolean }) {
+  const { t: all } = useI18n()
+  const t = all.account
+  const { busy, perform } = useBusy()
+  const [flow, setFlow] = useState<TwoFactorFlow | null>(null)
+  const [error, setError] = useState("")
+  const close = () => {
+    setFlow(null)
+    setError("")
+  }
+  const start = (action: "enable" | "disable" | "codes") => {
+    setError("")
+    setFlow({ step: "password", action })
+  }
+  const secret = flow?.step === "scan" ? new URL(flow.uri).searchParams.get("secret") ?? "" : ""
+
+  const passwordForm = flow?.step === "password" && (
+    <form
+      className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const password = String(new FormData(event.currentTarget).get("password") ?? "")
+        setError("")
+        void perform("password", async () => {
+          if (flow.action === "enable") {
+            const result = await authClient.twoFactor.enable({ password })
+            if (result.error) return setError(securityError(all, result.error.code))
+            if (result.data.method !== "totp") throw new Error()
+            setFlow({ step: "scan", uri: result.data.totpURI, codes: result.data.backupCodes })
+          } else if (flow.action === "codes") {
+            const result = await authClient.twoFactor.generateBackupCodes({ password })
+            if (result.error) return setError(securityError(all, result.error.code))
+            setFlow({ step: "codes", codes: result.data.backupCodes })
+          } else {
+            const result = await authClient.twoFactor.disable({ password })
+            if (result.error) return setError(securityError(all, result.error.code))
+            toast.success(t.twoFactorDisabled)
+            close()
+          }
+        })
+      }}
+    >
+      <Field data-invalid={!!error}>
+        <FieldLabel htmlFor="two-factor-password">{t.currentPassword}</FieldLabel>
+        <Input
+          id="two-factor-password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          autoFocus
+          required
+          disabled={!!busy}
+          aria-invalid={!!error}
+        />
+      </Field>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" disabled={!!busy} onClick={close}>
+          {all.common.cancel}
+        </Button>
+        <Button type="submit" variant={flow.action === "disable" ? "destructive" : "default"} disabled={!!busy}>
+          {busy ? t.checking : flow.action === "disable" ? t.turnOff : t.continue}
+        </Button>
+      </div>
+    </form>
+  )
+
+  const scanForm = flow?.step === "scan" && (
+    <form
+      className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const code = String(new FormData(event.currentTarget).get("code") ?? "").replace(/\s/g, "")
+        setError("")
+        void perform("verify", async () => {
+          const result = await authClient.twoFactor.verifyTotp({ code })
+          if (result.error) return setError(securityError(all, result.error.code))
+          toast.success(t.twoFactorEnabled)
+          setFlow({ step: "codes", codes: flow.codes })
+        })
+      }}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <QrCode value={flow.uri} label={t.scanTitle} />
+        <div className="flex min-w-0 flex-col gap-2">
+          <p className="text-sm font-medium">{t.scanTitle}</p>
+          <p className="text-sm text-muted-foreground">{t.scanHelp}</p>
+          <code className="rounded bg-background px-2 py-1 font-mono text-xs break-all select-all">{secret}</code>
+        </div>
+      </div>
+      <Field data-invalid={!!error}>
+        <FieldLabel htmlFor="two-factor-code">{t.enterCode}</FieldLabel>
+        <Input
+          id="two-factor-code"
+          name="code"
+          className="sm:w-40"
+          autoComplete="one-time-code"
+          inputMode="numeric"
+          pattern="\s*(\d\s*){6}"
+          maxLength={9}
+          required
+          disabled={!!busy}
+          aria-invalid={!!error}
+        />
+      </Field>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" disabled={!!busy} onClick={close}>
+          {all.common.cancel}
+        </Button>
+        <Button type="submit" disabled={!!busy}>
+          {busy === "verify" ? t.checking : t.turnOn}
+        </Button>
+      </div>
+    </form>
+  )
+
+  return (
+    <SettingsRow
+      title={t.twoFactor}
+      description={!hasPassword ? t.twoFactorNeedsPassword : enabled ? t.twoFactorOn : t.twoFactorHelp}
+      footer={
+        passwordForm ||
+        scanForm ||
+        (flow?.step === "codes" && <BackupCodes codes={flow.codes} onDone={close} />) ||
+        (enabled && !flow && hasPassword && (
+          <p className="text-sm text-muted-foreground">
+            {t.lostBackupCodes}{" "}
+            <button type="button" className="form-link" onClick={() => start("codes")}>
+              {t.newBackupCodes}
+            </button>
+          </p>
+        ))
+      }
+    >
+      {hasPassword && !flow && (
+        <Button variant="outline" size="sm" onClick={() => start(enabled ? "disable" : "enable")}>
+          {enabled ? t.turnOff : t.turnOn}
+        </Button>
+      )}
+    </SettingsRow>
   )
 }
 

@@ -50,6 +50,7 @@ pnpm dev:app                               # API op :4000, de web-app op :3007
 | `GOOGLE_MAIL_CLIENT_ID`, `GOOGLE_MAIL_CLIENT_SECRET` | Google OAuth-client, redirect `<API>/api/mail/callback/gmail` |
 | `MICROSOFT_MAIL_CLIENT_ID`, `MICROSOFT_MAIL_CLIENT_SECRET` | Entra-app (elke organisatie + persoonlijk), redirect `<API>/api/mail/callback/outlook` |
 | `AUTH_COOKIE_DOMAIN` | Alleen productie: bv. `.jornboerema.nl`, zodat sessies over subdomeinen gedeeld worden |
+| `PASSKEY_RP_ID` | Optioneel: domein waar passkeys bij horen. Standaard `AUTH_COOKIE_DOMAIN` zonder punt, anders de host van `APP_WEB_URL`. Niet meer wijzigen zodra er passkeys zijn |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Resend; afzender moet bij een geverifieerd domein horen |
 | `NEON_REALTIME_SECRET`, `NEON_REALTIME_URL` | Optioneel realtime via Neon Realtime (live query op `realtime_pings`); zonder synchroniseren clients elke 60 s |
 

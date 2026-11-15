@@ -1,8 +1,9 @@
 import { createSign } from "node:crypto"
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth"
 import { createAuthEndpoint } from "better-auth/api"
-import { bearer, jwt, organization } from "better-auth/plugins"
+import { bearer, jwt, organization, twoFactor } from "better-auth/plugins"
 import { mcp } from "@better-auth/mcp"
+import { passkey } from "@better-auth/passkey"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
 import { billingConfigured, billingPlugin, endSubscriptions, syncSeats } from "./billing"
 import { desktopSignIn } from "./desktop-sign-in"
@@ -159,6 +160,19 @@ export function trustedOrigins() {
 }
 
 /**
+ * Passkeys belong to a domain (the relying party), not to one page: jornboerema.nl,
+ * so they keep working for app.jornboerema.nl and any other subdomain. Changing it
+ * later makes every passkey stop working, hence PASSKEY_RP_ID to pin it.
+ */
+function passkeyRelyingParty(appWebUrl: string) {
+  const configured = process.env.PASSKEY_RP_ID ?? process.env.AUTH_COOKIE_DOMAIN?.replace(/^\./, "")
+  return configured || new URL(appWebUrl).hostname
+}
+
+/** Pages where a passkey may be made or used: the web origins, not the desktop app's. */
+const passkeyOrigins = () => trustedOrigins().filter((origin) => /^https?:\/\//.test(origin))
+
+/**
  * The organization plugin's endpoints that change something: closed, so every change
  * goes through the API's routes. Choosing the active organization stays open.
  */
@@ -204,6 +218,19 @@ function createAuth() {
             additionalFields: { personal: { type: "boolean", defaultValue: false, input: false } },
           },
         },
+      }),
+      // Signing in with a password also asks for a code from an authenticator app,
+      // or one of the backup codes. Social sign-in and passkeys need no second step.
+      twoFactor({
+        issuer: "Even",
+        backupCodeOptions: { amount: 10, length: 10 },
+      }),
+      passkey({
+        rpID: passkeyRelyingParty(authUiUrl),
+        rpName: "Even",
+        origin: passkeyOrigins(),
+        // Kept on the device (or in its password manager), so it can sign in without an e-mail address.
+        authenticatorSelection: { residentKey: "required", userVerification: "preferred" },
       }),
       desktopSignIn(),
       signInProviders(enabled),
@@ -275,6 +302,9 @@ function createAuth() {
         "/send-verification-email": { window: 60, max: 3 },
         "/desktop/code": { window: 60, max: 10 },
         "/desktop/token": { window: 60, max: 10 },
+        "/two-factor/verify-totp": { window: 60, max: 10 },
+        "/two-factor/verify-backup-code": { window: 60, max: 5 },
+        "/passkey/verify-authentication": { window: 60, max: 10 },
       },
     },
   })

@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import {
   ArrowLeft02Icon,
   ArrowRight02Icon,
+  FingerPrintIcon,
   Loading03Icon,
   Mail01Icon,
 } from "@hugeicons/core-free-icons"
@@ -37,6 +38,22 @@ export type AuthTexts = Record<AuthMode, FormCopy> & {
     accountNotLinked: string;
     failed: string;
   };
+  passkey: { signIn: string; failed: string };
+  twoFactor: {
+    title: string;
+    description: string;
+    backupTitle: string;
+    backupDescription: string;
+    code: string;
+    backupCode: string;
+    trustDevice: string;
+    verify: string;
+    useBackup: string;
+    useApp: string;
+    invalidCode: string;
+    locked: string;
+    expired: string;
+  };
   sent: { title: string; register: string; forgot: string; spam: string };
   passwordChanged: { title: string; description: string };
   verificationExpired: { title: string; description: string };
@@ -70,8 +87,23 @@ function errorMessage(t: AuthTexts, code?: string) {
   if (code === "TOO_MANY_REQUESTS") return t.errors.tooManyRequests;
   if (code === "INVALID_TOKEN" || code === "TOKEN_EXPIRED") return t.errors.invalidToken;
   if (code === "PASSWORD_TOO_SHORT") return t.errors.passwordTooShort;
+  if (code === "INVALID_CODE" || code === "INVALID_BACKUP_CODE") return t.twoFactor.invalidCode;
+  if (code === "ACCOUNT_TEMPORARILY_LOCKED") return t.twoFactor.locked;
   return t.errors.generic;
 }
+
+/** Some client errors carry no code. */
+const errorCode = (error: object) => ("code" in error && typeof error.code === "string" ? error.code : "");
+
+/** The browser closed its passkey prompt, or another prompt replaced it: nothing to say. */
+// A cancelled prompt is a NotAllowedError, which arrives as the passthrough code.
+export const PASSKEY_DISMISSED = new Set(["AUTH_CANCELLED", "ERROR_CEREMONY_ABORTED", "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY"]);
+
+const passkeysSupported = () =>
+  typeof window !== "undefined" && typeof window.PublicKeyCredential === "function";
+
+/** The second step after the password: a code from the authenticator app, or a backup code. */
+type Step = "credentials" | "totp" | "backup";
 /** Sign-in, sign-up and password recovery, shared by the Even web apps. */
 export function AuthForm({
   mode,
@@ -99,10 +131,89 @@ export function AuthForm({
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [socialPending, setSocialPending] = useState<SocialProvider | null>(null);
+  const [passkeyPending, setPasskeyPending] = useState(false);
+  const [step, setStep] = useState<Step>("credentials");
+  const alive = useRef(true);
   const providers = useSocialProviders(authClient, mode === "login" || mode === "register");
   const socialError = params.get("social") ? params.get("error") : null;
   const token = params.get("token");
   const invalidReset = mode === "reset" && (!token || !!params.get("error"));
+  const canUsePasskey = mode === "login" && passkeysSupported();
+
+  /** Signed in: on to where they were going. */
+  function finish() {
+    // The OAuth client follows the provider's signed continuation redirect.
+    if (new URLSearchParams(window.location.search).has("client_id")) return;
+    if (/^https?:\/\//.test(returnTo)) window.location.assign(returnTo);
+    else navigate(returnTo);
+  }
+
+  // The browser offers saved passkeys in the e-mail field's suggestions.
+  useEffect(() => {
+    alive.current = true;
+    if (!canUsePasskey) return;
+    let cancelled = false;
+    void (async () => {
+      const available = await window.PublicKeyCredential.isConditionalMediationAvailable?.().catch(() => false);
+      if (!available || cancelled) return;
+      const result = await authClient.signIn.passkey({ autoFill: true }).catch(() => null);
+      if (!cancelled && alive.current && result?.data) finish();
+    })();
+    return () => {
+      cancelled = true;
+      alive.current = false;
+    };
+    // Once per page: a new ceremony would cancel the one the browser holds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUsePasskey]);
+
+  async function signInWithPasskey() {
+    if (busy) return;
+    setError("");
+    setPasskeyPending(true);
+    try {
+      const result = await authClient.signIn.passkey();
+      if (result?.error) {
+        if (!PASSKEY_DISMISSED.has(errorCode(result.error))) setError(t.passkey.failed);
+        return;
+      }
+      finish();
+    } catch {
+      setError(t.noConnection);
+    } finally {
+      setPasskeyPending(false);
+    }
+  }
+
+  async function verifySecondStep(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    setError("");
+    const data = new FormData(event.currentTarget);
+    const code = String(data.get("code") ?? "").trim();
+    const trustDevice = data.get("trust") === "on";
+    setPending(true);
+    try {
+      const result =
+        step === "totp"
+          ? await authClient.twoFactor.verifyTotp({ code: code.replace(/\s/g, ""), trustDevice })
+          : await authClient.twoFactor.verifyBackupCode({ code, trustDevice });
+      if (result.error) {
+        // The ten minutes to enter a code are over, or too many tries: start again.
+        if (result.error.code === "INVALID_TWO_FACTOR_COOKIE" || result.error.code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE") {
+          setStep("credentials");
+          setError(t.twoFactor.expired);
+        } else setError(errorMessage(t, result.error.code));
+        return;
+      }
+      finish();
+    } catch {
+      setError(t.noConnection);
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -148,18 +259,14 @@ export function AuthForm({
         setError(errorMessage(t, result.error.code));
         return;
       }
-      // The OAuth client follows the provider's signed continuation redirect.
-      if (
-        mode === "login" &&
-        new URLSearchParams(window.location.search).has("client_id")
-      )
+      // Two-factor is on: the password was right, now the code.
+      if (mode === "login" && result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+        setStep("totp");
         return;
-      if (mode === "register" || mode === "forgot") setSent(true);
-      else {
-        if (mode === "reset") navigate(authHref("/login?passwordReset=1"));
-        else if (/^https?:\/\//.test(returnTo)) window.location.assign(returnTo);
-        else navigate(returnTo);
       }
+      if (mode === "register" || mode === "forgot") setSent(true);
+      else if (mode === "reset") navigate(authHref("/login?passwordReset=1"));
+      else finish();
     } catch {
       setError(t.noConnection);
     } finally {
@@ -191,7 +298,82 @@ export function AuthForm({
       setSocialPending(null);
     }
   }
-  const busy = pending || !!socialPending;
+  const busy = pending || !!socialPending || passkeyPending;
+  if (step !== "credentials")
+    return (
+      <section className="auth-form">
+        <div className="flex flex-col gap-2">
+          <h1>{step === "totp" ? t.twoFactor.title : t.twoFactor.backupTitle}</h1>
+          <p className="text-muted-foreground">
+            {step === "totp" ? t.twoFactor.description : t.twoFactor.backupDescription}
+          </p>
+        </div>
+        <form key={step} onSubmit={verifySecondStep} className="flex flex-col gap-5">
+          <FieldGroup>
+            <Field data-invalid={!!error}>
+              <FieldLabel htmlFor="code">{step === "totp" ? t.twoFactor.code : t.twoFactor.backupCode}</FieldLabel>
+              <Input
+                id="code"
+                name="code"
+                autoFocus
+                required
+                autoComplete={step === "totp" ? "one-time-code" : "off"}
+                inputMode={step === "totp" ? "numeric" : "text"}
+                pattern={step === "totp" ? "\\s*(\\d\\s*){6}" : undefined}
+                maxLength={step === "totp" ? 9 : 32}
+                spellCheck={false}
+                disabled={pending}
+                aria-invalid={!!error}
+              />
+            </Field>
+            <Field orientation="horizontal">
+              <Checkbox id="trust" name="trust" disabled={pending} />
+              <FieldLabel htmlFor="trust" className="font-normal">
+                {t.twoFactor.trustDevice}
+              </FieldLabel>
+            </Field>
+          </FieldGroup>
+          {error && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <Button type="submit" disabled={pending}>
+            {pending ? (
+              <HugeiconsIcon icon={Loading03Icon} {...ICON} className="animate-spin" data-icon="inline-start" />
+            ) : null}
+            {t.twoFactor.verify}
+            {!pending && <HugeiconsIcon icon={ArrowRight02Icon} {...ICON} data-icon="inline-end" />}
+          </Button>
+        </form>
+        <p className="auth-switch">
+          <button
+            type="button"
+            className="form-link"
+            disabled={pending}
+            onClick={() => {
+              setError("");
+              setStep(step === "totp" ? "backup" : "totp");
+            }}
+          >
+            {step === "totp" ? t.twoFactor.useBackup : t.twoFactor.useApp}
+          </button>
+        </p>
+        <p className="auth-switch">
+          <button
+            type="button"
+            className="form-link"
+            disabled={pending}
+            onClick={() => {
+              setError("");
+              setStep("credentials");
+            }}
+          >
+            {t.switch.backToSignIn}
+          </button>
+        </p>
+      </section>
+    );
   if (sent)
     return (
       <section className="auth-form">
@@ -247,8 +429,19 @@ export function AuthForm({
         </Alert>
       ) : (
         <>
-        {providers.length > 0 && (
+        {(providers.length > 0 || canUsePasskey) && (
           <div className="flex flex-col gap-3">
+            {canUsePasskey && (
+              <Button type="button" variant="outline" disabled={busy} onClick={() => void signInWithPasskey()}>
+                <HugeiconsIcon
+                  icon={passkeyPending ? Loading03Icon : FingerPrintIcon}
+                  {...ICON}
+                  className={passkeyPending ? "animate-spin" : undefined}
+                  data-icon="inline-start"
+                />
+                {t.passkey.signIn}
+              </Button>
+            )}
             {providers.map((provider) => (
               <Button
                 key={provider}
@@ -293,7 +486,8 @@ export function AuthForm({
                   id="email"
                   name="email"
                   type="email"
-                  autoComplete="email"
+                  // "webauthn": the browser also suggests saved passkeys here.
+                  autoComplete={mode === "login" ? "email webauthn" : "email"}
                   placeholder={t.fields.emailPlaceholder}
                   required
                   maxLength={254}

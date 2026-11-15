@@ -19,6 +19,8 @@ model User {
   name             String
   email            String   @unique
   emailVerified    Boolean  @default(false) @map("email_verified")
+  /// Better Auth two-factor plugin: signing in with a password also asks for a code.
+  twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
   image            String?
   /// No longer used: subscriptions belong to organizations (Organization.stripeCustomerId).
   stripeCustomerId String?  @map("stripe_customer_id")
@@ -27,6 +29,8 @@ model User {
 
   sessions               Session[]
   accounts               Account[]
+  twoFactors             TwoFactor[]
+  passkeys               Passkey[]
   oauthClients           OauthClient[]
   oauthRefreshTokens     OauthRefreshToken[]
   oauthAccessTokens      OauthAccessToken[]
@@ -115,6 +119,45 @@ model RateLimit {
   lastRequest Float  @map("last_request")
 
   @@map("rate_limit")
+}
+
+// ─── Auth (two-factor and passkeys) ─────────────────────────────────────────
+
+/// The authenticator app's secret and the backup codes, both encrypted by Better Auth.
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String    @map("backup_codes")
+  userId                  String    @map("user_id")
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// False between setting up the app and entering its first code.
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0) @map("failed_verification_count")
+  lockedUntil             DateTime? @map("locked_until")
+
+  @@index([secret], map: "two_factor_secret_idx")
+  @@index([userId], map: "two_factor_user_idx")
+  @@map("two_factor")
+}
+
+/// A WebAuthn credential (Better Auth passkey plugin): signs in without a password.
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String    @map("public_key")
+  userId       String    @map("user_id")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String    @map("credential_id")
+  counter      Int
+  deviceType   String    @map("device_type")
+  backedUp     Boolean   @map("backed_up")
+  transports   String?
+  createdAt    DateTime? @default(now()) @map("created_at")
+  aaguid       String?
+
+  @@index([userId], map: "passkey_user_idx")
+  @@index([credentialID], map: "passkey_credential_id_idx")
+  @@map("passkey")
 }
 
 // ─── Auth (JWT + OAuth provider for MCP clients) ────────────────────────────

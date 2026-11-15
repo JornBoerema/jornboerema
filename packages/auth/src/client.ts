@@ -1,6 +1,7 @@
 import { createAuthClient } from "better-auth/react"
 import { oauthProviderClient } from "@better-auth/oauth-provider/client"
-import { organizationClient } from "better-auth/client/plugins"
+import { organizationClient, twoFactorClient } from "better-auth/client/plugins"
+import { passkeyClient } from "@better-auth/passkey/client"
 
 /** The sign-in providers on the sign-in page, besides e-mail and password. */
 export type SocialProvider = "google" | "microsoft" | "apple"
@@ -149,7 +150,8 @@ export function createEvenAuthClient(
         return keepInApp(response, String(request.url))
       },
     },
-    plugins: [oauthProviderClient(), organizationClient()],
+    // The sign-in form asks for the second step itself when sign-in answers twoFactorRedirect.
+    plugins: [oauthProviderClient(), organizationClient(), twoFactorClient(), passkeyClient()],
   })
 }
 
