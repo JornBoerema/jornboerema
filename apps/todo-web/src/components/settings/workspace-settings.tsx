@@ -4,12 +4,11 @@ import type { WorkspaceSummary } from "@even/todo-core/workspaces"
 import { SettingsDialog, type SettingsPage } from "@even/ui/components/settings-dialog"
 import { AboutSettings, useAboutPage } from "@even/ui/components/desktop-app"
 import { DesktopSettingsPages, useDesktopSettings } from "@even/ui/components/desktop-settings"
-import { Building, CreditCard, Folder, Kanban, Palette, Share, UserCircle, Users } from "@/components/icons"
+import { Building, CreditCard, Folder, Kanban, Palette, UserCircle, Users } from "@/components/icons"
 import { ProjectsSettings, StatusesSettings, type BoardSettingsProps } from "./board-settings"
 import { AppearanceSettings } from "./appearance-settings"
 import { useI18n } from "@/i18n"
 import { AccountSettings } from "./account-settings"
-import { ConnectionsSettings } from "./connections-settings"
 import { WorkspaceGeneralSettings } from "./workspace-general-settings"
 import { WorkspaceMembersSettings } from "./workspace-members-settings"
 import { OrganizationBillingSettings } from "./organization-billing-settings"
@@ -58,12 +57,6 @@ function useSettingsPages(desktop: boolean): SettingsPage[] {
       icon: <Palette aria-hidden="true" />,
       keywords: words(s.keywords.appearance),
     },
-    {
-      id: "connections",
-      label: s.pages.connections,
-      icon: <Share aria-hidden="true" />,
-      keywords: words(s.keywords.connections),
-    },
     // The active organization's pages belong to no one app: they sit with the account.
     {
       id: "workspace",
@@ -101,7 +94,7 @@ function useSettingsPages(desktop: boolean): SettingsPage[] {
     ...(about ? [about] : []),
   ]
   // In the desktop app the window already has the account, appearance and about pages;
-  // this adds the lists' part of the shared connections page and its own pages.
+  // this adds the lists' own pages.
   return desktop ? all.filter((p) => !["account", "appearance", "about"].includes(p.id)) : all
 }
 
@@ -150,8 +143,6 @@ export function WorkspaceSettings({
       <AccountSettings user={user} />
     ) : id === "appearance" ? (
       <AppearanceSettings />
-    ) : id === "connections" ? (
-      <ConnectionsSettings title={desktop ? "Even doen" : undefined} />
     ) : id === "about" ? (
       <AboutSettings />
     ) : id === "workspace" ? (

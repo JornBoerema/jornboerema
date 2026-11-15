@@ -1,5 +1,4 @@
 import { createAuthClient } from "better-auth/react"
-import { oauthProviderClient } from "@better-auth/oauth-provider/client"
 import { organizationClient, twoFactorClient } from "better-auth/client/plugins"
 import { passkeyClient } from "@better-auth/passkey/client"
 
@@ -151,7 +150,7 @@ export function createEvenAuthClient(
       },
     },
     // The sign-in form asks for the second step itself when sign-in answers twoFactorRedirect.
-    plugins: [oauthProviderClient(), organizationClient(), twoFactorClient(), passkeyClient()],
+    plugins: [organizationClient(), twoFactorClient(), passkeyClient()],
   })
 }
 

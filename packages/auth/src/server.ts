@@ -1,60 +1,15 @@
 import { createSign } from "node:crypto"
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth"
 import { createAuthEndpoint } from "better-auth/api"
-import { bearer, jwt, organization, twoFactor } from "better-auth/plugins"
-import { mcp } from "@better-auth/mcp"
+import { bearer, organization, twoFactor } from "better-auth/plugins"
 import { passkey } from "@better-auth/passkey"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
 import { billingConfigured, billingPlugin, endSubscriptions, syncSeats } from "./billing"
 import { desktopSignIn } from "./desktop-sign-in"
 import type { SocialProvider } from "./client"
-import { getDb, Prisma } from "@even/db"
+import { getDb } from "@even/db"
 import { authEmails, queueEmail } from "@even/email"
 import { pickLanguage } from "@even/i18n"
-
-export const MCP_SCOPES = [
-  "openid",
-  "email",
-  "profile",
-  "offline_access",
-  "todos:read",
-  "todos:write",
-]
-
-// Optional OAuth arrays are stored as Json? (see schema.prisma). Prisma needs
-// Prisma.DbNull, not null, to write SQL NULL into a Json column.
-const NULLABLE_JSON: Record<string, string[]> = {
-  OauthClient: ["scopes", "clientCredentialsScopes", "contacts", "postLogoutRedirectUris", "grantTypes", "responseTypes"],
-  OauthResource: ["allowedScopes"],
-  OauthAccessToken: ["resources", "requestedUserInfoClaims"],
-  OauthRefreshToken: ["resources", "requestedUserInfoClaims"],
-  OauthConsent: ["resources", "requestedUserInfoClaims"],
-}
-
-function nullsToDbNull(fields: string[], data: unknown) {
-  if (!data || typeof data !== "object") return data
-  const copy: Record<string, unknown> = { ...(data as Record<string, unknown>) }
-  for (const field of fields) if (copy[field] === null) copy[field] = Prisma.DbNull
-  return copy
-}
-
-function authDb() {
-  return getDb().$extends({
-    query: {
-      $allModels: {
-        async $allOperations({ model, args, query }) {
-          const fields = NULLABLE_JSON[model]
-          if (fields && args && typeof args === "object") {
-            const a = args as Record<string, unknown>
-            for (const key of ["data", "create", "update"])
-              if (key in a) a[key] = nullsToDbNull(fields, a[key])
-          }
-          return query(args)
-        },
-      },
-    },
-  })
-}
 
 function required(name: string) {
   const value = process.env[name]
@@ -188,7 +143,7 @@ const leaving = new Map<string, string[]>()
 
 function createAuth() {
   const baseURL = required("BETTER_AUTH_URL").replace(/\/$/, "")
-  // Signing in and the consent page are pages of the Even web app.
+  // Signing in is a page of the Even web app.
   const authUiUrl = required("APP_WEB_URL").replace(/\/$/, "")
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN
   const social = socialProviders()
@@ -200,13 +155,12 @@ function createAuth() {
     secret: required("BETTER_AUTH_SECRET"),
     // Apple posts its answer back to the callback from its own origin.
     trustedOrigins: [...trustedOrigins(), ...(social.apple ? ["https://appleid.apple.com"] : [])],
-    database: prismaAdapter(authDb(), { provider: "postgresql" }),
-    disabledPaths: ["/token", ...ORGANIZATION_WRITES],
+    database: prismaAdapter(getDb(), { provider: "postgresql" }),
+    disabledPaths: ORGANIZATION_WRITES,
     advanced: cookieDomain
       ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }
       : undefined,
     plugins: [
-      jwt(),
       // The desktop app can't keep a cookie for the API, so it sends the session as a bearer token.
       bearer(),
       // Organizations: who works together, and who pays. Members and invitations are
@@ -234,15 +188,6 @@ function createAuth() {
       }),
       desktopSignIn(),
       signInProviders(enabled),
-      mcp({
-        loginPage: `${authUiUrl}/login`,
-        consentPage: `${authUiUrl}/connect`,
-        resource: `${baseURL}/mcp`,
-        scopes: MCP_SCOPES,
-        allowDynamicClientRegistration: true,
-        allowUnauthenticatedClientRegistration: true,
-        accessTokenExpiresIn: 300,
-      }),
       // Subscriptions through Stripe, once its keys are set.
       ...(billingConfigured() ? [billingPlugin()] : []),
     ],

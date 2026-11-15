@@ -115,23 +115,6 @@ export const nl: typeof en = {
       backToSignIn: "Terug naar inloggen",
     },
   },
-  consent: {
-    pageTitle: "Account koppelen",
-    startFromClient: "Start de koppeling vanuit ChatGPT en log in met je Even-account.",
-    fallbackClient: "De aanvragende app",
-    title: "Even doen koppelen",
-    description: (client) => `Je geeft ${client} toegang tot jouw account.`,
-    failed: "Koppelen is niet gelukt. Start de koppeling opnieuw vanuit ChatGPT.",
-    allow: "Toestaan",
-    scopes: {
-      "todos:read": "Je lijsten en taken bekijken",
-      "todos:write": "Lijsten en taken toevoegen, wijzigen en verwijderen",
-      openid: "Je account herkennen",
-      profile: "Je naam bekijken",
-      email: "Je e-mailadres bekijken",
-      offline_access: "Verbonden blijven totdat je de toegang intrekt",
-    },
-  },
   desktop: {
     pageTitle: "Inloggen in Even",
     title: "Inloggen in de Even-app?",

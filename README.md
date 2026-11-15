@@ -6,7 +6,7 @@ Monorepo (Turborepo + pnpm) voor de Even-apps. Alle apps delen één account (Be
 
 ```
 apps/
-  api/          Hono API (Node): /api/auth/*, todo-endpoints, /mcp, OAuth-discovery
+  api/          Hono API (Node): /api/auth/*, todo- en mail-endpoints
   app-web/      app.jornboerema.nl — de Even web-app: mail, taken en notities (/mail, /todo, /notes), inloggen en het accountportaal
   mail-web/     Even mailen — geen eigen site; `./embed` wordt door de schil geladen
   todo-web/     Even doen — idem
@@ -87,7 +87,6 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 - Lokaal delen alle `localhost`-poorten dezelfde cookie. In productie draaien de API en de web-app op subdomeinen van één domein (`api.` en `app.jornboerema.nl`) met `AUTH_COOKIE_DOMAIN`.
 - Het accountportaal (`/account`) beheert naam, e-mail, wachtwoord, ingelogde apparaten en account verwijderen. De instellingen van de apps linken ernaar.
 - Desktop (Even): de knop "Inloggen via je browser" opent `app.jornboerema.nl/desktop` met een PKCE-challenge en een poort op `127.0.0.1`. Na bevestigen stuurt die pagina een eenmalige code (2 minuten geldig) naar de app, die hem met de verifier inwisselt via `POST /api/auth/desktop/token` (`packages/auth/src/desktop-sign-in.ts`). De app krijgt een eigen sessie als bearer-token.
-- MCP: `${BETTER_AUTH_URL}/mcp`, OAuth met PKCE via de Better Auth MCP-plugin. Login en toestemming zijn pagina's van de web-app (`APP_WEB_URL`).
 
 ## Workspaces (todo)
 

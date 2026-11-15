@@ -14,8 +14,6 @@
     "./client": "./src/client.ts"
   },
   "dependencies": {
-    "@better-auth/mcp": "^1.7.14",
-    "@better-auth/oauth-provider": "^1.7.14",
     "@better-auth/passkey": "1.7.14",
     "@better-auth/prisma-adapter": "^1.7.14",
     "@better-auth/stripe": "^1.7.14",

@@ -10,7 +10,6 @@ export const settings = {
   pages: {
     account: "Account",
     appearance: "Appearance",
-    connections: "Connections",
     workspaceGroup: "Organization",
     general: "General",
     members: "Members",
@@ -22,7 +21,6 @@ export const settings = {
   keywords: {
     account: "profile | name | email | password | delete | profiel | naam | wachtwoord | verwijderen",
     appearance: "theme | dark | dark mode | light | colour | language | thema | donker | licht | kleur | taal | weergave",
-    connections: "mcp | chatgpt | ai | koppelingen",
     billing: "subscription | billing | invoice | seats | pro | abonnement | factuur | betalen | plekken",
     general: "organization | name | delete | leave | naam | verwijderen | verlaten | algemeen",
     members: "organization | invite | roles | admin | uitnodigen | rollen | beheerder | leden",
@@ -63,20 +61,6 @@ export const settings = {
     language: "Language",
     languageHelp: "Automatic follows your browser’s language.",
     automatic: "Automatic",
-  },
-  connections: {
-    title: "AI assistants",
-    description: "Let ChatGPT or another MCP client read and update your lists.",
-    mcpUrl: "MCP URL",
-    copy: "Copy",
-    copied: "Copied",
-    howTo: "How to connect",
-    steps: {
-      one: "In ChatGPT, turn on Developer mode (Settings → Security and login).",
-      two: "Add a connection, paste the MCP URL above and choose OAuth.",
-      three: "Sign in with your Even doen account and allow access.",
-    },
-    example: "Then try: “Add ‘Send invoice’ to my Work list.”",
   },
   billing: {
     title: "Plan",

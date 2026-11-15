@@ -375,7 +375,7 @@ export async function executeCommand(
       }
       case "create-todo": {
         const minimum = await tx.todo.aggregate({ where: { listId }, _min: { position: true } })
-        // Added to a board from elsewhere (mail, MCP): it becomes a regular issue.
+        // Added to a board from elsewhere (mail): it becomes a regular issue.
         const status = list.kind === "board" ? await startStatus(tx, list.workspaceId) : undefined
         await tx.todo.create({
           data: {

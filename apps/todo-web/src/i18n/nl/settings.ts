@@ -12,7 +12,6 @@ export const settings: typeof en = {
   pages: {
     account: "Account",
     appearance: "Weergave",
-    connections: "Koppelingen",
     workspaceGroup: "Organisatie",
     general: "Algemeen",
     members: "Leden",
@@ -23,7 +22,6 @@ export const settings: typeof en = {
   keywords: {
     account: "profiel | naam | e-mail | wachtwoord | verwijderen | profile | email | password",
     appearance: "thema | donker | dark mode | licht | kleur | taal | appearance | theme | language",
-    connections: "mcp | chatgpt | ai | connections",
     billing: "abonnement | factuur | betalen | plekken | pro | subscription | billing | invoice | seats",
     general: "organisatie | naam | verwijderen | verlaten | general",
     members: "organisatie | uitnodigen | rollen | beheerder | members | invite",
@@ -64,20 +62,6 @@ export const settings: typeof en = {
     language: "Taal",
     languageHelp: "Automatisch volgt de taal van je browser.",
     automatic: "Automatisch",
-  },
-  connections: {
-    title: "AI-assistenten",
-    description: "Laat ChatGPT of een andere MCP-client je lijsten lezen en bijwerken.",
-    mcpUrl: "MCP-URL",
-    copy: "Kopiëren",
-    copied: "Gekopieerd",
-    howTo: "Zo koppel je",
-    steps: {
-      one: "Zet in ChatGPT Developer mode aan (Settings → Security and login).",
-      two: "Voeg een koppeling toe, plak de MCP-URL hierboven en kies OAuth.",
-      three: "Log in met je Even doen-account en geef toestemming.",
-    },
-    example: "Probeer daarna: “Zet ‘Factuur sturen’ op mijn lijst Werk.”",
   },
   billing: {
     title: "Abonnement",

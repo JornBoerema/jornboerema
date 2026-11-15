@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "Hono API for all Even apps: auth, todo, MCP.",
+  "description": "Hono API for all Even apps: auth, todo, mail.",
   "scripts": {
     "dev": "tsx watch --include ../../.env --env-file-if-exists=../../.env src/index.ts",
     "build": "pnpm --filter @even/db db:generate && tsup",
@@ -12,7 +12,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@better-auth/mcp": "^1.7.14",
     "@even/auth": "workspace:*",
     "@even/db": "workspace:*",
     "@even/email": "workspace:*",
@@ -21,7 +20,6 @@
     "@even/realtime": "workspace:*",
     "@even/todo-core": "workspace:*",
     "@hono/node-server": "^2.1.5",
-    "@modelcontextprotocol/server": "^2.4.0",
     "@neon/realtime": "0.2.1",
     "@sentry/hono": "11.12.0",
     "@sentry/node": "11.12.0",

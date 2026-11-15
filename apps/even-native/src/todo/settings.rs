@@ -13,18 +13,10 @@ use super::dashboard::day_and_month;
 use super::overlay::{dialog_close, dialog_footer, dialog_header, dialog_panel, modal, on_escape};
 use super::*;
 
-/// workspace-settings.tsx: in the desktop app the lists' part of the shared
-/// connections page, and the workspace's own pages.
+/// workspace-settings.tsx: in the desktop app the workspace's own pages.
 pub(super) fn pages() -> Vec<SettingsPage> {
     let words = |list: &str| list.split(" | ").map(|word| SharedString::from(word.to_string())).collect();
     vec![
-        SettingsPage {
-            id: "connections",
-            label: t("Connections", "Koppelingen").into(),
-            icon: "share-08",
-            shared: true,
-            keywords: words("mcp | chatgpt | ai | koppelingen | connections"),
-        },
         SettingsPage {
             id: "workspace",
             label: t("General", "Algemeen").into(),
@@ -97,7 +89,6 @@ pub(super) struct SettingsState {
     busy: Option<String>,
     email: Entity<InputState>,
     pub invite_role: WorkspaceRole,
-    copied: bool,
     adding: Option<(StatusCategory, Entity<InputState>, Subscription)>,
     status_names: HashMap<String, StatusName>,
     pub dialog: Option<SettingsDialog>,
@@ -128,7 +119,6 @@ impl SettingsState {
             busy: None,
             email,
             invite_role: WorkspaceRole::Member,
-            copied: false,
             adding: None,
             status_names: HashMap::new(),
             dialog: None,
@@ -539,9 +529,6 @@ impl TodoApp {
     // ─── The pages ──────────────────────────────────────────────────────────
 
     pub(super) fn render_settings_page(&mut self, page: &str, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
-        if page == "connections" {
-            return self.render_connections(cx).into_any_element();
-        }
         // The data is read when the app's own screen first shows; the settings
         // can open before that.
         if self.server.is_none() || self.active().is_none() {
@@ -568,94 +555,6 @@ impl TodoApp {
             .children(sections)
             .children(overlays)
             .into_any_element()
-    }
-
-    /// connections-settings.tsx: the MCP address for ChatGPT and the like.
-    fn render_connections(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let url = format!("{}/mcp", crate::api::api_url());
-        let copy = url.clone();
-        let step = |number: usize, words: &'static str| div().flex().gap(px(6.)).child(format!("{number}.")).child(words);
-        ui::settings_section(
-            "Even doen",
-            Some(
-                t(
-                    "Let ChatGPT or another MCP client read and update your lists.",
-                    "Laat ChatGPT of een andere MCP-client je lijsten lezen en bijwerken.",
-                )
-                .into(),
-            ),
-            vec![
-                row(
-                    t("MCP URL", "MCP-URL"),
-                    Some(
-                        div()
-                            .text_size(px(12.))
-                            .font_family("Menlo")
-                            .text_color(theme::foreground())
-                            .child(url)
-                            .into_any_element(),
-                    ),
-                    false,
-                    Some(
-                        ui::button(
-                            "todo-mcp-copy",
-                            if self.settings.copied { t("Copied", "Gekopieerd") } else { t("Copy", "Kopiëren") },
-                            ui::Variant::Outline,
-                        )
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            cx.write_to_clipboard(ClipboardItem::new_string(copy.clone()));
-                            this.settings.copied = true;
-                            cx.notify();
-                        }))
-                        .into_any_element(),
-                    ),
-                ),
-                row(
-                    t("How to connect", "Zo koppel je"),
-                    Some(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap(px(12.))
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap(px(4.))
-                                    .pl(px(4.))
-                                    .child(step(
-                                        1,
-                                        t(
-                                            "In ChatGPT, turn on Developer mode (Settings → Security and login).",
-                                            "Zet in ChatGPT Developer mode aan (Settings → Security and login).",
-                                        ),
-                                    ))
-                                    .child(step(
-                                        2,
-                                        t(
-                                            "Add a connection, paste the MCP URL above and choose OAuth.",
-                                            "Voeg een koppeling toe, plak de MCP-URL hierboven en kies OAuth.",
-                                        ),
-                                    ))
-                                    .child(step(
-                                        3,
-                                        t(
-                                            "Sign in with your Even doen account and allow access.",
-                                            "Log in met je Even doen-account en geef toestemming.",
-                                        ),
-                                    )),
-                            )
-                            .child(t(
-                                "Then try: “Add ‘Send invoice’ to my Work list.”",
-                                "Probeer daarna: “Zet ‘Factuur sturen’ op mijn lijst Werk.”",
-                            ))
-                            .into_any_element(),
-                    ),
-                    false,
-                    None,
-                ),
-            ],
-        )
     }
 
     /// workspace-general-settings.tsx.

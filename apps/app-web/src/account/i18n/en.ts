@@ -113,23 +113,6 @@ export const en = {
       backToSignIn: "Back to sign in",
     },
   },
-  consent: {
-    pageTitle: "Connect account",
-    startFromClient: "Start the connection from ChatGPT and sign in with your Even account.",
-    fallbackClient: "The requesting app",
-    title: "Connect Even doen",
-    description: (client: string) => `You're giving ${client} access to your account.`,
-    failed: "Connecting failed. Start the connection again from ChatGPT.",
-    allow: "Allow",
-    scopes: {
-      "todos:read": "View your lists and tasks",
-      "todos:write": "Add, change and delete lists and tasks",
-      openid: "Recognise your account",
-      profile: "View your name",
-      email: "View your email address",
-      offline_access: "Stay connected until you revoke access",
-    } as Record<string, string>,
-  },
   desktop: {
     pageTitle: "Sign in to Even",
     title: "Sign in to the Even app?",

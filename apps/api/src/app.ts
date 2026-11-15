@@ -13,7 +13,6 @@ import { mailRoutes } from "./mail/routes"
 import { billingRoutes } from "./billing/routes"
 import { connectionRoutes } from "./connections/routes"
 import { todoRoutes } from "./todo/routes"
-import { handleMcp } from "./todo/mcp"
 
 export const app = new Hono()
 
@@ -41,9 +40,8 @@ app.use(
 
 app.get("/health", (c) => c.json({ ok: true }))
 
-// Better Auth: sessions, e-mail flows, OAuth provider and discovery metadata.
+// Better Auth: sessions and e-mail flows.
 app.on(["GET", "POST"], "/api/auth/*", (c) => getAuth().handler(c.req.raw))
-app.get("/.well-known/*", (c) => getAuth().handler(c.req.raw))
 
 app.get("/api/config", (c) => c.json({ realtime: env.realtimeEnabled }))
 app.route("/api/mail", mailRoutes)
@@ -52,6 +50,3 @@ app.route("/api/connections", connectionRoutes)
 app.route("/api/access", accessRoutes)
 app.route("/api/admin", adminRoutes)
 app.route("/api", todoRoutes)
-
-app.post("/mcp", (c) => handleMcp(c.req.raw))
-app.on(["GET", "DELETE"], "/mcp", (c) => c.body(null, 405, { Allow: "POST" }))

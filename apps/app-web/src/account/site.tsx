@@ -6,7 +6,6 @@ import { ThemeProvider } from "@even/ui/lib/theme"
 import { I18nProvider } from "@/account/i18n"
 import { AccountPage } from "@/account/pages/account"
 import { AuthPage } from "@/account/pages/auth"
-import { ConsentPage } from "@/account/pages/consent"
 import { DesktopDonePage, DesktopPage } from "@/account/pages/desktop"
 import { AuthLayout } from "@/account/pages/layout"
 import "./account.css"
@@ -15,7 +14,7 @@ import "./account.css"
  * The addresses of signing in and the account: everything else on this site is
  * the apps. app.tsx sends these here, and pages here leave by loading the address anew.
  */
-export const ACCOUNT_PATHS = /^\/(login|signup|forgot-password|reset-password|connect|desktop|account)(\/|$)/
+export const ACCOUNT_PATHS = /^\/(login|signup|forgot-password|reset-password|desktop|account)(\/|$)/
 
 /** Signed in, or the brand clicked: on to the apps, which load from the address. */
 function ToApps() {
@@ -24,7 +23,7 @@ function ToApps() {
 }
 
 /**
- * Signing in for every Even app, the consent page for outside tools, the
+ * Signing in for every Even app, the
  * desktop app's hand-off and the account portal.
  */
 export function AccountSite() {
@@ -43,7 +42,6 @@ export function AccountSite() {
                 <Route path="signup" element={<AuthPage mode="register" />} />
                 <Route path="forgot-password" element={<AuthPage mode="forgot" />} />
                 <Route path="reset-password" element={<AuthPage mode="reset" />} />
-                <Route path="connect" element={<ConsentPage />} />
                 <Route path="desktop" element={<DesktopPage />} />
                 <Route path="desktop/done" element={<DesktopDonePage />} />
               </Route>

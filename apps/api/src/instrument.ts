@@ -22,7 +22,6 @@ if (dsn)
       httpBodies: [],
       urlQueryParams: false,
       genAI: { inputs: false, outputs: false },
-      mcp: { inputs: false, outputs: false },
       databaseQueryData: false,
       stackFrameVariables: false,
     },
