@@ -73,13 +73,9 @@ export function WorkspaceMembersSettings({
     }
   }
 
-  // A personal organization is the user alone.
-  if (workspace.personal)
-    return <SettingsSection title={s.members.personalTitle} description={s.members.personalHelp}>{null}</SettingsSection>
-
   return (
     <>
-      {canManage && (
+      {canManage && !workspace.personal && (
         <SettingsSection
           title={s.members.inviteTitle}
           description={s.members.inviteHelp}
@@ -121,7 +117,14 @@ export function WorkspaceMembersSettings({
 
       <SettingsSection
         title={s.members.title}
-        description={canManage ? s.members.manageHelp : s.members.readOnlyHelp}
+        description={
+          // A personal organization is the user alone: show them, and where to go to work together.
+          workspace.personal
+            ? s.members.personalHelp
+            : canManage
+              ? s.members.manageHelp
+              : s.members.readOnlyHelp
+        }
       >
         {query.isPending ? (
           <>
