@@ -157,8 +157,11 @@ body.home {
   --pad: clamp(24px, 6vw, 96px);
   --soft: color-mix(in srgb, var(--fg) 78%, var(--sheet));
   --rule: color-mix(in srgb, var(--fg) 22%, var(--sheet));
+  /* On wide screens the column sits in the middle; the ground still runs edge to edge. */
+  --side: max(0px, (100% - 1280px - 2 * var(--pad) - 56px) / 2);
   position: relative;
-  padding: clamp(72px, 12vh, 136px) var(--pad) clamp(80px, 13vh, 152px) calc(var(--pad) + 56px);
+  padding: clamp(72px, 12vh, 136px) calc(var(--pad) + var(--side)) clamp(80px, 13vh, 152px)
+    calc(var(--pad) + 56px + var(--side));
   background: var(--sheet);
   color: var(--fg);
   /* A filed mail slides off its sheet; it must not widen the page on its way. */
@@ -891,7 +894,9 @@ a.spine:hover {
   --sheet: var(--ink);
   --fg: var(--paper);
   --soft: color-mix(in srgb, var(--paper) 68%, var(--ink));
-  padding: clamp(80px, 14vh, 160px) clamp(24px, 6vw, 96px) 40px calc(clamp(24px, 6vw, 96px) + 56px);
+  --pad: clamp(24px, 6vw, 96px);
+  --side: max(0px, (100% - 1280px - 2 * var(--pad) - 56px) / 2);
+  padding: clamp(80px, 14vh, 160px) calc(var(--pad) + var(--side)) 40px calc(var(--pad) + 56px + var(--side));
   background: var(--ink);
   color: var(--paper);
 }
