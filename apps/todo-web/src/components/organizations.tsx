@@ -114,7 +114,7 @@ function OrganizationMark({
 }
 
 /**
- * In the rail, under the Even mark: the active organization, and a menu to switch,
+ * In the rail, above the settings: the active organization, and a menu to switch,
  * make a new one or open its settings.
  */
 export function OrganizationPicker() {
@@ -176,7 +176,7 @@ export function OrganizationPicker() {
         </Tooltip>
         <DropdownMenuContent
           side="right"
-          align="start"
+          align="end"
           sideOffset={10}
           collisionPadding={12}
           className="min-w-64"

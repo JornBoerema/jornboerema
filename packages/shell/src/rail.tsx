@@ -23,8 +23,8 @@ export type RailApp = {
 /**
  * The strip along the left of the window with every Even app; on a phone it lies
  * along the bottom. In the desktop app on macOS the window buttons sit at its top.
- * At its head the Even mark, the organization the apps show (with the menu to
- * switch), and the dashboard, which looks across the apps.
+ * At its head the Even mark and the dashboard, which looks across the apps; at its
+ * foot, just above the settings, the organization the apps show, with the menu to switch.
  * At its foot "restart to update" (once a new version is ready), whatever the
  * holder adds (`foot`), and the settings of every app. Apps still to come show
  * greyed out.
@@ -41,7 +41,7 @@ export function AppRail({
   soonLabel,
   foot,
 }: {
-  /** The organization picker, under the Even mark. */
+  /** The organization picker, above the settings. */
   organization: ReactNode
   /** The dashboard, above the apps. */
   home: RailApp
@@ -60,7 +60,6 @@ export function AppRail({
       <nav className="app-rail" aria-label="Apps">
         <div className="app-rail-apps">
           <EvenMark className="app-rail-mark" />
-          {organization}
           <RailButton
             app={home}
             selected={home.id === active}
@@ -81,6 +80,7 @@ export function AppRail({
         <div className="app-rail-foot">
           <UpdateButton />
           {foot}
+          {organization}
           <Tooltip>
             <TooltipTrigger asChild>
               <button

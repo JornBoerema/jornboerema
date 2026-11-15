@@ -66,17 +66,14 @@ body {
   align-items: center;
   gap: 6px;
 }
-/* The Even mark heads the rail; under it the organization the apps show. */
+/* The Even mark heads the rail. */
 .app-rail-mark {
   width: 28px;
   height: 28px;
   margin-bottom: 10px;
   flex-shrink: 0;
 }
-/* The organization: its initial in a tile, set off from the apps below by a little room. */
-.organization-button {
-  margin-bottom: 8px;
-}
+/* The organization, above the settings: its initial in a tile. */
 .organization-mark {
   display: grid;
   place-items: center;
@@ -98,7 +95,7 @@ body {
   font-size: 11px;
 }
 .organization-mark.is-loading {
-  margin-bottom: 14px;
+  margin: 6px;
   opacity: 0.4;
 }
 .app-rail-button {
@@ -241,10 +238,7 @@ body {
   .is-web .app-rail-mark {
     display: none;
   }
-  .is-web .organization-button,
-  .is-web .organization-mark.is-loading {
-    margin: 0 4px 0 0;
-  }
+
   /* The raised button is mark enough on a bar this small. */
   .is-web .app-rail-button::before {
     display: none;

@@ -232,7 +232,7 @@ function MembersWidget({ workspace }: { workspace: WorkspaceSummary }) {
   return <Card size="sm" className="widget">
     <CardHeader>
       <CardTitle>{t.members}</CardTitle>
-      {settings && canManageWorkspace(workspace.role) && (
+      {settings && !workspace.personal && canManageWorkspace(workspace.role) && (
         <CardAction>
           <Button variant="ghost" size="sm" onClick={() => settings.open("members")}><UserAdd data-icon="inline-start" />{t.invite}</Button>
         </CardAction>
