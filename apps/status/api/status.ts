@@ -1,5 +1,5 @@
 import pg from "pg"
-import { DAYS, MONITORS, type StatusData } from "../src/monitors.ts"
+import { DAYS, MONITORS, type StatusData } from "../src/monitors.js"
 
 /**
  * GET /api/status: what status.jornboerema.nl draws. Reads the checks that the
