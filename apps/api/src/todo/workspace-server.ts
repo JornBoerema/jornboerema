@@ -160,8 +160,8 @@ export async function readLinkedWorkspace(token: string): Promise<WorkspaceData>
 
 /** Member ids of a workspace, or [] when the user is not a member. */
 export async function workspaceMemberIds(tx: Tx, workspaceId: string, userId: string) {
-  const members = await tx.workspaceMember.findMany({
-    where: { workspaceId },
+  const members = await tx.member.findMany({
+    where: { organizationId: workspaceId },
     select: { userId: true },
   })
   return members.some((m) => m.userId === userId) ? members.map((m) => m.userId) : []
@@ -180,8 +180,8 @@ export async function readWorkspace(userId: string, workspaceId: string): Promis
       // One connection per transaction: these run one after another.
       const statuses = await readStatuses(tx, workspaceId)
       const projects = await tx.project.findMany({ where: { workspaceId }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] })
-      const members = await tx.workspaceMember.findMany({
-        where: { workspaceId },
+      const members = await tx.member.findMany({
+        where: { organizationId: workspaceId },
         orderBy: { createdAt: "asc" },
         select: { user: { select: { id: true, name: true, email: true, image: true } } },
       })
@@ -290,8 +290,8 @@ export async function executeCommand(
     const list = await lockList(tx, listId)
     if (!list) throw new NotFoundError()
     // Everyone in the workspace receives the change notification.
-    const memberIds = await tx.workspaceMember.findMany({
-      where: { workspaceId: list.workspaceId },
+    const memberIds = await tx.member.findMany({
+      where: { organizationId: list.workspaceId },
       select: { userId: true },
     })
     const recipients = memberIds.map((m) => m.userId)

@@ -6,6 +6,8 @@ export type WorkspaceSummary = {
   name: string;
   role: WorkspaceRole;
   memberCount: number;
+  /** The user's own organization: only them, nobody can be invited. */
+  personal: boolean;
 };
 export type WorkspaceMembers = {
   members: { id: string; userId: string; name: string; email: string; role: WorkspaceRole }[];
@@ -16,7 +18,7 @@ export const roleLabels: Record<"en" | "nl", Record<WorkspaceRole, string>> = {
   en: { owner: "Owner", admin: "Admin", member: "Member" },
   nl: { owner: "Eigenaar", admin: "Beheerder", member: "Lid" },
 };
-/** Owners and admins manage members and workspace settings. */
+/** Owners and admins manage members, settings and billing of an organization. */
 export const canManageWorkspace = (role: WorkspaceRole) => role !== "member";
 
 const id = z.string().uuid();

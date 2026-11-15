@@ -12,11 +12,11 @@ const todoUrl = (workspaceId: string, listId: string) =>
 
 /** Every task list the user can add to, workspace by workspace, as Even doen orders them. */
 export async function todoLists(userId: string): Promise<MailTodoList[]> {
-  const memberships = await getDb().workspaceMember.findMany({
+  const memberships = await getDb().member.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
     include: {
-      workspace: {
+      organization: {
         include: {
           lists: {
             where: { kind: "todo" },
@@ -27,7 +27,7 @@ export async function todoLists(userId: string): Promise<MailTodoList[]> {
       },
     },
   })
-  return memberships.flatMap(({ workspace }) =>
+  return memberships.flatMap(({ organization: workspace }) =>
     workspace.lists.map((list) => ({ id: list.id, name: list.name, workspaceId: workspace.id, workspaceName: workspace.name }))
   )
 }

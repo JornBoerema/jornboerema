@@ -1,5 +1,6 @@
 import { createAuthClient } from "better-auth/react"
 import { oauthProviderClient } from "@better-auth/oauth-provider/client"
+import { organizationClient } from "better-auth/client/plugins"
 
 const TOKEN_KEY = "evido.session-token"
 
@@ -145,7 +146,7 @@ export function createEvidoAuthClient(
         return keepInApp(response, String(request.url))
       },
     },
-    plugins: [oauthProviderClient()],
+    plugins: [oauthProviderClient(), organizationClient()],
   })
 }
 

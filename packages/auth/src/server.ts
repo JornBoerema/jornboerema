@@ -1,8 +1,8 @@
 import { betterAuth } from "better-auth"
-import { bearer, jwt } from "better-auth/plugins"
+import { bearer, jwt, organization } from "better-auth/plugins"
 import { mcp } from "@better-auth/mcp"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
-import { billingConfigured, billingPlugin, endSubscriptions } from "./billing"
+import { billingConfigured, billingPlugin, endSubscriptions, syncSeats } from "./billing"
 import { desktopSignIn } from "./desktop-sign-in"
 import { getDb, Prisma } from "@evido/db"
 import { authEmails, queueEmail } from "@evido/email"
@@ -91,6 +91,20 @@ export function trustedOrigins() {
   return [...new Set(origins)]
 }
 
+/**
+ * The organization plugin's endpoints that change something: closed, so every change
+ * goes through the API's routes. Choosing the active organization stays open.
+ */
+const ORGANIZATION_WRITES = [
+  "accept-invitation", "add-team-member", "cancel-invitation", "create", "create-role", "create-team",
+  "delete", "delete-role", "get-full-organization", "get-invitation", "invite-member", "leave",
+  "list-invitations", "list-members", "list-user-invitations", "reject-invitation", "remove-member",
+  "remove-team", "remove-team-member", "update", "update-member-role", "update-role", "update-team",
+].map((path) => `/organization/${path}`)
+
+/** Between deleting an account and after: the shared organizations it leaves. */
+const leaving = new Map<string, string[]>()
+
 function createAuth() {
   const baseURL = required("BETTER_AUTH_URL").replace(/\/$/, "")
   // Signing in and the consent page are pages of the Even web app.
@@ -103,7 +117,7 @@ function createAuth() {
     secret: required("BETTER_AUTH_SECRET"),
     trustedOrigins: trustedOrigins(),
     database: prismaAdapter(authDb(), { provider: "postgresql" }),
-    disabledPaths: ["/token"],
+    disabledPaths: ["/token", ...ORGANIZATION_WRITES],
     advanced: cookieDomain
       ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }
       : undefined,
@@ -111,6 +125,16 @@ function createAuth() {
       jwt(),
       // The desktop app can't keep a cookie for the API, so it sends the session as a bearer token.
       bearer(),
+      // Organizations: who works together, and who pays. Members and invitations are
+      // changed through the API's own routes (apps/api/src/todo/workspaces-server.ts),
+      // which know the rules for personal organizations; here the active one is chosen.
+      organization({
+        schema: {
+          organization: {
+            additionalFields: { personal: { type: "boolean", defaultValue: false, input: false } },
+          },
+        },
+      }),
       desktopSignIn(),
       mcp({
         loginPage: `${authUiUrl}/login`,
@@ -126,7 +150,18 @@ function createAuth() {
     ],
     user: {
       changeEmail: { enabled: true },
-      deleteUser: { enabled: true, beforeDelete: (user) => endSubscriptions(user) },
+      deleteUser: {
+        enabled: true,
+        beforeDelete: async (user) => {
+          leaving.set(user.id, await endSubscriptions(user))
+        },
+        // The shared organizations they were in have one seat fewer now.
+        afterDelete: async (user) => {
+          const organizations = leaving.get(user.id) ?? []
+          leaving.delete(user.id)
+          for (const id of organizations) await syncSeats(id).catch((error) => console.error("Seat sync failed", error))
+        },
+      },
     },
     emailAndPassword: {
       enabled: true,

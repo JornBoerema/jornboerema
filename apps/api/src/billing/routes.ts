@@ -1,11 +1,12 @@
 import { Hono } from "hono"
 import { z } from "zod"
 import { getAuth } from "@evido/auth/server"
-import { billingConfigured, PAYING_STATUSES, PLAN, PRICE_LOOKUP, stripeClient, TRIAL_DAYS } from "@evido/auth/billing"
+import { billingConfigured, managesBilling, PAYING_STATUSES, PLANS, PRICE_LOOKUP, stripeClient, TRIAL_DAYS } from "@evido/auth/billing"
 import { getDb } from "@evido/db"
 import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { forgetPlan } from "../lib/access"
+import { ensurePersonalOrganization } from "../todo/workspaces-server"
 import { report } from "../lib/report"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
 
@@ -15,6 +16,8 @@ type BillingApi = {
     body: {
       plan: string
       annual: boolean
+      referenceId: string
+      customerType: "organization"
       subscriptionId?: string
       successUrl: string
       cancelUrl: string
@@ -25,7 +28,7 @@ type BillingApi = {
     headers: Headers
   }): Promise<{ url?: string | null }>
   createBillingPortal(input: {
-    body: { returnUrl: string; locale: string; disableRedirect: true }
+    body: { returnUrl: string; locale: string; referenceId: string; customerType: "organization"; disableRedirect: true }
     headers: Headers
   }): Promise<{ url: string }>
 }
@@ -54,18 +57,49 @@ const returnTo = z
 
 export const billingRoutes = new Hono<AppEnv>()
 
+const organizationId = z.uuid().optional()
+
+/**
+ * The organization whose billing is asked for, if the user is in it: the one named,
+ * or else their personal organization (where a person's own subscription lives).
+ */
+async function billedOrganization(userId: string, asked: string | undefined) {
+  const id = asked ?? (await ensurePersonalOrganization(userId))
+  const member = await getDb().member.findUnique({
+    where: { organizationId_userId: { organizationId: id, userId } },
+    select: { role: true, organization: { select: { id: true, name: true, personal: true, _count: { select: { members: true } } } } },
+  })
+  if (!member) return null
+  return {
+    ...member.organization,
+    members: member.organization._count.members,
+    manages: member.role === "owner" || member.role === "admin",
+  }
+}
+
 billingRoutes.get("/", requireSession, async (c) => {
   if (!billingConfigured()) return c.json({ enabled: false }, 200, noStore)
   const userId = c.get("session").user.id
+  const asked = organizationId.safeParse(c.req.query("organizationId"))
+  if (!asked.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
+    const organization = await billedOrganization(userId, asked.data)
+    if (!organization) return c.json({ error: msg(c, "noWorkspaceAccess") }, 404)
     const [rows, amounts] = await Promise.all([
-      getDb().subscription.findMany({ where: { referenceId: userId } }),
+      getDb().subscription.findMany({ where: { referenceId: organization.id } }),
       currentPrices(),
     ])
     const current = rows.find((row) => PAYING_STATUSES.includes(row.status))
     return c.json(
       {
         enabled: true,
+        organization: {
+          id: organization.id,
+          name: organization.name,
+          personal: organization.personal,
+          members: organization.members,
+          manages: organization.manages,
+        },
         prices: amounts,
         trialDays: TRIAL_DAYS,
         // One trial per account, whatever came of it.
@@ -74,6 +108,7 @@ billingRoutes.get("/", requireSession, async (c) => {
           ? {
               status: current.status,
               interval: current.billingInterval,
+              seats: current.seats ?? organization.members,
               periodEnd: current.periodEnd,
               trialEnd: current.status === "trialing" ? current.trialEnd : null,
               endsAtPeriodEnd: Boolean(current.cancelAtPeriodEnd || current.cancelAt),
@@ -89,23 +124,28 @@ billingRoutes.get("/", requireSession, async (c) => {
   }
 })
 
-const checkoutBody = z.object({ annual: z.boolean(), returnTo })
+const checkoutBody = z.object({ annual: z.boolean(), returnTo, organizationId })
 
 billingRoutes.post("/checkout", requireTrustedOrigin, requireSession, async (c) => {
   const body = checkoutBody.safeParse(await c.req.json().catch(() => null))
   if (!billingConfigured() || !body.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
   const user = c.get("session").user
   try {
-    // Someone who already pays changes their plan in the portal, not by paying twice.
+    const organization = await billedOrganization(user.id, body.data.organizationId)
+    if (!organization?.manages) return c.json({ error: msg(c, "billingNotManager") }, 403)
+    // An organization that already pays changes its plan in the portal, not by paying twice.
     const existing = await getDb().subscription.findFirst({
-      where: { referenceId: user.id, status: { in: PAYING_STATUSES } },
+      where: { referenceId: organization.id, status: { in: PAYING_STATUSES } },
       select: { id: true },
     })
     if (existing) return c.json({ error: msg(c, "billingAlreadySubscribed") }, 409)
     const { url } = await billingApi().upgradeSubscription({
       body: {
-        plan: PLAN,
-        annual: body.data.annual,
+        // Yearly is a plan of its own: a seat price has one interval.
+        plan: body.data.annual ? PLANS.yearly : PLANS.monthly,
+        annual: false,
+        referenceId: organization.id,
+        customerType: "organization",
         successUrl: body.data.returnTo,
         cancelUrl: body.data.returnTo,
         returnUrl: body.data.returnTo,
@@ -124,11 +164,20 @@ billingRoutes.post("/checkout", requireTrustedOrigin, requireSession, async (c) 
 })
 
 billingRoutes.post("/portal", requireTrustedOrigin, requireSession, async (c) => {
-  const body = z.object({ returnTo }).safeParse(await c.req.json().catch(() => null))
+  const body = z.object({ returnTo, organizationId }).safeParse(await c.req.json().catch(() => null))
   if (!billingConfigured() || !body.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
+    const organization = await billedOrganization(c.get("session").user.id, body.data.organizationId)
+    if (!organization || !(await managesBilling(c.get("session").user.id, organization.id)))
+      return c.json({ error: msg(c, "billingNotManager") }, 403)
     const { url } = await billingApi().createBillingPortal({
-      body: { returnUrl: body.data.returnTo, locale: languageOf(c), disableRedirect: true },
+      body: {
+        returnUrl: body.data.returnTo,
+        locale: languageOf(c),
+        referenceId: organization.id,
+        customerType: "organization",
+        disableRedirect: true,
+      },
       headers: c.req.raw.headers,
     })
     forgetPlan(c.get("session").user.id)

@@ -71,9 +71,9 @@ export async function startStatus(tx: Tx, workspaceId: string, statusId?: string
 
 async function lockWorkspace(tx: Tx, workspaceId: string, userId: string) {
   const [workspace] = await tx.$queryRaw<{ id: string }[]>`
-    select id from workspaces where id = ${workspaceId} for update`
+    select id from organizations where id = ${workspaceId} for update`
   if (!workspace) throw new NotFoundError()
-  const members = await tx.workspaceMember.findMany({ where: { workspaceId }, select: { userId: true } })
+  const members = await tx.member.findMany({ where: { organizationId: workspaceId }, select: { userId: true } })
   const recipients = members.map((m) => m.userId)
   if (!recipients.includes(userId)) throw new NotFoundError()
   return recipients

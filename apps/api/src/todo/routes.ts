@@ -1,3 +1,5 @@
+import { syncSeats } from "@evido/auth/billing"
+import { report } from "../lib/report"
 import { Hono, type Context } from "hono"
 import { bodyLimit } from "hono/body-limit"
 import { getAuth } from "@evido/auth/server"
@@ -178,6 +180,15 @@ function workspaceFailure(c: Context, error: unknown) {
   return c.json({ error: msg(c, "genericFailure") }, 500)
 }
 
+/** Seats follow the members; a failure is reported and the next change tries again. */
+async function syncSeatsQuietly(organizationId: string) {
+  try {
+    await syncSeats(organizationId)
+  } catch (error) {
+    report("Seat sync failed", error)
+  }
+}
+
 todoRoutes.get("/workspaces", requireSession, async (c) =>
   c.json(await listWorkspaces(c.get("session").user.id, languageOf(c)), 200, noStore)
 )
@@ -205,6 +216,8 @@ todoRoutes.post(
     try {
       const result = await changeWorkspace(session.user.id, command.data, languageOf(c))
       defer(() => notifyWorkspaceUsers(result.recipients))
+      // Someone left or was removed: one seat fewer on the organization's subscription.
+      if (result.seats) defer(() => syncSeatsQuietly(result.seats!))
       if (result.mail)
         try {
           await sendEmail(result.mail)
@@ -276,6 +289,7 @@ todoRoutes.post("/invitations/:token", requireTrustedOrigin, requireSession, asy
   try {
     const result = await acceptInvitation(c.get("session").user.id, c.req.param("token"), languageOf(c))
     defer(() => notifyWorkspaceUsers(result.recipients))
+    defer(() => syncSeatsQuietly(result.workspaceId))
     return c.json({ workspaceId: result.workspaceId })
   } catch (error) {
     if (error instanceof WorkspaceError) return c.json(keyed(c, error), 403)

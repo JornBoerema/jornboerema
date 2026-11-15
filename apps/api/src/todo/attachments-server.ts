@@ -14,8 +14,8 @@ async function membersFor(tx: Tx, todoId: string, userId: string) {
   if (!todo) throw new NotFoundError()
   const list = await lockList(tx, todo.listId)
   if (!list || list.kind !== "board") throw new NotFoundError()
-  const members = await tx.workspaceMember.findMany({
-    where: { workspaceId: list.workspaceId },
+  const members = await tx.member.findMany({
+    where: { organizationId: list.workspaceId },
     select: { userId: true },
   })
   const recipients = members.map((m) => m.userId)

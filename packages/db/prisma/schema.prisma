@@ -15,15 +15,15 @@ datasource db {
 // ─── Auth (Better Auth core) ────────────────────────────────────────────────
 
 model User {
-  id            String   @id
-  name          String
-  email         String   @unique
-  emailVerified Boolean  @default(false) @map("email_verified")
-  image         String?
-  /// The customer at Stripe, made the first time this user starts a subscription.
-  stripeCustomerId String? @map("stripe_customer_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  id               String   @id
+  name             String
+  email            String   @unique
+  emailVerified    Boolean  @default(false) @map("email_verified")
+  image            String?
+  /// No longer used: subscriptions belong to organizations (Organization.stripeCustomerId).
+  stripeCustomerId String?  @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
   sessions               Session[]
   accounts               Account[]
@@ -32,8 +32,8 @@ model User {
   oauthAccessTokens      OauthAccessToken[]
   oauthConsents          OauthConsent[]
   lists                  List[]
-  workspaceMemberships   WorkspaceMember[]
-  workspaceInvitations   WorkspaceInvitation[]
+  members                Member[]
+  invitations            Invitation[]
   mailAccounts           MailAccount[]
   mailMessages           MailMessage[]
   mailSignatures         MailSignature[]
@@ -57,15 +57,17 @@ model User {
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime @map("expires_at")
-  token     String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String   @id
+  expiresAt            DateTime @map("expires_at")
+  token                String   @unique
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
+  ipAddress            String?  @map("ip_address")
+  userAgent            String?  @map("user_agent")
+  userId               String   @map("user_id")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The organization the apps show (Better Auth organization plugin); the rail's picker sets it.
+  activeOrganizationId String?  @map("active_organization_id")
 
   oauthRefreshTokens OauthRefreshToken[]
   oauthAccessTokens  OauthAccessToken[]
@@ -306,10 +308,13 @@ enum StatusCategory {
   canceled
 }
 
-enum WorkspaceRole {
+/// A member's role in an organization. Owners and admins manage members and billing.
+enum MemberRole {
   owner
   admin
   member
+
+  @@map("WorkspaceRole")
 }
 
 enum ShareRole {
@@ -317,67 +322,80 @@ enum ShareRole {
   editor
 }
 
-/// A shared space (e.g. "Persoonlijk", "Werk"). Every member sees all its lists.
-model Workspace {
-  id        String   @id
-  name      String
-  createdAt DateTime @default(now()) @map("created_at")
+/// An organization (Better Auth organization plugin): who works together, and who pays.
+/// Every user has a personal one with only themselves in it; a company makes its own.
+/// Its lists, notes, board statuses and projects still call it their "workspace".
+model Organization {
+  id               String   @id
+  name             String
+  /// Required by Better Auth; set to the id, nothing reads it.
+  slug             String   @unique
+  logo             String?
+  metadata         String?
+  /// Only the user who has it; nobody can be invited into it, and it can't be left or deleted.
+  personal         Boolean  @default(false)
+  /// The customer at Stripe, made when the organization first subscribes.
+  stripeCustomerId String?  @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  members     WorkspaceMember[]
-  invitations WorkspaceInvitation[]
+  members     Member[]
+  invitations Invitation[]
   lists       List[]
   statuses    WorkspaceStatus[]
   projects    Project[]
 
-  @@map("workspaces")
+  @@map("organizations")
 }
 
-model WorkspaceMember {
-  id          String        @id
-  workspaceId String        @map("workspace_id")
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  userId      String        @map("user_id")
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        WorkspaceRole
-  createdAt   DateTime      @default(now()) @map("created_at")
+model Member {
+  id             String       @id
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           MemberRole
+  createdAt      DateTime     @default(now()) @map("created_at")
 
-  @@unique([workspaceId, userId], map: "workspace_members_workspace_user_unique")
-  @@index([userId], map: "workspace_members_user_idx")
-  @@map("workspace_members")
+  @@unique([organizationId, userId], map: "members_organization_user_unique")
+  @@index([userId], map: "members_user_idx")
+  @@map("members")
 }
 
-model WorkspaceInvitation {
-  id          String        @id
-  workspaceId String        @map("workspace_id")
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  email       String
-  role        WorkspaceRole
-  tokenHash   String        @unique @map("token_hash")
-  invitedById String?       @map("invited_by_id")
-  invitedBy   User?         @relation(fields: [invitedById], references: [id], onDelete: SetNull)
-  expiresAt   DateTime      @map("expires_at")
-  acceptedAt  DateTime?     @map("accepted_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
+/// An invitation by email; the link carries a token, of which only the hash is kept.
+model Invitation {
+  id             String       @id
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           MemberRole
+  /// Better Auth's field; this app goes by acceptedAt and expiresAt.
+  status         String       @default("pending")
+  tokenHash      String       @unique @map("token_hash")
+  inviterId      String?      @map("invited_by_id")
+  inviter        User?        @relation(fields: [inviterId], references: [id], onDelete: SetNull)
+  expiresAt      DateTime     @map("expires_at")
+  acceptedAt     DateTime?    @map("accepted_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
 
-  @@unique([workspaceId, email], map: "workspace_invitations_workspace_email_unique")
-  @@map("workspace_invitations")
+  @@unique([organizationId, email], map: "invitations_organization_email_unique")
+  @@map("invitations")
 }
 
 model List {
-  id          String    @id
-  workspaceId String    @map("workspace_id")
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id          String       @id
+  workspaceId String       @map("workspace_id")
+  workspace   Organization @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   /// Creator of the list. Access comes from workspace membership, not this field.
-  userId      String?   @map("user_id")
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId      String?      @map("user_id")
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   name        String
-  kind        ListKind  @default(todo)
-  noteContent String    @default("") @map("note_content")
-  noteVersion Int       @default(0) @map("note_version")
+  kind        ListKind     @default(todo)
+  noteContent String       @default("") @map("note_content")
+  noteVersion Int          @default(0) @map("note_version")
   /// Sidebar order within the workspace, per kind (lists and notes separately).
-  position    Int       @default(0)
-  createdAt   DateTime  @default(now()) @map("created_at")
+  position    Int          @default(0)
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   todos Todo[]
   link  ListLink?
@@ -423,7 +441,7 @@ model Todo {
 model WorkspaceStatus {
   id          String         @id
   workspaceId String         @map("workspace_id")
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Organization   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name        String
   category    StatusCategory
   /// Hex colour, e.g. #f2994a.
@@ -437,14 +455,14 @@ model WorkspaceStatus {
 }
 
 model Project {
-  id          String    @id
-  workspaceId String    @map("workspace_id")
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id          String       @id
+  workspaceId String       @map("workspace_id")
+  workspace   Organization @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name        String
-  description String    @default("")
+  description String       @default("")
   color       String
-  position    Int       @default(0)
-  createdAt   DateTime  @default(now()) @map("created_at")
+  position    Int          @default(0)
+  createdAt   DateTime     @default(now()) @map("created_at")
   todos       Todo[]
 
   @@index([workspaceId], map: "projects_workspace_idx")
@@ -464,18 +482,18 @@ model TodoAssignee {
 
 /// A file on a board issue, stored in chunks like mail uploads.
 model TodoAttachment {
-  id          String   @id
-  todoId      String   @map("todo_id")
-  todo        Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  id          String                @id
+  todoId      String                @map("todo_id")
+  todo        Todo                  @relation(fields: [todoId], references: [id], onDelete: Cascade)
   /// Who uploaded it; kept when they leave.
-  userId      String?  @map("user_id")
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId      String?               @map("user_id")
+  user        User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   name        String
-  contentType String   @map("content_type")
+  contentType String                @map("content_type")
   size        Int
   /// Set once every chunk arrived; incomplete files are hidden and cleaned up.
-  complete    Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
+  complete    Boolean               @default(false)
+  createdAt   DateTime              @default(now()) @map("created_at")
   chunks      TodoAttachmentChunk[]
 
   @@index([todoId], map: "todo_attachments_todo_idx")
@@ -1029,7 +1047,8 @@ model AiUsage {
 // ─── Billing (Better Auth Stripe plugin) ────────────────────────────────────
 
 /// A subscription at Stripe, kept in step by its webhooks. `referenceId` is the
-/// user it belongs to; rows go when the account is deleted.
+/// organization it belongs to (a person's own plan hangs on their personal one);
+/// `seats` follows the number of members.
 model Subscription {
   id                   String    @id
   /// The plan's name, such as "pro".
