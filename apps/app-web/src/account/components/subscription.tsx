@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@even/ui/components/button"
-import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { SettingsRow, SettingsRowSkeleton, SettingsSection } from "@even/ui/components/settings-dialog"
 import { useI18n } from "@/account/i18n"
 import { API_URL } from "@/account/lib/api"
 import { appLinks } from "@/account/lib/apps"
@@ -40,6 +40,13 @@ export function Subscription() {
     onError: (error) => toast.error(error instanceof Error ? error.message : all.common.failed),
   })
 
+  // Held open while it loads, so the page below doesn't move down when it comes in.
+  if (status.isPending)
+    return (
+      <SettingsSection title={t.plan}>
+        <SettingsRowSkeleton />
+      </SettingsSection>
+    )
   // No billing on this server, or it can't be reached: nothing to show.
   if (!status.data?.enabled) return null
   const current = status.data.subscription

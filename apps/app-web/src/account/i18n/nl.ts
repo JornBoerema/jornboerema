@@ -230,7 +230,6 @@ export const nl: typeof en = {
     signOutOthers: "Overal anders uitloggen",
     signedOutOthers: "Uitgelogd op je andere apparaten.",
     unknownDevice: "Onbekend apparaat",
-    loadingSessions: "Apparaten laden…",
     confirmTitle: "Bevestig dat jij het bent",
     confirmDescription: "Log opnieuw in om je apparaten te zien en te beheren.",
     signInAgain: "Opnieuw inloggen",

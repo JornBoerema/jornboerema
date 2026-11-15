@@ -38,6 +38,7 @@ export const en = {
   shell: {
     noConnection: "There is no connection. Please try again.",
     sidebar: "Navigation",
+    loading: "Loading",
     account: (email: string) => `Account menu for ${email}`,
     collapse: "Collapse sidebar",
     collapseTitle: "Collapse sidebar (⌘/Ctrl+B)",

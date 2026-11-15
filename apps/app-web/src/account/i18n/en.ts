@@ -228,7 +228,6 @@ export const en = {
     signOutOthers: "Sign out everywhere else",
     signedOutOthers: "Signed out on your other devices.",
     unknownDevice: "Unknown device",
-    loadingSessions: "Loading devices…",
     confirmTitle: "Confirm it's you",
     confirmDescription: "Sign in again to see and manage your devices.",
     signInAgain: "Sign in again",

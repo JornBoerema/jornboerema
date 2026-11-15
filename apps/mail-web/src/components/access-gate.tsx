@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@even/ui/components/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@even/ui/components/empty"
 import { Brand } from "@/components/brand"
+import { MailLoading } from "@/components/mail-loading"
 import { Paywall } from "@/components/paywall"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
@@ -73,7 +74,7 @@ export function AccessGate({
 
   // Unreachable check: the app tries anyway, since the API refuses outsiders itself.
   if (access || (check.isError && !check.data)) return children
-  if (!check.data) return null
+  if (!check.data) return <MailLoading />
   if (check.data.needsPlan)
     return (
       <>

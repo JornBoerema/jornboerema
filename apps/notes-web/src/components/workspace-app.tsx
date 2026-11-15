@@ -27,6 +27,7 @@ import { cn } from "@even/ui/lib/utils";
 import { useCollapsibleSidebar } from "@even/ui/hooks/use-collapsible-sidebar";
 import { useScrollFade } from "@even/ui/hooks/use-scroll-fade";
 import { Brand } from "@/components/brand";
+import { NoteBodyLoading } from "@/components/page-loading";
 import { Button } from "@even/ui/components/button";
 import { Input } from "@even/ui/components/input";
 import { Field, FieldGroup, FieldLabel } from "@even/ui/components/field";
@@ -254,7 +255,7 @@ export function WorkspaceApp({
                 </DropdownMenu>
                 </div>}
               </div>
-              <Suspense fallback={<p className="text-sm text-muted-foreground">{t.note.loading}</p>}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense>
+              <Suspense fallback={<NoteBodyLoading />}><NoteEditor key={selected.id} list={selected} identity={shareToken ?? user!.id} endpoint={listEndpoint} saveRef={noteSave} downloadRef={noteDownload} /></Suspense>
             </>
           ) : (
             <Empty className="py-20">

@@ -39,6 +39,7 @@ export const nl: typeof en = {
   shell: {
     noConnection: "Er is geen verbinding. Probeer het opnieuw.",
     sidebar: "Navigatie",
+    loading: "Laden",
     account: (email: string) => `Accountmenu van ${email}`,
     collapse: "Sidebar inklappen",
     collapseTitle: "Sidebar inklappen (⌘/Ctrl+B)",

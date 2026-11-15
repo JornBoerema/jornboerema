@@ -81,7 +81,6 @@ export const workspace: typeof en = {
     downloadMarkdown: "Download .md",
     share: "Notitie delen",
     delete: "Notitie verwijderen",
-    loading: "Notitie laden…",
     blocks: {
       paragraph: "Tekst",
       h1: "Kop 1",

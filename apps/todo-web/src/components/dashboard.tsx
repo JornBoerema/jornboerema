@@ -5,12 +5,11 @@ import { useAppSwitcher } from "@even/ui/components/app-switcher";
 import { Button } from "@even/ui/components/button";
 import { Checkbox } from "@even/ui/components/checkbox";
 import { useOrganizations } from "@even/ui/components/organizations";
-import { Skeleton } from "@even/ui/components/skeleton";
+import { SkeletonLine } from "@even/ui/components/skeleton";
 import { cn } from "@even/ui/lib/utils";
 import { sortTodos, type Todo, type WorkspaceData } from "@even/todo-core/workspace";
 import type { WorkspaceSummary } from "@even/todo-core/workspaces";
 import { PageError } from "@/components/page-error";
-import { PageLoading } from "@/components/page-loading";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { apiFetch } from "@/lib/api";
 import { RequireSession, type SessionUser } from "@/lib/session";
@@ -87,13 +86,13 @@ async function loadMail(): Promise<DashboardMail> {
  * follow, small. Everything opens in the app it belongs to.
  */
 export function DashboardPage() {
-  return <RequireSession>{(user) => <Workspaces user={user} />}</RequireSession>;
+  return <RequireSession loading={<DashboardLoading />}>{(user) => <Workspaces user={user} />}</RequireSession>;
 }
 
 /** The organization picked in the rail; the dashboard only lives in the Even shell. */
 function Workspaces({ user }: { user: SessionUser }) {
   const organizations = useOrganizations();
-  if (!organizations) return <PageLoading />;
+  if (!organizations) return <DashboardLoading />;
   return <ActiveWorkspace user={user} active={organizations.active} />;
 }
 
@@ -108,7 +107,7 @@ function ActiveWorkspace({ user, active }: { user: SessionUser; active: Workspac
     staleTime: Infinity,
   });
   if (workspace.isError) return <PageError onRetry={() => void workspace.refetch()} />;
-  if (!workspace.data || config.isPending) return <PageLoading />;
+  if (!workspace.data || config.isPending) return <DashboardLoading />;
   return (
     <Dashboard
       key={active.id}
@@ -216,7 +215,7 @@ function Dashboard({ user, workspace, initialData, realtimeEnabled }: {
               <h2 id="dash-inbox">{t.inbox}{ready && ready.unread > 0 && <span className="dash-count">{ready.unread.toLocaleString(locale)}</span>}</h2>
               {ready && <Button variant="ghost" size="sm" onClick={() => open("mail", { view: "inbox" })}>{t.openInbox}</Button>}
             </div>
-            {mail.isPending ? <RowsLoading rows={6} /> : mail.isError ? (
+            {mail.isPending ? <ThreadRowsLoading /> : mail.isError ? (
               <MailNotice title={t.mailFailed} action={t.retry} onAction={() => void mail.refetch()} />
             ) : mail.data.state === "no-mailbox" ? (
               <MailNotice title={t.noMailbox} body={t.noMailboxBody} action={t.openMail} onAction={() => open("mail", { view: "inbox" })} primary />
@@ -229,6 +228,7 @@ function Dashboard({ user, workspace, initialData, realtimeEnabled }: {
             ) : <p className="dash-empty">{t.inboxEmpty}</p>}
           </section>
 
+          {mail.isPending && <LaterLoading />}
           {ready && <aside className="dash-later">
             <section aria-labelledby="dash-returning">
               <div className="dash-section-head">
@@ -331,8 +331,78 @@ function MailNotice({ title, body, action, onAction, primary = false }: {
   </div>;
 }
 
-function RowsLoading({ rows }: { rows: number }) {
-  return <div className="flex flex-col gap-3 py-2" aria-hidden="true">
-    {Array.from({ length: rows }, (_, index) => <Skeleton key={index} className="h-9 w-full" />)}
+const THREAD_WIDTHS = ["w-3/5", "w-4/5", "w-1/2", "w-2/3", "w-3/4", "w-2/5", "w-3/5", "w-1/2", "w-2/3"];
+
+/** Conversations while they load, in the grid of the rows that follow: dot, sender, subject, time. */
+function ThreadRowsLoading() {
+  return <div className="dash-threads" aria-hidden="true">
+    {THREAD_WIDTHS.slice(0, INBOX_ROWS).map((width, index) => (
+      <div key={index} className="dash-thread items-center">
+        <span />
+        <SkeletonLine className="h-[21px]" bar={index % 3 ? "w-24" : "w-32"} />
+        <SkeletonLine className="h-[21px]" bar={width} />
+        <SkeletonLine className="h-[18px] w-9" bar="h-3" />
+      </div>
+    ))}
   </div>;
+}
+
+/** Rows of the small lists while they load, as tall as theirs: a time on top when they have one. */
+function SideRowsLoading({ rows, when = false }: { rows: number; when?: boolean }) {
+  return <div className="dash-side-list" aria-hidden="true">
+    {Array.from({ length: rows }, (_, index) => (
+      <div key={index} className="dash-row-body">
+        {when && <SkeletonLine className="h-[18px]" bar="h-3 w-20" />}
+        <SkeletonLine className="h-[21px]" bar={index % 2 ? "w-2/5" : "w-3/5"} />
+        <SkeletonLine className="h-[18px]" bar={index % 2 ? "h-3 w-1/2" : "h-3 w-1/3"} />
+      </div>
+    ))}
+  </div>;
+}
+
+/** What comes back and what goes out, while mail loads. */
+function LaterLoading() {
+  const { t: { workspace: { dashboard: t } } } = useI18n();
+  return <aside className="dash-later" aria-hidden="true">
+    {[t.returningTitle, t.scheduledTitle].map((title) => (
+      <section key={title}>
+        <div className="dash-section-head"><h2>{title}</h2></div>
+        <SideRowsLoading rows={2} when />
+      </section>
+    ))}
+  </aside>;
+}
+
+/**
+ * The dashboard while it loads, laid out as it will be: the greeting, the inbox and
+ * its side lists, and the workspace's tasks and notes. Every step of loading shows
+ * this same screen, and mail that is still coming keeps its rows once the rest is in.
+ */
+function DashboardLoading() {
+  const { t: { workspace: { dashboard: t }, common } } = useI18n();
+  return <main className="workspace-main dashboard-page" role="status" aria-label={common.loading}>
+    <div className="task-content dashboard-content">
+      <div className="dash" aria-hidden="true">
+        <header className="dash-heading">
+          <SkeletonLine className="h-[35px]" bar="h-7 w-72 max-w-full" />
+          <SkeletonLine className="mt-1.5 h-[21px]" bar="w-56 max-w-full" />
+        </header>
+        <div className="dash-mail">
+          <section className="dash-inbox">
+            <div className="dash-section-head"><h2>{t.inbox}</h2></div>
+            <ThreadRowsLoading />
+          </section>
+          <LaterLoading />
+        </div>
+        <div className="dash-work">
+          {[t.inProgress, t.notes].map((title) => (
+            <section key={title}>
+              <div className="dash-section-head"><h2>{title}</h2></div>
+              <SideRowsLoading rows={3} />
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  </main>;
 }

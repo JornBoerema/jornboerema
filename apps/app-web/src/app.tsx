@@ -12,7 +12,8 @@ import { DESKTOP_DOWNLOAD_URL } from "@even/ui/components/desktop-download"
 import { Toaster } from "@even/ui/components/sonner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@even/ui/components/tooltip"
 import { ThemeProvider } from "@even/ui/lib/theme"
-import { ACCOUNT_PATHS, AccountSite } from "@/account/site"
+import { authClient as accountAuth } from "@/account/lib/auth-client"
+import { ACCOUNT_PATHS, AccountSite, SESSION_PATHS } from "@/account/site"
 
 const TEXTS = {
   en: {
@@ -77,9 +78,30 @@ function Gate() {
   return <EvenShell web railFoot={<DownloadButton label={t.download} />} />
 }
 
-function Account() {
+/** Hides the splash once the session is known: those pages show nothing before it. */
+function SplashUntilSession() {
+  const { isPending } = accountAuth.useSession()
+  useEffect(() => {
+    if (!isPending) hideSplash()
+  }, [isPending])
+  return null
+}
+
+function HideSplash() {
   useEffect(hideSplash, [])
-  return <AccountSite />
+  return null
+}
+
+function Account() {
+  // The account and the desktop hand-off need the session first; the splash stays
+  // until then rather than giving way to an empty page. Signing in shows at once.
+  const waits = SESSION_PATHS.test(window.location.pathname)
+  return (
+    <>
+      {waits ? <SplashUntilSession /> : <HideSplash />}
+      <AccountSite />
+    </>
+  )
 }
 
 function Public({ app }: { app: "todo" | "notes" }) {

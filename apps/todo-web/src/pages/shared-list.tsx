@@ -43,6 +43,6 @@ export function SharedListPage() {
       </main>
     )
   if (query.isError) return <PageError onRetry={() => void query.refetch()} />
-  if (!query.data || isNote) return <PageLoading />
+  if (!query.data || isNote) return <PageLoading shared />
   return <WorkspaceApp initialData={query.data} realtimeEnabled={false} shareToken={token} />
 }

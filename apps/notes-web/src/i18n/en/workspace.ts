@@ -80,7 +80,6 @@ export const workspace = {
     downloadMarkdown: "Download .md",
     share: "Share note",
     delete: "Delete note",
-    loading: "Loading note…",
     blocks: {
       paragraph: "Text",
       h1: "Heading 1",

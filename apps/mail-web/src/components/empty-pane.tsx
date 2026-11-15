@@ -23,9 +23,13 @@ function Keys({ keys }: { keys: string[] }) {
  * move through mail fastest. No illustration, in keeping with the rest.
  */
 export function EmptyPane() {
+  return <EmptyPaneView unread={useUnread(true).data?.count} />
+}
+
+/** The same, without asking for the count: also while the app itself still loads. */
+export function EmptyPaneView({ unread }: { unread?: number }) {
   const { t: strings, locale } = useI18n()
   const t = strings.emptyPane
-  const unread = useUnread(true).data?.count
   const today = new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(new Date())
   const shortcuts = [
     { keys: ["J", "K"], label: t.browse },

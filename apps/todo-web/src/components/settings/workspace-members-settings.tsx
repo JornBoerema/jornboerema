@@ -4,7 +4,7 @@ import { canManageWorkspace, type WorkspaceSummary } from "@even/todo-core/works
 import { useI18n } from "@/i18n"
 import { useWorkspaceCommand, useWorkspaceMembers } from "@/lib/workspaces"
 import { Mail, UserAdd } from "@/components/icons"
-import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { SettingsRow, SettingsRowSkeleton, SettingsSection } from "@even/ui/components/settings-dialog"
 import { Button } from "@even/ui/components/button"
 import { Input } from "@even/ui/components/input"
 import {
@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@even/ui/components/select"
-import { Skeleton } from "@even/ui/components/skeleton"
 import { Alert, AlertDescription } from "@even/ui/components/alert"
 import { Badge } from "@even/ui/components/badge"
 
@@ -125,10 +124,10 @@ export function WorkspaceMembersSettings({
         description={canManage ? s.members.manageHelp : s.members.readOnlyHelp}
       >
         {query.isPending ? (
-          <div className="flex flex-col gap-3 p-5">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <>
+            <SettingsRowSkeleton />
+            <SettingsRowSkeleton />
+          </>
         ) : query.isError ? (
           <div className="p-5">
             <Alert variant="destructive">

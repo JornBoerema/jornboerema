@@ -16,6 +16,9 @@ import "./account.css"
  */
 export const ACCOUNT_PATHS = /^\/(login|signup|forgot-password|reset-password|desktop|account)(\/|$)/
 
+/** Of those, the ones that show nothing until the session is known. */
+export const SESSION_PATHS = /^\/(desktop|account)\/?$/
+
 /** Signed in, or the brand clicked: on to the apps, which load from the address. */
 function ToApps() {
   useEffect(() => window.location.replace(window.location.href), [])

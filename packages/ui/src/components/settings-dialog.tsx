@@ -5,6 +5,7 @@ import { ArrowDown01Icon, Cancel01Icon, SearchIcon } from "@hugeicons/core-free-
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { Button } from "@even/ui/components/button"
+import { Skeleton, SkeletonLine } from "@even/ui/components/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -325,4 +326,19 @@ function SettingsRow({
   )
 }
 
-export { SettingsDialog, SettingsSection, SettingsRow }
+/** A setting still loading, as tall as the row that takes its place: a name, a line of help, its control. */
+function SettingsRowSkeleton({ control = true }: { control?: boolean }) {
+  return (
+    <div className="flex flex-col gap-3 px-5 py-4" aria-hidden="true">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <SkeletonLine className="h-5" bar="w-32" />
+          <SkeletonLine className="h-5" bar="h-3 w-48" />
+        </div>
+        {control && <Skeleton className="h-7 w-24 shrink-0" />}
+      </div>
+    </div>
+  )
+}
+
+export { SettingsDialog, SettingsSection, SettingsRow, SettingsRowSkeleton }

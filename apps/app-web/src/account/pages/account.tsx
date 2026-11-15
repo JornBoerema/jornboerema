@@ -30,7 +30,7 @@ import {
 import { Button } from "@even/ui/components/button"
 import { Field, FieldGroup, FieldLabel } from "@even/ui/components/field"
 import { Input } from "@even/ui/components/input"
-import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { SettingsRow, SettingsRowSkeleton, SettingsSection } from "@even/ui/components/settings-dialog"
 import { PROVIDER_NAMES, ProviderLogo, useSocialProviders } from "@even/ui/components/social-providers"
 import { Brand } from "@even/shell/brand"
 import { RequireSession } from "@/account/components/require-session"
@@ -855,7 +855,12 @@ function Sessions({ current }: { current: string }) {
   const notFresh = sessions.error?.message === "SESSION_NOT_FRESH"
   return (
     <SettingsSection title={t.sessions} description={t.sessionsHelp}>
-      {sessions.isPending && <SettingsRow title={t.loadingSessions} />}
+      {sessions.isPending && (
+        <>
+          <SettingsRowSkeleton />
+          <SettingsRowSkeleton />
+        </>
+      )}
       {sessions.isError && (
         <SettingsRow
           title={notFresh ? t.confirmTitle : all.common.failed}

@@ -43,7 +43,7 @@ import {
   EmptyTitle,
 } from "@even/ui/components/empty"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@even/ui/components/dropdown-menu"
-import { Skeleton } from "@even/ui/components/skeleton"
+import { ListSkeleton } from "@/components/mail-loading"
 import { Spinner } from "@even/ui/components/spinner"
 import { cn } from "@even/ui/lib/utils"
 import {
@@ -832,20 +832,6 @@ function SelectionBar({
   )
 }
 
-
-/** Lines while a list loads, inset like the lines that follow: drafts flush, mail and parcels past the gutter. */
-function ListSkeleton({ inset = true }: { inset?: boolean }) {
-  return (
-    <div aria-hidden="true" className="px-2 pb-2">
-      {Array.from({ length: 10 }, (_, index) => (
-        <div key={index} className={cn("flex flex-col gap-2 py-3 pr-2.5", inset ? "pl-8" : "pl-2.5")}>
-          <Skeleton className="h-3.5 w-2/5" />
-          <Skeleton className="h-3.5 w-4/5" />
-        </div>
-      ))}
-    </div>
-  )
-}
 
 /** Loads the next page when the end of the list scrolls into view. */
 function LoadMore({

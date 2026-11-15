@@ -23,6 +23,7 @@ import { useSignatures } from "@/lib/signatures"
 import { isWaiting } from "@/lib/undo"
 import { InboxPage } from "@/pages/inbox"
 import { AccessGate } from "@/components/access-gate"
+import { MailLoading } from "@/components/mail-loading"
 
 /** A provider redirect lands here with its result, which the settings report. */
 const returnedFromProvider = () =>
@@ -37,7 +38,7 @@ function WithCachedMail({ userId, children }: { userId: string; children: ReactN
     void restored.finally(() => setReady(true))
     return unsubscribe
   }, [queryClient, userId])
-  return ready ? children : null
+  return ready ? children : <MailLoading />
 }
 
 /** The lists the dashboard may open. */
@@ -337,7 +338,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
 export function Root() {
   const { data, isPending, error: sessionError } = authClient.useSession()
   const location = useLocation()
-  if (isPending) return null
+  if (isPending) return <MailLoading />
   // Signed out elsewhere (on the account site, say): nothing of the last user stays here.
   if (!data && !sessionError) forgetSignedOutUser()
   if (data)
