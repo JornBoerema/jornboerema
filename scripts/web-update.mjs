@@ -32,7 +32,7 @@ if (base && run("git", ["rev-list", "-n", "1", base]) === run("git", ["rev-parse
 const plan = run("node", ["scripts/web-plan.mjs", "affected"], { stdio: ["ignore", "pipe", "ignore"] })
 const api = plan.match(/^api=(.*)$/m)?.[1] ?? ""
 const web = JSON.parse(plan.match(/^web=(.*)$/m)?.[1] ?? "[]")
-const apps = [...(api ? ["@evido/api"] : []), ...web.map((app) => app.package)]
+const apps = [...(api ? ["@even/api"] : []), ...web.map((app) => app.package)]
 if (!apps.length) fail(`No web app changed since ${base}. Nothing to put live.`)
 
 console.log(`Changed since ${base ?? "the start"}: ${apps.join(", ")}\n`)

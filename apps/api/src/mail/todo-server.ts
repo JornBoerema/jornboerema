@@ -1,5 +1,5 @@
-import { getDb } from "@evido/db"
-import type { MailTodoList, MailTodoView } from "@evido/mail-core/types"
+import { getDb } from "@even/db"
+import type { MailTodoList, MailTodoView } from "@even/mail-core/types"
 import { env } from "../env"
 import { notifyWorkspaceUsers } from "../lib/realtime"
 import { executeCommand, NotFoundError } from "../todo/workspace-server"

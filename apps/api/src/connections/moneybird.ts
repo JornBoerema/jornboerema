@@ -2,7 +2,7 @@
 // https://developer.moneybird.com/authentication/
 // Errors carry status codes only, never token material.
 
-import type { MoneybirdAdministration } from "@evido/mail-core/connections"
+import type { MoneybirdAdministration } from "@even/mail-core/connections"
 
 const AUTHORIZE_URL = "https://moneybird.com/oauth/authorize"
 const TOKEN_URL = "https://moneybird.com/oauth/token"

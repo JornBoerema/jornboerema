@@ -1,12 +1,12 @@
-import { syncSeats } from "@evido/auth/billing"
+import { syncSeats } from "@even/auth/billing"
 import { report } from "../lib/report"
 import { Hono, type Context } from "hono"
 import { bodyLimit } from "hono/body-limit"
-import { getAuth } from "@evido/auth/server"
-import { commandSchema } from "@evido/todo-core/workspace"
-import { sharingCommand } from "@evido/todo-core/sharing"
-import { workspaceCommand } from "@evido/todo-core/workspaces"
-import { sendEmail } from "@evido/email"
+import { getAuth } from "@even/auth/server"
+import { commandSchema } from "@even/todo-core/workspace"
+import { sharingCommand } from "@even/todo-core/sharing"
+import { workspaceCommand } from "@even/todo-core/workspaces"
+import { sendEmail } from "@even/email"
 import { defer } from "../lib/defer"
 import { KeyedError, languageOf, msg, validationMessage, type MessageKey } from "../i18n"
 import { notifyWorkspaceUsers, realtimeEnabled, sealChannel, userChannel } from "../lib/realtime"
@@ -21,7 +21,7 @@ import {
 } from "./workspace-server"
 import { changeSharing, readSharing } from "./sharing-server"
 import { z } from "zod"
-import { ATTACHMENT_CHUNK_BYTES, MAX_ATTACHMENT_BYTES } from "@evido/todo-core/board"
+import { ATTACHMENT_CHUNK_BYTES, MAX_ATTACHMENT_BYTES } from "@even/todo-core/board"
 import {
   completeAttachment,
   createAttachment,

@@ -1,5 +1,5 @@
-import { Button } from "@evido/ui/components/button"
-import { Alert, AlertTitle, AlertDescription } from "@evido/ui/components/alert"
+import { Button } from "@even/ui/components/button"
+import { Alert, AlertTitle, AlertDescription } from "@even/ui/components/alert"
 import { useI18n } from "@/i18n"
 
 export function PageError({ onRetry }: { onRetry: () => void }) {

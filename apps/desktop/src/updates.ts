@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import { getVersion } from "@tauri-apps/api/app"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
-import { useCurrentLanguage } from "@evido/i18n/react"
-import type { DesktopApp, DesktopTexts } from "@evido/ui/components/desktop-app"
+import { useCurrentLanguage } from "@even/i18n/react"
+import type { DesktopApp, DesktopTexts } from "@even/ui/components/desktop-app"
 
 const TEXTS: Record<"en" | "nl", DesktopTexts> = {
   en: {

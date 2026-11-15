@@ -9,9 +9,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog"
-import type { MailAccountView } from "@evido/mail-core/types"
-import type { MailUnsubscribe } from "@evido/mail-core/unsubscribe"
+} from "@even/ui/components/alert-dialog"
+import type { MailAccountView } from "@even/mail-core/types"
+import type { MailUnsubscribe } from "@even/mail-core/unsubscribe"
 import { useI18n } from "@/i18n"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"

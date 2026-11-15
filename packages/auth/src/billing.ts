@@ -1,7 +1,7 @@
 import { stripe } from "@better-auth/stripe"
 import Stripe from "stripe"
-import { getDb, type Tx } from "@evido/db"
-import { queueEmail } from "@evido/email"
+import { getDb, type Tx } from "@even/db"
+import { queueEmail } from "@even/email"
 
 /**
  * Even Pro, paid per seat by an organization: one seat for every member. A person's

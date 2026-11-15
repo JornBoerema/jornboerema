@@ -3,7 +3,7 @@ import * as React from "react"
 export type Theme = "light" | "dark" | "system"
 type ResolvedTheme = "light" | "dark"
 
-const STORAGE_KEY = "evido.theme"
+const STORAGE_KEY = "even.theme"
 const QUERY = "(prefers-color-scheme: dark)"
 
 // index.html of each app sets the initial class before first paint (no white

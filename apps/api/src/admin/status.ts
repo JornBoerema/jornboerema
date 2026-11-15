@@ -79,16 +79,16 @@ export class GithubError extends Error {
 
 /**
  * The web apps a web update puts live, by the package its deploy job is named
- * after ("deploy @evido/mail-web"), in the order the dashboard lists them.
+ * after ("deploy @even/mail-web"), in the order the dashboard lists them.
  */
 const PROJECTS = [
-  { project: "@evido/mail-web", vercel: "even-mailen", name: "Even mailen", kind: "web" },
-  { project: "@evido/todo-web", vercel: "even-doen", name: "Even doen", kind: "web" },
-  { project: "@evido/notes-web", vercel: "even-noteren", name: "Even noteren", kind: "web" },
-  { project: "@evido/capture-web", vercel: "even-vastleggen", name: "Even vastleggen (web)", kind: "web" },
-  { project: "@evido/home", vercel: "jornboerema", name: "jornboerema.nl", kind: "web" },
-  { project: "@evido/auth-web", vercel: "jornboerema-auth", name: "Account", kind: "web" },
-  { project: "@evido/api", vercel: "jornboerema-api", name: "API", kind: "api" },
+  { project: "@even/mail-web", vercel: "even-mailen", name: "Even mailen", kind: "web" },
+  { project: "@even/todo-web", vercel: "even-doen", name: "Even doen", kind: "web" },
+  { project: "@even/notes-web", vercel: "even-noteren", name: "Even noteren", kind: "web" },
+  { project: "@even/capture-web", vercel: "even-vastleggen", name: "Even vastleggen (web)", kind: "web" },
+  { project: "@even/home", vercel: "jornboerema", name: "jornboerema.nl", kind: "web" },
+  { project: "@even/auth-web", vercel: "jornboerema-auth", name: "Account", kind: "web" },
+  { project: "@even/api", vercel: "jornboerema-api", name: "API", kind: "api" },
 ] as const
 
 const DESKTOP = [
@@ -112,7 +112,7 @@ async function github<T>(path: string): Promise<T> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "evido-admin",
+    "User-Agent": "even-admin",
   }
   if (env.githubToken) headers.Authorization = `Bearer ${env.githubToken}`
   const cached = etags.get(url)

@@ -1,4 +1,4 @@
-import { AccountSiteSection } from "@evido/ui/components/account-site"
+import { AccountSiteSection } from "@even/ui/components/account-site"
 import { useI18n } from "@/i18n"
 import { useSignOut } from "@/lib/sign-out"
 

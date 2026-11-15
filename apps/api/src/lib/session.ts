@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory"
-import { getAuth, type Session } from "@evido/auth/server"
+import { getAuth, type Session } from "@even/auth/server"
 import { env } from "../env"
 import { msg } from "../i18n"
 
@@ -13,7 +13,7 @@ export const requireSession = createMiddleware<AppEnv>(async (c, next) => {
   await next()
 })
 
-/** CSRF guard for cookie-authenticated writes: only known Evido front-ends. */
+/** CSRF guard for cookie-authenticated writes: only known Even front-ends. */
 export const requireTrustedOrigin = createMiddleware(async (c, next) => {
   const origin = c.req.header("origin")
   if (!origin || !env.trustedOrigins.includes(origin))

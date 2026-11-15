@@ -1,4 +1,4 @@
-import { createI18n } from "@evido/i18n/react"
+import { createI18n } from "@even/i18n/react"
 import { en } from "./en"
 import { nl } from "./nl"
 

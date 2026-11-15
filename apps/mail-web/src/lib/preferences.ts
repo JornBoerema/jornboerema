@@ -1,10 +1,10 @@
 import { useEffect, useSyncExternalStore } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { normalizeSidebar, type SidebarLayout } from "@evido/mail-core/sidebar"
+import { normalizeSidebar, type SidebarLayout } from "@even/mail-core/sidebar"
 import { api, errorText } from "@/lib/api"
 
-const REMOTE_IMAGES_KEY = "evido.mail.remote-images"
+const REMOTE_IMAGES_KEY = "even.mail.remote-images"
 const listeners = new Set<() => void>()
 
 function readRemoteImages() {
@@ -40,7 +40,7 @@ export function useAlwaysShowImages() {
   return useSyncExternalStore(subscribe, readRemoteImages)
 }
 
-const NOTIFY_KEY = "evido.mail.notifications"
+const NOTIFY_KEY = "even.mail.notifications"
 
 function readNotify() {
   try {
@@ -65,7 +65,7 @@ export function useNotifyNewMail() {
   return useSyncExternalStore(subscribe, readNotify)
 }
 
-const SUMMARIES_KEY = "evido.mail.summaries"
+const SUMMARIES_KEY = "even.mail.summaries"
 
 function readSummaries() {
   try {
@@ -91,7 +91,7 @@ export function useSummaries() {
   return useSyncExternalStore(subscribe, readSummaries)
 }
 
-const CODES_KEY = "evido.mail.codes"
+const CODES_KEY = "even.mail.codes"
 
 function readCodes() {
   try {
@@ -117,7 +117,7 @@ export function useFindCodes() {
   return useSyncExternalStore(subscribe, readCodes)
 }
 
-const WRITING_KEY = "evido.mail.ai-writing"
+const WRITING_KEY = "even.mail.ai-writing"
 
 function readWriting() {
   try {
@@ -143,7 +143,7 @@ export function useAiWriting() {
   return useSyncExternalStore(subscribe, readWriting)
 }
 
-const PARCELS_KEY = "evido.mail.parcels"
+const PARCELS_KEY = "even.mail.parcels"
 
 function readParcels() {
   try {
@@ -169,7 +169,7 @@ export function useParcels() {
   return useSyncExternalStore(subscribe, readParcels)
 }
 
-const UNSUBSCRIBE_KEY = "evido.mail.unsubscribe"
+const UNSUBSCRIBE_KEY = "even.mail.unsubscribe"
 
 function readUnsubscribe() {
   try {
@@ -195,7 +195,7 @@ export function useUnsubscribe() {
   return useSyncExternalStore(subscribe, readUnsubscribe)
 }
 
-const SENDERS_KEY = "evido.mail.senders"
+const SENDERS_KEY = "even.mail.senders"
 
 function readSenders() {
   try {
@@ -221,7 +221,7 @@ export function useSenders() {
   return useSyncExternalStore(subscribe, readSenders)
 }
 
-const INVOICES_KEY = "evido.mail.invoices"
+const INVOICES_KEY = "even.mail.invoices"
 
 function readInvoices() {
   try {
@@ -247,7 +247,7 @@ export function useInvoices() {
   return useSyncExternalStore(subscribe, readInvoices)
 }
 
-const TODOS_KEY = "evido.mail.todos"
+const TODOS_KEY = "even.mail.todos"
 
 function readTodos() {
   try {
@@ -273,7 +273,7 @@ export function useTodos() {
   return useSyncExternalStore(subscribe, readTodos)
 }
 
-const PINS_KEY = "evido.mail.pins"
+const PINS_KEY = "even.mail.pins"
 
 function readPins() {
   try {
@@ -299,7 +299,7 @@ export function usePins() {
   return useSyncExternalStore(subscribe, readPins)
 }
 
-const REPLY_SUGGESTIONS_KEY = "evido.mail.reply-suggestions"
+const REPLY_SUGGESTIONS_KEY = "even.mail.reply-suggestions"
 
 function readReplySuggestions() {
   try {
@@ -325,7 +325,7 @@ export function useReplySuggestions() {
   return useSyncExternalStore(subscribe, readReplySuggestions)
 }
 
-const SIDEBAR_KEY = "evido.mail.sidebar"
+const SIDEBAR_KEY = "even.mail.sidebar"
 // One parsed layout per stored text, so the store hands out the same object until it changes.
 let sidebarCache: { raw: string | null; layout: SidebarLayout } | null = null
 
@@ -373,7 +373,7 @@ function readSidebarSaved(): SidebarLayout | null {
   }
 }
 
-const DELIVERED_KEY = "evido.mail.parcels-delivered"
+const DELIVERED_KEY = "even.mail.parcels-delivered"
 
 function readShowDelivered() {
   try {

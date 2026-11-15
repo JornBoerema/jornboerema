@@ -10,11 +10,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog"
-import { Button } from "@evido/ui/components/button"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@evido/ui/components/select"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import type { ConnectionErrorCode, ConnectionView } from "@evido/mail-core/connections"
+} from "@even/ui/components/alert-dialog"
+import { Button } from "@even/ui/components/button"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@even/ui/components/select"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import type { ConnectionErrorCode, ConnectionView } from "@even/mail-core/connections"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { CONNECTIONS_KEY, useConnectMoneybird, useConnections } from "@/lib/connections"

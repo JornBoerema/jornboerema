@@ -1,4 +1,4 @@
-import { getDb, Prisma, type Tx } from "@evido/db"
+import { getDb, Prisma, type Tx } from "@even/db"
 import { env } from "../env"
 import { KeyedError } from "../i18n"
 import {
@@ -10,8 +10,8 @@ import {
   type Command,
   type Todo,
   type WorkspaceData,
-} from "@evido/todo-core/workspace"
-import { statusForFlags } from "@evido/todo-core/board"
+} from "@even/todo-core/workspace"
+import { statusForFlags } from "@even/todo-core/board"
 import {
   ensureStatuses,
   executeBoardSettings,
@@ -20,7 +20,7 @@ import {
   startStatus,
   flagsFor,
 } from "./board-server"
-import type { Language } from "@evido/i18n"
+import type { Language } from "@even/i18n"
 
 export class NotFoundError extends Error {}
 /** Message is a translation key (see ../i18n.ts). */

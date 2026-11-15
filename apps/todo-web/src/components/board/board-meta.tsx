@@ -6,8 +6,8 @@ import {
   type BoardProject,
   type BoardStatus,
   type StatusCategory,
-} from "@evido/todo-core/board";
-import { cn } from "@evido/ui/lib/utils";
+} from "@even/todo-core/board";
+import { cn } from "@even/ui/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -18,7 +18,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu";
+} from "@even/ui/components/dropdown-menu";
 import { Folder } from "@/components/icons";
 import { useI18n } from "@/i18n";
 

@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { canManageWorkspace, type WorkspaceSummary } from "@evido/todo-core/workspaces"
+import { canManageWorkspace, type WorkspaceSummary } from "@even/todo-core/workspaces"
 import { useI18n } from "@/i18n"
 import { useWorkspaceCommand, useWorkspaceMembers } from "@/lib/workspaces"
 import { Mail, UserAdd } from "@/components/icons"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { Button } from "@evido/ui/components/button"
-import { Input } from "@evido/ui/components/input"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { Button } from "@even/ui/components/button"
+import { Input } from "@even/ui/components/input"
 import {
   Select,
   SelectContent,
@@ -14,10 +14,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@evido/ui/components/select"
-import { Skeleton } from "@evido/ui/components/skeleton"
-import { Alert, AlertDescription } from "@evido/ui/components/alert"
-import { Badge } from "@evido/ui/components/badge"
+} from "@even/ui/components/select"
+import { Skeleton } from "@even/ui/components/skeleton"
+import { Alert, AlertDescription } from "@even/ui/components/alert"
+import { Badge } from "@even/ui/components/badge"
 
 function RoleSelect({
   label,

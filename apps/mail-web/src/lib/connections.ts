@@ -1,7 +1,7 @@
-import { appUrl, isDesktop } from "@evido/auth/client"
+import { appUrl, isDesktop } from "@even/auth/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { ConnectionsView, MoneybirdExportView, MoneybirdThreadView } from "@evido/mail-core/connections"
+import type { ConnectionsView, MoneybirdExportView, MoneybirdThreadView } from "@even/mail-core/connections"
 import { api, errorText } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"
 

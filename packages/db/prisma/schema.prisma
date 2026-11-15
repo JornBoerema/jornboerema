@@ -1,4 +1,4 @@
-// Shared database for all Evido apps (todo, mail, passwords, ...).
+// Shared database for all Even apps (todo, mail, passwords, ...).
 // Table and column names are snake_case and match the original "Even doen" app,
 // so existing data can be copied over with a plain pg_dump/restore.
 
@@ -565,7 +565,7 @@ enum MailAccountStatus {
   reauth_required
 }
 
-/// A connected mailbox. Separate from `account`, which is for signing in to Evido.
+/// A connected mailbox. Separate from `account`, which is for signing in to Even.
 model MailAccount {
   id                   String              @id
   userId               String              @map("user_id")
@@ -574,7 +574,7 @@ model MailAccount {
   providerAccountId    String              @map("provider_account_id")
   email                String
   displayName          String?             @map("display_name")
-  /// Sealed with MAIL_TOKEN_KEY (see @evido/mail-core/secrets). Never plaintext.
+  /// Sealed with MAIL_TOKEN_KEY (see @even/mail-core/secrets). Never plaintext.
   accessToken          String              @map("access_token_sealed")
   refreshToken         String              @map("refresh_token_sealed")
   accessTokenExpiresAt DateTime            @map("access_token_expires_at")
@@ -959,7 +959,7 @@ model Connection {
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// "moneybird"
   provider             String
-  /// Sealed with MAIL_TOKEN_KEY (see @evido/mail-core/secrets). Never plaintext.
+  /// Sealed with MAIL_TOKEN_KEY (see @even/mail-core/secrets). Never plaintext.
   accessToken          String    @map("access_token_sealed")
   refreshToken         String?   @map("refresh_token_sealed")
   /// Null when the service hands out tokens that don't expire.

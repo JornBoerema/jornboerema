@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Cancel01Icon, CheckmarkCircle02Icon, FolderOpenIcon, PencilEdit02Icon } from "@hugeicons/core-free-icons"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import { captureUrl, commands, isMac } from "./lib"
 import { useI18n } from "./i18n"
 

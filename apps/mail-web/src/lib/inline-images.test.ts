@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest"
-import { INLINE_CONTENT_ID } from "@evido/mail-core/types"
+import { INLINE_CONTENT_ID } from "@even/mail-core/types"
 import { fromInlineImages, toInlineImages, uploadBytes } from "./inline-images"
 
 const png = "data:image/png;base64,iVBORw0KGgo="

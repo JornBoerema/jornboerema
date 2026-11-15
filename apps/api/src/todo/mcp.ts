@@ -1,13 +1,13 @@
 import { requireMcpAuth } from "@better-auth/mcp"
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server"
 import { z } from "zod"
-import { getAuth } from "@evido/auth/server"
-import { getDb } from "@evido/db"
+import { getAuth } from "@even/auth/server"
+import { getDb } from "@even/db"
 import {
   commandSchema,
   sortTodos,
   type Command,
-} from "@evido/todo-core/workspace"
+} from "@even/todo-core/workspace"
 import { env } from "../env"
 import { defer } from "../lib/defer"
 import { notifyWorkspaceUsers } from "../lib/realtime"

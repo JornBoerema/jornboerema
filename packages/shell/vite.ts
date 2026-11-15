@@ -11,7 +11,7 @@ const apps = resolve(import.meta.dirname, "../../apps")
 export function appAlias(host: string): Plugin {
   const roots = ["mail-web", "todo-web", "notes-web", host].map((app) => resolve(apps, app) + sep)
   return {
-    name: "evido-app-alias",
+    name: "even-app-alias",
     enforce: "pre",
     resolveId(source, importer, options) {
       if (!source.startsWith("@/")) return null

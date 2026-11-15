@@ -1,7 +1,7 @@
 import { createSign } from "node:crypto"
 import { connect, constants, type ClientHttp2Session } from "node:http2"
-import { getDb } from "@evido/db"
-import { pickLanguage } from "@evido/i18n"
+import { getDb } from "@even/db"
+import { pickLanguage } from "@even/i18n"
 
 /**
  * New-mail notifications for the iPhone and iPad app, sent through Apple's push

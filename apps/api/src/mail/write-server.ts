@@ -1,6 +1,6 @@
-import { htmlToText } from "@evido/mail-core/gmail-send"
-import type { MailThreadMessage } from "@evido/mail-core/types"
-import type { Language } from "@evido/i18n"
+import { htmlToText } from "@even/mail-core/gmail-send"
+import type { MailThreadMessage } from "@even/mail-core/types"
+import type { Language } from "@even/i18n"
 import { AiBudgetError, askModel, chargeAiLater, type AiUsageReport } from "../lib/ai"
 
 /** Fast and good at Dutch. OPENROUTER_WRITE_MODEL picks another. */

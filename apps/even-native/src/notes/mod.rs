@@ -61,7 +61,7 @@ pub fn bind_keys(cx: &mut App) {
 
 /// The web's localStorage key (lib/workspaces.ts). Even doen reads the same
 /// one, so both apps open the workspace chosen last, as in the Tauri app.
-const WORKSPACE_PREF: &str = "evido.todo.workspace";
+const WORKSPACE_PREF: &str = "even.todo.workspace";
 
 /// pages/home.tsx: nothing shows until the workspaces and the open one's notes are in.
 #[derive(Clone, Copy, PartialEq, Eq)]

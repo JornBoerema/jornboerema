@@ -29,7 +29,7 @@ export function setMailStorage(storage: MailStorage) {
 const THREAD_KEY = "mail-thread"
 
 /** One entry per user, so a shared browser never shows someone else's lists. */
-const PREFIX = "evido.mail.cache."
+const PREFIX = "even.mail.cache."
 /** Lists and counts only. Signatures can hold large inline images and are left out. */
 const KEPT = new Set([
   "mail-messages",
@@ -152,7 +152,7 @@ export async function clearMailCache() {
 }
 
 /** Who was let in on this device (see the access gate). */
-export const ACCESS_KEY = "evido.mail.access"
+export const ACCESS_KEY = "even.mail.access"
 
 /** What a signed-out browser shouldn't keep: the cached mail and who was let in. */
 export function forgetSignedOutUser() {

@@ -1,8 +1,8 @@
-import { currentLanguage } from "@evido/i18n/react"
-import { createEvidoAuthClient } from "@evido/auth/client"
+import { currentLanguage } from "@even/i18n/react"
+import { createEvenAuthClient } from "@even/auth/client"
 import { API_URL } from "./api"
 
-export const authClient = createEvidoAuthClient(API_URL, { language: currentLanguage })
+export const authClient = createEvenAuthClient(API_URL, { language: currentLanguage })
 
 /** Signs out and reloads, so nothing of this user stays in memory or in the browser. */
 export async function signOut() {

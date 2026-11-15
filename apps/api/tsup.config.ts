@@ -8,7 +8,7 @@ export default defineConfig({
   platform: "node",
   clean: true,
   // Workspace packages ship TypeScript source; bundle them into the API.
-  noExternal: [/^@evido\//],
+  noExternal: [/^@even\//],
   // Bundled CommonJS dependencies still call require().
   banner: {
     js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',

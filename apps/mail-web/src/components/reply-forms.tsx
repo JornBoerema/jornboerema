@@ -1,13 +1,13 @@
 import { lazy, Suspense, useRef, useState, type KeyboardEvent } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   replyRecipients,
   type MailAddress,
   type MailThreadMessage,
   type MailAccountView,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { AttachButton, AttachmentList, useAttachments } from "@/components/attachment-picker"
 import { SendButton } from "@/components/send-button"
 import { SignaturePicker } from "@/components/signature-picker"

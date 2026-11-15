@@ -20,9 +20,9 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { ArrowDown01Icon, DragDropVerticalIcon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { cn } from "@evido/ui/lib/utils"
-import { DEFAULT_SIDEBAR, type NavItem, type SidebarLayout } from "@evido/mail-core/sidebar"
+import { Button } from "@even/ui/components/button"
+import { cn } from "@even/ui/lib/utils"
+import { DEFAULT_SIDEBAR, type NavItem, type SidebarLayout } from "@even/mail-core/sidebar"
 import { useI18n } from "@/i18n"
 import { setSidebar, useSidebarLayout } from "@/lib/preferences"
 

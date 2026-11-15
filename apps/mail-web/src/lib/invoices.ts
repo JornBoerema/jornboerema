@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import type { MailInvoiceView } from "@evido/mail-core/types"
+import type { MailInvoiceView } from "@even/mail-core/types"
 import { useBackgroundScan } from "@/lib/scan"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"

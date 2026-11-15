@@ -1,5 +1,5 @@
-import { getDb, Prisma } from "@evido/db"
-import type { MailSenderView } from "@evido/mail-core/types"
+import { getDb, Prisma } from "@even/db"
+import type { MailSenderView } from "@even/mail-core/types"
 import { notifyMailChanged } from "../lib/realtime"
 import { actOnConversation, threadLines } from "./threads-server"
 

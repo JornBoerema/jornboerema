@@ -16,10 +16,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@evido/mail-web/embed": ["./src/embeds/mail.d.ts"],
-      "@evido/todo-web/embed": ["./src/embeds/todo.d.ts"],
-      "@evido/notes-web/embed": ["./src/embeds/notes.d.ts"],
-      "@evido/ui/*": ["../ui/src/*"]
+      "@even/mail-web/embed": ["./src/embeds/mail.d.ts"],
+      "@even/todo-web/embed": ["./src/embeds/todo.d.ts"],
+      "@even/notes-web/embed": ["./src/embeds/notes.d.ts"],
+      "@even/ui/*": ["../ui/src/*"]
     }
   },
   "include": ["src", "vite.ts"]

@@ -4,9 +4,9 @@ import { mcp } from "@better-auth/mcp"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
 import { billingConfigured, billingPlugin, endSubscriptions, syncSeats } from "./billing"
 import { desktopSignIn } from "./desktop-sign-in"
-import { getDb, Prisma } from "@evido/db"
-import { authEmails, queueEmail } from "@evido/email"
-import { pickLanguage } from "@evido/i18n"
+import { getDb, Prisma } from "@even/db"
+import { authEmails, queueEmail } from "@even/email"
+import { pickLanguage } from "@even/i18n"
 
 export const MCP_SCOPES = [
   "openid",
@@ -112,7 +112,7 @@ function createAuth() {
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN
 
   return betterAuth({
-    appName: "Evido",
+    appName: "Even",
     baseURL,
     secret: required("BETTER_AUTH_SECRET"),
     trustedOrigins: trustedOrigins(),

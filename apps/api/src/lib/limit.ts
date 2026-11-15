@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { getDb } from "@evido/db"
+import { getDb } from "@even/db"
 
 /**
  * Counts one more use of `key` in its current window and says whether that is

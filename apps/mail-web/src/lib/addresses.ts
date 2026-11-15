@@ -1,4 +1,4 @@
-import type { MailAddress } from "@evido/mail-core/types"
+import type { MailAddress } from "@even/mail-core/types"
 
 const EMAIL = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/
 

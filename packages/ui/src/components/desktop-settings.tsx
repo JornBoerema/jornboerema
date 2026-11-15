@@ -1,6 +1,6 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
-import { SettingsDialog, type SettingsLabels, type SettingsPage } from "@evido/ui/components/settings-dialog"
+import { SettingsDialog, type SettingsLabels, type SettingsPage } from "@even/ui/components/settings-dialog"
 
 /**
  * One settings window for every app in the Even desktop app.

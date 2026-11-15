@@ -1,6 +1,6 @@
 import { ArchiveIcon, Delete02Icon, Delete04Icon, InboxIcon, SpamIcon } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
-import type { MailFolder, MailThreadAction } from "@evido/mail-core/types"
+import type { MailFolder, MailThreadAction } from "@even/mail-core/types"
 import type { en } from "@/i18n/en"
 
 type ConversationTexts = (typeof en)["conversation"]

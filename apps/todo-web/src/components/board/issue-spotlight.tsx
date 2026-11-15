@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { sortStatuses, statusCategories } from "@evido/todo-core/board";
-import type { Command as RunCommand, Todo, WorkspaceData } from "@evido/todo-core/workspace";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@evido/ui/components/command";
+import { sortStatuses, statusCategories } from "@even/todo-core/board";
+import type { Command as RunCommand, Todo, WorkspaceData } from "@even/todo-core/workspace";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@even/ui/components/command";
 import { useI18n } from "@/i18n";
 import { MemberAvatar, PriorityIcon, ProjectDot, StatusIcon } from "./board-meta";
 

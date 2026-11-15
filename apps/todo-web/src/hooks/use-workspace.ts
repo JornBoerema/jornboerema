@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
-import { watchChannel } from "@evido/realtime/client";
+import { watchChannel } from "@even/realtime/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
@@ -12,7 +12,7 @@ import {
   optimisticUpdate,
   type Command,
   type WorkspaceData,
-} from "@evido/todo-core/workspace";
+} from "@even/todo-core/workspace";
 type ErrorTexts = TodoMessages["workspace"]["errors"];
 async function request<T>(m: ErrorTexts, url: string, options?: RequestInit): Promise<T> {
   const response = await apiFetch(url, { ...options, cache: "no-store" });

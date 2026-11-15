@@ -1,4 +1,4 @@
-import { useTheme } from "@evido/ui/lib/theme"
+import { useTheme } from "@even/ui/lib/theme"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { CheckmarkCircle02Icon, InformationCircleIcon, Alert02Icon, MultiplicationSignCircleIcon, Loading03Icon } from "@hugeicons/core-free-icons"

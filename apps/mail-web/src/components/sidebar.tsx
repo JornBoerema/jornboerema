@@ -1,8 +1,8 @@
 import { useLaterCounts } from "@/lib/later"
 import { useInvoices, useParcels, useSenders, useSidebarLayout } from "@/lib/preferences"
-import type { NavItem, SidebarLayout } from "@evido/mail-core/sidebar"
-import { useInDesktop } from "@evido/ui/components/app-switcher"
-import { DesktopDownloadItem } from "@evido/ui/components/desktop-download"
+import type { NavItem, SidebarLayout } from "@even/mail-core/sidebar"
+import { useInDesktop } from "@even/ui/components/app-switcher"
+import { DesktopDownloadItem } from "@even/ui/components/desktop-download"
 import { useState, type ReactNode } from "react"
 import {
   Add01Icon,
@@ -33,7 +33,7 @@ import {
   DragDropVerticalIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,10 +43,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
-import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
-import { cn } from "@evido/ui/lib/utils"
-import type { MailAccountView, MailFolder } from "@evido/mail-core/types"
+} from "@even/ui/components/dropdown-menu"
+import { useCollapsibleSidebar } from "@even/ui/hooks/use-collapsible-sidebar"
+import { cn } from "@even/ui/lib/utils"
+import type { MailAccountView, MailFolder } from "@even/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { Brand } from "@/components/brand"
 import { useI18n } from "@/i18n"
@@ -100,7 +100,7 @@ export type MailNavigation = {
 
 const NAV_ICON = "size-4 shrink-0"
 
-const MORE_KEY = "evido.mail.sidebar.more"
+const MORE_KEY = "even.mail.sidebar.more"
 
 function readMoreOpen() {
   try {
@@ -326,7 +326,7 @@ function MorePlaces({ places, onCustomize }: { places: Place[]; onCustomize: () 
   )
 }
 
-/** The shared Evido sidebar. Smaller screens get MailMenu instead. */
+/** The shared Even sidebar. Smaller screens get MailMenu instead. */
 export function Sidebar({
   accounts,
   accountId,

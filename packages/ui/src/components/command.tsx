@@ -8,11 +8,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@evido/ui/components/dialog"
+} from "@even/ui/components/dialog"
 import {
   InputGroup,
   InputGroupAddon,
-} from "@evido/ui/components/input-group"
+} from "@even/ui/components/input-group"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { SearchIcon, Tick02Icon } from "@hugeicons/core-free-icons"
 

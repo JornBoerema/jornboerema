@@ -7,7 +7,7 @@
         "rule": "overused-font",
         "value": "inter",
         "createdAt": "2026-11-09T13:20:19.739Z",
-        "reason": "Incumbent font: already named in apps/home CSS and used by Evido's shared UI; user chose to refine the existing look, not replace it"
+        "reason": "Incumbent font: already named in apps/home CSS and used by Even's shared UI; user chose to refine the existing look, not replace it"
       },
       {
         "rule": "flat-type-hierarchy",

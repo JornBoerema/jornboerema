@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
-import { getDb } from "@evido/db"
-import { attachmentKey, MONEYBIRD_MAX_BYTES, type MoneybirdExportView, type MoneybirdThreadView } from "@evido/mail-core/connections"
+import { getDb } from "@even/db"
+import { attachmentKey, MONEYBIRD_MAX_BYTES, type MoneybirdExportView, type MoneybirdThreadView } from "@even/mail-core/connections"
 import { AdministrationNotFoundError, moneybirdConnection, withMoneybird } from "../connections/connections-server"
 import { administrationUrl, listAdministrations, uploadToInbox } from "../connections/moneybird"
 import { attachmentInConversation, type Conversation } from "./threads-server"

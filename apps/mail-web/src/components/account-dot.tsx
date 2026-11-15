@@ -1,5 +1,5 @@
-import { cn } from "@evido/ui/lib/utils"
-import { MAIL_ACCOUNT_COLORS } from "@evido/mail-core/types"
+import { cn } from "@even/ui/lib/utils"
+import { MAIL_ACCOUNT_COLORS } from "@even/mail-core/types"
 
 /** Same lightness and strength, so no mailbox shouts louder than another in either theme. */
 export const ACCOUNT_COLORS = [

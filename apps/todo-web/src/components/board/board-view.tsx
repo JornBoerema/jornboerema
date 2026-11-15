@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { sortIssues, type Command, type Todo, type TodoList, type WorkspaceData } from "@evido/todo-core/workspace";
-import { defaultStatus, sortStatuses, type BoardMember, type BoardProject, type BoardStatus } from "@evido/todo-core/board";
-import { Button } from "@evido/ui/components/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog";
+import { sortIssues, type Command, type Todo, type TodoList, type WorkspaceData } from "@even/todo-core/workspace";
+import { defaultStatus, sortStatuses, type BoardMember, type BoardProject, type BoardStatus } from "@even/todo-core/board";
+import { Button } from "@even/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -15,11 +15,11 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-} from "@evido/ui/components/dropdown-menu";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@evido/ui/components/empty";
-import { cn } from "@evido/ui/lib/utils";
+} from "@even/ui/components/dropdown-menu";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@even/ui/components/empty";
+import { cn } from "@even/ui/lib/utils";
 import { Filter, Folder, Kanban, Layers, ListView, Maximize, Minimize, Paperclip, Plus, User, X } from "@/components/icons";
-import { Switch } from "@evido/ui/components/switch";
+import { Switch } from "@even/ui/components/switch";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { AttachmentTooLarge, uploadAttachment } from "@/lib/attachments";

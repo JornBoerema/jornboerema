@@ -19,9 +19,9 @@ import {
   MoreHorizontalIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { Spinner } from "@evido/ui/components/spinner"
-import { cn } from "@evido/ui/lib/utils"
+import { Button } from "@even/ui/components/button"
+import { Spinner } from "@even/ui/components/spinner"
+import { cn } from "@even/ui/lib/utils"
 import { readingColumn } from "@/lib/layout"
 import {
   canDeleteForever,
@@ -32,7 +32,7 @@ import {
   type MailThreadAction,
   type MailThreadMessage,
   type MailThreadView,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { MailSummaryCard } from "@/components/mail-summary"
 import { ShipmentCard } from "@/components/parcels"
@@ -49,8 +49,8 @@ import { readReplyDraft, type ReplyMode } from "@/lib/reply-drafts"
 import { useI18n } from "@/i18n"
 import { apiBlob } from "@/lib/api"
 import { buildEmailDocument, hasOwnBackground, hasRemoteImages, sanitizeEmail, withoutQuote } from "@/lib/email-html"
-import { useTheme } from "@evido/ui/lib/theme"
-import { useScrollFade } from "@evido/ui/hooks/use-scroll-fade"
+import { useTheme } from "@even/ui/lib/theme"
+import { useScrollFade } from "@even/ui/hooks/use-scroll-fade"
 import { useHotkeys } from "@/lib/hotkeys"
 import { canReportSpam, conversationUrl, moveActions, STARRED, threadQuery, useStoredThread, useThreadAction } from "@/lib/mail"
 import { DANGER, isDestructive, MOVE_ICONS, MOVE_KEYS, moveLabel } from "@/lib/thread-actions"
@@ -88,7 +88,7 @@ function EmailFrame({ html, allowImages, title }: { html: string; allowImages: b
   function onLoad() {
     const inner = frame.current?.contentDocument
     if (!inner?.body) return
-    const content = inner.getElementById("evido-mail") ?? inner.body
+    const content = inner.getElementById("even-mail") ?? inner.body
     // The content's own height plus the body's padding; the frame then never scrolls.
     const update = () => {
       const padding = inner.body.offsetHeight - inner.body.clientHeight + 24

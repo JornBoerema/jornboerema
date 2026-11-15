@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
-import type { Carrier, ShipmentStatus } from "@evido/mail-core/shipments"
-import type { MailShipmentView } from "@evido/mail-core/types"
+import type { Carrier, ShipmentStatus } from "@even/mail-core/shipments"
+import type { MailShipmentView } from "@even/mail-core/types"
 import { useBackgroundScan } from "@/lib/scan"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"

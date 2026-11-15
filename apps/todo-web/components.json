@@ -14,8 +14,8 @@
     "components": "@/components",
     "hooks": "@/hooks",
     "lib": "@/lib",
-    "utils": "@evido/ui/lib/utils",
-    "ui": "@evido/ui/components"
+    "utils": "@even/ui/lib/utils",
+    "ui": "@even/ui/components"
   },
   "rtl": false,
   "menuColor": "default",

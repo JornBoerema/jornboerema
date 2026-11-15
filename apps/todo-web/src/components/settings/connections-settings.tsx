@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { API_URL } from "@/lib/api"
 import { useI18n } from "@/i18n"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { Button } from "@evido/ui/components/button"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { Button } from "@even/ui/components/button"
 
 /** `title` names the part in the desktop app, where every app's connections share a page. */
 export function ConnectionsSettings({ title }: { title?: string }) {

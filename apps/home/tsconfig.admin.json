@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./admin/src/*"],
-      "@evido/ui/*": ["../../packages/ui/src/*"]
+      "@even/ui/*": ["../../packages/ui/src/*"]
     }
   },
   "include": ["admin/src", "src"]

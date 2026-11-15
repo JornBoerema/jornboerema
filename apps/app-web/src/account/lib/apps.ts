@@ -1,4 +1,4 @@
-import { appUrl } from "@evido/auth/client"
+import { appUrl } from "@even/auth/client"
 
 /** The Even apps, each at its place in this web app, and the download page on the website. */
 export function appLinks() {

@@ -1,4 +1,4 @@
-import { currentLanguage } from "@evido/i18n/react"
+import { currentLanguage } from "@even/i18n/react"
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:4000").replace(/\/$/, "")
 
@@ -12,7 +12,7 @@ export class ApiError extends Error {
 
 export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
-/** JSON request against the Evido API with the shared session cookie. */
+/** JSON request against the Even API with the shared session cookie. */
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const headers = new Headers(init?.headers)
   headers.set("Accept-Language", currentLanguage())

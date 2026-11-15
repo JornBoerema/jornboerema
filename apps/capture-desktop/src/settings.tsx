@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { open } from "@tauri-apps/plugin-dialog"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { toast } from "sonner"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   Select,
   SelectContent,
@@ -10,9 +10,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@evido/ui/components/select"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { Switch } from "@evido/ui/components/switch"
+} from "@even/ui/components/select"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { Switch } from "@even/ui/components/switch"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +23,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@evido/ui/components/alert-dialog"
-import { useTheme, type Theme } from "@evido/ui/lib/theme"
-import type { LanguagePreference } from "@evido/i18n/react"
+} from "@even/ui/components/alert-dialog"
+import { useTheme, type Theme } from "@even/ui/lib/theme"
+import type { LanguagePreference } from "@even/i18n/react"
 import { Brand } from "./brand"
 import { commands, formatShortcut, isMac, shortcutFromEvent, type AfterCapture, type Settings, type Shortcuts } from "./lib"
 import { useI18n } from "./i18n"

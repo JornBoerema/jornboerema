@@ -1,6 +1,6 @@
 import { useParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
-import type { WorkspaceData } from "@evido/todo-core/workspace"
+import type { WorkspaceData } from "@even/todo-core/workspace"
 import { apiFetch } from "@/lib/api"
 import { useTitle } from "@/lib/use-title"
 import { useI18n } from "@/i18n"

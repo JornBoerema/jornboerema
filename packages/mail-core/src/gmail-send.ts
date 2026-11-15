@@ -94,7 +94,7 @@ function textPart(contentType: string, value: string) {
 }
 
 function multipart(subtype: string, parts: string[]) {
-  const boundary = `evido_${subtype}_${randomBytes(16).toString("hex")}`
+  const boundary = `even_${subtype}_${randomBytes(16).toString("hex")}`
   return [
     `Content-Type: multipart/${subtype}; boundary="${boundary}"`,
     "",
@@ -155,7 +155,7 @@ export function buildMime(input: {
   const body = bodyPart(input.text, input.html, input.inline)
   if (input.attachments.length === 0) return `${headers.join(CRLF)}${CRLF}${body}`
 
-  const boundary = `evido_${randomBytes(16).toString("hex")}`
+  const boundary = `even_${randomBytes(16).toString("hex")}`
   const parts = [body, ...input.attachments.map(attachmentPart)]
   return [
     [...headers, `Content-Type: multipart/mixed; boundary="${boundary}"`].join(CRLF),
@@ -188,7 +188,7 @@ export async function writeMime(
     const raw = Buffer.from(input.mime, "utf8").toString("base64url")
     return sendJson(input.method, `${GMAIL_API}/${input.path}`, accessToken, wrap({ raw, ...thread }))
   }
-  const boundary = `evido_upload_${randomBytes(16).toString("hex")}`
+  const boundary = `even_upload_${randomBytes(16).toString("hex")}`
   const body = [
     `--${boundary}`,
     "Content-Type: application/json; charset=UTF-8",

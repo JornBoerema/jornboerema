@@ -1,9 +1,9 @@
 import { createContext, useContext, useState } from "react"
 import { InformationCircleIcon, RefreshIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { SettingsRow, SettingsSection, type SettingsPage } from "@evido/ui/components/settings-dialog"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@evido/ui/components/tooltip"
+import { Button } from "@even/ui/components/button"
+import { SettingsRow, SettingsSection, type SettingsPage } from "@even/ui/components/settings-dialog"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@even/ui/components/tooltip"
 
 /** The words below, in the app's language; the desktop app supplies them. */
 export type DesktopTexts = {

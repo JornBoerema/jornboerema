@@ -33,19 +33,19 @@ import { MailboxFilter } from "@/components/mailbox-filter"
 import { canPin, usePin, usePinned } from "@/lib/pins"
 import { canReport, ReportRecognitionDialog } from "@/components/report-recognition"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { Checkbox } from "@evido/ui/components/checkbox"
+import { Button } from "@even/ui/components/button"
+import { Checkbox } from "@even/ui/components/checkbox"
 import {
   Empty,
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
-} from "@evido/ui/components/empty"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@evido/ui/components/dropdown-menu"
-import { Skeleton } from "@evido/ui/components/skeleton"
-import { Spinner } from "@evido/ui/components/spinner"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/empty"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@even/ui/components/dropdown-menu"
+import { Skeleton } from "@even/ui/components/skeleton"
+import { Spinner } from "@even/ui/components/spinner"
+import { cn } from "@even/ui/lib/utils"
 import {
   canDeleteForever,
   isMailFolder,
@@ -58,7 +58,7 @@ import {
   type MailThreadAction,
   type MailThreadsPage,
   type MailThreadView,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import {
   FOLDER_ICONS,
@@ -70,7 +70,7 @@ import { api } from "@/lib/api"
 import type { DraftRef, useDrafts } from "@/lib/drafts"
 import { shortDate } from "@/lib/dates"
 import { useHotkeys } from "@/lib/hotkeys"
-import { useScrollFade } from "@evido/ui/hooks/use-scroll-fade"
+import { useScrollFade } from "@even/ui/hooks/use-scroll-fade"
 import { CARRIER_NAMES, useShipments } from "@/lib/shipments"
 import { setShowDelivered, usePins, useShowDelivered } from "@/lib/preferences"
 import { formatMoment, useScheduled, useScheduledActions, useSnoozes, useUnsnooze } from "@/lib/later"
@@ -89,7 +89,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog"
+} from "@even/ui/components/alert-dialog"
 import { carrierName, Status } from "@/components/parcels"
 import {
   leavesList,

@@ -1,6 +1,6 @@
-import { mailChannel, ping, userChannel } from "@evido/realtime/server"
+import { mailChannel, ping, userChannel } from "@even/realtime/server"
 
-export { mailChannel, realtimeEnabled, sealChannel, userChannel } from "@evido/realtime/server"
+export { mailChannel, realtimeEnabled, sealChannel, userChannel } from "@even/realtime/server"
 
 /** Tells a user's open tabs to refetch. Carries no mail data. */
 export async function notifyMailChanged(userId: string) {

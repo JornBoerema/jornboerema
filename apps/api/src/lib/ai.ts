@@ -1,4 +1,4 @@
-import { getDb } from "@evido/db"
+import { getDb } from "@even/db"
 import { defer } from "./defer"
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"

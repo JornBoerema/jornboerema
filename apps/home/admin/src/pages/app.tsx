@@ -14,10 +14,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@evido/ui/components/alert-dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@evido/ui/components/avatar"
-import { Button } from "@evido/ui/components/button"
-import { Input } from "@evido/ui/components/input"
+} from "@even/ui/components/alert-dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@even/ui/components/avatar"
+import { Button } from "@even/ui/components/button"
+import { Input } from "@even/ui/components/input"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { authClient } from "@/lib/auth-client"

@@ -7,9 +7,9 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@evido/ui/components/button";
-import { Alert, AlertDescription } from "@evido/ui/components/alert";
-import type { TodoList } from "@evido/todo-core/workspace";
+import { Button } from "@even/ui/components/button";
+import { Alert, AlertDescription } from "@even/ui/components/alert";
+import type { TodoList } from "@even/todo-core/workspace";
 import { useI18n } from "@/i18n";
 
 const blockIds = ["paragraph", "h1", "h2", "h3", "bulletList", "orderedList", "taskList", "blockquote", "codeBlock", "horizontalRule"] as const;

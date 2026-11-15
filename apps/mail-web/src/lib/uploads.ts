@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { UPLOAD_CHUNK_BYTES, type MailAttachmentRef } from "@evido/mail-core/types"
+import { UPLOAD_CHUNK_BYTES, type MailAttachmentRef } from "@even/mail-core/types"
 import { api } from "./api"
 
 /** A file in a composer: uploading, uploaded, or failed. */

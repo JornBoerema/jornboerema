@@ -2,7 +2,7 @@ import * as React from "react"
 import { cn } from "cn"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 
 function AlertDialog({
   ...props

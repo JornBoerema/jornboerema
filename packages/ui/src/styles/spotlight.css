@@ -1,4 +1,4 @@
-/* The ⌘K quick switcher shared by the Evido apps: a command palette near the top. */
+/* The ⌘K quick switcher shared by the Even apps: a command palette near the top. */
 .list-spotlight { padding: 8px; gap: 0; border-radius: 12px; top: min(20dvh, 160px); translate: -50% 0; transform: none; max-height: calc(100dvh - 40px); }
 .list-spotlight [data-slot="command"] { border-radius: 8px; padding: 0; }
 .list-spotlight [data-slot="command-input-wrapper"] { padding: 4px 4px 8px; }

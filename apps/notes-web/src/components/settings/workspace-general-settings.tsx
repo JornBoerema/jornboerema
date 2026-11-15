@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { canManageWorkspace, type WorkspaceSummary } from "@evido/todo-core/workspaces"
+import { canManageWorkspace, type WorkspaceSummary } from "@even/todo-core/workspaces"
 import { useI18n } from "@/i18n"
 import { useWorkspaceCommand } from "@/lib/workspaces"
 import { Trash2 } from "@/components/icons"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { Button } from "@evido/ui/components/button"
-import { Input } from "@evido/ui/components/input"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { Button } from "@even/ui/components/button"
+import { Input } from "@even/ui/components/input"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog"
+} from "@even/ui/components/alert-dialog"
 
 export function WorkspaceGeneralSettings({
   userId,

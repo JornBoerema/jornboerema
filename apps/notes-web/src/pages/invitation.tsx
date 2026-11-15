@@ -1,12 +1,12 @@
 import { Link, useParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
-import type { WorkspaceRole } from "@evido/todo-core/workspaces"
+import type { WorkspaceRole } from "@even/todo-core/workspaces"
 import { apiFetch } from "@/lib/api"
 import { useI18n } from "@/i18n"
 import { useTitle } from "@/lib/use-title"
 import { AcceptInvitation } from "@/components/accept-invitation"
-import { Button } from "@evido/ui/components/button"
-import { Skeleton } from "@evido/ui/components/skeleton"
+import { Button } from "@even/ui/components/button"
+import { Skeleton } from "@even/ui/components/skeleton"
 
 type Invitation = {
   workspaceName: string

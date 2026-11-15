@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto"
-import { getDb, type Connection } from "@evido/db"
-import { hashState, openToken, parseTokenKey, sealToken } from "@evido/mail-core/secrets"
-import type { ConnectionsView, ConnectionView, MoneybirdAdministration } from "@evido/mail-core/connections"
+import { getDb, type Connection } from "@even/db"
+import { hashState, openToken, parseTokenKey, sealToken } from "@even/mail-core/secrets"
+import type { ConnectionsView, ConnectionView, MoneybirdAdministration } from "@even/mail-core/connections"
 import { defer } from "../lib/defer"
 import { env } from "../env"
 import {

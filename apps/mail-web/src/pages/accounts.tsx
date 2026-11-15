@@ -1,4 +1,4 @@
-import { appUrl, isDesktop } from "@evido/auth/client"
+import { appUrl, isDesktop } from "@even/auth/client"
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -11,22 +11,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog"
-import { Button } from "@evido/ui/components/button"
+} from "@even/ui/components/alert-dialog"
+import { Button } from "@even/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/dropdown-menu"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { cn } from "@even/ui/lib/utils"
 import type {
   ConnectErrorCode,
   InboxSummary,
   MailAccountView,
   MailProviderId,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { ACCOUNT_COLORS, AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
 import { api, ApiError, errorText } from "@/lib/api"

@@ -1,6 +1,6 @@
-import { htmlToText } from "@evido/mail-core/gmail-send"
-import type { MailThreadMessage, MailTranslation } from "@evido/mail-core/types"
-import type { Language } from "@evido/i18n"
+import { htmlToText } from "@even/mail-core/gmail-send"
+import type { MailThreadMessage, MailTranslation } from "@even/mail-core/types"
+import type { Language } from "@even/i18n"
 import { askModel, chargeAi, type AiUsageReport } from "../lib/ai"
 import { readConversation, type Conversation } from "./threads-server"
 

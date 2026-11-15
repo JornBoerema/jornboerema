@@ -520,7 +520,7 @@ mod tests {
             size: 12,
         });
         message.inline.push(InlineUpload {
-            content_id: "x@evido".into(),
+            content_id: "x@even".into(),
             name: "image-x.png".into(),
             content_type: "image/png".into(),
             data: "AAAA".into(),
@@ -529,7 +529,7 @@ mod tests {
         assert_eq!(body["html"], "<p>Hello</p>");
         assert_eq!(body["attachments"][0]["uploadId"], "u1");
         assert_eq!(body["attachments"][0]["contentType"], "application/pdf");
-        assert_eq!(body["inline"][0]["contentId"], "x@evido");
+        assert_eq!(body["inline"][0]["contentId"], "x@even");
         assert!(body.get("reply").is_none());
         assert_eq!(upload_bytes(&message.inline), 3);
     }
@@ -557,7 +557,7 @@ mod tests {
             bcc: vec![address(None, "piet@even.nl")],
             subject: "Lunch".into(),
             text: "Hello".into(),
-            html: r#"<div><p style="margin:0">Hello</p><img src="cid:1x2y.9a@evido"></div>"#.into(),
+            html: r#"<div><p style="margin:0">Hello</p><img src="cid:1x2y.9a@even"></div>"#.into(),
             attachments: vec![AttachmentRef {
                 upload_id: "3f2b6c1e-8a4d-4c57-9b1a-0d2e4f6a8c10".into(),
                 name: "a.pdf".into(),
@@ -565,7 +565,7 @@ mod tests {
                 size: 12,
             }],
             inline: vec![InlineUpload {
-                content_id: "1x2y.9a@evido".into(),
+                content_id: "1x2y.9a@even".into(),
                 name: "image-1x2y.png".into(),
                 content_type: "image/png".into(),
                 data: "AAAA".into(),
@@ -594,13 +594,13 @@ mod tests {
                 "bcc": [{ "name": null, "email": "piet@even.nl" }],
                 "subject": "Lunch",
                 "text": "Hello",
-                "html": r#"<div><p style="margin:0">Hello</p><img src="cid:1x2y.9a@evido"></div>"#,
+                "html": r#"<div><p style="margin:0">Hello</p><img src="cid:1x2y.9a@even"></div>"#,
                 "attachments": [{
                     "uploadId": "3f2b6c1e-8a4d-4c57-9b1a-0d2e4f6a8c10", "name": "a.pdf",
                     "contentType": "application/pdf", "size": 12,
                 }],
                 "inline": [{
-                    "contentId": "1x2y.9a@evido", "name": "image-1x2y.png", "contentType": "image/png", "data": "AAAA",
+                    "contentId": "1x2y.9a@even", "name": "image-1x2y.png", "contentType": "image/png", "data": "AAAA",
                 }],
             })
         );
@@ -729,7 +729,7 @@ mod tests {
         assert_eq!(body["to"], json!([{ "name": "Jan de Vries", "email": "jan@even.nl" }]));
         assert_eq!(body["cc"], json!([{ "name": null, "email": "kees@even.nl" }]));
         assert_eq!(body["attachments"][0]["uploadId"], "3f2b6c1e-8a4d-4c57-9b1a-0d2e4f6a8c10");
-        assert_eq!(body["inline"][0]["contentId"], "1x2y.9a@evido");
+        assert_eq!(body["inline"][0]["contentId"], "1x2y.9a@even");
         for key in ["subject", "bcc", "reply", "draftId"] {
             assert!(body.get(key).is_none(), "{key}");
         }
@@ -755,7 +755,7 @@ mod tests {
         let body = forward_body("m1", &to, &full());
         assert_eq!(schema::forward(&body), Ok(()));
         assert_eq!(body["cc"], json!([]));
-        assert_eq!(body["inline"][0]["contentId"], "1x2y.9a@evido");
+        assert_eq!(body["inline"][0]["contentId"], "1x2y.9a@even");
         // The message's own files go along at the server: none are named here.
         assert!(body.get("attachments").is_none());
         // A note is optional.
@@ -815,12 +815,12 @@ mod tests {
     fn reads_an_opened_draft() {
         let json = r#"{"id":"d1","to":[{"name":"Jan","email":"jan@even.nl"}],"cc":[],"bcc":[],"subject":"Hi",
             "text":"Hello","html":"<p>Hello</p>","attachments":[{"uploadId":"u1","name":"a.pdf","contentType":"application/pdf","size":3}],
-            "inline":[{"contentId":"x@evido","name":"i.png","contentType":"image/png","data":"AAAA"}],
+            "inline":[{"contentId":"x@even","name":"i.png","contentType":"image/png","data":"AAAA"}],
             "reply":{"threadId":"t1","inReplyTo":"<m@x>"}}"#;
         let draft: DraftOpened = serde_json::from_str(json).unwrap();
         assert_eq!(draft.to[0].email, "jan@even.nl");
         assert_eq!(draft.attachments[0].upload_id, "u1");
-        assert_eq!(draft.inline[0].content_id, "x@evido");
+        assert_eq!(draft.inline[0].content_id, "x@even");
         let message = Outgoing {
             reply: draft.reply,
             ..Default::default()

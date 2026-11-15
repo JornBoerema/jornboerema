@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { authUrl } from "@evido/auth/client"
-import { Button } from "@evido/ui/components/button"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
+import { authUrl } from "@even/auth/client"
+import { Button } from "@even/ui/components/button"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
 
 const isPath = (value: string | null): value is string =>
   !!value && value.startsWith("/") && !value.startsWith("//")

@@ -1,4 +1,4 @@
-import { useAppSwitcher } from "@evido/ui/components/app-switcher";
+import { useAppSwitcher } from "@even/ui/components/app-switcher";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -16,20 +16,20 @@ import {
 } from "@/components/icons";
 import { ListSpotlight } from "@/components/list-spotlight";
 import { WorkspaceSettings } from "@/components/settings/workspace-settings";
-import type { WorkspaceSummary } from "@evido/todo-core/workspaces";
-import type { WorkspaceData, TodoList } from "@evido/todo-core/workspace";
+import type { WorkspaceSummary } from "@even/todo-core/workspaces";
+import type { WorkspaceData, TodoList } from "@even/todo-core/workspace";
 import { InlineName } from "@/components/inline-name";
 import { Sortable } from "@/components/sortable";
 import { ShareListDialog } from "@/components/share-list-dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/i18n";
-import { cn } from "@evido/ui/lib/utils";
-import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar";
-import { useScrollFade } from "@evido/ui/hooks/use-scroll-fade";
+import { cn } from "@even/ui/lib/utils";
+import { useCollapsibleSidebar } from "@even/ui/hooks/use-collapsible-sidebar";
+import { useScrollFade } from "@even/ui/hooks/use-scroll-fade";
 import { Brand } from "@/components/brand";
-import { Button } from "@evido/ui/components/button";
-import { Input } from "@evido/ui/components/input";
-import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field";
+import { Button } from "@even/ui/components/button";
+import { Input } from "@even/ui/components/input";
+import { Field, FieldGroup, FieldLabel } from "@even/ui/components/field";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@evido/ui/components/dialog";
+} from "@even/ui/components/dialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -47,16 +47,16 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
   AlertDialogAction,
-} from "@evido/ui/components/alert-dialog";
+} from "@even/ui/components/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-} from "@evido/ui/components/dropdown-menu";
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia, EmptyContent } from "@evido/ui/components/empty";
-import { Alert, AlertTitle, AlertDescription } from "@evido/ui/components/alert";
+} from "@even/ui/components/dropdown-menu";
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia, EmptyContent } from "@even/ui/components/empty";
+import { Alert, AlertTitle, AlertDescription } from "@even/ui/components/alert";
 
 const NoteEditor = lazy(() => import("@/components/note-editor"));
 

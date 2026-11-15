@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto"
 import { createMiddleware } from "hono/factory"
-import { getDb } from "@evido/db"
+import { getDb } from "@even/db"
 import { env } from "../env"
 import { msg } from "../i18n"
-import { hasPaidPlan } from "@evido/auth/billing"
+import { hasPaidPlan } from "@even/auth/billing"
 import { findApp, mailOpen, mailPaid, type AppId } from "./apps"
 import type { AppEnv } from "./session"
 

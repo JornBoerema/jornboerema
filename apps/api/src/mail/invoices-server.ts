@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
-import { getDb, type MailAccount } from "@evido/db"
-import { findInvoiceInThread, looksLikeInvoice, type FoundInvoice } from "@evido/mail-core/invoices"
-import type { MailInvoiceView, MailThreadMessage } from "@evido/mail-core/types"
+import { getDb, type MailAccount } from "@even/db"
+import { findInvoiceInThread, looksLikeInvoice, type FoundInvoice } from "@even/mail-core/invoices"
+import type { MailInvoiceView, MailThreadMessage } from "@even/mail-core/types"
 import { readInRounds } from "./scan-rounds"
 import { readConversation, threadLines, type Conversation } from "./threads-server"
 

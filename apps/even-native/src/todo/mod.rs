@@ -82,7 +82,7 @@ pub fn bind_keys(cx: &mut App) {
 }
 
 /// The web keeps the open workspace in localStorage under this name.
-const WORKSPACE_PREF: &str = "evido.todo.workspace";
+const WORKSPACE_PREF: &str = "even.todo.workspace";
 
 /// How the realtime line is doing (the web's Ably connection state).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -782,7 +782,7 @@ impl TodoApp {
     }
 
     /// Even noteren keeps the open workspace under the same name
-    /// (`evido.todo.workspace`, the web's localStorage key both apps read):
+    /// (`even.todo.workspace`, the web's localStorage key both apps read):
     /// when it picked another one meanwhile, this app shows that one too.
     fn follow_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         let Some(wanted) = prefs::get(WORKSPACE_PREF) else { return false };

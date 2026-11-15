@@ -7,14 +7,14 @@ import {
   type BoardProject,
   type BoardStatus,
   type StatusCategory,
-} from "@evido/todo-core/board";
-import type { Command, WorkspaceData } from "@evido/todo-core/workspace";
-import { SettingsSection } from "@evido/ui/components/settings-dialog";
-import { Button } from "@evido/ui/components/button";
-import { Input } from "@evido/ui/components/input";
-import { Textarea } from "@evido/ui/components/textarea";
-import { Progress } from "@evido/ui/components/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@evido/ui/components/select";
+} from "@even/todo-core/board";
+import type { Command, WorkspaceData } from "@even/todo-core/workspace";
+import { SettingsSection } from "@even/ui/components/settings-dialog";
+import { Button } from "@even/ui/components/button";
+import { Input } from "@even/ui/components/input";
+import { Textarea } from "@even/ui/components/textarea";
+import { Progress } from "@even/ui/components/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@even/ui/components/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu";
+} from "@even/ui/components/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +33,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@evido/ui/components/dialog";
+} from "@even/ui/components/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@even/ui/components/dialog";
 import { Folder, MoreHorizontal, Pencil, Plus, Trash2 } from "@/components/icons";
 import { StatusIcon, ProjectDot } from "@/components/board/board-meta";
 import { useI18n } from "@/i18n";

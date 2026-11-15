@@ -11,8 +11,8 @@ import {
   UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog"
+import { Button } from "@even/ui/components/button"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,11 +21,11 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
-import { Skeleton } from "@evido/ui/components/skeleton"
-import { Spinner } from "@evido/ui/components/spinner"
-import { cn } from "@evido/ui/lib/utils"
-import type { MailTodoList, MailTodoView } from "@evido/mail-core/types"
+} from "@even/ui/components/dropdown-menu"
+import { Skeleton } from "@even/ui/components/skeleton"
+import { Spinner } from "@even/ui/components/spinner"
+import { cn } from "@even/ui/lib/utils"
+import type { MailTodoList, MailTodoView } from "@even/mail-core/types"
 import { useI18n } from "@/i18n"
 import { errorText } from "@/lib/api"
 import { useTodos } from "@/lib/preferences"

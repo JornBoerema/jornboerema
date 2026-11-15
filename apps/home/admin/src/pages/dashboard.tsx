@@ -15,9 +15,9 @@ import {
   ZapIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { cn } from "@evido/ui/lib/utils"
-import { Button } from "@evido/ui/components/button"
-import { Skeleton } from "@evido/ui/components/skeleton"
+import { cn } from "@even/ui/lib/utils"
+import { Button } from "@even/ui/components/button"
+import { Skeleton } from "@even/ui/components/skeleton"
 import { useI18n } from "@/i18n"
 import { ApiError, api } from "@/lib/api"
 

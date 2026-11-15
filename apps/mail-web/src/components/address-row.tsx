@@ -8,7 +8,7 @@ import {
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Badge } from "@evido/ui/components/badge"
+import { Badge } from "@even/ui/components/badge"
 import { ContactAvatar } from "@/components/contact-avatar"
 import { MessageInput, MessageRow } from "@/components/message-field"
 import { useI18n } from "@/i18n"
@@ -20,7 +20,7 @@ import {
 } from "@/lib/addresses"
 import { api } from "@/lib/api"
 import { useDebounced } from "@/lib/use-debounced"
-import { cn } from "@evido/ui/lib/utils"
+import { cn } from "@even/ui/lib/utils"
 
 type Contact = { name: string | null; email: string }
 

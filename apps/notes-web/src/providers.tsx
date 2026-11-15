@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MotionConfig } from "motion/react"
-import { Toaster } from "@evido/ui/components/sonner"
-import { ThemeProvider } from "@evido/ui/lib/theme"
+import { Toaster } from "@even/ui/components/sonner"
+import { ThemeProvider } from "@even/ui/lib/theme"
 import { I18nProvider } from "./i18n"
 
 export function Providers({ children }: { children: ReactNode }) {

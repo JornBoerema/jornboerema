@@ -8,10 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@evido/ui/components/dialog";
-import { Button } from "@evido/ui/components/button";
-import { Input } from "@evido/ui/components/input";
-import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field";
+} from "@even/ui/components/dialog";
+import { Button } from "@even/ui/components/button";
+import { Input } from "@even/ui/components/input";
+import { Field, FieldGroup, FieldLabel } from "@even/ui/components/field";
 import {
   Select,
   SelectContent,
@@ -19,11 +19,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@evido/ui/components/select";
-import { Alert, AlertDescription } from "@evido/ui/components/alert";
-import { Skeleton } from "@evido/ui/components/skeleton";
-import type { SharingCommand, SharingData } from "@evido/todo-core/sharing";
-import type { TodoList } from "@evido/todo-core/workspace";
+} from "@even/ui/components/select";
+import { Alert, AlertDescription } from "@even/ui/components/alert";
+import { Skeleton } from "@even/ui/components/skeleton";
+import type { SharingCommand, SharingData } from "@even/todo-core/sharing";
+import type { TodoList } from "@even/todo-core/workspace";
 import { useI18n } from "@/i18n";
 
 /** Public link to one list. Workspace members already see every list. */

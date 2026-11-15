@@ -6,8 +6,8 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@evido/ui/components/command"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog"
+} from "@even/ui/components/command"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog"
 import { useI18n } from "@/i18n"
 
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)

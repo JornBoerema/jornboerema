@@ -14,8 +14,8 @@ import {
   SmartPhone01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { webUrl } from "@evido/auth/client"
-import { Alert, AlertDescription } from "@evido/ui/components/alert"
+import { webUrl } from "@even/auth/client"
+import { Alert, AlertDescription } from "@even/ui/components/alert"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -24,12 +24,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog"
-import { Button } from "@evido/ui/components/button"
-import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field"
-import { Input } from "@evido/ui/components/input"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { Brand } from "@evido/shell/brand"
+} from "@even/ui/components/alert-dialog"
+import { Button } from "@even/ui/components/button"
+import { Field, FieldGroup, FieldLabel } from "@even/ui/components/field"
+import { Input } from "@even/ui/components/input"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { Brand } from "@even/shell/brand"
 import { RequireSession } from "@/account/components/require-session"
 import { Subscription } from "@/account/components/subscription"
 import { useI18n } from "@/account/i18n"

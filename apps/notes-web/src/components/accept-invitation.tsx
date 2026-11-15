@@ -2,8 +2,8 @@ import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@evido/ui/components/button";
-import { Alert, AlertDescription } from "@evido/ui/components/alert";
+import { Button } from "@even/ui/components/button";
+import { Alert, AlertDescription } from "@even/ui/components/alert";
 import { authClient } from "@/lib/auth-client";
 import { useI18n } from "@/i18n";
 export function AcceptInvitation({

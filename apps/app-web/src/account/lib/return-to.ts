@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router"
-import { isAllowedReturn } from "@evido/auth/client"
+import { isAllowedReturn } from "@even/auth/client"
 
 /**
  * Where to go after signing in: a page of this site, or an Even app on the

@@ -4,13 +4,13 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowDown01Icon, Cancel01Icon, SearchIcon } from "@hugeicons/core-free-icons"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "@evido/ui/components/dialog"
+} from "@even/ui/components/dialog"
 
 export type SettingsLabels = {
   title: string
@@ -42,7 +42,7 @@ export type SettingsPage = {
 
 /**
  * Large settings modal: searchable page navigation on the left, the active page
- * on the right. Shared by every Evido app; each app supplies its own pages.
+ * on the right. Shared by every Even app; each app supplies its own pages.
  */
 function SettingsDialog({
   open,

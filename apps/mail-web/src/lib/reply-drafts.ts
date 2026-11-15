@@ -1,10 +1,10 @@
-import type { MailInlineUpload } from "@evido/mail-core/types"
+import type { MailInlineUpload } from "@even/mail-core/types"
 
 /**
  * Under the cache prefix, so signing out clears these with the rest of what the
  * browser keeps for this user.
  */
-const PREFIX = "evido.mail.cache.reply."
+const PREFIX = "even.mail.cache.reply."
 /** A reply nobody came back to in a month isn't worth bringing back. */
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 

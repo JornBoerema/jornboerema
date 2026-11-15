@@ -5,10 +5,10 @@ import type {
   WorkspaceCommand,
   WorkspaceMembers,
   WorkspaceSummary,
-} from "@evido/todo-core/workspaces"
+} from "@even/todo-core/workspaces"
 import { apiFetch } from "@/lib/api"
 import { useI18n } from "@/i18n"
-import { useOrganizations } from "@evido/ui/components/organizations"
+import { useOrganizations } from "@even/ui/components/organizations"
 
 async function getJson<T>(path: string, fallbackError: string): Promise<T> {
   const response = await apiFetch(path)

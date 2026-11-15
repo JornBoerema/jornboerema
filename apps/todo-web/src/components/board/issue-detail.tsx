@@ -1,16 +1,16 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { sortSubIssues, type Command, type Todo, type TodoList, type WorkspaceData } from "@evido/todo-core/workspace";
-import { defaultStatus, sortStatuses, type BoardStatus, type TodoAttachment } from "@evido/todo-core/board";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog";
-import { Button } from "@evido/ui/components/button";
+import { sortSubIssues, type Command, type Todo, type TodoList, type WorkspaceData } from "@even/todo-core/workspace";
+import { defaultStatus, sortStatuses, type BoardStatus, type TodoAttachment } from "@even/todo-core/board";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog";
+import { Button } from "@even/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu";
+} from "@even/ui/components/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,8 +20,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@evido/ui/components/alert-dialog";
-import { cn } from "@evido/ui/lib/utils";
+} from "@even/ui/components/alert-dialog";
+import { cn } from "@even/ui/lib/utils";
 import { Download, ImageIcon, Kanban, MoreHorizontal, Paperclip, Plus, Share, Trash2, X } from "@/components/icons";
 import { useI18n } from "@/i18n";
 import { AttachmentTooLarge, downloadAttachment, formatBytes, isImage, uploadAttachment, useAttachmentUrl } from "@/lib/attachments";

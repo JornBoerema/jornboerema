@@ -4,8 +4,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Copy01Icon, Delete02Icon, Download04Icon, Image01Icon } from "@hugeicons/core-free-icons"
-import { Button } from "@evido/ui/components/button"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@evido/ui/components/empty"
+import { Button } from "@even/ui/components/button"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@even/ui/components/empty"
 import { Brand } from "./brand"
 import {
   chooseSavePath,

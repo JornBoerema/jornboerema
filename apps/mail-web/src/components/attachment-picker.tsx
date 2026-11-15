@@ -14,9 +14,9 @@ import {
   Zip02Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { cn } from "@evido/ui/lib/utils"
-import { MAX_ATTACHMENTS_BYTES } from "@evido/mail-core/types"
+import { Button } from "@even/ui/components/button"
+import { cn } from "@even/ui/lib/utils"
+import { MAX_ATTACHMENTS_BYTES } from "@even/mail-core/types"
 import { useI18n } from "@/i18n"
 import { errorText } from "@/lib/api"
 import { deleteUpload, uploadFile, type ComposerFile } from "@/lib/uploads"

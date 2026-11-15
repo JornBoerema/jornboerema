@@ -1,5 +1,5 @@
 import type { Context } from "hono"
-import { pickLanguage, type Language } from "@evido/i18n"
+import { pickLanguage, type Language } from "@even/i18n"
 
 /** User-facing API messages. Dutch is typed against English. */
 const en = {
@@ -46,7 +46,7 @@ const en = {
   acceptFailed: "Accepting the invitation failed.",
   // Defaults
   personalWorkspace: "Personal",
-  // Validation codes from @evido/todo-core
+  // Validation codes from @even/todo-core
   list_name_required: "Give your list a name.",
   task_title_required: "Enter a task.",
   description_too_long: "Use at most 50,000 characters for the description.",
@@ -188,7 +188,7 @@ export const msg = (c: Context, key: MessageKey) => messages[languageOf(c)][key]
 export const isMessageKey = (value: unknown): value is MessageKey =>
   typeof value === "string" && Object.hasOwn(en, value)
 
-/** Translates a validation code from @evido/todo-core, or falls back to "check your input". */
+/** Translates a validation code from @even/todo-core, or falls back to "check your input". */
 export const validationMessage = (c: Context, code: string | undefined) =>
   msg(c, isMessageKey(code) ? code : "checkInput")
 

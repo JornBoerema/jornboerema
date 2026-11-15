@@ -7,12 +7,12 @@ import {
   Mail01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { webUrl, type EvidoAuthClient } from "@evido/auth/client"
-import { Alert, AlertDescription, AlertTitle } from "@evido/ui/components/alert"
-import { Button } from "@evido/ui/components/button"
-import { Checkbox } from "@evido/ui/components/checkbox"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@evido/ui/components/field"
-import { Input } from "@evido/ui/components/input"
+import { webUrl, type EvenAuthClient } from "@even/auth/client"
+import { Alert, AlertDescription, AlertTitle } from "@even/ui/components/alert"
+import { Button } from "@even/ui/components/button"
+import { Checkbox } from "@even/ui/components/checkbox"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@even/ui/components/field"
+import { Input } from "@even/ui/components/input"
 
 export type AuthMode = "login" | "register" | "forgot" | "reset";
 
@@ -64,7 +64,7 @@ function errorMessage(t: AuthTexts, code?: string) {
   if (code === "PASSWORD_TOO_SHORT") return t.errors.passwordTooShort;
   return t.errors.generic;
 }
-/** Sign-in, sign-up and password recovery, shared by the Evido web apps. */
+/** Sign-in, sign-up and password recovery, shared by the Even web apps. */
 export function AuthForm({
   mode,
   client: authClient,
@@ -73,7 +73,7 @@ export function AuthForm({
   legal,
 }: {
   mode: AuthMode;
-  client: EvidoAuthClient;
+  client: EvenAuthClient;
   texts: AuthTexts;
   /** Where to continue after signing in: a path here, or an app's absolute URL. */
   returnTo?: string;

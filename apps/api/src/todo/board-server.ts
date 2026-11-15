@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto"
-import { Prisma, type Tx } from "@evido/db"
+import { Prisma, type Tx } from "@even/db"
 import {
   defaultStatus,
   defaultStatuses,
   sortStatuses,
   statusFlags,
   type BoardStatus,
-} from "@evido/todo-core/board"
-import { reorderIds, type Command } from "@evido/todo-core/workspace"
-import type { Language } from "@evido/i18n"
+} from "@even/todo-core/board"
+import { reorderIds, type Command } from "@even/todo-core/workspace"
+import type { Language } from "@even/i18n"
 import { InvalidCommandError, NotFoundError } from "./workspace-server"
 
 /** Workspace-wide board settings: statuses and projects. */

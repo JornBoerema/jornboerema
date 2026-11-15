@@ -1,6 +1,6 @@
-import { useAppSwitcher } from "@evido/ui/components/app-switcher"
+import { useAppSwitcher } from "@even/ui/components/app-switcher"
 import { useEffect, useRef } from "react"
-import type { MailThreadView } from "@evido/mail-core/types"
+import type { MailThreadView } from "@even/mail-core/types"
 import { useNotifyNewMail } from "@/lib/preferences"
 
 /** More new mail than this at once is one summary notification instead. */
@@ -41,7 +41,7 @@ export function useNewMailNotifications(
     const show = (title: string, body: string, thread?: MailThreadView) => {
       const notification = new Notification(title, {
         body,
-        tag: thread?.id ?? "evido-mail",
+        tag: thread?.id ?? "even-mail",
         // A bitmap, since not every system shows SVG in notifications.
         icon: "/apple-touch-icon.png",
       })

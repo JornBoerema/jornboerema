@@ -1,24 +1,24 @@
 {
-  "name": "evido",
+  "name": "even",
   "version": "0.0.1",
   "private": true,
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "dev:app": "turbo dev --filter=@evido/api --filter=@evido/app-web",
+    "dev:app": "turbo dev --filter=@even/api --filter=@even/app-web",
     "lint": "turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "check": "turbo typecheck test build",
     "web:update": "node scripts/web-update.mjs",
-    "db:generate": "pnpm --filter @evido/db db:generate",
-    "db:migrate": "pnpm --filter @evido/db db:migrate",
-    "db:deploy": "pnpm --filter @evido/db db:deploy",
-    "db:deploy:prod": "pnpm --filter @evido/db db:deploy:prod",
-    "db:studio": "pnpm --filter @evido/db db:studio",
-    "dev:capture": "pnpm --filter @evido/capture-desktop app",
-    "dev:desktop": "turbo dev app --filter=@evido/api --filter=@evido/app-web --filter=@evido/desktop"
+    "db:generate": "pnpm --filter @even/db db:generate",
+    "db:migrate": "pnpm --filter @even/db db:migrate",
+    "db:deploy": "pnpm --filter @even/db db:deploy",
+    "db:deploy:prod": "pnpm --filter @even/db db:deploy:prod",
+    "db:studio": "pnpm --filter @even/db db:studio",
+    "dev:capture": "pnpm --filter @even/capture-desktop app",
+    "dev:desktop": "turbo dev app --filter=@even/api --filter=@even/app-web --filter=@even/desktop"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

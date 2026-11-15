@@ -1,9 +1,9 @@
 {
-  "name": "@evido/email",
+  "name": "@even/email",
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "Transactional e-mail via Resend, shared by all Evido apps.",
+  "description": "Transactional e-mail via Resend, shared by all Even apps.",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
@@ -12,7 +12,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@evido/i18n": "workspace:*",
+    "@even/i18n": "workspace:*",
     "resend": "^6.35.0"
   },
   "devDependencies": {

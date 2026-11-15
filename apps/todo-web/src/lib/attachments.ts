@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MAX_ATTACHMENT_BYTES } from "@evido/todo-core/board";
+import { MAX_ATTACHMENT_BYTES } from "@even/todo-core/board";
 import { apiFetch } from "@/lib/api";
 
 export class AttachmentTooLarge extends Error {}

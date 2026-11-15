@@ -1128,7 +1128,7 @@ pub fn to_inline_images(html: &str) -> (String, Vec<InlineImage>) {
     let html = DATA_IMAGE.replace_all(html, |found: &regex::Captures| {
         let (src, content_type, data) = (&found[1], &found[2], &found[3]);
         let hash = image_hash(src);
-        let content_id = format!("{hash}.{}@evido", base36(src.encode_utf16().count() as u64));
+        let content_id = format!("{hash}.{}@even", base36(src.encode_utf16().count() as u64));
         if !images.iter().any(|image| image.content_id == content_id) {
             let extension = match content_type {
                 "image/jpeg" => "jpg",
@@ -1311,13 +1311,13 @@ mod tests {
         assert_eq!(images.len(), 1);
         let image = &images[0];
         // The web's ids: FNV-1a of the address and its length, both in base 36.
-        assert_eq!(image.content_id, "1fgj1jg.y@evido");
+        assert_eq!(image.content_id, "1fgj1jg.y@even");
         assert_eq!(image.name, "image-1fgj1jg.png");
         assert_eq!(image.content_type, "image/png");
         assert_eq!(image.data, "iVBORw0KGgo=");
         assert_eq!(
             out,
-            r#"<p><img src="cid:1fgj1jg.y@evido" width="40"><img src="cid:1fgj1jg.y@evido"></p><img src="https://a.b/c.png">"#
+            r#"<p><img src="cid:1fgj1jg.y@even" width="40"><img src="cid:1fgj1jg.y@even"></p><img src="https://a.b/c.png">"#
         );
         assert_eq!(from_inline_images(&out, &images), html);
         assert_eq!(from_inline_images(r#"<img src="cid:other">"#, &images), r#"<img src="cid:other">"#);

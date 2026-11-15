@@ -1,4 +1,4 @@
-import { billingConfigured } from "@evido/auth/billing"
+import { billingConfigured } from "@even/auth/billing"
 import { env } from "../env"
 
 /**

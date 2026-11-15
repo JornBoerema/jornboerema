@@ -1,4 +1,4 @@
-import { cn } from "@evido/ui/lib/utils"
+import { cn } from "@even/ui/lib/utils"
 
 /** A stable number for an address, so a person keeps their colour everywhere. */
 function hueOf(email: string) {

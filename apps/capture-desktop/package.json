@@ -1,5 +1,5 @@
 {
-  "name": "@evido/capture-desktop",
+  "name": "@even/capture-desktop",
   "version": "0.2.5",
   "type": "module",
   "private": true,
@@ -14,8 +14,8 @@
     "lint": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "@evido/i18n": "workspace:*",
-    "@evido/ui": "workspace:*",
+    "@even/i18n": "workspace:*",
+    "@even/ui": "workspace:*",
     "@hugeicons/core-free-icons": "^4.4.0",
     "@hugeicons/react": "^1.1.10",
     "@tauri-apps/api": "^2.12.4",

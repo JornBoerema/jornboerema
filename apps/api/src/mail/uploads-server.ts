@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto"
-import { getDb } from "@evido/db"
+import { getDb } from "@even/db"
 import {
   MAX_ATTACHMENTS_BYTES,
   UPLOAD_CHUNK_BYTES,
   type MailAttachmentRef,
   type MailAttachmentUpload,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 
 export class UploadNotFoundError extends Error {}
 export class UploadTooLargeError extends Error {}

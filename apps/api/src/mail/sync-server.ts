@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto"
-import { getDb, type MailAccount } from "@evido/db"
+import { getDb, type MailAccount } from "@even/db"
 import {
   isRateLimited,
   SyncCursorExpiredError,
   type MailMessageData,
   type SyncPage,
-} from "@evido/mail-core/provider"
-import type { MailSyncResult } from "@evido/mail-core/types"
+} from "@even/mail-core/provider"
+import type { MailSyncResult } from "@even/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 import { isNews, pushEnabled, pushNewMail } from "./push-server"
 

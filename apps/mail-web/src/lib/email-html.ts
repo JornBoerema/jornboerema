@@ -33,7 +33,7 @@ export const hasRemoteImages = (sanitizedHtml: string) =>
 const FRAME_STYLE = [
   "html,body{margin:0;background:#fff;color:#111;height:auto!important;min-height:0!important;overflow:hidden!important}",
   "body{padding:12px;font:14px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}",
-  "#evido-mail{overflow-x:auto;overflow-y:hidden}",
+  "#even-mail{overflow-x:auto;overflow-y:hidden}",
   "img{max-width:100%;height:auto}",
 ].join("")
 
@@ -60,9 +60,9 @@ export function hasOwnBackground(sanitizedHtml: string) {
 const DARK_STYLE = [
   ":root{color-scheme:dark}",
   "html,body{background:transparent!important;color:#e4e4e1!important}",
-  "#evido-mail *{color:inherit!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}",
-  "#evido-mail a,#evido-mail a *{color:#8fb3ff!important}",
-  "#evido-mail hr{border-color:rgba(255,255,255,.14)!important}",
+  "#even-mail *{color:inherit!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}",
+  "#even-mail a,#even-mail a *{color:#8fb3ff!important}",
+  "#even-mail hr{border-color:rgba(255,255,255,.14)!important}",
 ].join("")
 
 /**
@@ -79,7 +79,7 @@ export function buildEmailDocument(sanitizedHtml: string, allowImages: boolean, 
     "base-uri 'none'",
   ].join("; ")
   const style = (dark ? FRAME_STYLE + DARK_STYLE : FRAME_STYLE) + (flush ? "html,body{background:transparent!important}body{padding-inline:0}" : "")
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${style}</style></head><body><div id="evido-mail">${sanitizedHtml}</div></body></html>`
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${style}</style></head><body><div id="even-mail">${sanitizedHtml}</div></body></html>`
 }
 
 /**

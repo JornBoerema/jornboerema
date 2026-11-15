@@ -10,9 +10,9 @@ import {
   SunriseIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog"
-import { cn } from "@evido/ui/lib/utils"
-import { parseWhen } from "@evido/mail-core/when"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog"
+import { cn } from "@even/ui/lib/utils"
+import { parseWhen } from "@even/mail-core/when"
 import { useI18n } from "@/i18n"
 
 type Purpose = "snooze" | "send"

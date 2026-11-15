@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { getDb } from "@evido/db"
+import { getDb } from "@even/db"
 import { notifyMailChanged } from "../lib/realtime"
 import { listThreads, type Conversation } from "./threads-server"
 

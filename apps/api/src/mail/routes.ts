@@ -1,13 +1,13 @@
 import { Hono, type Context } from "hono"
 import { z } from "zod"
-import { getAuth } from "@evido/auth/server"
+import { getAuth } from "@even/auth/server"
 import {
   isRateLimited,
   MissingScopeError,
   ProviderError,
   ReauthRequiredError,
   UnsupportedActionError,
-} from "@evido/mail-core/provider"
+} from "@even/mail-core/provider"
 import {
   isMailFolder,
   isMailProvider,
@@ -21,7 +21,7 @@ import {
   UPLOAD_CHUNK_BYTES,
   INLINE_CONTENT_ID,
   isDraftWorthKeeping,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
@@ -73,8 +73,8 @@ import {
   snooze,
   unsnooze,
 } from "./later-server"
-import { secretsMatch } from "@evido/mail-core/secrets"
-import { NAV_ITEMS } from "@evido/mail-core/sidebar"
+import { secretsMatch } from "@even/mail-core/secrets"
+import { NAV_ITEMS } from "@even/mail-core/sidebar"
 import type { Conversation } from "./threads-server"
 import { streamMessage, WriteFailedError, WriteNotConfiguredError, type WriteRequest } from "./write-server"
 import { invoicesEnabled, parcelsEnabled, pinsEnabled, readPreferences, replySuggestionsEnabled, savePreferences } from "./preferences-server"

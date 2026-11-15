@@ -16,10 +16,20 @@ fn file() -> Option<std::path::PathBuf> {
 fn values() -> &'static Mutex<Values> {
     static VALUES: OnceLock<Mutex<Values>> = OnceLock::new();
     VALUES.get_or_init(|| {
-        let stored = file()
+        let mut stored: Values = file()
             .and_then(|path| std::fs::read(path).ok())
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
+        // Choices saved under the old name (evido.*) move to even.* once.
+        let old: Vec<String> = stored.keys().filter(|key| key.starts_with("evido.")).cloned().collect();
+        if !old.is_empty() {
+            for key in old {
+                if let Some(value) = stored.remove(&key) {
+                    stored.entry(format!("even.{}", &key["evido.".len()..])).or_insert(value);
+                }
+            }
+            save(&stored);
+        }
         Mutex::new(stored)
     })
 }

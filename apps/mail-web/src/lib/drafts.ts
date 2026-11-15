@@ -5,7 +5,7 @@ import {
   type MailDraftOpened,
   type MailDraftRequest,
   type MailDraftView,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { api } from "@/lib/api"
 
 export const DRAFTS_KEY = ["mail-drafts"]

@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { MailThreadsPage, MailThreadView } from "@evido/mail-core/types"
+import type { MailThreadsPage, MailThreadView } from "@even/mail-core/types"
 import { api, errorText } from "@/lib/api"
 import { MESSAGES_KEY } from "@/lib/mail"
 import { usePins } from "@/lib/preferences"

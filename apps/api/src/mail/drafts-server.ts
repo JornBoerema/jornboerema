@@ -1,6 +1,6 @@
 import { scheduledDraftIds } from "./later-server"
-import { getDb } from "@evido/db"
-import type { MailDraft, MailDraftContent, MailDraftView } from "@evido/mail-core/types"
+import { getDb } from "@even/db"
+import type { MailDraft, MailDraftContent, MailDraftView } from "@even/mail-core/types"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 
 export type DraftSave = MailDraftContent & { draftId: string | null; attachmentsChanged: boolean }

@@ -34,7 +34,7 @@ describe("the desktop mail cache", () => {
     old.setQueryData(["mail-accounts"], [{ id: "a1" }])
     // What an earlier version left behind, written the way it wrote it.
     localStorage.setItem(
-      "evido.mail.cache.u1",
+      "even.mail.cache.u1",
       JSON.stringify({
         buster: "1",
         timestamp: Date.now(),
@@ -53,8 +53,8 @@ describe("the desktop mail cache", () => {
     const { restored, unsubscribe } = persistMailCache(client, "u1")
     await restored
     expect(client.getQueryData(["mail-accounts"])).toEqual([{ id: "a1" }])
-    expect(items.has("evido.mail.cache.u1")).toBe(true)
-    expect(localStorage.getItem("evido.mail.cache.u1")).toBeNull()
+    expect(items.has("even.mail.cache.u1")).toBe(true)
+    expect(localStorage.getItem("even.mail.cache.u1")).toBeNull()
     unsubscribe()
   })
 
@@ -82,13 +82,13 @@ describe("the desktop mail cache", () => {
     await restored
     await client.fetchQuery({ queryKey: ["mail-thread", "t1"], queryFn: async () => ({ messages: [] }) })
     await settle()
-    items.set("evido.mail.cache.u1", "{}")
-    localStorage.setItem("evido.mail.cache.u1", "{}")
+    items.set("even.mail.cache.u1", "{}")
+    localStorage.setItem("even.mail.cache.u1", "{}")
     unsubscribe()
     await clearMailCache()
     expect(items.size).toBe(0)
     expect(threads.size).toBe(0)
-    expect(localStorage.getItem("evido.mail.cache.u1")).toBeNull()
+    expect(localStorage.getItem("even.mail.cache.u1")).toBeNull()
     expect(await readStoredThread("t1")).toBeNull()
   })
 })

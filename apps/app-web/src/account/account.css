@@ -1,4 +1,4 @@
-/* Signing in and the account pages. Design tokens come from @evido/ui/globals.css, the sign-in pages from auth.css. */
+/* Signing in and the account pages. Design tokens come from @even/ui/globals.css, the sign-in pages from auth.css. */
 .auth-layout ::selection,
 .account-main ::selection {
   background: var(--primary);

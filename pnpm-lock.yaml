@@ -26,25 +26,25 @@ importers:
       '@better-auth/mcp':
         specifier: ^1.7.14
         version: 1.7.14(@better-auth/core@1.7.14(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(@opentelemetry/api@1.9.1)(better-call@1.4.4(zod@4.6.7))(jose@6.2.14)(kysely@0.29.7)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-auth@1.7.14(@opentelemetry/api@1.9.1)(@prisma/client@7.10.1(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.3.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(typescript@6.0.3))(mysql2@3.24.4(@types/node@24.19.2))(pg@8.23.1)(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.3.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@24.19.2)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.15))))(better-call@1.4.4(zod@4.6.7))
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@evido/db':
+      '@even/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@evido/email':
+      '@even/email':
         specifier: workspace:*
         version: link:../../packages/email
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/mail-core':
+      '@even/mail-core':
         specifier: workspace:*
         version: link:../../packages/mail-core
-      '@evido/realtime':
+      '@even/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
-      '@evido/todo-core':
+      '@even/todo-core':
         specifier: workspace:*
         version: link:../../packages/todo-core
       '@hono/node-server':
@@ -96,25 +96,25 @@ importers:
 
   apps/app-web:
     dependencies:
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/mail-web':
+      '@even/mail-web':
         specifier: workspace:*
         version: link:../mail-web
-      '@evido/notes-web':
+      '@even/notes-web':
         specifier: workspace:*
         version: link:../notes-web
-      '@evido/shell':
+      '@even/shell':
         specifier: workspace:*
         version: link:../../packages/shell
-      '@evido/todo-web':
+      '@even/todo-web':
         specifier: workspace:*
         version: link:../todo-web
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@hugeicons/core-free-icons':
@@ -166,10 +166,10 @@ importers:
 
   apps/capture-desktop:
     dependencies:
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@hugeicons/core-free-icons':
@@ -227,25 +227,25 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/mail-web':
+      '@even/mail-web':
         specifier: workspace:*
         version: link:../mail-web
-      '@evido/notes-web':
+      '@even/notes-web':
         specifier: workspace:*
         version: link:../notes-web
-      '@evido/shell':
+      '@even/shell':
         specifier: workspace:*
         version: link:../../packages/shell
-      '@evido/todo-web':
+      '@even/todo-web':
         specifier: workspace:*
         version: link:../todo-web
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@hugeicons/core-free-icons':
@@ -300,13 +300,13 @@ importers:
 
   apps/home:
     dependencies:
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@hugeicons/core-free-icons':
@@ -370,19 +370,19 @@ importers:
       '@dnd-kit/utilities':
         specifier: 3.2.2
         version: 3.2.2(react@19.3.1)
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/mail-core':
+      '@even/mail-core':
         specifier: workspace:*
         version: link:../../packages/mail-core
-      '@evido/realtime':
+      '@even/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@floating-ui/dom':
@@ -482,19 +482,19 @@ importers:
 
   apps/notes-web:
     dependencies:
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/realtime':
+      '@even/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
-      '@evido/todo-core':
+      '@even/todo-core':
         specifier: workspace:*
         version: link:../../packages/todo-core
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@hugeicons/core-free-icons':
@@ -591,22 +591,22 @@ importers:
 
   apps/todo-web:
     dependencies:
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@evido/mail-core':
+      '@even/mail-core':
         specifier: workspace:*
         version: link:../../packages/mail-core
-      '@evido/realtime':
+      '@even/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
-      '@evido/todo-core':
+      '@even/todo-core':
         specifier: workspace:*
         version: link:../../packages/todo-core
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@hugeicons/core-free-icons':
@@ -715,13 +715,13 @@ importers:
       '@better-auth/stripe':
         specifier: ^1.7.14
         version: 1.7.14(@better-auth/core@1.7.14(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(@opentelemetry/api@1.9.1)(better-call@1.4.4(zod@4.6.7))(jose@6.2.14)(kysely@0.29.7)(nanostores@1.5.5))(better-auth@1.7.14(@opentelemetry/api@1.9.1)(@prisma/client@7.10.1(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.3.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(typescript@6.0.3))(mysql2@3.24.4(@types/node@24.19.2))(pg@8.23.1)(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.3.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(jsdom@31.0.0(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))))(better-call@1.4.4(zod@4.6.7))(stripe@23.1.0(@types/node@24.19.2))
-      '@evido/db':
+      '@even/db':
         specifier: workspace:*
         version: link:../db
-      '@evido/email':
+      '@even/email':
         specifier: workspace:*
         version: link:../email
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../i18n
       better-auth:
@@ -771,7 +771,7 @@ importers:
 
   packages/email:
     dependencies:
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../i18n
       resend:
@@ -811,7 +811,7 @@ importers:
 
   packages/realtime:
     dependencies:
-      '@evido/db':
+      '@even/db':
         specifier: workspace:*
         version: link:../db
       '@neon/realtime':
@@ -827,22 +827,22 @@ importers:
 
   packages/shell:
     dependencies:
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../auth
-      '@evido/i18n':
+      '@even/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@evido/mail-web':
+      '@even/mail-web':
         specifier: workspace:*
         version: link:../../apps/mail-web
-      '@evido/notes-web':
+      '@even/notes-web':
         specifier: workspace:*
         version: link:../../apps/notes-web
-      '@evido/todo-web':
+      '@even/todo-web':
         specifier: workspace:*
         version: link:../../apps/todo-web
-      '@evido/ui':
+      '@even/ui':
         specifier: workspace:*
         version: link:../ui
       '@hugeicons/core-free-icons':
@@ -889,7 +889,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@evido/auth':
+      '@even/auth':
         specifier: workspace:*
         version: link:../auth
       '@fontsource-variable/inter':

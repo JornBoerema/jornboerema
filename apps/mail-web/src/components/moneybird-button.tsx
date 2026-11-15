@@ -2,8 +2,8 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { ArrowDown01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { ButtonGroup, ButtonGroupSeparator } from "@evido/ui/components/button-group"
+import { Button } from "@even/ui/components/button"
+import { ButtonGroup, ButtonGroupSeparator } from "@even/ui/components/button-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,10 +13,10 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
-import { Spinner } from "@evido/ui/components/spinner"
-import { attachmentKey, bookableFiles, likeliestInvoiceFile, type MoneybirdAdministration } from "@evido/mail-core/connections"
-import type { MailThreadMessage } from "@evido/mail-core/types"
+} from "@even/ui/components/dropdown-menu"
+import { Spinner } from "@even/ui/components/spinner"
+import { attachmentKey, bookableFiles, likeliestInvoiceFile, type MoneybirdAdministration } from "@even/mail-core/connections"
+import type { MailThreadMessage } from "@even/mail-core/types"
 import { useI18n } from "@/i18n"
 import { errorText } from "@/lib/api"
 import { useMoneybird, useMoneybirdThread, useSendToMoneybird, type MoneybirdFile } from "@/lib/connections"

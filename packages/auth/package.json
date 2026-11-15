@@ -1,9 +1,9 @@
 {
-  "name": "@evido/auth",
+  "name": "@even/auth",
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "Shared Better Auth setup: one account for every Evido app.",
+  "description": "Shared Better Auth setup: one account for every Even app.",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
@@ -18,9 +18,9 @@
     "@better-auth/oauth-provider": "^1.7.14",
     "@better-auth/prisma-adapter": "^1.7.14",
     "@better-auth/stripe": "^1.7.14",
-    "@evido/db": "workspace:*",
-    "@evido/email": "workspace:*",
-    "@evido/i18n": "workspace:*",
+    "@even/db": "workspace:*",
+    "@even/email": "workspace:*",
+    "@even/i18n": "workspace:*",
     "better-auth": "^1.7.14",
     "stripe": "^23.1.0",
     "zod": "^4.6.7"

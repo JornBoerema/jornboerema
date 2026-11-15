@@ -1,7 +1,7 @@
-import type { Language } from "@evido/i18n"
+import type { Language } from "@even/i18n"
 import type { Email } from "./index"
 
-const brand = "Evido"
+const brand = "Even"
 
 export const authEmails = {
   verify: (to: string, url: string, language: Language): Email =>

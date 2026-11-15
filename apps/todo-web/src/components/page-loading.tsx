@@ -1,4 +1,4 @@
-import { Skeleton } from "@evido/ui/components/skeleton"
+import { Skeleton } from "@even/ui/components/skeleton"
 import { useI18n } from "@/i18n"
 
 export function PageLoading() {

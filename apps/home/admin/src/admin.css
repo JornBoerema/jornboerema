@@ -1,4 +1,4 @@
-/* The admin layout: the shared Evido sidebar beside a scrolling page. */
+/* The admin layout: the shared Even sidebar beside a scrolling page. */
 .admin-shell {
   display: grid;
   grid-template-columns: 264px minmax(0, 1fr);

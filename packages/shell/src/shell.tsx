@@ -8,30 +8,30 @@ import {
   Note01Icon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
-import { MailEmbed } from "@evido/mail-web/embed"
+import { MailEmbed } from "@even/mail-web/embed"
 import {
   DashboardEmbed,
   OrganizationPicker,
   TodoEmbed,
   TodoOrganizations,
   TodoSettingsNav,
-} from "@evido/todo-web/embed"
-import { NotesEmbed } from "@evido/notes-web/embed"
+} from "@even/todo-web/embed"
+import { NotesEmbed } from "@even/notes-web/embed"
 import {
   AppSwitcherProvider,
   type AppRequest,
   type SwitchableApp,
-} from "@evido/ui/components/app-switcher"
+} from "@even/ui/components/app-switcher"
 import {
   DesktopSettingsProvider,
   useDesktopSettings,
-} from "@evido/ui/components/desktop-settings"
-import { useCurrentLanguage } from "@evido/i18n/react"
+} from "@even/ui/components/desktop-settings"
+import { useCurrentLanguage } from "@even/i18n/react"
 import {
   DesktopProvider,
   type DesktopApp,
-} from "@evido/ui/components/desktop-app"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/desktop-app"
+import { cn } from "@even/ui/lib/utils"
 import { AppRail } from "./rail"
 
 export type AppId = "dashboard" | "mail" | "todo" | "notes"

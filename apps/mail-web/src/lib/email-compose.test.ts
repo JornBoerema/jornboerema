@@ -34,7 +34,7 @@ describe("textToEditorHtml", () => {
 
 describe("signature", () => {
   it("keeps its lines together", () => {
-    const html = toEmailHtml('<p>Hi</p><div data-signature=""><p>Jorn</p><p>Evido</p></div>')
+    const html = toEmailHtml('<p>Hi</p><div data-signature=""><p>Jorn</p><p>Even</p></div>')
     const parsed = new DOMParser().parseFromString(html, "text/html").body
     expect(parsed.querySelector("p")?.getAttribute("style")).toBe("margin:0")
     expect([...parsed.querySelectorAll("[data-signature] p")].map((p) => p.getAttribute("style"))).toEqual(["margin:0", "margin:0"])

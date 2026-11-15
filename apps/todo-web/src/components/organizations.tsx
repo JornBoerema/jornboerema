@@ -1,14 +1,14 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react"
 import { toast } from "sonner"
-import { useDesktopSettings } from "@evido/ui/components/desktop-settings"
+import { useDesktopSettings } from "@even/ui/components/desktop-settings"
 import {
   OrganizationsProvider,
   useOrganizations,
   type OrganizationSummary,
-} from "@evido/ui/components/organizations"
-import { Button } from "@evido/ui/components/button"
-import { Input } from "@evido/ui/components/input"
-import { Field, FieldGroup, FieldLabel } from "@evido/ui/components/field"
+} from "@even/ui/components/organizations"
+import { Button } from "@even/ui/components/button"
+import { Input } from "@even/ui/components/input"
+import { Field, FieldGroup, FieldLabel } from "@even/ui/components/field"
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@evido/ui/components/dialog"
+} from "@even/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,19 +25,19 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
+} from "@even/ui/components/dropdown-menu"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@evido/ui/components/tooltip"
+} from "@even/ui/components/tooltip"
 import { authClient } from "@/lib/auth-client"
 import { useWorkspaceCommand, useWorkspaces } from "@/lib/workspaces"
 import { useI18n } from "@/i18n"
 import { Check, Plus, Settings } from "@/components/icons"
 
 /** Before organizations, the workspace was remembered per browser; that choice carries over once. */
-const OLD_STORAGE_KEY = "evido.todo.workspace"
+const OLD_STORAGE_KEY = "even.todo.workspace"
 
 function rememberedBefore() {
   try {

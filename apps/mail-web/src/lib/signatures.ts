@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import type { MailAccountView, MailSignature } from "@evido/mail-core/types"
+import type { MailAccountView, MailSignature } from "@even/mail-core/types"
 import { api } from "@/lib/api"
 
 export const SIGNATURES_KEY = ["mail-signatures"]

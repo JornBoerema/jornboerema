@@ -1,5 +1,5 @@
-import { trustedOrigins } from "@evido/auth/server"
-import { realtimeEnabled } from "@evido/realtime/server"
+import { trustedOrigins } from "@even/auth/server"
+import { realtimeEnabled } from "@even/realtime/server"
 
 const appWebUrl = (process.env.APP_WEB_URL ?? "http://localhost:3007").replace(/\/$/, "")
 

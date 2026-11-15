@@ -12,7 +12,7 @@ import {
   TextFontIcon,
   Undo02Icon,
 } from "@hugeicons/core-free-icons"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +21,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/dropdown-menu"
+import { cn } from "@even/ui/lib/utils"
 import { useI18n } from "../i18n"
 import { COLORS, type StrokeSize, type Tool } from "./types"
 

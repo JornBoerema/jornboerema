@@ -1,9 +1,9 @@
 import * as React from "react"
 import { DEFAULT_LANGUAGE, isLanguage, LOCALES, type Language, type Messages } from "./index"
 
-const STORAGE_KEY = "evido.language"
+const STORAGE_KEY = "even.language"
 /** Sent in this window when the language changes: other apps in the same window follow. */
-const CHANGE_EVENT = "evido:language"
+const CHANGE_EVENT = "even:language"
 
 /** "auto" follows the browser; otherwise the stored choice. */
 export type LanguagePreference = Language | "auto"

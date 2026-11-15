@@ -1,19 +1,19 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto"
-import { getDb, type Tx } from "@evido/db"
-import { todoEmails, type Email } from "@evido/email"
+import { getDb, type Tx } from "@even/db"
+import { todoEmails, type Email } from "@even/email"
 import {
   canManageWorkspace,
   type WorkspaceCommand,
   type WorkspaceMembers,
   type WorkspaceRole,
   type WorkspaceSummary,
-} from "@evido/todo-core/workspaces"
-import type { Language } from "@evido/i18n"
+} from "@even/todo-core/workspaces"
+import type { Language } from "@even/i18n"
 import { env } from "../env"
 import { KeyedError, translate } from "../i18n"
 import { NotFoundError, SHARE_TOKEN } from "./workspace-server"
 import { ensureStatuses } from "./board-server"
-import { hasRunningSubscription } from "@evido/auth/billing"
+import { hasRunningSubscription } from "@even/auth/billing"
 
 /** Message is a translation key (see ../i18n.ts). */
 export class WorkspaceError extends KeyedError {}

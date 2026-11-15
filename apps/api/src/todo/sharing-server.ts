@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto"
-import { getDb } from "@evido/db"
-import type { SharingCommand, SharingData } from "@evido/todo-core/sharing"
+import { getDb } from "@even/db"
+import type { SharingCommand, SharingData } from "@even/todo-core/sharing"
 import { lockList, NotFoundError, workspaceMemberIds } from "./workspace-server"
 
 // Any workspace member may create or revoke the public link of a list.

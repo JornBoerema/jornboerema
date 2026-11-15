@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { AtIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,9 +10,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
-import { cn } from "@evido/ui/lib/utils"
-import type { MailAccountView } from "@evido/mail-core/types"
+} from "@even/ui/components/dropdown-menu"
+import { cn } from "@even/ui/lib/utils"
+import type { MailAccountView } from "@even/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"

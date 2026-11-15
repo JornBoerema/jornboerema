@@ -1,14 +1,14 @@
 import type { ReactNode } from "react"
 import { Settings01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { UpdateButton } from "@evido/ui/components/desktop-app"
+import { UpdateButton } from "@even/ui/components/desktop-app"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@evido/ui/components/tooltip"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/tooltip"
+import { cn } from "@even/ui/lib/utils"
 import { EvenMark } from "./brand"
 
 const isMac = navigator.userAgent.includes("Mac")

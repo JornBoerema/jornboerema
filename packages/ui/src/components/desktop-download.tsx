@@ -1,7 +1,7 @@
 import { ComputerIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { useInDesktop } from "@evido/ui/components/app-switcher"
-import { DropdownMenuItem } from "@evido/ui/components/dropdown-menu"
+import { useInDesktop } from "@even/ui/components/app-switcher"
+import { DropdownMenuItem } from "@even/ui/components/dropdown-menu"
 
 export const DESKTOP_DOWNLOAD_URL = "https://jornboerema.nl/download"
 

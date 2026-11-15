@@ -1,4 +1,4 @@
-import { getDb, Prisma, type MailAccount } from "@evido/db"
+import { getDb, Prisma, type MailAccount } from "@even/db"
 import {
   MAX_SEARCH_HITS,
   rankSearchHits,
@@ -13,8 +13,8 @@ import {
   type MailThreadDetail,
   type MailThreadsPage,
   type MailThreadView,
-} from "@evido/mail-core/types"
-import { UnsupportedActionError, type MailMessageFolder } from "@evido/mail-core/provider"
+} from "@even/mail-core/types"
+import { UnsupportedActionError, type MailMessageFolder } from "@even/mail-core/provider"
 import { ownedAccount, withAccessToken } from "./accounts-server"
 
 export class InvalidThreadCursorError extends Error {}

@@ -38,7 +38,7 @@ export type DownloadPage<T extends DownloadTexts> = DownloadApp & {
   more?: Record<string, DownloadApp>
 }
 
-const STORAGE_KEY = "evido.language"
+const STORAGE_KEY = "even.language"
 
 function initialLanguage(): Language {
   try {

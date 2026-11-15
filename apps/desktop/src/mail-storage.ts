@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import { setMailStorage, type MailStorage } from "@evido/mail-web/embed"
+import { setMailStorage, type MailStorage } from "@even/mail-web/embed"
 
 /**
  * Even mailen's cache in the app's own database (src-tauri/src/mail_cache.rs)

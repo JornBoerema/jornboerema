@@ -2,7 +2,7 @@ import { createAuthClient } from "better-auth/react"
 import { oauthProviderClient } from "@better-auth/oauth-provider/client"
 import { organizationClient } from "better-auth/client/plugins"
 
-const TOKEN_KEY = "evido.session-token"
+const TOKEN_KEY = "even.session-token"
 
 /** True inside the Even desktop app (Tauri), where the API can't keep a cookie. */
 export const isDesktop = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
@@ -123,10 +123,10 @@ async function keepInApp(response: Response, url: string) {
 }
 
 /**
- * Browser auth client for every Evido React app; `baseURL` is the API origin.
+ * Browser auth client for every Even React app; `baseURL` is the API origin.
  * `language` is sent as Accept-Language so auth e-mails use the user's language.
  */
-export function createEvidoAuthClient(
+export function createEvenAuthClient(
   baseURL: string,
   options: { language?: () => string } = {}
 ) {
@@ -150,4 +150,4 @@ export function createEvidoAuthClient(
   })
 }
 
-export type EvidoAuthClient = ReturnType<typeof createEvidoAuthClient>
+export type EvenAuthClient = ReturnType<typeof createEvenAuthClient>

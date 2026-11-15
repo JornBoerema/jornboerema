@@ -1,5 +1,5 @@
 // English texts for advanced boards (Linear-style). Keys are shared with ../nl/board.ts.
-import type { StatusCategory } from "@evido/todo-core/board"
+import type { StatusCategory } from "@even/todo-core/board"
 
 export const board = {
   sidebar: {

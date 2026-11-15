@@ -1,6 +1,6 @@
 import { PenTool03Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,8 +9,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/dropdown-menu"
+import { cn } from "@even/ui/lib/utils"
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 import type { SignatureChoice } from "@/lib/signatures"

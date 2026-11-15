@@ -11,11 +11,11 @@
   },
   "iconLibrary": "hugeicons",
   "aliases": {
-    "components": "@evido/ui/components",
-    "utils": "@evido/ui/lib/utils",
-    "hooks": "@evido/ui/hooks",
-    "lib": "@evido/ui/lib",
-    "ui": "@evido/ui/components"
+    "components": "@even/ui/components",
+    "utils": "@even/ui/lib/utils",
+    "hooks": "@even/ui/hooks",
+    "lib": "@even/ui/lib",
+    "ui": "@even/ui/components"
   },
   "rtl": false,
   "menuColor": "default",

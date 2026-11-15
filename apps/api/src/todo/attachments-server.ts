@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
-import { getDb, type Tx } from "@evido/db"
-import { ATTACHMENT_CHUNK_BYTES, MAX_ATTACHMENT_BYTES } from "@evido/todo-core/board"
+import { getDb, type Tx } from "@even/db"
+import { ATTACHMENT_CHUNK_BYTES, MAX_ATTACHMENT_BYTES } from "@even/todo-core/board"
 import { InvalidCommandError, NotFoundError, SHARE_TOKEN, lockList } from "./workspace-server"
 
 /** Files whose upload never finished are dropped after this. */

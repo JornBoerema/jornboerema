@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { ArrowLeft02Icon, Delete02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   Select,
   SelectContent,
@@ -11,9 +11,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@evido/ui/components/select"
-import { Spinner } from "@evido/ui/components/spinner"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/select"
+import { Spinner } from "@even/ui/components/spinner"
+import { cn } from "@even/ui/lib/utils"
 import { readingColumn } from "@/lib/layout"
 import {
   MAX_UPLOAD_BYTES,
@@ -23,7 +23,7 @@ import {
   type MailDraftRequest,
   type MailOutgoing,
   type WithAttachmentRefs,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { AddressRow } from "@/components/address-row"
 import { AttachButton, AttachmentList, useAttachments } from "@/components/attachment-picker"

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
-import { getDb } from "@evido/db"
-import { MAX_SIGNATURES, type MailSignature } from "@evido/mail-core/types"
+import { getDb } from "@even/db"
+import { MAX_SIGNATURES, type MailSignature } from "@even/mail-core/types"
 import { MailSignatureNotFoundError } from "./accounts-server"
 
 export class TooManySignaturesError extends Error {}

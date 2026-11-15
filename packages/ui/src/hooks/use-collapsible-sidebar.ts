@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useInDesktop } from "@evido/ui/components/app-switcher"
+import { useInDesktop } from "@even/ui/components/app-switcher"
 
 const OPEN_LAYER =
   '[role="dialog"]:not([data-state="closed"]), [role="alertdialog"]:not([data-state="closed"]), [role="menu"]:not([data-state="closed"])'

@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react"
-import { cn } from "@evido/ui/lib/utils"
+import { cn } from "@even/ui/lib/utils"
 
 /** A labelled line in a message form: the label on the left, its control filling the rest. */
 export function MessageRow({

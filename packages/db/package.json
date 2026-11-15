@@ -1,9 +1,9 @@
 {
-  "name": "@evido/db",
+  "name": "@even/db",
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "Shared Prisma schema and client for all Evido apps.",
+  "description": "Shared Prisma schema and client for all Even apps.",
   "scripts": {
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

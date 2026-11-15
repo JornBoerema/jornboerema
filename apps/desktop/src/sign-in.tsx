@@ -3,11 +3,11 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { ArrowUpRight01Icon, Loading03Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { authUrl, setSessionToken } from "@evido/auth/client"
-import { currentLanguage } from "@evido/i18n/react"
-import { Alert, AlertDescription } from "@evido/ui/components/alert"
-import { Button } from "@evido/ui/components/button"
-import { Brand } from "@evido/shell/brand"
+import { authUrl, setSessionToken } from "@even/auth/client"
+import { currentLanguage } from "@even/i18n/react"
+import { Alert, AlertDescription } from "@even/ui/components/alert"
+import { Button } from "@even/ui/components/button"
+import { Brand } from "@even/shell/brand"
 
 const TEXTS = {
   en: {

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@evido/ui/components/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@even/ui/components/tooltip"
 
 /**
  * How long a pointer rests on a control before its name shows: long enough that

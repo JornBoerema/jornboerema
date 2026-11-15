@@ -1,7 +1,7 @@
-import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
-import type { LanguagePreference } from "@evido/i18n/react"
-import { useTheme, type Theme } from "@evido/ui/lib/theme"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
+import { LANGUAGE_NAMES, LANGUAGES } from "@even/i18n"
+import type { LanguagePreference } from "@even/i18n/react"
+import { useTheme, type Theme } from "@even/ui/lib/theme"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
 import {
   Select,
   SelectContent,
@@ -9,7 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@evido/ui/components/select"
+} from "@even/ui/components/select"
 import { Monitor, Moon, Sun } from "@/components/icons"
 import { useI18n } from "@/i18n"
 

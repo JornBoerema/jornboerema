@@ -1,5 +1,5 @@
 import { createRealtime, rawSql, type RealtimeServer, type SealedLiveQuery } from "@neon/realtime/server"
-import { getDb } from "@evido/db"
+import { getDb } from "@even/db"
 
 /**
  * Realtime over Neon: every change bumps a row in `realtime_pings`, and each

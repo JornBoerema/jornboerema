@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { MailScheduledView, MailSnoozedView } from "@evido/mail-core/types"
+import type { MailScheduledView, MailSnoozedView } from "@even/mail-core/types"
 import { api, errorText } from "@/lib/api"
 import { DRAFTS_KEY } from "@/lib/drafts"
 import { useI18n } from "@/i18n"

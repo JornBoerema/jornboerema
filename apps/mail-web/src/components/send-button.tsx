@@ -1,16 +1,16 @@
 import { AlarmClockIcon, ArrowDown01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import {
   ButtonGroup,
   ButtonGroupSeparator,
-} from "@evido/ui/components/button-group"
+} from "@even/ui/components/button-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu"
+} from "@even/ui/components/dropdown-menu"
 import { IconTip } from "@/components/icon-tip"
 import { useI18n } from "@/i18n"
 

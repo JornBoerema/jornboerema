@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { getDb, Prisma } from "@evido/db"
+import { getDb, Prisma } from "@even/db"
 import type { Conversation } from "./threads-server"
 
 export const RECOGNITION_KINDS = ["parcel", "invoice"] as const

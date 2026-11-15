@@ -3,7 +3,7 @@
 //
 //   node scripts/web-plan.mjs affected   apps changed since the previous web-v tag (all, if there is none)
 //   node scripts/web-plan.mjs all
-//   node scripts/web-plan.mjs @evido/mail-web,@evido/api
+//   node scripts/web-plan.mjs @even/mail-web,@even/api
 import { execFileSync } from "node:child_process"
 import { TAG_PREFIX, WEB_APPS } from "./web-apps.mjs"
 
@@ -42,7 +42,7 @@ function chosen(choice) {
 const apps = chosen(process.argv[2] ?? "affected")
 console.error(apps.length ? apps.join("\n") : "nothing")
 const web = apps
-  .filter((name) => name !== "@evido/api")
+  .filter((name) => name !== "@even/api")
   .map((name) => ({ package: name, project: WEB_APPS[name] }))
-console.log(`api=${apps.includes("@evido/api") ? WEB_APPS["@evido/api"] : ""}`)
+console.log(`api=${apps.includes("@even/api") ? WEB_APPS["@even/api"] : ""}`)
 console.log(`web=${JSON.stringify(web)}`)

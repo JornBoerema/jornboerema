@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { MailTodoList, MailTodoView } from "@evido/mail-core/types"
+import type { MailTodoList, MailTodoView } from "@even/mail-core/types"
 import { api } from "@/lib/api"
 import { conversationUrl } from "@/lib/mail"
 
@@ -43,7 +43,7 @@ export function useCreateTodo(threadId: string) {
   })
 }
 
-const LAST_LIST_KEY = "evido.mail.todo-list"
+const LAST_LIST_KEY = "even.mail.todo-list"
 
 /** The list picked last time, so the next task goes there without asking. */
 export function lastTodoList() {

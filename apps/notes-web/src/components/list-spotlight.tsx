@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@evido/ui/components/dialog";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@evido/ui/components/command";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@even/ui/components/dialog";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@even/ui/components/command";
 import { Note } from "@/components/icons";
-import type { TodoList } from "@evido/todo-core/workspace";
+import type { TodoList } from "@even/todo-core/workspace";
 import { useI18n } from "@/i18n";
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase();

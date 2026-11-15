@@ -4,7 +4,7 @@
 
 type Language = "en" | "nl"
 
-const STORAGE_KEY = "evido.language"
+const STORAGE_KEY = "even.language"
 
 const english: Record<string, string> = {
   skip: "Skip to the content",

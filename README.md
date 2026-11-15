@@ -1,6 +1,6 @@
-# Evido
+# Even
 
-Monorepo (Turborepo + pnpm) voor de Evido-apps. Alle apps delen één account (Better Auth), één database (Prisma op Neon), één API (Hono) en één design system (shadcn/ui, preset `b1HXwyUHA`).
+Monorepo (Turborepo + pnpm) voor de Even-apps. Alle apps delen één account (Better Auth), één database (Prisma op Neon), één API (Hono) en één design system (shadcn/ui, preset `b1HXwyUHA`).
 
 ## Structuur
 
@@ -18,13 +18,13 @@ packages/
   ui/           shadcn/ui componenten + globals.css (design tokens) — gedeeld door alle React-apps
   shell/        De Even-schil: balk met apps en één instellingenvenster, gebruikt door app-web en desktop
   db/           Prisma schema, migraties en client
-  auth/         Better Auth server-config (`@evido/auth/server`) en React-client (`@evido/auth/client`)
+  auth/         Better Auth server-config (`@even/auth/server`) en React-client (`@even/auth/client`)
   email/        Resend + e-mailteksten
   todo-core/    Todo-domein: types, zod-validatie, sortering, optimistic updates (API + alle todo-clients)
   mail-core/    Mail-domein: Gmail en Outlook achter één provider-interface, token-versleuteling
 ```
 
-Gepland: todo-desktop (Tauri 2 + React), todo-mobile (Expo), screenshot-desktop, password manager. Desktop-apps hergebruiken de Vite-code en `@evido/ui`; Expo gebruikt `@evido/todo-core` en `@evido/auth`.
+Gepland: todo-desktop (Tauri 2 + React), todo-mobile (Expo), screenshot-desktop, password manager. Desktop-apps hergebruiken de Vite-code en `@even/ui`; Expo gebruikt `@even/todo-core` en `@even/auth`.
 
 ## Starten
 
@@ -49,7 +49,7 @@ pnpm dev:app                               # API op :4000, de web-app op :3007
 | `MAIL_TOKEN_KEY` | Versleutelt mailbox-tokens (`openssl rand -hex 32`). Kwijt = alle mailboxen opnieuw koppelen |
 | `GOOGLE_MAIL_CLIENT_ID`, `GOOGLE_MAIL_CLIENT_SECRET` | Google OAuth-client, redirect `<API>/api/mail/callback/gmail` |
 | `MICROSOFT_MAIL_CLIENT_ID`, `MICROSOFT_MAIL_CLIENT_SECRET` | Entra-app (elke organisatie + persoonlijk), redirect `<API>/api/mail/callback/outlook` |
-| `AUTH_COOKIE_DOMAIN` | Alleen productie: bv. `.evido.nl`, zodat sessies over subdomeinen gedeeld worden |
+| `AUTH_COOKIE_DOMAIN` | Alleen productie: bv. `.jornboerema.nl`, zodat sessies over subdomeinen gedeeld worden |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Resend; afzender moet bij een geverifieerd domein horen |
 | `NEON_REALTIME_SECRET`, `NEON_REALTIME_URL` | Optioneel realtime via Neon Realtime (live query op `realtime_pings`); zonder synchroniseren clients elke 60 s |
 
@@ -82,7 +82,7 @@ Vereist Rust (`rustup`). Starten: `pnpm dev:capture`. De app staat alleen in de 
 ## Auth-architectuur
 
 - De API is de enige Better Auth-server. Web-apps praten er rechtstreeks mee met `credentials: "include"`; CORS staat alleen `TRUSTED_ORIGINS` toe en schrijfverzoeken controleren de `Origin`.
-- Alle inlogschermen en het accountportaal zijn pagina's van de web-app `app.jornboerema.nl` (`apps/app-web/src/account`, lokaal `:3007`): `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/connect`, `/desktop` en `/account`. Wie uitgelogd een app opent, gaat naar `/login?returnTo=<adres>`. Na inloggen wordt alleen teruggestuurd naar de web-app zelf en naar de website op hetzelfde domein (`isAllowedReturn` in `@evido/auth/client`).
+- Alle inlogschermen en het accountportaal zijn pagina's van de web-app `app.jornboerema.nl` (`apps/app-web/src/account`, lokaal `:3007`): `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/connect`, `/desktop` en `/account`. Wie uitgelogd een app opent, gaat naar `/login?returnTo=<adres>`. Na inloggen wordt alleen teruggestuurd naar de web-app zelf en naar de website op hetzelfde domein (`isAllowedReturn` in `@even/auth/client`).
 - Lokaal delen alle `localhost`-poorten dezelfde cookie. In productie draaien de API en de web-app op subdomeinen van één domein (`api.` en `app.jornboerema.nl`) met `AUTH_COOKIE_DOMAIN`.
 - Het accountportaal (`/account`) beheert naam, e-mail, wachtwoord, ingelogde apparaten en account verwijderen. De instellingen van de apps linken ernaar.
 - Desktop (Even): de knop "Inloggen via je browser" opent `app.jornboerema.nl/desktop` met een PKCE-challenge en een poort op `127.0.0.1`. Na bevestigen stuurt die pagina een eenmalige code (2 minuten geldig) naar de app, die hem met de verifier inwisselt via `POST /api/auth/desktop/token` (`packages/auth/src/desktop-sign-in.ts`). De app krijgt een eigen sessie als bearer-token.
@@ -116,7 +116,7 @@ Tabel- en kolomnamen zijn gelijk aan de oude "Even doen"-app, dus bestaande data
 cd apps/todo-web && pnpm dlx shadcn@latest add <component>
 ```
 
-Componenten komen in `packages/ui/src/components` en worden geïmporteerd als `@evido/ui/components/<naam>`.
+Componenten komen in `packages/ui/src/components` en worden geïmporteerd als `@even/ui/components/<naam>`.
 
 ## Deployen op Vercel
 
@@ -124,13 +124,13 @@ Vercel-projecten uit deze repo, op subdomeinen van hetzelfde domein (nodig voor 
 
 | Project | Root Directory | Domein |
 | --- | --- | --- |
-| `evido-api` | `apps/api` | `api.jornboerema.nl` |
+| `even-api` | `apps/api` | `api.jornboerema.nl` |
 | `even-app` | `apps/app-web` | `app.jornboerema.nl`: mail, taken en notities (`/mail`, `/todo`, `/notes`), inloggen en account |
-| `evido-home` | `apps/home` | `jornboerema.nl` (geen env vars nodig) |
+| `even-home` | `apps/home` | `jornboerema.nl` (geen env vars nodig) |
 
 Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met tsup gebundeld en draait als één Vercel Function (`apps/api/api/index.js`); de web-app is een statische Vite-build met een SPA-fallback.
 
-**Environment variables — `evido-api`**
+**Environment variables — `even-api`**
 
 | Variabele | Waarde |
 | --- | --- |
@@ -146,7 +146,7 @@ Build- en routing-instellingen staan in `apps/*/vercel.json`. De API wordt met t
 | `NEON_REALTIME_SECRET`, `NEON_REALTIME_URL` | optioneel; van de productie-branch |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` (gebruikt de pnpm-versie uit `packageManager`) |
 
-**Environment variables — `evido-todo` en `evido-auth`**
+**Environment variables — `even-todo` en `even-auth`**
 
 | Variabele | Waarde |
 | --- | --- |

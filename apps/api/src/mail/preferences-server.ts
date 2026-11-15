@@ -1,5 +1,5 @@
-import { getDb, Prisma } from "@evido/db"
-import { normalizeSidebar, type SidebarLayout } from "@evido/mail-core/sidebar"
+import { getDb, Prisma } from "@even/db"
+import { normalizeSidebar, type SidebarLayout } from "@even/mail-core/sidebar"
 
 export type MailPreferences = {
   summaries: boolean

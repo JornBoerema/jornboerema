@@ -1,5 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window"
-import { Button } from "@evido/ui/components/button"
+import { Button } from "@even/ui/components/button"
 import { commands } from "./lib"
 import { useI18n } from "./i18n"
 

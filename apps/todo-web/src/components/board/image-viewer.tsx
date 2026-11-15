@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { TodoAttachment } from "@evido/todo-core/board";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog";
-import { Button } from "@evido/ui/components/button";
+import type { TodoAttachment } from "@even/todo-core/board";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog";
+import { Button } from "@even/ui/components/button";
 import { ChevronLeft, ChevronRight, Download, LoaderCircle, X } from "@/components/icons";
 import { useI18n } from "@/i18n";
 import { attachmentUrl, downloadAttachment, useAttachmentUrl } from "@/lib/attachments";

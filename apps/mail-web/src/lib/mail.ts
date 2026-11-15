@@ -6,7 +6,7 @@ import {
   type InfiniteData,
   type QueryClient,
 } from "@tanstack/react-query"
-import { watchChannel } from "@evido/realtime/client"
+import { watchChannel } from "@even/realtime/client"
 import { toast } from "sonner"
 import {
   HIDDEN_FOLDERS,
@@ -19,7 +19,7 @@ import {
   type MailThreadDetail,
   type MailThreadsPage,
   type MailThreadView,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { useI18n } from "@/i18n"
 import { formatMoment, SCHEDULED_KEY, SNOOZES_KEY } from "@/lib/later"
 import { api, ApiError, errorText } from "@/lib/api"

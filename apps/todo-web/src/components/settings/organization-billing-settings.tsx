@@ -1,13 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { isDesktop, webUrl } from "@evido/auth/client"
-import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
-import { Button } from "@evido/ui/components/button"
+import { isDesktop, webUrl } from "@even/auth/client"
+import type { WorkspaceSummary } from "@even/todo-core/workspaces"
+import { Button } from "@even/ui/components/button"
 import {
   SettingsRow,
   SettingsSection,
-} from "@evido/ui/components/settings-dialog"
-import { Skeleton } from "@evido/ui/components/skeleton"
+} from "@even/ui/components/settings-dialog"
+import { Skeleton } from "@even/ui/components/skeleton"
 import { apiFetch } from "@/lib/api"
 import { useI18n } from "@/i18n"
 

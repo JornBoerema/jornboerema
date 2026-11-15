@@ -1,22 +1,22 @@
 import { randomUUID } from "node:crypto"
-import { getDb, type MailAccount } from "@evido/db"
-import { createGmailProvider } from "@evido/mail-core/gmail"
-import { createOutlookProvider } from "@evido/mail-core/outlook"
-import { ReauthRequiredError, type MailProvider, type TokenSet } from "@evido/mail-core/provider"
+import { getDb, type MailAccount } from "@even/db"
+import { createGmailProvider } from "@even/mail-core/gmail"
+import { createOutlookProvider } from "@even/mail-core/outlook"
+import { ReauthRequiredError, type MailProvider, type TokenSet } from "@even/mail-core/provider"
 import {
   createOAuthState,
   hashState,
   openToken,
   parseTokenKey,
   sealToken,
-} from "@evido/mail-core/secrets"
+} from "@even/mail-core/secrets"
 import {
   firstFreeColor,
   type InboxSummary,
   type MailAccountView,
   type MailProviderId,
-} from "@evido/mail-core/types"
-import { mailEmails, sendEmail } from "@evido/email"
+} from "@even/mail-core/types"
+import { mailEmails, sendEmail } from "@even/email"
 import { defer } from "../lib/defer"
 import { env } from "../env"
 

@@ -1,5 +1,5 @@
 {
-  "name": "@evido/realtime",
+  "name": "@even/realtime",
   "version": "0.0.0",
   "type": "module",
   "private": true,
@@ -13,7 +13,7 @@
     "./client": "./src/client.ts"
   },
   "dependencies": {
-    "@evido/db": "workspace:*",
+    "@even/db": "workspace:*",
     "@neon/realtime": "0.2.1"
   },
   "devDependencies": {

@@ -5,7 +5,7 @@ import {
   useNavigate,
   useNavigationType,
 } from "react-router"
-import { useAppSwitcher } from "@evido/ui/components/app-switcher"
+import { useAppSwitcher } from "@even/ui/components/app-switcher"
 
 /**
  * The router of an app that runs inside the Even shell, next to the other apps.

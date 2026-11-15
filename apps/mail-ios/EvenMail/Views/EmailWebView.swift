@@ -75,11 +75,11 @@ enum EmailDocument {
             style += [
                 ":root{color-scheme:dark}",
                 "html,body{background:transparent!important;color:#e4e4e1!important}",
-                "#evido-mail *{color:inherit!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}",
-                "#evido-mail a,#evido-mail a *{color:#8fb3ff!important}",
+                "#even-mail *{color:inherit!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}",
+                "#even-mail a,#even-mail a *{color:#8fb3ff!important}",
             ].joined()
         }
-        let document = "<!doctype html><html><head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"\(policy)\"><meta name=\"referrer\" content=\"no-referrer\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>\(style)</style></head><body><div id=\"evido-mail\">\(html)</div></body></html>"
+        let document = "<!doctype html><html><head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"\(policy)\"><meta name=\"referrer\" content=\"no-referrer\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>\(style)</style></head><body><div id=\"even-mail\">\(html)</div></body></html>"
         return (document, paper)
     }
 }

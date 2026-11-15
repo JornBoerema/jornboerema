@@ -13,8 +13,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@evido/ui/components/alert-dialog"
-import { Button } from "@evido/ui/components/button"
+} from "@even/ui/components/alert-dialog"
+import { Button } from "@even/ui/components/button"
 import {
   Select,
   SelectContent,
@@ -22,10 +22,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@evido/ui/components/select"
-import { SettingsRow, SettingsSection } from "@evido/ui/components/settings-dialog"
-import { cn } from "@evido/ui/lib/utils"
-import type { MailAccountView, MailSignature } from "@evido/mail-core/types"
+} from "@even/ui/components/select"
+import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { cn } from "@even/ui/lib/utils"
+import type { MailAccountView, MailSignature } from "@even/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"

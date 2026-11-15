@@ -16,10 +16,10 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@evido/ui/components/command"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@evido/ui/components/dialog"
-import { Spinner } from "@evido/ui/components/spinner"
-import { cn } from "@evido/ui/lib/utils"
+} from "@even/ui/components/command"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog"
+import { Spinner } from "@even/ui/components/spinner"
+import { cn } from "@even/ui/lib/utils"
 import {
   MAIL_FOLDERS,
   rankSearchHits,
@@ -27,7 +27,7 @@ import {
   type MailAccountView,
   type MailSearchHit,
   type MailThreadView,
-} from "@evido/mail-core/types"
+} from "@even/mail-core/types"
 import { AccountDot } from "@/components/account-dot"
 import { FOLDER_ICONS } from "@/components/sidebar"
 import { useI18n } from "@/i18n"

@@ -1,4 +1,4 @@
-import type { MailInlineUpload } from "@evido/mail-core/types"
+import type { MailInlineUpload } from "@even/mail-core/types"
 
 /** Wide enough for any mail client, small enough to keep messages light. */
 const MAX_WIDTH = 1200
@@ -59,7 +59,7 @@ function uploadFor(src: string): MailInlineUpload | null {
   const match = DATA_URL.exec(src)
   if (!match) return null
   const [, contentType = "", data = ""] = match
-  const contentId = `${hash(src)}.${src.length.toString(36)}@evido`
+  const contentId = `${hash(src)}.${src.length.toString(36)}@even`
   const upload = { contentId, name: `image-${hash(src)}.${EXTENSIONS[contentType] ?? "img"}`, contentType, data }
   if (known.size > 200) known.clear()
   known.set(src, upload)

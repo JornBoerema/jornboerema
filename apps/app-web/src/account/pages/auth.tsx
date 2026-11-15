@@ -1,4 +1,4 @@
-import { AuthForm, type AuthMode } from "@evido/ui/components/auth-form"
+import { AuthForm, type AuthMode } from "@even/ui/components/auth-form"
 import { useI18n } from "@/account/i18n"
 import { authClient } from "@/account/lib/auth-client"
 import { useReturnTo } from "@/account/lib/return-to"

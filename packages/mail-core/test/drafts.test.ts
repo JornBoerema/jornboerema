@@ -165,7 +165,7 @@ describe("outlook drafts", () => {
         ? [200, { value: [{ id: "f1" }, { id: "img" }] }]
         : [method === "DELETE" ? 204 : 200, {}]
     )
-    const logo = { contentId: "logo.1@evido", name: "logo.png", contentType: "image/png", data: pdf.data }
+    const logo = { contentId: "logo.1@even", name: "logo.png", contentType: "image/png", data: pdf.data }
     await saveOutlookDraft("t", { ...content, attachments: [pdf], inline: [logo], draftId: "o1", attachmentsChanged: true })
     expect(sent.map((item) => `${item.method} ${item.url.split("/me/messages/")[1]}`)).toEqual([
       "PATCH o1",
@@ -174,7 +174,7 @@ describe("outlook drafts", () => {
       "POST o1/attachments",
       "POST o1/attachments",
     ])
-    expect(sent[3]?.body).toMatchObject({ isInline: true, contentId: "logo.1@evido" })
+    expect(sent[3]?.body).toMatchObject({ isInline: true, contentId: "logo.1@even" })
     expect(sent[4]?.body).toMatchObject({ name: "a.pdf" })
   })
 

@@ -122,8 +122,8 @@ pub fn scope_styles(sanitized: &str) -> String {
         .replace_all(sanitized, |captures: &regex::Captures| {
             let css = HTML_BODY.replace_all(&captures[2], "body");
             // Twice: a match takes the separator the next selector starts with.
-            let css = PAGE_SELECTOR.replace_all(&css, "${1}#evido-mail${2}");
-            let css = PAGE_SELECTOR.replace_all(&css, "${1}#evido-mail${2}");
+            let css = PAGE_SELECTOR.replace_all(&css, "${1}#even-mail${2}");
+            let css = PAGE_SELECTOR.replace_all(&css, "${1}#even-mail${2}");
             format!("{}{css}{}", &captures[1], &captures[3])
         })
         .into_owned()
@@ -132,7 +132,7 @@ pub fn scope_styles(sanitized: &str) -> String {
 /// Inside every mail's shadow root: `FRAME_STYLE` of the web's frame. The
 /// mail is contained, so nothing in it can be drawn over the app's controls.
 const MAIL_STYLE: &str = ":host{display:block;contain:content;padding:12px;font:14px/1.5 system-ui,sans-serif;color:#111;overflow-wrap:anywhere}\
-#evido-mail{overflow-x:auto;overflow-y:hidden}img{max-width:100%;height:auto}";
+#even-mail{overflow-x:auto;overflow-y:hidden}img{max-width:100%;height:auto}";
 
 /// Plain mail has no paper and lines up with the sender above it (`flush`).
 const PLAIN_STYLE: &str = ":host{padding:12px 0}";
@@ -140,8 +140,8 @@ const PLAIN_STYLE: &str = ":host{padding:12px 0}";
 /// Plain mail in the dark theme (`DARK_STYLE`): no paper, light text, links
 /// that read on dark. Its own colours were chosen for white, so they give way.
 const DARK_STYLE: &str = ":host{color:#e4e4e1!important;color-scheme:dark}\
-#evido-mail *{color:inherit!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}\
-#evido-mail a,#evido-mail a *{color:#8fb3ff!important}#evido-mail hr{border-color:rgba(255,255,255,.14)!important}";
+#even-mail *{color:inherit!important;background-color:transparent!important;border-color:rgba(255,255,255,.14)!important}\
+#even-mail a,#even-mail a *{color:#8fb3ff!important}#even-mail hr{border-color:rgba(255,255,255,.14)!important}";
 
 /// A sanitized mail in its own shadow root (declarative, so no script is
 /// needed), with the earlier mail it quotes folded away below it. The quote
@@ -157,7 +157,7 @@ pub fn frame(html: &str, quote: Option<&str>, paper: bool, dark: bool) -> String
         .map(|quote| format!(r#"<div id="even-quote" style="display:none!important">{quote}</div>"#))
         .unwrap_or_default();
     format!(
-        r#"<div class="mail {look}"><template shadowrootmode="open"><style>{MAIL_STYLE}{extra}</style><div id="evido-mail">{html}{quote}</div></template></div>"#
+        r#"<div class="mail {look}"><template shadowrootmode="open"><style>{MAIL_STYLE}{extra}</style><div id="even-mail">{html}{quote}</div></template></div>"#
     )
 }
 
@@ -337,10 +337,10 @@ mod tests {
     #[test]
     fn page_rules_follow_the_mail_into_its_root() {
         let scoped = scope_styles("<style>html,body{margin:0}body .x,BODY>p{color:red}\n.body{top:0}html body{a:b}</style><p>body</p>");
-        assert!(scoped.contains("#evido-mail,#evido-mail{margin:0}"));
-        assert!(scoped.contains("#evido-mail .x,#evido-mail>p{color:red}"));
+        assert!(scoped.contains("#even-mail,#even-mail{margin:0}"));
+        assert!(scoped.contains("#even-mail .x,#even-mail>p{color:red}"));
         assert!(scoped.contains(".body{top:0}"));
-        assert!(scoped.contains("#evido-mail{a:b}"));
+        assert!(scoped.contains("#even-mail{a:b}"));
         assert!(scoped.ends_with("<p>body</p>"));
         assert_eq!(scope_styles("<p>body {}</p>"), "<p>body {}</p>");
     }

@@ -10,12 +10,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@evido/ui/components/alert-dialog"
+} from "@even/ui/components/alert-dialog"
 import { Delete04Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Button } from "@evido/ui/components/button"
-import { Spinner } from "@evido/ui/components/spinner"
-import { canDeleteForever, type MailAccountView } from "@evido/mail-core/types"
+import { Button } from "@even/ui/components/button"
+import { Spinner } from "@even/ui/components/spinner"
+import { canDeleteForever, type MailAccountView } from "@even/mail-core/types"
 import { useI18n } from "@/i18n"
 import { api, errorText } from "@/lib/api"
 import { MESSAGES_KEY } from "@/lib/mail"

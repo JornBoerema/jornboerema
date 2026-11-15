@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import { isDesktop } from "@evido/auth/client"
-import { AboutSettings, useAboutPage } from "@evido/ui/components/desktop-app"
+import { isDesktop } from "@even/auth/client"
+import { AboutSettings, useAboutPage } from "@even/ui/components/desktop-app"
 import {
   Mail01Icon,
   Notification03Icon,
@@ -14,8 +14,8 @@ import {
   LayoutLeftIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { LANGUAGE_NAMES, LANGUAGES } from "@evido/i18n"
-import type { LanguagePreference } from "@evido/i18n/react"
+import { LANGUAGE_NAMES, LANGUAGES } from "@even/i18n"
+import type { LanguagePreference } from "@even/i18n/react"
 import {
   Select,
   SelectContent,
@@ -23,18 +23,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@evido/ui/components/select"
-import { useAppSwitcher } from "@evido/ui/components/app-switcher"
-import { DesktopSettingsPages, useDesktopSettings } from "@evido/ui/components/desktop-settings"
+} from "@even/ui/components/select"
+import { useAppSwitcher } from "@even/ui/components/app-switcher"
+import { DesktopSettingsPages, useDesktopSettings } from "@even/ui/components/desktop-settings"
 import {
   SettingsDialog,
   SettingsRow,
   SettingsSection,
   type SettingsPage,
-} from "@evido/ui/components/settings-dialog"
-import { Button } from "@evido/ui/components/button"
-import { Switch } from "@evido/ui/components/switch"
-import { useTheme, type Theme } from "@evido/ui/lib/theme"
+} from "@even/ui/components/settings-dialog"
+import { Button } from "@even/ui/components/button"
+import { Switch } from "@even/ui/components/switch"
+import { useTheme, type Theme } from "@even/ui/lib/theme"
 import { useI18n } from "@/i18n"
 import { notificationsSupported } from "@/lib/notifications"
 import {

@@ -21,7 +21,15 @@
       ;(function () {
         var language = null
         try {
-          language = localStorage.getItem("evido.language")
+          // Settings saved under the old name (evido.*) move to even.* once.
+          for (var i = localStorage.length - 1; i >= 0; i--) {
+            var k = localStorage.key(i)
+            if (k && k.indexOf("evido.") === 0) {
+              if (localStorage.getItem("even." + k.slice(6)) === null) localStorage.setItem("even." + k.slice(6), localStorage.getItem(k))
+              localStorage.removeItem(k)
+            }
+          }
+          language = localStorage.getItem("even.language")
         } catch (error) {}
         if (language !== "en" && language !== "nl") {
           language = (navigator.languages || [navigator.language || "en"]).some(function (tag) {
