@@ -16,6 +16,7 @@ const english: Record<string, string> = {
   tabQuestions: "FAQ",
   tabStart: "Start",
   signIn: "Sign in",
+  openApp: "Open the app",
   heroTitle: "Just do your mail.",
   heroLead:
     "Even mailen is the fast mail app for Outlook. Everything from the keyboard, with AI that summarises and helps you write. Made in the Netherlands.",
@@ -161,6 +162,27 @@ function translate() {
   }
   root.classList.remove("i18n-wait")
 }
+
+// Signed in already: the header leads into the app instead of to signing in.
+
+const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:4000").replace(/\/$/, "")
+
+async function markSignedIn() {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/get-session`, { credentials: "include", cache: "no-store" })
+    const session = (await response.json().catch(() => null)) as { user?: unknown } | null
+    if (!response.ok || !session?.user) return
+  } catch {
+    return // No API, or not allowed from here: keep "Inloggen".
+  }
+  for (const link of all<HTMLAnchorElement>("[data-account]")) {
+    link.dataset.i18n = "openApp"
+    dutch.set(link, "Naar de app")
+  }
+  translate()
+}
+
+void markSignedIn()
 
 for (const button of all("[data-language]")) {
   button.addEventListener("click", () => {
