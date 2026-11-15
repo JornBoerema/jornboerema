@@ -5,7 +5,8 @@
 export const statusCategories = ["backlog", "unstarted", "started", "completed", "canceled"] as const;
 export type StatusCategory = (typeof statusCategories)[number];
 
-export type BoardStatus = { id: string; name: string; category: StatusCategory; color: string; position: number };
+/** `collapsed`: its group starts folded in a board's list view. */
+export type BoardStatus = { id: string; name: string; category: StatusCategory; color: string; position: number; collapsed?: boolean };
 export type BoardProject = { id: string; name: string; description: string; color: string; position: number };
 export type BoardMember = { id: string; name: string; email: string; image: string | null };
 export type TodoAttachment = { id: string; name: string; contentType: string; size: number; createdAt: string };
@@ -21,22 +22,34 @@ export const ATTACHMENT_CHUNK_BYTES = 2 * 1024 * 1024;
 export const statusColors = ["#95a2b3", "#a1a1aa", "#f2c94c", "#5e6ad2", "#4cb782", "#eb5757", "#f2994a", "#26b5ce", "#bb87fc"];
 export const projectColors = ["#5e6ad2", "#26b5ce", "#4cb782", "#f2c94c", "#f2994a", "#eb5757", "#bb87fc", "#95a2b3"];
 
-export const defaultStatuses: { name: Record<"en" | "nl", string>; category: StatusCategory; color: string }[] = [
-  { name: { en: "Backlog", nl: "Backlog" }, category: "backlog", color: "#95a2b3" },
-  { name: { en: "Todo", nl: "Te doen" }, category: "unstarted", color: "#a1a1aa" },
-  { name: { en: "In Progress", nl: "Bezig" }, category: "started", color: "#f2c94c" },
-  { name: { en: "In Review", nl: "In review" }, category: "started", color: "#4cb782" },
-  { name: { en: "Done", nl: "Klaar" }, category: "completed", color: "#5e6ad2" },
-  { name: { en: "Canceled", nl: "Geannuleerd" }, category: "canceled", color: "#95a2b3" },
+/** In their default order: work in progress on top, finished work folded at the bottom. */
+export const defaultStatuses: { name: Record<"en" | "nl", string>; category: StatusCategory; color: string; collapsed: boolean }[] = [
+  { name: { en: "In Progress", nl: "Bezig" }, category: "started", color: "#f2c94c", collapsed: false },
+  { name: { en: "In Review", nl: "In review" }, category: "started", color: "#4cb782", collapsed: false },
+  { name: { en: "Todo", nl: "Te doen" }, category: "unstarted", color: "#a1a1aa", collapsed: false },
+  { name: { en: "Backlog", nl: "Backlog" }, category: "backlog", color: "#95a2b3", collapsed: false },
+  { name: { en: "Done", nl: "Klaar" }, category: "completed", color: "#5e6ad2", collapsed: true },
+  { name: { en: "Canceled", nl: "Geannuleerd" }, category: "canceled", color: "#95a2b3", collapsed: true },
 ];
 
+/** Finished statuses start folded; the rest open. */
+export const collapsedByDefault = (category: StatusCategory) => category === "completed" || category === "canceled";
+
+/** The workspace's own order (Settings → Statuses), the same in board and list view. */
 export const sortStatuses = (statuses: BoardStatus[]) =>
-  [...statuses].sort(
-    (a, b) =>
-      statusCategories.indexOf(a.category) - statusCategories.indexOf(b.category) ||
-      a.position - b.position ||
-      a.id.localeCompare(b.id),
-  );
+  [...statuses].sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+
+/**
+ * The order after adding a status: right after the last one of its category,
+ * or at the end when the category has none yet.
+ */
+export function orderWithNewStatus(statuses: BoardStatus[], id: string, category: StatusCategory) {
+  const order = sortStatuses(statuses).filter((s) => s.id !== id);
+  const last = order.findLastIndex((s) => s.category === category);
+  const ids = order.map((s) => s.id);
+  ids.splice(last < 0 ? ids.length : last + 1, 0, id);
+  return ids;
+}
 
 /** Where a new issue starts: the first "unstarted" status, else the first one. */
 export function defaultStatus(statuses: BoardStatus[]) {

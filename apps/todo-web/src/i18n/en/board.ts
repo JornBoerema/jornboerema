@@ -45,6 +45,8 @@ export const board = {
     add: (status: string) => `Add issue to ${status}`,
     empty: "No issues",
     count: (count: number) => `${count}`,
+    fold: (status: string) => `Collapse ${status}`,
+    unfold: (status: string) => `Expand ${status}`,
     label: (status: string, count: number) => `${status}, ${count} ${count === 1 ? "issue" : "issues"}`,
   },
   card: {
@@ -153,7 +155,10 @@ export const board = {
   },
   settings: {
     statusesTitle: "Statuses",
-    statusesHelp: "The columns of every board in this organization, grouped like in Linear. Issues in Completed and Canceled count as done.",
+    statusesHelp: "The columns of every board in this organization, in this order. Drag to reorder. Issues in a completed or canceled status count as done.",
+    folded: "Collapsed",
+    foldedHelp: (name: string) => `${name} collapsed by default in list view`,
+    categoryLabel: "Category",
     addStatus: "Add status",
     newStatusName: "Status name",
     statusPlaceholder: (category: string) => `New ${category.toLowerCase()} status`,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { commandSchema, optimisticUpdate, sortIssues, type WorkspaceData } from "../src/workspace";
-import { defaultStatus, statusForFlags, type BoardStatus } from "../src/board";
+import { defaultStatus, defaultStatuses, sortStatuses, statusForFlags, type BoardStatus } from "../src/board";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const statuses: BoardStatus[] = [
@@ -50,6 +50,28 @@ describe("boards", () => {
     const after = optimisticUpdate(data, { type: "delete-status", id: id(102), replacementId: id(104) });
     expect(after.statuses?.some((s) => s.id === id(102))).toBe(false);
     expect(after.todos.filter((t) => t.statusId === id(104) && t.completed)).toHaveLength(2);
+  });
+
+  it("orders statuses freely across categories", () => {
+    const moved = optimisticUpdate(data, { type: "move-status", id: id(103), targetId: id(101), placement: "before" });
+    expect(sortStatuses(moved.statuses!).map((s) => s.name)).toEqual(["In Progress", "Backlog", "Todo", "Done"]);
+  });
+
+  it("adds a status after the last one of its category, folded when finished", () => {
+    const added = optimisticUpdate(data, { type: "create-status", id: id(105), workspaceId: id(300), name: "Review", category: "started", color: "#4cb782" });
+    expect(sortStatuses(added.statuses!).map((s) => s.name)).toEqual(["Backlog", "Todo", "In Progress", "Review", "Done"]);
+    const done = optimisticUpdate(data, { type: "create-status", id: id(106), workspaceId: id(300), name: "Shipped", category: "completed", color: "#5e6ad2" });
+    expect(done.statuses!.find((s) => s.id === id(106))?.collapsed).toBe(true);
+  });
+
+  it("stores whether a status starts folded", () => {
+    const folded = optimisticUpdate(data, { type: "update-status", id: id(102), collapsed: true });
+    expect(folded.statuses!.find((s) => s.id === id(102))?.collapsed).toBe(true);
+  });
+
+  it("puts work in progress on top and folds finished work by default", () => {
+    expect(defaultStatuses.map((s) => s.name.en)).toEqual(["In Progress", "In Review", "Todo", "Backlog", "Done", "Canceled"]);
+    expect(defaultStatuses.filter((s) => s.collapsed).map((s) => s.category)).toEqual(["completed", "canceled"]);
   });
 
   it("clears the project from issues when it is deleted", () => {

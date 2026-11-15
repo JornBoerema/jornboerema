@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { sortStatuses, statusCategories } from "@even/todo-core/board";
+import { sortStatuses } from "@even/todo-core/board";
 import type { Command as RunCommand, Todo, WorkspaceData } from "@even/todo-core/workspace";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@even/ui/components/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@even/ui/components/command";
@@ -63,7 +63,7 @@ export function IssueSpotlight({ field, issue, data, run, onClose }: {
             <CommandEmpty>{t.shortcuts.empty}</CommandEmpty>
             {field === "status" && (
               <CommandGroup>
-                {statusCategories.flatMap((category) => statuses.filter((status) => status.category === category)).map((status) => (
+                {statuses.map((status) => (
                   <CommandItem key={status.id} value={status.id} keywords={[status.name, t.categories[status.category]]}
                     data-checked={status.id === issue.statusId} onSelect={() => choose({ statusId: status.id })}>
                     <StatusIcon status={status} /><span className="spotlight-name">{status.name}</span>

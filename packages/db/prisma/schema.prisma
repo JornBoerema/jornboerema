@@ -309,7 +309,10 @@ model WorkspaceStatus {
   category    StatusCategory
   /// Hex colour, e.g. #f2994a.
   color       String
+  /// Order in boards and list views, across categories.
   position    Int            @default(0)
+  /// The status's group starts folded in a board's list view.
+  collapsed   Boolean        @default(false)
   createdAt   DateTime       @default(now()) @map("created_at")
   todos       Todo[]
 

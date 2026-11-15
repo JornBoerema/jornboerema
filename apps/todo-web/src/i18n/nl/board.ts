@@ -46,6 +46,8 @@ export const board: typeof en = {
     empty: "Geen issues",
     count: (count: number) => `${count}`,
     label: (status: string, count: number) => `${status}, ${count} ${count === 1 ? "issue" : "issues"}`,
+    fold: (status: string) => `${status} inklappen`,
+    unfold: (status: string) => `${status} uitklappen`,
   },
   card: {
     open: (number: number, title: string) => `#${number} ${title} openen`,
@@ -153,7 +155,10 @@ export const board: typeof en = {
   },
   settings: {
     statusesTitle: "Statussen",
-    statusesHelp: "De kolommen van elk bord in deze organisatie, gegroepeerd zoals in Linear. Issues in Afgerond en Geannuleerd tellen als klaar.",
+    statusesHelp: "De kolommen van elk bord in deze organisatie, in deze volgorde. Sleep om te ordenen. Issues in een afgeronde of geannuleerde status tellen als klaar.",
+    folded: "Ingeklapt",
+    foldedHelp: (name: string) => `${name} standaard ingeklapt in de lijstweergave`,
+    categoryLabel: "Categorie",
     addStatus: "Status toevoegen",
     newStatusName: "Naam van de status",
     statusPlaceholder: (category: string) => `Nieuwe status (${category.toLowerCase()})`,

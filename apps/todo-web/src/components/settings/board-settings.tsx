@@ -35,7 +35,9 @@ import {
   AlertDialogTitle,
 } from "@even/ui/components/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@even/ui/components/dialog";
-import { Folder, MoreHorizontal, Pencil, Plus, Trash2 } from "@/components/icons";
+import { Switch } from "@even/ui/components/switch";
+import { Folder, Grip, MoreHorizontal, Pencil, Plus, Trash2 } from "@/components/icons";
+import { Sortable } from "@/components/sortable";
 import { StatusIcon, ProjectDot } from "@/components/board/board-meta";
 import { useI18n } from "@/i18n";
 
@@ -109,62 +111,70 @@ export function StatusesSettings({ workspaceId, data, run, disabled }: BoardSett
 
   return (
     <>
-      <SettingsSection title={s.statusesTitle} description={s.statusesHelp}>
+      <SettingsSection title={s.statusesTitle} description={s.statusesHelp} action={
+        <Button size="sm" disabled={disabled} onClick={() => { setAdding("unstarted"); setNewName(""); }}>
+          <Plus data-icon="inline-start" />{s.addStatus}
+        </Button>
+      }>
         <div className="status-settings">
-          {statusCategories.map((category) => {
-            const group = statuses.filter((st) => st.category === category);
-            return (
-              <div key={category} className="status-group">
-                <div className="status-group-heading">
-                  <h4>{categories[category]}</h4>
-                  <Button variant="ghost" size="icon-sm" disabled={disabled} aria-label={`${s.addStatus}: ${categories[category]}`} title={s.addStatus}
-                    onClick={() => { setAdding(category); setNewName(""); }}><Plus /></Button>
+          <Sortable className="status-sortable" items={statuses} keyboard="content" itemClassName="status-sortable-item" disabled={disabled} label={(status) => status.name}
+            onMove={(move) => run({ type: "move-status", ...move })}>
+            {(status) => {
+              const index = statuses.indexOf(status);
+              return (
+                <div className="status-setting-row">
+                  <Grip className="status-grip" aria-hidden="true" />
+                  <ColorMenu colors={statusColors} value={status.color} label={s.color(status.name)} disabled={disabled}
+                    onChange={(color) => void run({ type: "update-status", id: status.id, color })}>
+                    <StatusIcon status={status} className="size-4" />
+                  </ColorMenu>
+                  <div className="min-w-0 flex-1"><NameInput value={status.name} label={s.rename(status.name)} maxLength={40} disabled={disabled}
+                    onSave={(name) => void run({ type: "update-status", id: status.id, name })} /></div>
+                  <span className="status-category">{categories[status.category]}</span>
+                  <span className="status-usage">{s.issueCount(usage(status.id))}</span>
+                  <label className="status-fold" title={s.foldedHelp(status.name)}>
+                    <span>{s.folded}</span>
+                    <Switch size="sm" checked={!!status.collapsed} disabled={disabled} aria-label={s.foldedHelp(status.name)}
+                      onCheckedChange={(collapsed) => void run({ type: "update-status", id: status.id, collapsed })} />
+                  </label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild disabled={disabled}>
+                      <Button variant="ghost" size="icon-sm" aria-label={status.name}><MoreHorizontal /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-48">
+                      {index > 0 && <DropdownMenuItem onSelect={() => void run({ type: "move-status", id: status.id, targetId: statuses[index - 1].id, placement: "before" })}>{s.moveUp(status.name)}</DropdownMenuItem>}
+                      {index < statuses.length - 1 && <DropdownMenuItem onSelect={() => void run({ type: "move-status", id: status.id, targetId: statuses[index + 1].id, placement: "after" })}>{s.moveDown(status.name)}</DropdownMenuItem>}
+                      <DropdownMenuLabel>{s.category(status.name)}</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup value={status.category} onValueChange={(next) => void run({ type: "update-status", id: status.id, category: next as StatusCategory })}>
+                        {statusCategories.map((c) => <DropdownMenuRadioItem key={c} value={c}><StatusIcon status={{ category: c, color: status.color }} />{categories[c]}</DropdownMenuRadioItem>)}
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuItem variant="destructive" disabled={statuses.length < 2}
+                        onSelect={() => { setDeleting(status); setReplacement(statuses.find((other) => other.id !== status.id && other.category === status.category)?.id ?? statuses.find((other) => other.id !== status.id)!.id); }}>
+                        <Trash2 aria-hidden="true" />{s.deleteStatus(status.name)}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <ul>
-                  {group.map((status, index) => (
-                    <li key={status.id} className="status-setting-row">
-                      <ColorMenu colors={statusColors} value={status.color} label={s.color(status.name)} disabled={disabled}
-                        onChange={(color) => void run({ type: "update-status", id: status.id, color })}>
-                        <StatusIcon status={status} className="size-4" />
-                      </ColorMenu>
-                      <div className="min-w-0 flex-1"><NameInput value={status.name} label={s.rename(status.name)} maxLength={40} disabled={disabled}
-                        onSave={(name) => void run({ type: "update-status", id: status.id, name })} /></div>
-                      <span className="status-usage">{s.issueCount(usage(status.id))}</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild disabled={disabled}>
-                          <Button variant="ghost" size="icon-sm" aria-label={status.name}><MoreHorizontal /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-48">
-                          {index > 0 && <DropdownMenuItem onSelect={() => void run({ type: "move-status", id: status.id, targetId: group[index - 1].id, placement: "before" })}>{s.moveUp(status.name)}</DropdownMenuItem>}
-                          {index < group.length - 1 && <DropdownMenuItem onSelect={() => void run({ type: "move-status", id: status.id, targetId: group[index + 1].id, placement: "after" })}>{s.moveDown(status.name)}</DropdownMenuItem>}
-                          <DropdownMenuLabel>{s.category(status.name)}</DropdownMenuLabel>
-                          <DropdownMenuRadioGroup value={status.category} onValueChange={(next) => void run({ type: "update-status", id: status.id, category: next as StatusCategory })}>
-                            {statusCategories.map((c) => <DropdownMenuRadioItem key={c} value={c}><StatusIcon status={{ category: c, color: status.color }} />{categories[c]}</DropdownMenuRadioItem>)}
-                          </DropdownMenuRadioGroup>
-                          <DropdownMenuItem variant="destructive" disabled={statuses.length < 2}
-                            onSelect={() => { setDeleting(status); setReplacement(statuses.find((other) => other.id !== status.id && other.category === status.category)?.id ?? statuses.find((other) => other.id !== status.id)!.id); }}>
-                            <Trash2 aria-hidden="true" />{s.deleteStatus(status.name)}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </li>
+              );
+            }}
+          </Sortable>
+          {adding && (
+            <form className="status-setting-row" onSubmit={(event) => add(event, adding)}>
+              <Select value={adding} onValueChange={(next) => setAdding(next as StatusCategory)}>
+                <SelectTrigger size="sm" aria-label={s.categoryLabel} className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent position="popper">
+                  {statusCategories.map((c) => (
+                    <SelectItem key={c} value={c}><StatusIcon status={{ category: c, color: "var(--muted-foreground)" }} />{categories[c]}</SelectItem>
                   ))}
-                  {adding === category && (
-                    <li>
-                      <form className="status-setting-row" onSubmit={(event) => add(event, category)}>
-                        <StatusIcon status={{ category, color: "var(--muted-foreground)" }} className="mx-1.5 size-4" />
-                        <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={40} className="h-8 flex-1"
-                          aria-label={s.newStatusName} placeholder={s.statusPlaceholder(categories[category])}
-                          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setAdding(null); } }} />
-                        <Button type="submit" size="sm" disabled={disabled || !newName.trim()}>{s.add}</Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setAdding(null)}>{s.cancel}</Button>
-                      </form>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            );
-          })}
+                </SelectContent>
+              </Select>
+              <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={40} className="h-8 flex-1"
+                aria-label={s.newStatusName} placeholder={s.statusPlaceholder(categories[adding])}
+                onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setAdding(null); } }} />
+              <Button type="submit" size="sm" disabled={disabled || !newName.trim()}>{s.add}</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setAdding(null)}>{s.cancel}</Button>
+            </form>
+          )}
         </div>
       </SettingsSection>
       <AlertDialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>

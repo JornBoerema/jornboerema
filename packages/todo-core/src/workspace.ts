@@ -4,6 +4,8 @@ import {
   statusFlags,
   defaultStatus,
   sortStatuses,
+  orderWithNewStatus,
+  collapsedByDefault,
   type BoardMember,
   type BoardProject,
   type BoardStatus,
@@ -108,7 +110,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("delete-attachment"), id }),
   // ── Workspace board settings ──
   z.object({ type: z.literal("create-status"), id, workspaceId: id, name: statusName, category: z.enum(statusCategories), color }),
-  z.object({ type: z.literal("update-status"), id, name: statusName.optional(), category: z.enum(statusCategories).optional(), color: color.optional() }),
+  z.object({ type: z.literal("update-status"), id, name: statusName.optional(), category: z.enum(statusCategories).optional(), color: color.optional(), collapsed: z.boolean().optional() }),
   z.object({ type: z.literal("move-status"), id, targetId: id, placement }),
   /** Its issues move to `replacementId`. */
   z.object({ type: z.literal("delete-status"), id, replacementId: id }),
@@ -271,8 +273,9 @@ export function optimisticUpdate(data: WorkspaceData, command: Command): Workspa
     case "create-status": {
       const statuses = data.statuses ?? [];
       if (statuses.some((s) => s.id === command.id)) return data;
-      const position = Math.max(-1, ...statuses.filter((s) => s.category === command.category).map((s) => s.position)) + 1;
-      return { ...data, statuses: [...statuses, { id: command.id, name: command.name, category: command.category, color: command.color, position }] };
+      const order = orderWithNewStatus(statuses, command.id, command.category);
+      const created = { id: command.id, name: command.name, category: command.category, color: command.color, position: 0, collapsed: collapsedByDefault(command.category) };
+      return { ...data, statuses: [...statuses, created].map((s) => ({ ...s, position: order.indexOf(s.id) })) };
     }
     case "update-status": {
       const statuses = (data.statuses ?? []).map((s) =>
@@ -282,9 +285,8 @@ export function optimisticUpdate(data: WorkspaceData, command: Command): Workspa
               ...s,
               ...(command.name !== undefined ? { name: command.name } : {}),
               ...(command.color !== undefined ? { color: command.color } : {}),
-              ...(command.category !== undefined && command.category !== s.category
-                ? { category: command.category, position: Math.max(-1, ...(data.statuses ?? []).filter((o) => o.category === command.category).map((o) => o.position)) + 1 }
-                : {}),
+              ...(command.category !== undefined ? { category: command.category } : {}),
+              ...(command.collapsed !== undefined ? { collapsed: command.collapsed } : {}),
             },
       );
       const category = statuses.find((s) => s.id === command.id)?.category;
@@ -298,9 +300,9 @@ export function optimisticUpdate(data: WorkspaceData, command: Command): Workspa
       const statuses = data.statuses ?? [];
       const moving = statuses.find((s) => s.id === command.id);
       const target = statuses.find((s) => s.id === command.targetId);
-      if (!moving || !target || moving.category !== target.category) return data;
-      const order = reorderIds(sortStatuses(statuses.filter((s) => s.category === moving.category)).map((s) => s.id), command.id, command.targetId, command.placement);
-      return { ...data, statuses: statuses.map((s) => (order.includes(s.id) ? { ...s, position: order.indexOf(s.id) } : s)) };
+      if (!moving || !target) return data;
+      const order = reorderIds(sortStatuses(statuses).map((s) => s.id), command.id, command.targetId, command.placement);
+      return { ...data, statuses: statuses.map((s) => ({ ...s, position: order.indexOf(s.id) })) };
     }
     case "delete-status": {
       const replacement = statusById(data, command.replacementId);

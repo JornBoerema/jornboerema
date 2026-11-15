@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto"
 import { Prisma, type Tx } from "@even/db"
 import {
+  collapsedByDefault,
   defaultStatus,
+  orderWithNewStatus,
   defaultStatuses,
   sortStatuses,
   statusFlags,
@@ -48,6 +50,7 @@ export async function ensureStatuses(tx: Tx, workspaceId: string, language: Lang
       category: status.category,
       color: status.color,
       position: index,
+      collapsed: status.collapsed,
     })),
   })
 }
@@ -55,7 +58,7 @@ export async function ensureStatuses(tx: Tx, workspaceId: string, language: Lang
 export async function readStatuses(tx: Tx, workspaceId: string): Promise<BoardStatus[]> {
   const rows = await tx.workspaceStatus.findMany({ where: { workspaceId } })
   return sortStatuses(
-    rows.map(({ id, name, category, color, position }) => ({ id, name, category, color, position }))
+    rows.map(({ id, name, category, color, position, collapsed }) => ({ id, name, category, color, position, collapsed }))
   )
 }
 
@@ -89,16 +92,24 @@ async function workspaceOf(tx: Tx, command: BoardSettingsCommand) {
   return row.workspaceId
 }
 
+/** Numbers the workspace's statuses 0, 1, 2… in the given order. */
+async function writeOrder(tx: Tx, workspaceId: string, order: string[]) {
+  const cases = Prisma.join(
+    order.map((id, position) => Prisma.sql`when ${id} then ${position}::integer`),
+    " "
+  )
+  await tx.$executeRaw`
+    update workspace_statuses set position = case id ${cases} else position end
+    where workspace_id = ${workspaceId}`
+}
+
 /** Every member may change the board settings, like they may manage every list. */
 export async function executeBoardSettings(tx: Tx, userId: string, command: BoardSettingsCommand) {
   const workspaceId = await workspaceOf(tx, command)
   const recipients = await lockWorkspace(tx, workspaceId, userId)
   switch (command.type) {
     case "create-status": {
-      const last = await tx.workspaceStatus.aggregate({
-        where: { workspaceId, category: command.category },
-        _max: { position: true },
-      })
+      const statuses = await readStatuses(tx, workspaceId)
       await tx.workspaceStatus.create({
         data: {
           id: command.id,
@@ -106,27 +117,23 @@ export async function executeBoardSettings(tx: Tx, userId: string, command: Boar
           name: command.name,
           category: command.category,
           color: command.color,
-          position: (last._max.position ?? -1) + 1,
+          collapsed: collapsedByDefault(command.category),
         },
       })
+      await writeOrder(tx, workspaceId, orderWithNewStatus(statuses, command.id, command.category))
       break
     }
     case "update-status": {
       const current = await tx.workspaceStatus.findUnique({ where: { id: command.id } })
       if (!current) throw new NotFoundError()
       const moving = command.category !== undefined && command.category !== current.category
-      const last = moving
-        ? await tx.workspaceStatus.aggregate({
-            where: { workspaceId, category: command.category },
-            _max: { position: true },
-          })
-        : null
       await tx.workspaceStatus.update({
         where: { id: command.id },
         data: {
           ...(command.name !== undefined ? { name: command.name } : {}),
           ...(command.color !== undefined ? { color: command.color } : {}),
-          ...(moving ? { category: command.category, position: (last!._max.position ?? -1) + 1 } : {}),
+          ...(command.collapsed !== undefined ? { collapsed: command.collapsed } : {}),
+          ...(moving ? { category: command.category } : {}),
         },
       })
       if (moving)
@@ -138,23 +145,18 @@ export async function executeBoardSettings(tx: Tx, userId: string, command: Boar
     }
     case "move-status": {
       const statuses = await readStatuses(tx, workspaceId)
-      const moving = statuses.find((s) => s.id === command.id)
-      const target = statuses.find((s) => s.id === command.targetId)
-      if (!moving || !target) throw new NotFoundError()
-      if (moving.category !== target.category) throw new InvalidCommandError("checkInput")
-      const order = reorderIds(
-        statuses.filter((s) => s.category === moving.category).map((s) => s.id),
-        command.id,
-        command.targetId,
-        command.placement
+      if (!statuses.some((s) => s.id === command.id) || !statuses.some((s) => s.id === command.targetId))
+        throw new NotFoundError()
+      await writeOrder(
+        tx,
+        workspaceId,
+        reorderIds(
+          statuses.map((s) => s.id),
+          command.id,
+          command.targetId,
+          command.placement
+        )
       )
-      const cases = Prisma.join(
-        order.map((id, position) => Prisma.sql`when ${id} then ${position}::integer`),
-        " "
-      )
-      await tx.$executeRaw`
-        update workspace_statuses set position = case id ${cases} else position end
-        where workspace_id = ${workspaceId}`
       break
     }
     case "delete-status": {

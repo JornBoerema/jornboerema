@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import {
   sortStatuses,
-  statusCategories,
   type BoardMember,
   type BoardProject,
   type BoardStatus,
@@ -128,12 +127,12 @@ export function StatusMenu({ statuses, value, onChange, children, disabled, alig
       <DropdownMenuContent align={align} className="min-w-48">
         <DropdownMenuLabel>{t.properties.status}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value ?? ""} onValueChange={onChange}>
-          {statusCategories.map((category) => sorted.filter((s) => s.category === category).map((status) => (
+          {sorted.map((status) => (
             <DropdownMenuRadioItem key={status.id} value={status.id}>
               <StatusIcon status={status} />
               {status.name}
             </DropdownMenuRadioItem>
-          )))}
+          ))}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

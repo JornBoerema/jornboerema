@@ -18,7 +18,7 @@ import {
 } from "@even/ui/components/dropdown-menu";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@even/ui/components/empty";
 import { cn } from "@even/ui/lib/utils";
-import { Filter, Folder, Kanban, Layers, ListView, Maximize, Minimize, Paperclip, Plus, User, X } from "@/components/icons";
+import { ChevronRight, Filter, Folder, Kanban, Layers, ListView, Maximize, Minimize, Paperclip, Plus, User, X } from "@/components/icons";
 import { Switch } from "@even/ui/components/switch";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -229,7 +229,7 @@ export function BoardView({ list, data, run, disabled, readOnly, shareToken, use
       ) : view === "board" ? (
         <KanbanBoard columns={columns} data={data} locked={locked} run={run} onOpen={setIssue} onHover={hover} onCreate={(statusId) => setCreating({ statusId })} />
       ) : (
-        <IssueList columns={columns} data={data} locked={locked} run={run} onOpen={setIssue} onHover={hover} onCreate={(statusId) => setCreating({ statusId })} />
+        <IssueList foldKey={`${prefKey}:fold`} columns={columns} data={data} locked={locked} run={run} onOpen={setIssue} onHover={hover} onCreate={(statusId) => setCreating({ statusId })} />
       )}
       {filtered && all.length > 0 && !visible.length && <p className="board-filter-empty">{t.empty.filtered}</p>}
 
@@ -354,23 +354,40 @@ function KanbanBoard({ columns, data, locked, run, onOpen, onCreate, onHover }: 
   );
 }
 
-function IssueList({ columns, data, locked, run, onOpen, onCreate, onHover }: ViewProps) {
+function IssueList({ foldKey, columns, data, locked, run, onOpen, onCreate, onHover }: ViewProps & { foldKey: string }) {
   const { t: { board: t } } = useI18n();
+  // The status sets whether a group starts folded; folding it here is remembered per viewer and board.
+  const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const isFolded = (status: BoardStatus) => {
+    if (status.id in folds) return folds[status.id];
+    const saved = readPref(`${foldKey}:${status.id}`, "default", ["yes", "no", "default"] as const);
+    return saved === "default" ? !!status.collapsed : saved === "yes";
+  };
+  const toggle = (status: BoardStatus) => {
+    const next = !isFolded(status);
+    setFolds((current) => ({ ...current, [status.id]: next }));
+    writePref(`${foldKey}:${status.id}`, next ? "yes" : "no");
+  };
   const members = data.members ?? [];
   const statuses = data.statuses ?? [];
   // Every number gets the width of the longest one, so status and title line up in all rows.
   const digits = Math.max(1, ...columns.flatMap((column) => column.issues.map((issue) => String(issue.number ?? 0).length)));
   return (
     <div className="issue-list" style={{ "--issue-number-digits": digits } as React.CSSProperties}>
-      {columns.filter((column) => column.issues.length).map((column) => (
+      {columns.filter((column) => column.issues.length).map((column) => { const folded = isFolded(column.status); return (
         <section key={column.status.id} aria-label={t.column.label(column.status.name, column.issues.length)}>
-          <header className="issue-list-header">
-            <StatusIcon status={column.status} />
-            <h2>{column.status.name}</h2>
-            <span className="kanban-count">{column.issues.length}</span>
+          <header className={cn("issue-list-header", folded && "is-folded")}>
+            <button className="issue-list-toggle" aria-expanded={!folded} aria-controls={`issues-${column.status.id}`}
+              aria-label={folded ? t.column.unfold(column.status.name) : t.column.fold(column.status.name)}
+              onClick={() => toggle(column.status)}>
+              <ChevronRight className="issue-list-chevron" aria-hidden="true" />
+              <StatusIcon status={column.status} />
+              <h2>{column.status.name}</h2>
+              <span className="kanban-count">{column.issues.length}</span>
+            </button>
             {!locked && <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label={t.column.add(column.status.name)} title={t.column.add(column.status.name)} onClick={() => onCreate(column.status.id)}><Plus /></Button>}
           </header>
-          <ul>
+          {!folded && <ul id={`issues-${column.status.id}`}>
             {column.issues.map((issue) => (
               // The row opens the issue; its own buttons (priority, status, title) keep their action.
               <li key={issue.id} className={cn("issue-row", issue.completed && "is-complete")}
@@ -391,9 +408,9 @@ function IssueList({ columns, data, locked, run, onOpen, onCreate, onHover }: Vi
                 <AvatarStack members={members.filter((m) => issue.assigneeIds?.includes(m.id))} size={20} />
               </li>
             ))}
-          </ul>
+          </ul>}
         </section>
-      ))}
+      ); })}
     </div>
   );
 }

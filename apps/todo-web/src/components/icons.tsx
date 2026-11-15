@@ -6,6 +6,7 @@ import {
   Image01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  DragDropVerticalIcon,
   Note01Icon,
   SearchIcon,
   Home01Icon,
@@ -85,6 +86,7 @@ export const Download = appIcon(Download04Icon);
 export const ImageIcon = appIcon(Image01Icon);
 export const ChevronLeft = appIcon(ArrowLeft01Icon);
 export const ChevronRight = appIcon(ArrowRight01Icon);
+export const Grip = appIcon(DragDropVerticalIcon);
 
 export const Settings = appIcon(Settings01Icon);
 export const ChevronsUpDown = appIcon(UnfoldMoreIcon);
