@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from "react"
+import { useState, type KeyboardEvent, type ReactNode } from "react"
 import { useSearchParams } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { CheckmarkCircle02Icon, Loading03Icon, Mail01Icon, UserGroupIcon, UserIcon } from "@hugeicons/core-free-icons"
+import { Cancel01Icon, CheckmarkCircle02Icon, Loading03Icon, Mail01Icon, UserGroupIcon, UserIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { appUrl } from "@even/auth/client"
 import { Alert, AlertDescription } from "@even/ui/components/alert"
@@ -343,11 +343,10 @@ function TeamStep({ onNext }: { onNext: () => void }) {
   const t = all.welcome.team
   const [choice, setChoice] = useState<"alone" | "team" | null>(null)
   const [name, setName] = useState("")
-  const [emails, setEmails] = useState("")
-  const addresses = emails
-    .split(/[\s,;]+/)
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
+  const [emails, setEmails] = useState<string[]>([])
+  const [draft, setDraft] = useState("")
+  // What is still being typed counts too, so nobody loses the last address by not pressing Enter.
+  const addresses = [...new Set([...emails, ...splitEmails(draft)])]
   const invalid = addresses.filter((email) => !EMAIL.test(email))
 
   const create = useMutation({
@@ -355,14 +354,14 @@ function TeamStep({ onNext }: { onNext: () => void }) {
       const id = crypto.randomUUID()
       await api("/api/workspaces", { method: "POST", json: { type: "create", id, name: name.trim() }, language: locale })
       let failed = 0
-      for (const email of new Set(addresses))
+      for (const email of addresses)
         await api("/api/workspaces", {
           method: "POST",
           json: { type: "invite", workspaceId: id, email, role: "member" },
           language: locale,
         }).catch(() => failed++)
       if (failed) toast.error(t.inviteFailed(failed))
-      else if (addresses.length) toast.success(t.invited(new Set(addresses).size))
+      else if (addresses.length) toast.success(t.invited(addresses.length))
     },
     onSuccess: onNext,
     onError: (failure) => toast.error(failure.message || all.common.noConnection),
@@ -416,13 +415,14 @@ function TeamStep({ onNext }: { onNext: () => void }) {
             </Field>
             <Field data-invalid={invalid.length > 0 || undefined}>
               <FieldLabel htmlFor="welcome-invites">{t.invites}</FieldLabel>
-              <Textarea
+              <EmailChips
                 id="welcome-invites"
-                rows={3}
-                value={emails}
+                emails={emails}
+                draft={draft}
                 placeholder={t.invitesPlaceholder}
-                aria-invalid={invalid.length > 0 || undefined}
-                onChange={(event) => setEmails(event.target.value)}
+                removeLabel={t.removeInvite}
+                onChange={setEmails}
+                onDraft={setDraft}
               />
               <FieldDescription>{invalid.length ? t.invalidEmail(invalid[0]!) : t.invitesHelp}</FieldDescription>
             </Field>
@@ -440,6 +440,92 @@ function TeamStep({ onNext }: { onNext: () => void }) {
         </Button>
       )}
     </>
+  )
+}
+
+const splitEmails = (text: string) =>
+  text
+    .split(/[\s,;]+/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+
+/**
+ * Addresses as chips: Enter, a comma, a space or leaving the field turns what
+ * was typed into one; a pasted list becomes several. Backspace in an empty
+ * field takes the last one back to edit.
+ */
+function EmailChips({
+  id,
+  emails,
+  draft,
+  placeholder,
+  removeLabel,
+  onChange,
+  onDraft,
+}: {
+  id: string
+  emails: string[]
+  draft: string
+  placeholder: string
+  removeLabel: (email: string) => string
+  onChange: (emails: string[]) => void
+  onDraft: (draft: string) => void
+}) {
+  function commit(text: string) {
+    const added = splitEmails(text).filter((email) => !emails.includes(email))
+    if (added.length) onChange([...emails, ...added])
+    onDraft("")
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if ((event.key === "Enter" || event.key === "," || event.key === ";" || event.key === " ") && draft.trim()) {
+      event.preventDefault()
+      commit(draft)
+    } else if (event.key === "Enter") {
+      // An empty field: Enter submits the form as usual.
+    } else if (event.key === "Backspace" && !draft && emails.length) {
+      event.preventDefault()
+      onDraft(emails.at(-1)!)
+      onChange(emails.slice(0, -1))
+    }
+  }
+
+  return (
+    <div
+      className="welcome-chips"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) document.getElementById(id)?.focus()
+      }}
+    >
+      {emails.map((email) => (
+        <span key={email} className="welcome-chip" data-invalid={!EMAIL.test(email) || undefined}>
+          <span className="truncate">{email}</span>
+          <button type="button" aria-label={removeLabel(email)} onClick={() => onChange(emails.filter((item) => item !== email))}>
+            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        id={id}
+        type="email"
+        inputMode="email"
+        autoComplete="off"
+        value={draft}
+        placeholder={emails.length ? "" : placeholder}
+        onChange={(event) => {
+          const value = event.target.value
+          // A pasted list, or a separator typed inside the text: everything before it becomes chips.
+          if (/[\s,;]/.test(value.trim())) {
+            const parts = value.split(/[\s,;]+/)
+            const rest = /[\s,;]$/.test(value) ? "" : (parts.pop() ?? "")
+            commit(parts.join(" "))
+            onDraft(rest)
+          } else onDraft(value.trimStart())
+        }}
+        onKeyDown={onKeyDown}
+        onBlur={() => draft.trim() && commit(draft)}
+      />
+    </div>
   )
 }
 
