@@ -88,5 +88,5 @@ export async function translateMessage(
   if (!message) throw new MessageNotFoundError(messageId)
   const text = textOf(message)
   if (!text) return { same: true, from: "", text: "" }
-  return modelTranslation(conversation.account.userId, text.length > MAX_TEXT ? text.slice(0, MAX_TEXT) : text, language)
+  return modelTranslation(conversation.userId, text.length > MAX_TEXT ? text.slice(0, MAX_TEXT) : text, language)
 }

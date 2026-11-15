@@ -1,8 +1,10 @@
-import { Activity, useEffect, useState } from "react"
+import { Activity, useEffect, useMemo } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Route, Routes } from "react-router"
 import { EmbedRouter } from "@even/ui/components/embed-router"
 import { TooltipProvider } from "@even/ui/components/tooltip"
+import { useOrganizations } from "@even/ui/components/organizations"
+import { setMailOrganization } from "@/lib/api"
 import { MotionConfig } from "motion/react"
 import { TIP_DELAY_MS } from "@/components/icon-tip"
 import { BackgroundNotifications } from "@/components/background-notifications"
@@ -25,12 +27,17 @@ function SignedOut() {
  * new-mail notifications keep running.
  */
 export function MailEmbed({ active }: { active: boolean }) {
-  const [client] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15000 } } })
+  // Mailboxes belong to an organization: switching it in the rail shows its mail,
+  // from a cache of its own, and every request says which one it is for.
+  const organizationId = useOrganizations()?.active.id ?? null
+  setMailOrganization(organizationId)
+  const client = useMemo(
+    () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15000 } } }),
+    [organizationId]
   )
   return (
     <I18nProvider>
-      <QueryClientProvider client={client}>
+      <QueryClientProvider client={client} key={organizationId ?? "none"}>
         <MotionConfig reducedMotion="user">
           <TooltipProvider delayDuration={TIP_DELAY_MS} skipDelayDuration={400}>
           <Activity mode={active ? "visible" : "hidden"}>

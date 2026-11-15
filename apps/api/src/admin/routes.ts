@@ -7,6 +7,7 @@ import { env } from "../env"
 import { languageOf, msg } from "../i18n"
 import { canUse, forgetAccess, isAdmin, needsPlan, requestAccess, requireAdmin } from "../lib/access"
 import { APPS, findApp } from "../lib/apps"
+import { activeOrganization } from "../lib/organization"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
 import { overview, rangeOf, userDetail, userList, visitors } from "./stats"
 import { GithubError, getStatus } from "./status"
@@ -18,12 +19,13 @@ accessRoutes.get("/:app", requireSession, async (c) => {
   const app = findApp(c.req.param("app"))
   if (!app) return c.json({ error: msg(c, "invalidRequest") }, 404)
   const user = c.get("session").user
-  const access = await canUse(user, app.id)
+  const organizationId = app.id === "mail" ? await activeOrganization(c) : undefined
+  const access = await canUse(user, app.id, organizationId)
   const requested = access
     ? false
     : Boolean(await getDb().appAccessRequest.findUnique({ where: { app_userId: { app: app.id, userId: user.id } } }))
   // Open to all but not paid for: the app offers a subscription instead of asking for access.
-  const unpaid = !access && app.id === "mail" && (await needsPlan(user))
+  const unpaid = !access && organizationId !== undefined && (await needsPlan(user, organizationId))
   return c.json({ access, requested, needsPlan: unpaid }, 200, noStore)
 })
 
@@ -31,7 +33,8 @@ accessRoutes.post("/:app/request", requireTrustedOrigin, requireSession, async (
   const app = findApp(c.req.param("app"))
   if (!app) return c.json({ error: msg(c, "invalidRequest") }, 404)
   const user = c.get("session").user
-  if (await canUse(user, app.id)) return c.json({ access: true, requested: false }, 200, noStore)
+  if (await canUse(user, app.id, app.id === "mail" ? await activeOrganization(c) : undefined))
+    return c.json({ access: true, requested: false }, 200, noStore)
   const { created } = await requestAccess(user.id, app.id)
   // One mail per request, not per click.
   if (created)

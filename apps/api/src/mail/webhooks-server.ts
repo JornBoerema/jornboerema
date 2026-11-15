@@ -5,10 +5,10 @@ import { ReauthRequiredError } from "@even/mail-core/provider"
 import { z } from "zod"
 import { defer } from "../lib/defer"
 import { report } from "../lib/report"
-import { notifyMailChanged } from "../lib/realtime"
+import { notifyMailboxChanged } from "../lib/realtime"
 import { env } from "../env"
-import { withAccessToken } from "./accounts-server"
-import { syncAccount } from "./sync-server"
+import { dropUnconnectedMailboxes, withAccessToken } from "./accounts-server"
+import { syncMailbox } from "./sync-server"
 
 /** Renewed this long before expiry, so one missed daily run changes nothing. */
 const RENEW_BEFORE_MS = 3 * 24 * 60 * 60 * 1000
@@ -47,6 +47,8 @@ export async function ensureWatch(account: MailAccount) {
 }
 
 export async function renewWatches() {
+  // Mailboxes whose last owner deleted their account or organization: let go of them first.
+  await dropUnconnectedMailboxes().catch((error) => report("Dropping unconnected mailboxes failed", error))
   const accounts = await getDb().mailAccount.findMany({
     where: {
       status: "active",
@@ -87,8 +89,8 @@ export async function renewWatches() {
 
 async function syncAndNotify(account: MailAccount) {
   try {
-    const result = await syncAccount(account.userId, account.id)
-    if (result.changed > 0) await notifyMailChanged(account.userId)
+    const result = await syncMailbox(account)
+    if (result.changed > 0) await notifyMailboxChanged(account.id)
   } catch (error) {
     // The cursor kept its place, so the next notification or poll catches up.
     // A mailbox that lost access is its owner's to fix, and they were told.

@@ -155,7 +155,7 @@ export async function summaryFor(
   const code = kept?.code ?? codeIn(messages)
   // Only asked when it would be shown: a found code takes its place unless codes are off.
   const wantsModel = options.useModel && (!code || !options.findCodes)
-  const summary = wantsModel ? await modelSummary(conversation.account.userId, messages, language) : (kept?.summary ?? null)
+  const summary = wantsModel ? await modelSummary(conversation.userId, messages, language) : (kept?.summary ?? null)
   await db.mailSummary.upsert({
     where: keyOf(newest.id),
     create: {

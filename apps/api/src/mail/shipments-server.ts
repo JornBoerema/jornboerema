@@ -4,6 +4,7 @@ import { findShipmentInThread, looksLikeShipment, type FoundShipment } from "@ev
 import type { MailShipmentView, MailThreadMessage } from "@even/mail-core/types"
 import { readInRounds } from "./scan-rounds"
 import { readConversation, threadLines, type Conversation } from "./threads-server"
+import { visibleAccountIds, visibleAccounts, type MailViewer } from "./accounts-server"
 
 /** How far back shipping mail is looked through: parcels older than this have arrived. */
 const SCAN_DAYS = 30
@@ -39,7 +40,7 @@ const toView = (row: ShipmentRow): MailShipmentView => ({
 
 /** Keeps what was found in a conversation, or that nothing was, until it grows. */
 async function save(
-  account: Pick<MailAccount, "id" | "userId">,
+  account: Pick<MailAccount, "id">,
   threadId: string,
   newest: { id: string; subject: string; receivedAt: Date },
   found: FoundShipment | null
@@ -59,7 +60,7 @@ async function save(
   }
   return getDb().mailShipment.upsert({
     where: { accountId_threadId: { accountId: account.id, threadId } },
-    create: { id: randomUUID(), userId: account.userId, accountId: account.id, threadId, ...data },
+    create: { id: randomUUID(), accountId: account.id, threadId, ...data },
     update: data,
   })
 }
@@ -79,11 +80,12 @@ const shipmentIn = (messages: MailThreadMessage[]) =>
  * Reads the shipping mail of the last month that hasn't been read yet, or has
  * grown since, for as long as the budget allows. Only the found fields are kept.
  */
-export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
+export async function scanShipments(viewer: MailViewer, budgetMs = SCAN_BUDGET_MS) {
   const db = getDb()
+  const accountIds = await visibleAccountIds(viewer)
   const deadline = Date.now() + budgetMs
   const recent = await db.mailMessage.findMany({
-    where: { userId, receivedAt: { gte: daysAgo(SCAN_DAYS) }, folder: { in: ["inbox", "archive"] }, threadId: { not: null } },
+    where: { accountId: { in: accountIds }, receivedAt: { gte: daysAgo(SCAN_DAYS) }, folder: { in: ["inbox", "archive"] }, threadId: { not: null } },
     select: { accountId: true, threadId: true, providerMessageId: true, subject: true, fromEmail: true, receivedAt: true },
     orderBy: { receivedAt: "desc" },
   })
@@ -96,7 +98,7 @@ export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
   if (newestByThread.size === 0) return { done: true, read: 0 }
 
   const known = await db.mailShipment.findMany({
-    where: { userId, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
+    where: { accountId: { in: accountIds }, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
     select: { accountId: true, threadId: true, messageId: true, readVersion: true, dismissed: true },
   })
   // Reported as wrong: never read again, whatever the version.
@@ -109,7 +111,7 @@ export async function scanShipments(userId: string, budgetMs = SCAN_BUDGET_MS) {
   if (toRead.length === 0) return { done: true, read: 0 }
 
   const accounts = new Map(
-    (await db.mailAccount.findMany({ where: { userId, status: "active" } })).map((account) => [account.id, account])
+    (await visibleAccounts(viewer, { active: true })).map((account) => [account.id, account])
   )
   return readInRounds(
     toRead,
@@ -175,9 +177,9 @@ function asLine(mails: Row[]): Row {
 }
 
 /** Parcels on their way, and delivered ones for two weeks, newest first, one line per delivery. */
-export async function listShipments(userId: string): Promise<MailShipmentView[]> {
+export async function listShipments(viewer: MailViewer): Promise<MailShipmentView[]> {
   const rows = await getDb().mailShipment.findMany({
-    where: { userId, found: true, dismissed: false, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
+    where: { accountId: { in: await visibleAccountIds(viewer) }, found: true, dismissed: false, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
     orderBy: { receivedAt: "desc" },
   })
   const shown = deliveries(rows)
@@ -185,7 +187,7 @@ export async function listShipments(userId: string): Promise<MailShipmentView[]>
     .filter((row) => !(row.status === "delivered" && row.receivedAt < daysAgo(KEEP_DELIVERED_DAYS)))
     .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
   // The conversation each line opens: its newest mail's.
-  const threads = await threadLines(userId, shown)
+  const threads = await threadLines(viewer, shown)
   return shown.map((row) => ({ ...toView(row), thread: threads.get(`${row.accountId}:${row.threadId}`) }))
 }
 

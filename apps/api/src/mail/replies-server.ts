@@ -144,7 +144,7 @@ export async function repliesFor(
 
   const replies = plainlyNoReply(newest, conversation.account.email)
     ? []
-    : await modelReplies(conversation.account.userId, messages, language, userName)
+    : await modelReplies(conversation.userId, messages, language, userName)
   await db.mailSummary.upsert({
     where: keyOf(newest.id),
     create: {

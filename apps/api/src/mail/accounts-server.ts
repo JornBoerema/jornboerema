@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { getDb, type MailAccount } from "@even/db"
+import { getDb, type MailAccount, type MailConnection } from "@even/db"
 import { createGmailProvider } from "@even/mail-core/gmail"
 import { createOutlookProvider } from "@even/mail-core/outlook"
 import { ReauthRequiredError, type MailProvider, type TokenSet } from "@even/mail-core/provider"
@@ -51,36 +51,75 @@ function tokenKey() {
 const redirectUri = (provider: MailProviderId) => `${env.apiUrl}/api/mail/callback/${provider}`
 const stateContext = (userId: string, provider: MailProviderId) => `state:${userId}:${provider}`
 const tokenContext = (
-  account: Pick<MailAccount, "userId" | "provider" | "providerAccountId">,
+  account: Pick<MailAccount, "sealedFor" | "provider" | "providerAccountId">,
   kind: "access" | "refresh"
-) => `${kind}:${account.userId}:${account.provider}:${account.providerAccountId}`
+) => `${kind}:${account.sealedFor}:${account.provider}:${account.providerAccountId}`
 
-function toView(account: MailAccount): MailAccountView {
+/**
+ * Who is looking at mail, and within which organization. A mailbox shows for
+ * them only when they connected it in that organization.
+ */
+export type MailViewer = { userId: string; organizationId: string }
+
+const connectionOf = (viewer: MailViewer) => ({ userId: viewer.userId, organizationId: viewer.organizationId })
+
+function toView({ account, ...connection }: MailConnection & { account: MailAccount }): MailAccountView {
   return {
     id: account.id,
     provider: account.provider,
     email: account.email,
     displayName: account.displayName,
     status: account.status,
-    color: account.color,
-    signatures: { newId: account.signatureNewId, replyId: account.signatureReplyId },
-    createdAt: account.createdAt.toISOString(),
+    color: connection.color,
+    signatures: { newId: connection.signatureNewId, replyId: connection.signatureReplyId },
+    createdAt: connection.createdAt.toISOString(),
   }
 }
 
-export async function listAccounts(userId: string): Promise<MailAccountView[]> {
-  const accounts = await getDb().mailAccount.findMany({
-    where: { userId },
+export async function listAccounts(viewer: MailViewer): Promise<MailAccountView[]> {
+  const connections = await getDb().mailConnection.findMany({
+    where: connectionOf(viewer),
+    include: { account: true },
     orderBy: { createdAt: "asc" },
   })
-  return accounts.map(toView)
+  return connections.map(toView)
+}
+
+/** The mailboxes the viewer sees, optionally only the active ones. */
+export async function visibleAccounts(viewer: MailViewer, options?: { active?: boolean }) {
+  const connections = await getDb().mailConnection.findMany({
+    where: { ...connectionOf(viewer), ...(options?.active && { account: { status: "active" } }) },
+    include: { account: true },
+    orderBy: { createdAt: "asc" },
+  })
+  return connections.map((connection) => connection.account)
+}
+
+/** The ids of the mailboxes the viewer sees, for filtering what is stored about them. */
+export async function visibleAccountIds(viewer: MailViewer) {
+  const connections = await getDb().mailConnection.findMany({
+    where: connectionOf(viewer),
+    select: { accountId: true },
+  })
+  return connections.map((connection) => connection.accountId)
+}
+
+/** Everyone who has a mailbox in their list, in any organization: who hears that it changed. */
+export async function connectedUsers(accountId: string) {
+  const rows = await getDb().mailConnection.findMany({
+    where: { accountId },
+    distinct: ["userId"],
+    select: { userId: true },
+  })
+  return rows.map((row) => row.userId)
 }
 
 /** Where a connect flow may send the browser back to, besides the mail app. */
 export type ConnectReturn = "welcome"
 
 /** Starts a connect flow and returns the provider URL to send the browser to. */
-export async function startConnect(userId: string, providerId: MailProviderId, returnTo?: ConnectReturn) {
+export async function startConnect(viewer: MailViewer, providerId: MailProviderId, returnTo?: ConnectReturn) {
+  const { userId } = viewer
   const provider = providerFor(providerId)
   const key = tokenKey()
   const { state, codeVerifier, codeChallenge } = createOAuthState()
@@ -90,6 +129,7 @@ export async function startConnect(userId: string, providerId: MailProviderId, r
     data: {
       id: hashState(state),
       userId,
+      organizationId: viewer.organizationId,
       provider: providerId,
       codeVerifier: sealToken(codeVerifier, key, stateContext(userId, providerId)),
       returnTo: returnTo ?? null,
@@ -114,12 +154,18 @@ export function outlookAdminConsentUrl() {
   return providerFor("outlook").adminConsentUrl?.({ redirectUri: redirectUri("outlook") }) ?? null
 }
 
-/** Finishes a connect flow. The state only works once, for the user who started it. */
+/**
+ * Finishes a connect flow. The state only works once, for the user who started it.
+ * A mailbox already connected elsewhere (another account or organization) is not
+ * made again: this connection joins it, its synced mail and its sync.
+ * `personalOrganization` is for flows started before organizations had mail.
+ */
 export async function finishConnect(
   userId: string,
   providerId: MailProviderId,
   state: string,
-  code: string
+  code: string,
+  personalOrganization: () => Promise<string>
 ) {
   const provider = providerFor(providerId)
   const key = tokenKey()
@@ -138,39 +184,50 @@ export async function finishConnect(
     redirectUri: redirectUri(providerId),
   })
   const identity = await provider.identity(tokens.accessToken)
-  const where = {
-    userId,
-    provider: providerId,
-    providerAccountId: identity.providerAccountId,
-  }
-  const existing = await db.mailAccount.findUnique({
-    where: { userId_provider_providerAccountId: where },
+  const organizationId = pending.organizationId ?? (await personalOrganization())
+  const member = await db.member.findUnique({
+    where: { organizationId_userId: { organizationId, userId } },
+    select: { id: true },
   })
+  if (!member) throw new ConnectExpiredError()
+
+  const where = { provider: providerId, providerAccountId: identity.providerAccountId }
+  const existing = await db.mailAccount.findUnique({ where: { provider_providerAccountId: where } })
+  // Tokens stay sealed for whoever connected the mailbox first.
+  const sealing = { ...where, sealedFor: existing?.sealedFor ?? userId }
   const refreshToken = tokens.refreshToken
-    ? sealToken(tokens.refreshToken, key, tokenContext(where, "refresh"))
+    ? sealToken(tokens.refreshToken, key, tokenContext(sealing, "refresh"))
     : existing?.refreshToken
   if (!refreshToken) throw new Error("Provider returned no refresh token")
 
   const fields = {
     email: identity.email,
     displayName: identity.displayName,
-    accessToken: sealToken(tokens.accessToken, key, tokenContext(where, "access")),
+    accessToken: sealToken(tokens.accessToken, key, tokenContext(sealing, "access")),
     refreshToken,
     accessTokenExpiresAt: tokens.expiresAt,
     scope: tokens.scope,
     status: "active" as const,
   }
-  const others = existing ? [] : await db.mailAccount.findMany({ where: { userId } })
-  return db.mailAccount.upsert({
-    where: { userId_provider_providerAccountId: where },
-    create: {
-      id: randomUUID(),
-      ...where,
-      ...fields,
-      color: firstFreeColor(others.map((account) => account.color)),
-    },
+  const account = await db.mailAccount.upsert({
+    where: { provider_providerAccountId: where },
+    create: { id: randomUUID(), ...sealing, ...fields },
     update: fields,
   })
+  const others = await db.mailConnection.findMany({ where: { userId, organizationId }, select: { accountId: true, color: true } })
+  if (!others.some((connection) => connection.accountId === account.id))
+    await db.mailConnection.upsert({
+      where: { accountId_userId_organizationId: { accountId: account.id, userId, organizationId } },
+      create: {
+        id: randomUUID(),
+        accountId: account.id,
+        userId,
+        organizationId,
+        color: firstFreeColor(others.map((connection) => connection.color)),
+      },
+      update: {},
+    })
+  return { account, organizationId, alreadySynced: Boolean(existing?.syncCursor) }
 }
 
 async function storeRefreshed(account: MailAccount, tokens: TokenSet, key: Buffer) {
@@ -232,15 +289,19 @@ export async function withAccessToken<T>(
 }
 
 async function tellOwnerToReconnect(account: MailAccount) {
-  const owner = await getDb().user.findUnique({ where: { id: account.userId }, select: { email: true } })
-  if (!owner) return
-  await sendEmail(mailEmails.reconnect({ to: owner.email, mailbox: account.email, url: `${env.mailWebUrl}/?settings=mailboxes` }))
+  const owners = await getDb().user.findMany({ where: { id: { in: await connectedUsers(account.id) } }, select: { email: true } })
+  for (const owner of owners)
+    await sendEmail(mailEmails.reconnect({ to: owner.email, mailbox: account.email, url: `${env.mailWebUrl}/?settings=mailboxes` }))
 }
 
-export async function ownedAccount(userId: string, id: string) {
-  const account = await getDb().mailAccount.findFirst({ where: { id, userId } })
-  if (!account) throw new MailAccountNotFoundError()
-  return account
+/** A mailbox the viewer has in their list in this organization. */
+export async function ownedAccount(viewer: MailViewer, id: string) {
+  const connection = await getDb().mailConnection.findFirst({
+    where: { accountId: id, ...connectionOf(viewer) },
+    include: { account: true },
+  })
+  if (!connection) throw new MailAccountNotFoundError()
+  return connection.account
 }
 
 export class MailSignatureNotFoundError extends Error {}
@@ -251,8 +312,9 @@ export type AccountSettings = {
   signatureReplyId?: string | null
 }
 
-export async function updateAccountSettings(userId: string, id: string, settings: AccountSettings) {
-  const account = await ownedAccount(userId, id)
+export async function updateAccountSettings(viewer: MailViewer, id: string, settings: AccountSettings) {
+  const { userId } = viewer
+  const account = await ownedAccount(viewer, id)
   const db = getDb()
   const chosen = [settings.signatureNewId, settings.signatureReplyId].filter((value) => typeof value === "string")
   // A mailbox may only point at its owner's signatures.
@@ -260,25 +322,47 @@ export async function updateAccountSettings(userId: string, id: string, settings
     const owned = await db.mailSignature.count({ where: { userId, id: { in: chosen } } })
     if (owned !== new Set(chosen).size) throw new MailSignatureNotFoundError()
   }
-  await db.mailAccount.update({ where: { id: account.id }, data: settings })
+  await db.mailConnection.updateMany({ where: { accountId: account.id, ...connectionOf(viewer) }, data: settings })
 }
 
-export async function readInboxSummary(userId: string, id: string): Promise<InboxSummary> {
-  const account = await ownedAccount(userId, id)
+export async function readInboxSummary(viewer: MailViewer, id: string): Promise<InboxSummary> {
+  const account = await ownedAccount(viewer, id)
   return withAccessToken(account, (provider, token) => provider.inboxSummary(token))
 }
 
-/** Removes the mailbox here at once; revoking at the provider happens afterwards. */
-export async function disconnectAccount(userId: string, id: string) {
-  const account = await ownedAccount(userId, id)
-  await getDb().mailAccount.delete({ where: { id: account.id } })
-  defer(async () => {
-    const provider = providerFor(account.provider)
-    const refreshToken = openToken(account.refreshToken, tokenKey(), tokenContext(account, "refresh"))
-    if (provider.unwatch && account.watchId) {
-      const { accessToken } = await provider.refresh(refreshToken)
-      await provider.unwatch(accessToken, account.watchId)
-    }
-    await provider.revoke?.(refreshToken)
-  })
+/**
+ * Takes the mailbox out of the viewer's list here. Only when nobody else has it,
+ * in any account or organization, does the mailbox itself go: its synced mail at
+ * once, and the grant at the provider afterwards.
+ */
+export async function disconnectAccount(viewer: MailViewer, id: string) {
+  const account = await ownedAccount(viewer, id)
+  const db = getDb()
+  await db.mailConnection.deleteMany({ where: { accountId: account.id, ...connectionOf(viewer) } })
+  const { count } = await db.mailAccount.deleteMany({ where: { id: account.id, connections: { none: {} } } })
+  if (count === 1) defer(() => letGo(account))
+}
+
+/**
+ * Mailboxes left without anyone, after an account or organization was deleted
+ * (their connections go with it): removed, and the grant revoked at the provider.
+ */
+export async function dropUnconnectedMailboxes() {
+  const db = getDb()
+  const orphans = await db.mailAccount.findMany({ where: { connections: { none: {} } } })
+  for (const account of orphans) {
+    const { count } = await db.mailAccount.deleteMany({ where: { id: account.id, connections: { none: {} } } })
+    if (count === 1) await letGo(account).catch((error) => console.error("Letting go of a mailbox failed", error))
+  }
+  return orphans.length
+}
+
+async function letGo(account: MailAccount) {
+  const provider = providerFor(account.provider)
+  const refreshToken = openToken(account.refreshToken, tokenKey(), tokenContext(account, "refresh"))
+  if (provider.unwatch && account.watchId) {
+    const { accessToken } = await provider.refresh(refreshToken)
+    await provider.unwatch(accessToken, account.watchId)
+  }
+  await provider.revoke?.(refreshToken)
 }

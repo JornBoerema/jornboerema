@@ -125,12 +125,10 @@ export function billingPlugin() {
   })
 }
 
-/** Whether the user has a seat right now: an organization they are in pays for Even Pro. */
-export async function hasPaidPlan(userId: string) {
-  const organizations = await getDb().member.findMany({ where: { userId }, select: { organizationId: true } })
-  if (!organizations.length) return false
+/** Whether the organization pays for Even Pro right now; its members have a seat in it. */
+export async function organizationPays(organizationId: string) {
   const subscription = await getDb().subscription.findFirst({
-    where: { referenceId: { in: organizations.map((m) => m.organizationId) }, status: { in: PAYING_STATUSES } },
+    where: { referenceId: organizationId, status: { in: PAYING_STATUSES } },
     select: { id: true },
   })
   return Boolean(subscription)

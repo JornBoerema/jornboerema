@@ -3,8 +3,8 @@ import { idempotencyKeys, tasks } from "@trigger.dev/sdk"
 import { getDb } from "@even/db"
 import type { MailAddress, MailScheduledView, MailSnoozedView } from "@even/mail-core/types"
 import type { mailJob, MailJob } from "../../trigger/mail-jobs"
-import { notifyMailChanged } from "../lib/realtime"
-import { ownedAccount, withAccessToken } from "./accounts-server"
+import { notifyMailboxChanged, notifyMailChanged } from "../lib/realtime"
+import { ownedAccount, visibleAccountIds, withAccessToken, type MailViewer } from "./accounts-server"
 import type { DraftSave } from "./drafts-server"
 import { actOnConversation, MailMessageNotFoundError, threadLines, type Conversation } from "./threads-server"
 
@@ -44,11 +44,11 @@ async function scheduleJob(job: MailJob, at: Date) {
 
 /** Archives the conversation now and has it back in the inbox at `until`. */
 export async function snooze(conversation: Conversation, until: Date) {
-  const { account, threadId } = conversation
+  const { account, threadId, userId } = conversation
   await actOnConversation(conversation, "archive")
   const row = await getDb().mailSnooze.upsert({
     where: { accountId_threadId: { accountId: account.id, threadId } },
-    create: { id: randomUUID(), userId: account.userId, accountId: account.id, threadId, until },
+    create: { id: randomUUID(), userId, accountId: account.id, threadId, until },
     update: { until, wokeAt: null },
   })
   await scheduleJob({ kind: "snooze", id: row.id }, until)
@@ -71,19 +71,23 @@ async function wake(id: string) {
   // Back as new, the way Gmail returns snoozed mail.
   await actOnConversation(conversation, "unread").catch(() => undefined)
   await db.mailSnooze.update({ where: { id }, data: { wokeAt: new Date() } })
-  await notifyMailChanged(row.userId).catch(() => undefined)
+  // The mail moved in the mailbox itself, for everyone who has it.
+  await notifyMailboxChanged(row.accountId).catch(() => undefined)
   return true
 }
 
-/** Conversations waiting, soonest first, and those just back, for the inbox's top. */
-export async function listSnoozes(userId: string): Promise<{ snoozed: MailSnoozedView[]; returned: MailSnoozedView[] }> {
+/**
+ * Conversations waiting, soonest first, and those just back, for the inbox's top.
+ * A snooze moves the mail in the mailbox, so it shows for everyone who has it.
+ */
+export async function listSnoozes(viewer: MailViewer): Promise<{ snoozed: MailSnoozedView[]; returned: MailSnoozedView[] }> {
   const db = getDb()
   const since = new Date(Date.now() - RETURNED_DAYS * 24 * 60 * 60 * 1000)
   const rows = await db.mailSnooze.findMany({
-    where: { userId, OR: [{ wokeAt: null }, { wokeAt: { gte: since } }] },
+    where: { accountId: { in: await visibleAccountIds(viewer) }, OR: [{ wokeAt: null }, { wokeAt: { gte: since } }] },
     orderBy: { until: "asc" },
   })
-  const threads = await threadLines(userId, rows)
+  const threads = await threadLines(viewer, rows)
   const view = (row: (typeof rows)[number]): MailSnoozedView | null => {
     const thread = threads.get(`${row.accountId}:${row.threadId}`)
     return thread ? { thread, until: row.until.toISOString() } : null
@@ -101,8 +105,9 @@ export async function listSnoozes(userId: string): Promise<{ snoozed: MailSnooze
 // ─── Sending later ───────────────────────────────────────────────────────────
 
 /** Saves the message as a draft at the provider, to be sent from there at `sendAt`. */
-export async function scheduleSend(userId: string, accountId: string, input: DraftSave, sendAt: Date) {
-  const account = await ownedAccount(userId, accountId)
+export async function scheduleSend(viewer: MailViewer, accountId: string, input: DraftSave, sendAt: Date) {
+  const { userId } = viewer
+  const account = await ownedAccount(viewer, accountId)
   const draftId = await withAccessToken(account, (provider, token) =>
     provider.saveDraft(token, { ...input, from: { name: account.displayName, email: account.email } })
   )
@@ -134,8 +139,11 @@ async function sendScheduled(id: string, now = false) {
   return true
 }
 
-export async function listScheduled(userId: string): Promise<MailScheduledView[]> {
-  const rows = await getDb().mailScheduledSend.findMany({ where: { userId }, orderBy: { sendAt: "asc" } })
+export async function listScheduled(viewer: MailViewer): Promise<MailScheduledView[]> {
+  const rows = await getDb().mailScheduledSend.findMany({
+    where: { userId: viewer.userId, accountId: { in: await visibleAccountIds(viewer) } },
+    orderBy: { sendAt: "asc" },
+  })
   return rows.map((row) => ({
     id: row.id,
     accountId: row.accountId,
@@ -148,8 +156,11 @@ export async function listScheduled(userId: string): Promise<MailScheduledView[]
 }
 
 /** Drafts that are waiting to go out, which the Drafts list leaves to Scheduled. */
-export async function scheduledDraftIds(userId: string) {
-  const rows = await getDb().mailScheduledSend.findMany({ where: { userId, failedAt: null }, select: { accountId: true, draftId: true } })
+export async function scheduledDraftIds(viewer: MailViewer) {
+  const rows = await getDb().mailScheduledSend.findMany({
+    where: { accountId: { in: await visibleAccountIds(viewer) }, failedAt: null },
+    select: { accountId: true, draftId: true },
+  })
   return new Set(rows.map((row) => `${row.accountId}:${row.draftId}`))
 }
 

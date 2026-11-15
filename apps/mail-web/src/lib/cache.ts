@@ -112,9 +112,10 @@ export const keepsThreads = () => diskStorage !== null
  * Keeps the mail lists in this browser, so a reload shows them at once and then
  * refreshes them. Returns when the stored lists are back in the client.
  */
-export function persistMailCache(queryClient: QueryClient, userId: string) {
+export function persistMailCache(queryClient: QueryClient, userId: string, organizationId?: string | null) {
   currentUser = userId
-  const key = `${PREFIX}${userId}`
+  // Lists per organization: each shows only the mailboxes connected in it.
+  const key = organizationId ? `${PREFIX}${userId}.${organizationId}` : `${PREFIX}${userId}`
   const disk = diskStorage
   const persister = disk
     ? createAsyncStoragePersister({ storage: diskWithMove(disk), key, throttleTime: 1000 })

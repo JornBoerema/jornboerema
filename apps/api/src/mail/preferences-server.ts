@@ -65,11 +65,21 @@ export async function savePreferences(userId: string, input: Partial<MailPrefere
     ...rest,
     ...(sidebar !== undefined && { sidebar: sidebar === null ? Prisma.DbNull : normalizeSidebar(sidebar) }),
   }
+  // What was found is kept per mailbox; only mailboxes nobody else has lose it.
+  const onlyMine =
+    change.parcels === false || change.invoices === false
+      ? (
+          await db.mailAccount.findMany({
+            where: { connections: { some: { userId }, every: { userId } } },
+            select: { id: true },
+          })
+        ).map((account) => account.id)
+      : []
   const [saved] = await db.$transaction([
     db.mailPreferences.upsert({ where: { userId }, create: { userId, ...change }, update: change, select }),
     // Turned off, nothing found in shipping mail stays behind.
-    ...(change.parcels === false ? [db.mailShipment.deleteMany({ where: { userId } })] : []),
-    ...(change.invoices === false ? [db.mailInvoice.deleteMany({ where: { userId } })] : []),
+    ...(change.parcels === false ? [db.mailShipment.deleteMany({ where: { accountId: { in: onlyMine } } })] : []),
+    ...(change.invoices === false ? [db.mailInvoice.deleteMany({ where: { accountId: { in: onlyMine } } })] : []),
     // Turned off, nothing stays pinned to come back later.
     ...(change.pins === false ? [db.mailPin.deleteMany({ where: { userId } })] : []),
   ])

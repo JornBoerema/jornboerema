@@ -3,8 +3,10 @@ import { createMiddleware } from "hono/factory"
 import { getDb } from "@even/db"
 import { env } from "../env"
 import { msg } from "../i18n"
-import { hasPaidPlan } from "@even/auth/billing"
+import { organizationPays } from "@even/auth/billing"
 import { findApp, mailOpen, mailPaid, type AppId } from "./apps"
+import { ensurePersonalOrganization } from "../todo/workspaces-server"
+import { activeOrganization } from "./organization"
 import type { AppEnv } from "./session"
 
 type SessionUser = { id: string; email: string; emailVerified: boolean }
@@ -18,7 +20,7 @@ const cacheKey = (userId: string, app: AppId) => `${app}:${userId}`
 /** Forgets cached access, after a revoke, so it takes effect on this instance at once. */
 export const forgetAccess = (userId: string, app: AppId) => {
   granted.delete(cacheKey(userId, app))
-  paying.delete(userId)
+  forgetPlan(userId)
 }
 
 /**
@@ -58,42 +60,54 @@ async function hadGmailBefore(userId: string) {
   if (!mailOpen()) return true
   const db = getDb()
   if (await db.appAccess.findUnique({ where: { userId_app: { userId, app: "mail" } } })) return true
-  return Boolean(await db.mailAccount.findFirst({ where: { userId, provider: "gmail" }, select: { id: true } }))
+  return Boolean(await db.mailConnection.findFirst({ where: { userId, account: { provider: "gmail" } }, select: { id: true } }))
 }
 
-/** Recently seen paying, so a busy mailbox doesn't ask the database on every request. */
+/** Recently seen paying, by "user:organization", so a busy mailbox doesn't ask the database on every request. */
 const paying = new Map<string, number>()
 
 /** Forgets cached payment, so a new or changed subscription counts at once on this instance. */
-export const forgetPlan = (userId: string) => paying.delete(userId)
+export const forgetPlan = (userId: string) => {
+  for (const key of paying.keys()) if (key.startsWith(`${userId}:`)) paying.delete(key)
+}
 
-/** A subscription, or a place given by the admin: an invitation to Even mailen is free of charge. */
-async function paysOrIsGuest(user: SessionUser) {
-  if ((paying.get(user.id) ?? 0) > Date.now()) return true
-  const allowed = (await hasAppAccess(user, "mail")) || (await hasPaidPlan(user.id))
-  if (allowed) paying.set(user.id, Date.now() + GRANTED_TTL_MS)
+/**
+ * Mail in an organization is paid by that organization: its subscription, or a
+ * place given by the admin (an invitation to Even mailen is free of charge). A
+ * company paying for its people doesn't pay for their personal mailboxes.
+ */
+async function paysOrIsGuest(user: SessionUser, organizationId: string) {
+  const key = `${user.id}:${organizationId}`
+  if ((paying.get(key) ?? 0) > Date.now()) return true
+  const allowed = (await hasAppAccess(user, "mail")) || (await organizationPays(organizationId))
+  if (allowed) paying.set(key, Date.now() + GRANTED_TTL_MS)
   return allowed
 }
 
-/** Whether Even mailen is open to all but asks this user for a subscription first. */
-export const needsPlan = async (user: SessionUser) =>
-  !findApp("mail")?.inviteOnly() && mailPaid() && !(await paysOrIsGuest(user))
+/** Whether Even mailen is open to all but asks for a subscription in this organization first. */
+export const needsPlan = async (user: SessionUser, organizationId: string) =>
+  !findApp("mail")?.inviteOnly() && mailPaid() && !(await paysOrIsGuest(user, organizationId))
 
-/** Whether the user may use an app: open ones always, invite-only ones when let in, paid ones when paying. */
-export async function canUse(user: SessionUser, app: AppId) {
+/**
+ * Whether the user may use an app: open ones always, invite-only ones when let in,
+ * paid ones when paying. Mail is paid per organization, so it asks which one.
+ */
+export async function canUse(user: SessionUser, app: AppId, organizationId?: string) {
   if (findApp(app)?.inviteOnly()) {
     if (await hasAppAccess(user, app)) return true
     return app === "gmail" && (await hadGmailBefore(user.id))
   }
-  return app === "mail" ? !(await needsPlan(user)) : true
+  if (app !== "mail") return true
+  return !(await needsPlan(user, organizationId ?? (await ensurePersonalOrganization(user.id))))
 }
 
 /** After requireSession: answers 403 with `noAccess` for users not let in yet. */
 export const requireAppAccess = (app: AppId) =>
   createMiddleware<AppEnv>(async (c, next) => {
     const user = c.get("session").user
-    if (!(await canUse(user, app))) {
-      const unpaid = app === "mail" && (await needsPlan(user))
+    const organizationId = app === "mail" ? await activeOrganization(c) : undefined
+    if (!(await canUse(user, app, organizationId))) {
+      const unpaid = app === "mail" && organizationId !== undefined && (await needsPlan(user, organizationId))
       return c.json({ error: msg(c, unpaid ? "needsPlan" : "noAppAccess"), noAccess: true, needsPlan: unpaid }, 403)
     }
     await next()

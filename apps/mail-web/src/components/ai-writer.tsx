@@ -1,4 +1,3 @@
-import { authHeaders } from "@even/auth/client"
 import { useEffect, useRef, useState, type RefObject } from "react"
 import { currentLanguage } from "@even/i18n/react"
 import { parseWritten } from "@even/mail-core/write"
@@ -9,7 +8,7 @@ import { Button } from "@even/ui/components/button"
 import { cn } from "@even/ui/lib/utils"
 import type { RichTextHandle } from "@/components/rich-text-editor"
 import { useI18n } from "@/i18n"
-import { API_URL, ApiError, errorText } from "@/lib/api"
+import { API_URL, ApiError, errorText, requestHeaders } from "@/lib/api"
 import { textToEditorHtml } from "@/lib/email-compose"
 import { useAiWriting } from "@/lib/preferences"
 import { IconTip } from "@/components/icon-tip"
@@ -67,10 +66,9 @@ export function useAiWriter({
       }
     }
     try {
-      const headers = new Headers({
+      const headers = requestHeaders({
         "Content-Type": "application/json",
         "Accept-Language": currentLanguage(),
-        ...authHeaders(),
       })
       const response = await fetch(`${API_URL}${url}`, {
         method: "POST",

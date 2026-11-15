@@ -15,6 +15,7 @@ import { connectionRoutes } from "./connections/routes"
 import { onboardingRoutes } from "./onboarding/routes"
 import { statsRoutes } from "./stats/routes"
 import { todoRoutes } from "./todo/routes"
+import { ORGANIZATION_HEADER } from "./lib/organization"
 
 export const app = new Hono()
 
@@ -32,7 +33,7 @@ app.use(
   cors({
     origin: (origin) => (env.trustedOrigins.includes(origin) ? origin : null),
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "Accept-Language"],
+    allowHeaders: ["Content-Type", "Authorization", "Accept-Language", ORGANIZATION_HEADER],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     // The desktop app reads its session token from here after signing in.
     exposeHeaders: ["set-auth-token"],

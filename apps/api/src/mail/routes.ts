@@ -30,12 +30,20 @@ import { actOnSender, listSenders, senderConversations } from "./senders-server"
 import { mailChannel, realtimeEnabled, sealChannel } from "../lib/realtime"
 import { every } from "hono/combine"
 import { canUse, requireAppAccess } from "../lib/access"
+import { activeOrganization } from "../lib/organization"
+import { ensurePersonalOrganization } from "../todo/workspaces-server"
 import { AiBudgetError, overAiBudget } from "../lib/ai"
 import { overLimit, TooManyError } from "../lib/limit"
 import { noStore, requireSession as signedIn, requireTrustedOrigin, type AppEnv } from "../lib/session"
 
 /** Signed in, and let into Even mailen: it is invite-only for now. */
 const requireSession = every(signedIn, requireAppAccess("mail"))
+
+/** The signed-in user, in the organization the app shows: their mailboxes there. */
+const viewerOf = async (c: Context<AppEnv>): Promise<MailViewer> => ({
+  userId: c.get("session").user.id,
+  organizationId: await activeOrganization(c),
+})
 import {
   ConnectExpiredError,
   connectReturn,
@@ -44,6 +52,7 @@ import {
   listAccounts,
   outlookAdminConsentUrl,
   MailAccountNotFoundError,
+  type MailViewer,
   MailNotConfiguredError,
   MailSignatureNotFoundError,
   readInboxSummary,
@@ -85,7 +94,7 @@ import { FileTooLargeForMoneybirdError, moneybirdForConversation, NoAdministrati
 import { connectionFailure } from "../connections/routes"
 import { createTodoFromMail, TodoListGoneError, todoLists, todosForConversation } from "./todo-server"
 import { RECOGNITION_KINDS, REPORT_REASONS, reportRecognition } from "./recognition-server"
-import { startBackfill, syncAccount } from "./sync-server"
+import { startBackfill, syncAccount, syncMailbox } from "./sync-server"
 import { getDb } from "@even/db"
 import { forgetDevice, PUSH_ENVIRONMENTS, pushEnabled, registerDevice } from "./push-server"
 import {
@@ -310,7 +319,7 @@ mailRoutes.patch("/preferences", requireTrustedOrigin, requireSession, async (c)
 })
 
 mailRoutes.get("/accounts", requireSession, async (c) =>
-  c.json({ accounts: await listAccounts(c.get("session").user.id) }, 200, noStore)
+  c.json({ accounts: await listAccounts(await viewerOf(c)) }, 200, noStore)
 )
 
 mailRoutes.post("/connect/:provider", requireTrustedOrigin, requireSession, async (c) => {
@@ -323,7 +332,7 @@ mailRoutes.post("/connect/:provider", requireTrustedOrigin, requireSession, asyn
   const body = (await c.req.json().catch(() => null)) as { returnTo?: unknown } | null
   const returnTo = body?.returnTo === "welcome" ? "welcome" : undefined
   try {
-    return c.json({ url: await startConnect(user.id, provider, returnTo) }, 200, noStore)
+    return c.json({ url: await startConnect(await viewerOf(c), provider, returnTo) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -383,10 +392,13 @@ mailRoutes.get("/callback/:provider", async (c) => {
   if (!session) return fail("session")
   if (provider === "gmail" && !(await canUse(session.user, "gmail"))) return fail("denied")
   try {
-    const account = await finishConnect(session.user.id, provider, state, code)
+    const { account, alreadySynced } = await finishConnect(session.user.id, provider, state, code, () =>
+      ensurePersonalOrganization(session.user.id)
+    )
     defer(() => ensureWatch(account))
-    // Its past year is fetched in the background, whether or not the app stays open.
-    defer(() => startBackfill(account.id))
+    // Its past year is fetched in the background, whether or not the app stays open;
+    // a mailbox someone already has here comes with its mail.
+    if (!alreadySynced) defer(() => startBackfill(account.id))
     return c.redirect(`${back}/?connected=1`)
   } catch (error) {
     if (error instanceof ConnectExpiredError) return fail("expired")
@@ -398,7 +410,7 @@ mailRoutes.get("/callback/:provider", async (c) => {
 
 mailRoutes.get("/accounts/:id/inbox", requireSession, async (c) => {
   try {
-    const summary = await readInboxSummary(c.get("session").user.id, c.req.param("id"))
+    const summary = await readInboxSummary(await viewerOf(c), c.req.param("id"))
     return c.json(summary, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -408,7 +420,7 @@ mailRoutes.get("/accounts/:id/inbox", requireSession, async (c) => {
 // Called repeatedly by the client until `done`; each call does what fits in one function run.
 mailRoutes.post("/accounts/:id/sync", requireTrustedOrigin, requireSession, async (c) => {
   try {
-    return c.json(await syncAccount(c.get("session").user.id, c.req.param("id")), 200, noStore)
+    return c.json(await syncAccount(await viewerOf(c), c.req.param("id")), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -419,7 +431,7 @@ mailRoutes.get("/threads", requireSession, async (c) => {
     const folder = c.req.query("folder")
     if (folder !== undefined && !isMailFolder(folder)) return c.json({ error: msg(c, "invalidRequest") }, 400)
     const userId = c.get("session").user.id
-    const page = await listThreads(userId, {
+    const page = await listThreads(await viewerOf(c), {
       accountId: c.req.query("account"),
       cursor: c.req.query("cursor"),
       folder,
@@ -474,7 +486,7 @@ mailRoutes.post("/threads/:id/write", requireTrustedOrigin, requireSession, asyn
   const body = await readBody(c, writeBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    const conversation = await ownedMessage(await viewerOf(c), c.req.param("id"))
     const { messages } = await readConversation(conversation, { includeHidden: conversation.hidden })
     const userId = c.get("session").user.id
     await countAiRequest(userId)
@@ -495,7 +507,7 @@ const summaryOptions = async (c: Context<AppEnv>) => ({
 // Made once per newest message and kept; the mail itself isn't.
 mailRoutes.get("/threads/:id/summary", requireSession, async (c) => {
   try {
-    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    const conversation = await ownedMessage(await viewerOf(c), c.req.param("id"))
     return c.json(await summaryFor(conversation, languageOf(c), await summaryOptions(c)), 200, noStore)
   } catch (error) {
     if (error instanceof SummaryFailedError) return c.json({ error: msg(c, "summaryFailed") }, 502)
@@ -518,7 +530,7 @@ async function repliesAnswer(c: Context<AppEnv>, conversation: Conversation) {
 
 mailRoutes.get("/threads/:id/replies", requireSession, async (c) => {
   try {
-    return await repliesAnswer(c, await ownedMessage(c.get("session").user.id, c.req.param("id")))
+    return await repliesAnswer(c, await ownedMessage(await viewerOf(c), c.req.param("id")))
   } catch (error) {
     return failure(c, error)
   }
@@ -551,7 +563,7 @@ async function translationAnswer(c: Context<AppEnv>, conversation: Conversation)
 
 mailRoutes.get("/threads/:id/translation", requireSession, async (c) => {
   try {
-    return await translationAnswer(c, await ownedMessage(c.get("session").user.id, c.req.param("id")))
+    return await translationAnswer(c, await ownedMessage(await viewerOf(c), c.req.param("id")))
   } catch (error) {
     return failure(c, error)
   }
@@ -574,7 +586,7 @@ mailRoutes.get("/shipments", requireSession, async (c) => {
     const userId = c.get("session").user.id
     // Turned off: no shipping mail is read.
     if (!(await parcelsEnabled(userId))) return c.json({ shipments: [], complete: true }, 200, noStore)
-    return c.json({ shipments: await listShipments(userId) }, 200, noStore)
+    return c.json({ shipments: await listShipments(await viewerOf(c)) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -585,7 +597,7 @@ mailRoutes.get("/invoices", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
     if (!(await invoicesEnabled(userId))) return c.json({ invoices: [], complete: true }, 200, noStore)
-    return c.json({ invoices: await listInvoices(userId) }, 200, noStore)
+    return c.json({ invoices: await listInvoices(await viewerOf(c)) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -596,7 +608,7 @@ mailRoutes.post("/shipments/scan", requireTrustedOrigin, requireSession, async (
   try {
     const userId = c.get("session").user.id
     if (!(await parcelsEnabled(userId))) return c.json({ done: true, read: 0 }, 200, noStore)
-    return c.json(await scanShipments(userId), 200, noStore)
+    return c.json(await scanShipments(await viewerOf(c)), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -606,7 +618,7 @@ mailRoutes.post("/invoices/scan", requireTrustedOrigin, requireSession, async (c
   try {
     const userId = c.get("session").user.id
     if (!(await invoicesEnabled(userId))) return c.json({ done: true, read: 0 }, 200, noStore)
-    return c.json(await scanInvoices(userId), 200, noStore)
+    return c.json(await scanInvoices(await viewerOf(c)), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -618,9 +630,8 @@ mailRoutes.post("/threads/:id/recognition/report", requireTrustedOrigin, require
   const body = await readBody(c, reportBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    const userId = c.get("session").user.id
-    const conversation = await ownedMessage(userId, c.req.param("id"))
-    return c.json(await reportRecognition(userId, conversation, body.kind, body.reason), 200, noStore)
+    const conversation = await ownedMessage(await viewerOf(c), c.req.param("id"))
+    return c.json(await reportRecognition(conversation, body.kind, body.reason), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -630,7 +641,7 @@ mailRoutes.get("/threads/:id/invoice", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
     if (!(await invoicesEnabled(userId))) return c.json({ invoice: null }, 200, noStore)
-    return c.json({ invoice: await invoiceForConversation(await ownedMessage(userId, c.req.param("id"))) }, 200, noStore)
+    return c.json({ invoice: await invoiceForConversation(await ownedMessage(await viewerOf(c), c.req.param("id"))) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -652,7 +663,7 @@ mailRoutes.get("/threads/:id/shipment", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
     if (!(await parcelsEnabled(userId))) return c.json({ shipment: null }, 200, noStore)
-    const conversation = await ownedMessage(userId, c.req.param("id"))
+    const conversation = await ownedMessage(await viewerOf(c), c.req.param("id"))
     return c.json({ shipment: await shipmentForConversation(conversation) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -675,7 +686,7 @@ const unsubscribed = async (c: Context, conversation: Conversation | null) => {
 
 mailRoutes.post("/threads/:id/unsubscribe", requireTrustedOrigin, requireSession, async (c) => {
   try {
-    return await unsubscribed(c, await ownedMessage(c.get("session").user.id, c.req.param("id")))
+    return await unsubscribed(c, await ownedMessage(await viewerOf(c), c.req.param("id")))
   } catch (error) {
     return failure(c, error)
   }
@@ -694,7 +705,7 @@ mailRoutes.post("/accounts/:id/conversation/unsubscribe", requireTrustedOrigin, 
 mailRoutes.get("/pins", requireSession, async (c) => {
   const userId = c.get("session").user.id
   if (!(await pinsEnabled(userId))) return c.json({ threads: [] }, 200, noStore)
-  return c.json({ threads: await listPins(userId, c.req.query("account") || undefined) }, 200, noStore)
+  return c.json({ threads: await listPins(await viewerOf(c), c.req.query("account") || undefined) }, 200, noStore)
 })
 
 const pinBody = z.object({ pinned: z.boolean() })
@@ -703,8 +714,7 @@ mailRoutes.post("/threads/:id/pin", requireTrustedOrigin, requireSession, async 
   const body = await readBody(c, pinBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    const userId = c.get("session").user.id
-    return c.json(await pin(userId, await ownedMessage(userId, c.req.param("id")), body.pinned), 200, noStore)
+    return c.json(await pin(await ownedMessage(await viewerOf(c), c.req.param("id")), body.pinned), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -722,7 +732,7 @@ mailRoutes.post("/threads/:id/todo", requireTrustedOrigin, requireSession, async
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
     const userId = c.get("session").user.id
-    return c.json({ todo: await createTodoFromMail(userId, await ownedMessage(userId, c.req.param("id")), body) }, 200, noStore)
+    return c.json({ todo: await createTodoFromMail(userId, await ownedMessage(await viewerOf(c), c.req.param("id")), body) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -743,7 +753,7 @@ mailRoutes.post("/accounts/:id/conversation/todo", requireTrustedOrigin, require
 mailRoutes.get("/threads/:id/todos", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
-    return c.json({ todos: await todosForConversation(userId, await ownedMessage(userId, c.req.param("id"))) }, 200, noStore)
+    return c.json({ todos: await todosForConversation(userId, await ownedMessage(await viewerOf(c), c.req.param("id"))) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -761,13 +771,13 @@ mailRoutes.get("/accounts/:id/conversation/todos", requireSession, async (c) => 
 
 // Tidying up per sender: who fills the inbox, and everything from them at once.
 mailRoutes.get("/senders", requireSession, async (c) =>
-  c.json({ senders: await listSenders(c.get("session").user.id, c.req.query("account") || undefined) }, 200, noStore)
+  c.json({ senders: await listSenders(await viewerOf(c), c.req.query("account") || undefined) }, 200, noStore)
 )
 
 mailRoutes.get("/senders/conversations", requireSession, async (c) => {
   const email = z.email().max(320).safeParse(c.req.query("email"))
   if (!email.success) return c.json({ error: msg(c, "invalidRequest") }, 400)
-  const threads = await senderConversations(c.get("session").user.id, email.data, c.req.query("account") || undefined)
+  const threads = await senderConversations(await viewerOf(c), email.data, c.req.query("account") || undefined)
   return c.json({ threads }, 200, noStore)
 })
 
@@ -782,7 +792,7 @@ mailRoutes.post("/senders/action", requireTrustedOrigin, requireSession, async (
   const body = await readBody(c, senderBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    return c.json(await actOnSender(c.get("session").user.id, body.email, body.action, body.account), 200, noStore)
+    return c.json(await actOnSender(await viewerOf(c), body.email, body.action, body.account), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -796,14 +806,14 @@ const moment = z.iso
 const snoozeBody = z.object({ until: moment })
 
 mailRoutes.get("/snoozes", requireSession, async (c) =>
-  c.json(await listSnoozes(c.get("session").user.id), 200, noStore)
+  c.json(await listSnoozes(await viewerOf(c)), 200, noStore)
 )
 
 mailRoutes.post("/threads/:id/snooze", requireTrustedOrigin, requireSession, async (c) => {
   const body = await readBody(c, snoozeBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    const conversation = await ownedMessage(c.get("session").user.id, c.req.param("id"))
+    const conversation = await ownedMessage(await viewerOf(c), c.req.param("id"))
     return c.json(await snooze(conversation, body.until), 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -812,7 +822,7 @@ mailRoutes.post("/threads/:id/snooze", requireTrustedOrigin, requireSession, asy
 
 mailRoutes.delete("/threads/:id/snooze", requireTrustedOrigin, requireSession, async (c) => {
   try {
-    await unsnooze(await ownedMessage(c.get("session").user.id, c.req.param("id")))
+    await unsnooze(await ownedMessage(await viewerOf(c), c.req.param("id")))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -820,7 +830,7 @@ mailRoutes.delete("/threads/:id/snooze", requireTrustedOrigin, requireSession, a
 })
 
 mailRoutes.get("/scheduled", requireSession, async (c) =>
-  c.json({ scheduled: await listScheduled(c.get("session").user.id) }, 200, noStore)
+  c.json({ scheduled: await listScheduled(await viewerOf(c)) }, 200, noStore)
 )
 
 mailRoutes.post("/accounts/:id/scheduled", requireTrustedOrigin, requireSession, async (c) => {
@@ -832,7 +842,7 @@ mailRoutes.post("/accounts/:id/scheduled", requireTrustedOrigin, requireSession,
     const { sendAt, ...draft } = body
     const files = await loadAttachments(userId, draft.attachments)
     await countSend(c.get("session").user.id)
-    return c.json(await scheduleSend(userId, c.req.param("id"), { ...draft, attachments: files }, sendAt), 200, noStore)
+    return c.json(await scheduleSend(await viewerOf(c), c.req.param("id"), { ...draft, attachments: files }, sendAt), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -863,11 +873,11 @@ mailRoutes.post("/jobs/backfill", async (c) => {
   if (!secret || !header || !secretsMatch(header, `Bearer ${secret}`)) return c.body(null, 401)
   const body = await readBody(c, backfillBody)
   if (!body) return c.json({ error: "invalid job" }, 400)
-  const account = await getDb().mailAccount.findUnique({ where: { id: body.accountId }, select: { userId: true, status: true } })
+  const account = await getDb().mailAccount.findUnique({ where: { id: body.accountId } })
   if (!account) return c.body(null, 404)
   if (account.status !== "active") return c.body(null, 409)
   try {
-    return c.json(await syncAccount(account.userId, body.accountId), 200, noStore)
+    return c.json(await syncMailbox(account), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -886,7 +896,7 @@ mailRoutes.post("/jobs/run", async (c) => {
 
 mailRoutes.get("/threads/:id", requireSession, async (c) => {
   try {
-    return c.json(await readThread(c.get("session").user.id, c.req.param("id")), 200, noStore)
+    return c.json(await readThread(await viewerOf(c), c.req.param("id")), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -896,7 +906,7 @@ mailRoutes.post("/threads/:id/actions", requireTrustedOrigin, requireSession, as
   const body = await readBody(c, actionBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    await actOnThread(c.get("session").user.id, c.req.param("id"), body.action)
+    await actOnThread(await viewerOf(c), c.req.param("id"), body.action)
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -909,7 +919,7 @@ mailRoutes.post("/threads/:id/reply", requireTrustedOrigin, requireSession, asyn
   try {
     const userId = c.get("session").user.id
     await countSend(c.get("session").user.id)
-    await replyToThread(userId, c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
+    await replyToThread(await viewerOf(c), c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
     await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
@@ -922,7 +932,7 @@ mailRoutes.post("/threads/:id/forward", requireTrustedOrigin, requireSession, as
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
     await countSend(c.get("session").user.id)
-    await forwardThread(c.get("session").user.id, c.req.param("id"), body)
+    await forwardThread(await viewerOf(c), c.req.param("id"), body)
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -935,7 +945,7 @@ mailRoutes.post("/threads/:id/attachment", requireTrustedOrigin, requireSession,
   const body = await readBody(c, attachmentBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    const bytes = await readAttachment(c.get("session").user.id, c.req.param("id"), body)
+    const bytes = await readAttachment(await viewerOf(c), c.req.param("id"), body)
     // Streamed, because Vercel caps buffered responses at 4.5 MB.
     return new Response(new Blob([bytes as BlobPart]).stream(), {
       headers: {
@@ -957,7 +967,7 @@ mailRoutes.post("/accounts/:id/send", requireTrustedOrigin, requireSession, asyn
   try {
     const userId = c.get("session").user.id
     await countSend(c.get("session").user.id)
-    await sendMessage(userId, c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
+    await sendMessage(await viewerOf(c), c.req.param("id"), { ...body, attachments: await loadAttachments(userId, body.attachments) })
     await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
@@ -966,14 +976,14 @@ mailRoutes.post("/accounts/:id/send", requireTrustedOrigin, requireSession, asyn
 })
 
 mailRoutes.get("/drafts", requireSession, async (c) =>
-  c.json(await listDrafts(c.get("session").user.id), 200, noStore)
+  c.json(await listDrafts(await viewerOf(c)), 200, noStore)
 )
 
 // Like mail bodies, drafts pass through and are never written here.
 mailRoutes.get("/accounts/:id/drafts/:draftId", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
-    const saved = await readDraft(userId, c.req.param("id"), c.req.param("draftId"))
+    const saved = await readDraft(await viewerOf(c), c.req.param("id"), c.req.param("draftId"))
     // Its files become uploads, so the client refers to them like freshly attached ones.
     const draft = { ...saved, attachments: await Promise.all(saved.attachments.map((file) => storeAsUpload(userId, file))) }
     return c.json(draft, 200, noStore)
@@ -988,7 +998,7 @@ mailRoutes.post("/accounts/:id/drafts", requireTrustedOrigin, requireSession, as
   try {
     const userId = c.get("session").user.id
     const files = await loadAttachments(userId, body.attachments)
-    return c.json(await saveDraft(userId, c.req.param("id"), { ...body, attachments: files }), 200, noStore)
+    return c.json(await saveDraft(await viewerOf(c), c.req.param("id"), { ...body, attachments: files }), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -1003,7 +1013,7 @@ mailRoutes.post("/accounts/:id/drafts/:draftId/send", requireTrustedOrigin, requ
     const userId = c.get("session").user.id
     const files = await loadAttachments(userId, body.attachments)
     await countSend(c.get("session").user.id)
-    await sendDraft(userId, c.req.param("id"), { ...body, attachments: files, draftId })
+    await sendDraft(await viewerOf(c), c.req.param("id"), { ...body, attachments: files, draftId })
     await deleteUploads(userId, body.attachments.map((file) => file.uploadId))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
@@ -1013,7 +1023,7 @@ mailRoutes.post("/accounts/:id/drafts/:draftId/send", requireTrustedOrigin, requ
 
 mailRoutes.delete("/accounts/:id/drafts/:draftId", requireTrustedOrigin, requireSession, async (c) => {
   try {
-    await deleteDraft(c.get("session").user.id, c.req.param("id"), c.req.param("draftId"))
+    await deleteDraft(await viewerOf(c), c.req.param("id"), c.req.param("draftId"))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -1055,25 +1065,25 @@ mailRoutes.delete("/signatures/:id", requireTrustedOrigin, requireSession, async
 })
 
 mailRoutes.get("/unread", requireSession, async (c) =>
-  c.json(await unreadSummary(c.get("session").user.id), 200, noStore)
+  c.json(await unreadSummary(await viewerOf(c)), 200, noStore)
 )
 
 mailRoutes.get("/contacts", requireSession, async (c) => {
   const query = c.req.query("q") ?? ""
   if (query.length > 200) return c.json({ error: msg(c, "invalidRequest") }, 400)
-  return c.json({ contacts: await suggestContacts(c.get("session").user.id, query) }, 200, noStore)
+  return c.json({ contacts: await suggestContacts(await viewerOf(c), query) }, 200, noStore)
 })
 
 mailRoutes.get("/search/quick", requireSession, async (c) => {
   const query = c.req.query("q")?.trim() ?? ""
   if (!query || query.length > MAX_SEARCH_LENGTH) return c.json({ error: msg(c, "invalidRequest") }, 400)
-  return c.json({ hits: await quickSearch(c.get("session").user.id, query) }, 200, noStore)
+  return c.json({ hits: await quickSearch(await viewerOf(c), query) }, 200, noStore)
 })
 
 mailRoutes.get("/search", requireSession, async (c) => {
   const query = c.req.query("q")?.trim() ?? ""
   if (!query || query.length > MAX_SEARCH_LENGTH) return c.json({ error: msg(c, "invalidRequest") }, 400)
-  return c.json(await searchMail(c.get("session").user.id, query), 200, noStore)
+  return c.json(await searchMail(await viewerOf(c), query), 200, noStore)
 })
 
 // A conversation by provider id, for ones search found outside the synced inbox.
@@ -1082,7 +1092,7 @@ const conversationId = z.string().min(1).max(1000)
 async function conversationOf(c: Context<AppEnv>) {
   const threadId = conversationId.safeParse(c.req.query("thread"))
   if (!threadId.success) return null
-  return ownedConversation(c.get("session").user.id, c.req.param("id") ?? "", threadId.data)
+  return ownedConversation(await viewerOf(c), c.req.param("id") ?? "", threadId.data)
 }
 
 mailRoutes.get("/accounts/:id/conversation", requireSession, async (c) => {
@@ -1209,7 +1219,7 @@ const moneybirdBody = z.object({
 mailRoutes.get("/threads/:id/moneybird", requireSession, async (c) => {
   try {
     const userId = c.get("session").user.id
-    return c.json(await moneybirdForConversation(userId, await ownedMessage(userId, c.req.param("id"))), 200, noStore)
+    return c.json(await moneybirdForConversation(userId, await ownedMessage(await viewerOf(c), c.req.param("id"))), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -1230,7 +1240,7 @@ mailRoutes.post("/threads/:id/moneybird", requireTrustedOrigin, requireSession, 
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
     const userId = c.get("session").user.id
-    return c.json({ export: await sendToMoneybird(userId, await ownedMessage(userId, c.req.param("id")), body) }, 200, noStore)
+    return c.json({ export: await sendToMoneybird(userId, await ownedMessage(await viewerOf(c), c.req.param("id")), body) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -1250,7 +1260,7 @@ mailRoutes.post("/accounts/:id/conversation/moneybird", requireTrustedOrigin, re
 // Called until `done`: each call deletes one page for good.
 mailRoutes.post("/accounts/:id/trash/empty", requireTrustedOrigin, requireSession, async (c) => {
   try {
-    return c.json(await emptyTrash(c.get("session").user.id, c.req.param("id")), 200, noStore)
+    return c.json(await emptyTrash(await viewerOf(c), c.req.param("id")), 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -1348,7 +1358,7 @@ mailRoutes.patch("/accounts/:id", requireTrustedOrigin, requireSession, async (c
   const body = await readBody(c, accountBody)
   if (!body) return c.json({ error: msg(c, "invalidRequest") }, 400)
   try {
-    await updateAccountSettings(c.get("session").user.id, c.req.param("id"), body)
+    await updateAccountSettings(await viewerOf(c), c.req.param("id"), body)
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)
@@ -1357,7 +1367,7 @@ mailRoutes.patch("/accounts/:id", requireTrustedOrigin, requireSession, async (c
 
 mailRoutes.delete("/accounts/:id", requireTrustedOrigin, requireSession, async (c) => {
   try {
-    await disconnectAccount(c.get("session").user.id, c.req.param("id"))
+    await disconnectAccount(await viewerOf(c), c.req.param("id"))
     return c.json({ ok: true }, 200, noStore)
   } catch (error) {
     return failure(c, error)

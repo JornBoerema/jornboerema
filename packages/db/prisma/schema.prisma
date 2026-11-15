@@ -15,19 +15,19 @@ datasource db {
 // ─── Auth (Better Auth core) ────────────────────────────────────────────────
 
 model User {
-  id               String   @id
+  id               String    @id
   name             String
-  email            String   @unique
-  emailVerified    Boolean  @default(false) @map("email_verified")
+  email            String    @unique
+  emailVerified    Boolean   @default(false) @map("email_verified")
   /// Better Auth two-factor plugin: signing in with a password also asks for a code.
-  twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
+  twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
   image            String?
   /// No longer used: subscriptions belong to organizations (Organization.stripeCustomerId).
-  stripeCustomerId String?  @map("stripe_customer_id")
+  stripeCustomerId String?   @map("stripe_customer_id")
   /// When the first-run steps at /welcome were finished or skipped; null sends a new user there.
   onboardedAt      DateTime? @map("onboarded_at")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   sessions               Session[]
   accounts               Account[]
@@ -36,19 +36,16 @@ model User {
   lists                  List[]
   members                Member[]
   invitations            Invitation[]
-  mailAccounts           MailAccount[]
-  mailMessages           MailMessage[]
+  mailConnections        MailConnection[]
   mailSignatures         MailSignature[]
   mailUploads            MailUpload[]
   mailOauthStates        MailOauthState[]
   appAccess              AppAccess[]
   appAccessRequests      AppAccessRequest[]
   mailPreferences        MailPreferences?
-  mailShipments          MailShipment[]
   mailSnoozes            MailSnooze[]
   mailPushDevices        MailPushDevice[]
   mailScheduledSends     MailScheduledSend[]
-  mailInvoices           MailInvoice[]
   mailRecognitionReports MailRecognitionReport[]
   connections            Connection[]
   todoAssignments        TodoAssignee[]
@@ -203,11 +200,12 @@ model Organization {
   stripeCustomerId String?  @map("stripe_customer_id")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  members     Member[]
-  invitations Invitation[]
-  lists       List[]
-  statuses    WorkspaceStatus[]
-  projects    Project[]
+  members         Member[]
+  invitations     Invitation[]
+  lists           List[]
+  statuses        WorkspaceStatus[]
+  projects        Project[]
+  mailConnections MailConnection[]
 
   @@map("organizations")
 }
@@ -387,7 +385,7 @@ model MailPin {
   threadId  String      @map("thread_id")
   createdAt DateTime    @default(now()) @map("created_at")
 
-  @@unique([accountId, threadId], map: "mail_pins_thread_key")
+  @@unique([userId, accountId, threadId], map: "mail_pins_user_thread_key")
   @@index([userId], map: "mail_pins_user_idx")
   @@map("mail_pins")
 }
@@ -436,8 +434,8 @@ enum MailAccountStatus {
 /// A connected mailbox. Separate from `account`, which is for signing in to Even.
 model MailAccount {
   id                   String              @id
-  userId               String              @map("user_id")
-  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The user whose id the tokens were sealed with (the first to connect it); no tie to them beyond that.
+  sealedFor            String              @map("sealed_for")
   provider             MailProvider
   providerAccountId    String              @map("provider_account_id")
   email                String
@@ -448,14 +446,6 @@ model MailAccount {
   accessTokenExpiresAt DateTime            @map("access_token_expires_at")
   scope                String
   status               MailAccountStatus   @default(active)
-  /// Index into the client's palette; tells mailboxes apart in a shared list.
-  color                Int                 @default(0)
-  /// Signature for new messages from this mailbox. Null means none.
-  signatureNewId       String?             @map("signature_new_id")
-  signatureNew         MailSignature?      @relation("SignatureForNew", fields: [signatureNewId], references: [id], onDelete: SetNull)
-  /// Signature for replies and forwards from this mailbox. Null means none.
-  signatureReplyId     String?             @map("signature_reply_id")
-  signatureReply       MailSignature?      @relation("SignatureForReply", fields: [signatureReplyId], references: [id], onDelete: SetNull)
   /// Opaque provider position (Gmail history id, Graph delta link). Null until the first sync.
   syncCursor           String?             @map("sync_cursor")
   /// Oldest mail this account keeps. Fixed when a full sync starts.
@@ -467,6 +457,7 @@ model MailAccount {
   watchExpiresAt       DateTime?           @map("watch_expires_at")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @default(now()) @updatedAt @map("updated_at")
+  connections          MailConnection[]
   messages             MailMessage[]
   summaries            MailSummary[]
   shipments            MailShipment[]
@@ -476,23 +467,51 @@ model MailAccount {
   pins                 MailPin[]
   moneybirdExports     MoneybirdExport[]
 
-  @@unique([userId, provider, providerAccountId], map: "mail_accounts_user_provider_account_unique")
+  @@unique([provider, providerAccountId], map: "mail_accounts_provider_account_unique")
   @@index([watchId], map: "mail_accounts_watch_id_idx")
   @@map("mail_accounts")
 }
 
+/**
+ * A mailbox in someone's list, within one of their organizations. The mailbox
+ * itself (tokens, sync, messages) exists once, however many connections it has:
+ * the same address in two accounts or organizations is synced one time.
+ */
+model MailConnection {
+  id               String         @id
+  accountId        String         @map("account_id")
+  account          MailAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId           String         @map("user_id")
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String         @map("organization_id")
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Index into the client's palette; tells mailboxes apart in a shared list.
+  color            Int            @default(0)
+  /// Signature for new messages from this mailbox. Null means none.
+  signatureNewId   String?        @map("signature_new_id")
+  signatureNew     MailSignature? @relation("SignatureForNew", fields: [signatureNewId], references: [id], onDelete: SetNull)
+  /// Signature for replies and forwards from this mailbox. Null means none.
+  signatureReplyId String?        @map("signature_reply_id")
+  signatureReply   MailSignature? @relation("SignatureForReply", fields: [signatureReplyId], references: [id], onDelete: SetNull)
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@unique([accountId, userId, organizationId], map: "mail_connections_account_user_organization_unique")
+  @@index([userId, organizationId], map: "mail_connections_user_organization_idx")
+  @@map("mail_connections")
+}
+
 /// A signature the user wrote; mailboxes pick which one they use.
 model MailSignature {
-  id         String        @id
-  userId     String        @map("user_id")
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String           @id
+  userId     String           @map("user_id")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
   /// HTML from the app's own editor.
   html       String
-  createdAt  DateTime      @default(now()) @map("created_at")
-  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at")
-  forNew     MailAccount[] @relation("SignatureForNew")
-  forReplies MailAccount[] @relation("SignatureForReply")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @default(now()) @updatedAt @map("updated_at")
+  forNew     MailConnection[] @relation("SignatureForNew")
+  forReplies MailConnection[] @relation("SignatureForReply")
 
   @@index([userId, createdAt], map: "mail_signatures_user_created_idx")
   @@map("mail_signatures")
@@ -526,8 +545,6 @@ model MailSummary {
 /// nothing, so it isn't read again.
 model MailShipment {
   id           String      @id
-  userId       String      @map("user_id")
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountId    String      @map("account_id")
   account      MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   threadId     String      @map("thread_id")
@@ -550,7 +567,7 @@ model MailShipment {
   updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
 
   @@unique([accountId, threadId], map: "mail_shipments_thread_key")
-  @@index([userId, receivedAt(sort: Desc)], map: "mail_shipments_user_received_idx")
+  @@index([accountId, receivedAt(sort: Desc)], map: "mail_shipments_account_received_idx")
   @@map("mail_shipments")
 }
 
@@ -559,8 +576,6 @@ model MailShipment {
 /// conversation, made again when it grows or the reading improves.
 model MailInvoice {
   id            String      @id
-  userId        String      @map("user_id")
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountId     String      @map("account_id")
   account       MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   threadId      String      @map("thread_id")
@@ -582,7 +597,7 @@ model MailInvoice {
   updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
 
   @@unique([accountId, threadId], map: "mail_invoices_thread_key")
-  @@index([userId, receivedAt(sort: Desc)], map: "mail_invoices_user_received_idx")
+  @@index([accountId, receivedAt(sort: Desc)], map: "mail_invoices_account_received_idx")
   @@map("mail_invoices")
 }
 
@@ -696,14 +711,16 @@ model MailUploadChunk {
 
 /// A pending OAuth connect flow. `id` is the SHA-256 of the state value.
 model MailOauthState {
-  id           String       @id
-  userId       String       @map("user_id")
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider     MailProvider
-  codeVerifier String       @map("code_verifier_sealed")
+  id             String       @id
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       MailProvider
+  codeVerifier   String       @map("code_verifier_sealed")
+  /// The organization the mailbox is connected in. Null for flows started before organizations had mail.
+  organizationId String?      @map("organization_id")
   /// Where the browser goes after the provider: null for the mail app, "welcome" for the first-run steps.
-  returnTo     String?      @map("return_to")
-  expiresAt    DateTime     @map("expires_at")
+  returnTo       String?      @map("return_to")
+  expiresAt      DateTime     @map("expires_at")
 
   @@index([expiresAt], map: "mail_oauth_states_expires_idx")
   @@map("mail_oauth_states")
@@ -723,8 +740,6 @@ enum MailMessageFolder {
 model MailMessage {
   /// Derived from account and provider id, so re-syncing keeps the same id.
   id                String            @id
-  userId            String            @map("user_id")
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountId         String            @map("account_id")
   account           MailAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   providerMessageId String            @map("provider_message_id")
@@ -743,9 +758,8 @@ model MailMessage {
   hasAttachments    Boolean           @map("has_attachments")
 
   @@unique([accountId, providerMessageId], map: "mail_messages_account_provider_unique")
-  @@index([userId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_received_idx")
   @@index([accountId, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_account_received_idx")
-  @@index([userId, folder, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_user_folder_received_idx")
+  @@index([accountId, folder, receivedAt(sort: Desc), id(sort: Desc)], map: "mail_messages_account_folder_received_idx")
   @@index([accountId, threadId], map: "mail_messages_account_thread_idx")
   @@map("mail_messages")
 }

@@ -265,7 +265,7 @@ export async function userList(query: string) {
     select: {
       ...userSelect,
       accounts: { select: { providerId: true } },
-      _count: { select: { mailAccounts: true, members: true, passkeys: true } },
+      _count: { select: { mailConnections: true, members: true, passkeys: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -274,7 +274,7 @@ export async function userList(query: string) {
   return users.map(({ accounts, _count, ...user }) => ({
     ...user,
     providers: [...new Set(accounts.map((account) => account.providerId))],
-    mailboxes: _count.mailAccounts,
+    mailboxes: _count.mailConnections,
     organizations: _count.members,
     passkeys: _count.passkeys,
     lastSeen: seen.get(user.id) ?? null,
@@ -289,7 +289,10 @@ export async function userDetail(id: string) {
       ...userSelect,
       accounts: { select: { providerId: true, createdAt: true } },
       passkeys: { select: { name: true, createdAt: true } },
-      mailAccounts: { select: { id: true, email: true, provider: true, status: true, createdAt: true } },
+      mailConnections: {
+        select: { createdAt: true, account: { select: { id: true, email: true, provider: true, status: true } } },
+        orderBy: { createdAt: "asc" },
+      },
       members: {
         select: {
           role: true,
@@ -312,9 +315,13 @@ export async function userDetail(id: string) {
       select: { referenceId: true, plan: true, status: true, seats: true, periodEnd: true, cancelAtPeriodEnd: true },
     }),
   ])
-  const { sessions, aiUsage, _count, members, ...rest } = user
+  const { sessions, aiUsage, _count, members, mailConnections, ...rest } = user
   return {
     ...rest,
+    // The same mailbox in two of their organizations is one mailbox.
+    mailAccounts: [
+      ...new Map(mailConnections.map(({ account, createdAt }) => [account.id, { ...account, createdAt }])).values(),
+    ],
     organizations: members.map((member) => ({
       ...member.organization,
       members: member.organization._count.members,

@@ -6,6 +6,7 @@ import { errorText } from "@/lib/api"
 import { Navigate, useLocation, useNavigate } from "react-router"
 import { useCollapsibleSidebar } from "@even/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@even/ui/lib/utils"
+import { useOrganizations } from "@even/ui/components/organizations"
 import type { MailThreadView } from "@even/mail-core/types"
 import { linkedSettingsPage, MailSettings } from "@/components/mail-settings"
 import { useDesktopSettings } from "@even/ui/components/desktop-settings"
@@ -32,12 +33,13 @@ const returnedFromProvider = () =>
 /** Puts the lists kept in this browser back before the app shows anything. */
 function WithCachedMail({ userId, children }: { userId: string; children: ReactNode }) {
   const queryClient = useQueryClient()
+  const organizationId = useOrganizations()?.active.id ?? null
   const [ready, setReady] = useState(false)
   useEffect(() => {
-    const { unsubscribe, restored } = persistMailCache(queryClient, userId)
+    const { unsubscribe, restored } = persistMailCache(queryClient, userId, organizationId)
     void restored.finally(() => setReady(true))
     return unsubscribe
-  }, [queryClient, userId])
+  }, [queryClient, userId, organizationId])
   return ready ? children : <MailLoading />
 }
 

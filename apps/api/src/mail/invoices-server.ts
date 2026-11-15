@@ -4,6 +4,7 @@ import { findInvoiceInThread, looksLikeInvoice, type FoundInvoice } from "@even/
 import type { MailInvoiceView, MailThreadMessage } from "@even/mail-core/types"
 import { readInRounds } from "./scan-rounds"
 import { readConversation, threadLines, type Conversation } from "./threads-server"
+import { visibleAccountIds, visibleAccounts, type MailViewer } from "./accounts-server"
 
 /** How far back mail about money is looked through. */
 const SCAN_DAYS = 120
@@ -42,7 +43,7 @@ const invoiceIn = (messages: MailThreadMessage[]) =>
   )
 
 async function save(
-  account: Pick<MailAccount, "id" | "userId">,
+  account: Pick<MailAccount, "id">,
   threadId: string,
   newest: { id: string; subject: string; receivedAt: Date },
   found: FoundInvoice | null
@@ -64,18 +65,19 @@ async function save(
   }
   return getDb().mailInvoice.upsert({
     where: { accountId_threadId: { accountId: account.id, threadId } },
-    create: { id: randomUUID(), userId: account.userId, accountId: account.id, threadId, ...data },
+    create: { id: randomUUID(), accountId: account.id, threadId, ...data },
     update: data,
   })
 }
 
 /** Reads the mail about money of the last months that hasn't been read yet, for as long as the budget allows. */
-export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
+export async function scanInvoices(viewer: MailViewer, budgetMs = SCAN_BUDGET_MS) {
   const db = getDb()
+  const accountIds = await visibleAccountIds(viewer)
   const deadline = Date.now() + budgetMs
   const recent = await db.mailMessage.findMany({
     where: {
-      userId,
+      accountId: { in: accountIds },
       receivedAt: { gte: daysAgo(SCAN_DAYS) },
       folder: { in: ["inbox", "archive"] },
       threadId: { not: null },
@@ -91,7 +93,7 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
   if (newestByThread.size === 0) return { done: true, read: 0 }
 
   const known = await db.mailInvoice.findMany({
-    where: { userId, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
+    where: { accountId: { in: accountIds }, threadId: { in: [...newestByThread.values()].map((message) => message.threadId!) } },
     select: { accountId: true, threadId: true, messageId: true, readVersion: true, dismissed: true },
   })
   // Reported as wrong: never read again, whatever the version.
@@ -102,7 +104,7 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
   if (toRead.length === 0) return { done: true, read: 0 }
 
   const accounts = new Map(
-    (await db.mailAccount.findMany({ where: { userId, status: "active" } })).map((account) => [account.id, account])
+    (await visibleAccounts(viewer, { active: true })).map((account) => [account.id, account])
   )
   return readInRounds(
     toRead,
@@ -128,9 +130,9 @@ export async function scanInvoices(userId: string, budgetMs = SCAN_BUDGET_MS) {
  * conversations become one line when they name the same vendor and number:
  * the newest says where it stands, unless an earlier one already said paid.
  */
-export async function listInvoices(userId: string): Promise<MailInvoiceView[]> {
+export async function listInvoices(viewer: MailViewer): Promise<MailInvoiceView[]> {
   const rows = await getDb().mailInvoice.findMany({
-    where: { userId, found: true, dismissed: false, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
+    where: { accountId: { in: await visibleAccountIds(viewer) }, found: true, dismissed: false, receivedAt: { gte: daysAgo(SCAN_DAYS) } },
     orderBy: { receivedAt: "desc" },
   })
   const lines = new Map<string, Row>()
@@ -154,7 +156,7 @@ export async function listInvoices(userId: string): Promise<MailInvoiceView[]> {
     if (row.status === "paid" && line.status !== "failed") line.status = "paid"
   }
   const shown = [...lines.values()]
-  const threads = await threadLines(userId, shown)
+  const threads = await threadLines(viewer, shown)
   return shown.map((row) => ({ ...toView(row), thread: threads.get(`${row.accountId}:${row.threadId}`) }))
 }
 

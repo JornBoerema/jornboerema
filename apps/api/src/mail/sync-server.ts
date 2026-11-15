@@ -8,7 +8,7 @@ import {
   type SyncPage,
 } from "@even/mail-core/provider"
 import type { MailSyncResult } from "@even/mail-core/types"
-import { ownedAccount, withAccessToken } from "./accounts-server"
+import { connectedUsers, ownedAccount, withAccessToken, type MailViewer } from "./accounts-server"
 import { isNews, pushEnabled, pushNewMail } from "./push-server"
 import type { mailBackfill } from "../../trigger/mail-backfill"
 
@@ -32,7 +32,6 @@ function toRow(account: MailAccount, { to, ...data }: MailMessageData) {
     ...data,
     toAddresses: to,
     id: messageId(account.id, data.providerMessageId),
-    userId: account.userId,
     accountId: account.id,
   }
 }
@@ -62,10 +61,12 @@ async function applyPage(account: MailAccount, page: SyncPage, since: Date) {
   ])
   const seen = new Set(known.map((row) => row.id))
   const news = candidates.filter((row) => !seen.has(row.id))
+  // Everyone who has this mailbox hears of it, in whichever organization they keep it.
   if (news.length > 0)
-    await pushNewMail(account.userId, news).catch((error) =>
-      console.error("Push for new mail failed", error instanceof Error ? error.message : "unknown")
-    )
+    for (const userId of await connectedUsers(account.id))
+      await pushNewMail(userId, news).catch((error) =>
+        console.error("Push for new mail failed", error instanceof Error ? error.message : "unknown")
+      )
   return rows.length + page.removals.length
 }
 
@@ -115,15 +116,23 @@ export async function startBackfill(accountId: string) {
 
 const stored = (accountId: string) => getDb().mailMessage.count({ where: { accountId } })
 
-/** Advances one mailbox for as long as the time budget allows. */
-export async function syncAccount(userId: string, id: string): Promise<MailSyncResult> {
-  const result = await syncRound(userId, id)
-  // Not caught up: how much is in, so the app can show how far along it is.
-  return result.done ? result : { ...result, stored: await stored(id) }
+/** Advances one of the viewer's mailboxes for as long as the time budget allows. */
+export async function syncAccount(viewer: MailViewer, id: string): Promise<MailSyncResult> {
+  return syncMailbox(await ownedAccount(viewer, id))
 }
 
-async function syncRound(userId: string, id: string): Promise<MailSyncResult> {
-  const account = await ownedAccount(userId, id)
+/**
+ * Advances a mailbox, whoever asked: the app of anyone who has it, a webhook or
+ * the background fetch. The lock keeps it to one sync at a time, so a mailbox in
+ * several lists is still fetched once.
+ */
+export async function syncMailbox(account: MailAccount): Promise<MailSyncResult> {
+  const result = await syncRound(account)
+  // Not caught up: how much is in, so the app can show how far along it is.
+  return result.done ? result : { ...result, stored: await stored(account.id) }
+}
+
+async function syncRound(account: MailAccount): Promise<MailSyncResult> {
   if (!(await acquireLock(account.id))) return { done: false, busy: true, rateLimited: false, changed: 0 }
 
   try {

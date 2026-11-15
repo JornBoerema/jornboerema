@@ -15,7 +15,7 @@ import {
   type MailThreadView,
 } from "@even/mail-core/types"
 import { UnsupportedActionError, type MailMessageFolder } from "@even/mail-core/provider"
-import { ownedAccount, withAccessToken } from "./accounts-server"
+import { ownedAccount, visibleAccountIds, visibleAccounts, withAccessToken, type MailViewer } from "./accounts-server"
 
 export class InvalidThreadCursorError extends Error {}
 export class MailMessageNotFoundError extends Error {}
@@ -35,7 +35,7 @@ type ThreadRow = Omit<MailThreadView, "receivedAt" | "to"> & { receivedAt: Date;
 
 /** Conversations newest first, across every mailbox or the one in `accountId`. */
 export async function listThreads(
-  userId: string,
+  viewer: MailViewer,
   {
     accountId,
     cursor,
@@ -55,7 +55,9 @@ export async function listThreads(
   }
 ): Promise<MailThreadsPage> {
   const position = cursor ? parseCursor(cursor) : null
-  const accountFilter = accountId ? Prisma.sql`AND account_id = ${accountId}` : Prisma.empty
+  const visible = await visibleAccountIds(viewer)
+  const accountIds = accountId ? visible.filter((id) => id === accountId) : visible
+  if (accountIds.length === 0) return { threads: [], nextCursor: null }
   // A conversation is grouped within the folder, so a line describes what is there.
   const folderFilter =
     folder === "starred"
@@ -63,7 +65,7 @@ export async function listThreads(
       : Prisma.sql`AND folder = ${folder}::mail_message_folder`
   const starredOnly = folder === "starred" ? Prisma.sql`AND any_starred` : Prisma.empty
   const pinnedFilter = pinnedOnly
-    ? Prisma.sql`AND (account_id, coalesce(thread_id, id)) IN (SELECT account_id, thread_id FROM mail_pins WHERE user_id = ${userId})`
+    ? Prisma.sql`AND (account_id, coalesce(thread_id, id)) IN (SELECT account_id, thread_id FROM mail_pins WHERE user_id = ${viewer.userId})`
     : Prisma.empty
   const after = position
     ? Prisma.sql`AND (received_at < ${position.receivedAt} OR (received_at = ${position.receivedAt} AND id < ${position.id}))`
@@ -90,7 +92,7 @@ export async function listThreads(
         bool_or(is_starred) OVER conversation AS any_starred,
         bool_or(has_attachments) OVER conversation AS any_attachment
       FROM mail_messages
-      WHERE user_id = ${userId} ${accountFilter} ${folderFilter} ${pinnedFilter}
+      WHERE account_id IN (${Prisma.join(accountIds)}) ${folderFilter} ${pinnedFilter}
       WINDOW conversation AS (PARTITION BY account_id, coalesce(thread_id, id))
     ) grouped
     WHERE position = 1 ${after} ${starredOnly} ${unreadOnly ? Prisma.sql`AND NOT all_read` : Prisma.empty}
@@ -116,9 +118,9 @@ export async function listThreads(
  * answer for falls back to its synced unread conversations. The newest few
  * unread conversations come along for notifications.
  */
-export async function unreadSummary(userId: string) {
+export async function unreadSummary(viewer: MailViewer) {
   const db = getDb()
-  const accounts = await db.mailAccount.findMany({ where: { userId, status: "active" } })
+  const accounts = await visibleAccounts(viewer, { active: true })
   const counts = await Promise.all(
     accounts.map(async (account) => {
       try {
@@ -136,34 +138,42 @@ export async function unreadSummary(userId: string) {
       }
     })
   )
-  const { threads } = await listThreads(userId, { unreadOnly: true, limit: 5 })
+  const { threads } = await listThreads(viewer, { unreadOnly: true, limit: 5 })
   return { count: counts.reduce((sum, count) => sum + count, 0), latest: threads }
 }
 
-/** `hidden` when it was found in spam or trash, which normal reading leaves out. */
-export type Conversation = { account: MailAccount; threadId: string; hidden?: boolean }
+/**
+ * A conversation in one of the viewer's mailboxes; `userId` is the viewer, who pays
+ * for any AI used on it. `hidden` when it was found in spam or trash, which normal
+ * reading leaves out.
+ */
+export type Conversation = { account: MailAccount; threadId: string; userId: string; hidden?: boolean }
 
-export async function ownedMessage(userId: string, messageId: string): Promise<Conversation> {
+/** A conversation in a mailbox, whoever looks at it. */
+export type MailboxThread = Pick<Conversation, "account" | "threadId">
+
+export async function ownedMessage(viewer: MailViewer, messageId: string): Promise<Conversation> {
   const message = await getDb().mailMessage.findFirst({
-    where: { id: messageId, userId },
+    where: { id: messageId, accountId: { in: await visibleAccountIds(viewer) } },
     include: { account: true },
   })
   if (!message?.threadId) throw new MailMessageNotFoundError()
   return {
     account: message.account,
     threadId: message.threadId,
+    userId: viewer.userId,
     hidden: message.folder === "spam" || message.folder === "trash",
   }
 }
 
 /** A conversation by its provider id, such as one search found outside the synced inbox. */
-export async function ownedConversation(userId: string, accountId: string, threadId: string): Promise<Conversation> {
-  return { account: await ownedAccount(userId, accountId), threadId }
+export async function ownedConversation(viewer: MailViewer, accountId: string, threadId: string): Promise<Conversation> {
+  return { account: await ownedAccount(viewer, accountId), threadId, userId: viewer.userId }
 }
 
 /** Reads a conversation live from the provider. Nothing from it is written to the database. */
 export async function readConversation(
-  { account, threadId }: Conversation,
+  { account, threadId }: MailboxThread,
   options?: { includeHidden?: boolean }
 ): Promise<MailThreadDetail> {
   const messages = await withAccessToken(account, (provider, token) => provider.getThread(token, threadId, options))
@@ -184,7 +194,7 @@ const AFFECTS: Partial<Record<MailThreadAction, MailMessageFolder[]>> = {
  * Changes the mailbox first; the list only follows once the provider has accepted
  * it. The next sync then confirms where everything ended up.
  */
-export async function actOnConversation({ account, threadId }: Conversation, action: MailThreadAction) {
+export async function actOnConversation({ account, threadId }: MailboxThread, action: MailThreadAction) {
   const db = getDb()
   const where = {
     accountId: account.id,
@@ -248,38 +258,38 @@ export async function attachmentInConversation(
   return withAccessToken(account, (provider, token) => provider.getAttachment(token, input))
 }
 
-export async function readThread(userId: string, messageId: string) {
-  const conversation = await ownedMessage(userId, messageId)
+export async function readThread(viewer: MailViewer, messageId: string) {
+  const conversation = await ownedMessage(viewer, messageId)
   return readConversation(conversation, { includeHidden: conversation.hidden })
 }
 
-export const actOnThread = async (userId: string, messageId: string, action: MailThreadAction) =>
-  actOnConversation(await ownedMessage(userId, messageId), action)
+export const actOnThread = async (viewer: MailViewer, messageId: string, action: MailThreadAction) =>
+  actOnConversation(await ownedMessage(viewer, messageId), action)
 
-export const replyToThread = async (userId: string, messageId: string, reply: MailReply) =>
-  replyInConversation(await ownedMessage(userId, messageId), reply)
+export const replyToThread = async (viewer: MailViewer, messageId: string, reply: MailReply) =>
+  replyInConversation(await ownedMessage(viewer, messageId), reply)
 
-export const forwardThread = async (userId: string, messageId: string, forward: MailForward) =>
-  forwardFromConversation(await ownedMessage(userId, messageId), forward)
+export const forwardThread = async (viewer: MailViewer, messageId: string, forward: MailForward) =>
+  forwardFromConversation(await ownedMessage(viewer, messageId), forward)
 
 export const readAttachment = async (
-  userId: string,
+  viewer: MailViewer,
   messageId: string,
   input: { messageId: string; attachmentId: string }
-) => attachmentInConversation(await ownedMessage(userId, messageId), input)
+) => attachmentInConversation(await ownedMessage(viewer, messageId), input)
 
-export async function sendMessage(userId: string, accountId: string, outgoing: MailOutgoing) {
-  const account = await ownedAccount(userId, accountId)
+export async function sendMessage(viewer: MailViewer, accountId: string, outgoing: MailOutgoing) {
+  const account = await ownedAccount(viewer, accountId)
   await withAccessToken(account, (provider, token) =>
     provider.send(token, { ...outgoing, from: sender(account) })
   )
 }
 
 /** Conversations in the inbox list open as that row, so the list can show it. */
-async function withSyncedIds(userId: string, hits: MailSearchHit[]) {
+async function withSyncedIds(accountIds: string[], hits: MailSearchHit[]) {
   if (hits.length === 0) return hits
   const synced = await getDb().mailMessage.findMany({
-    where: { userId, OR: hits.map((hit) => ({ accountId: hit.accountId, threadId: hit.threadId })) },
+    where: { accountId: { in: accountIds }, OR: hits.map((hit) => ({ accountId: hit.accountId, threadId: hit.threadId })) },
     orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
     select: { id: true, accountId: true, threadId: true },
   })
@@ -295,8 +305,8 @@ async function withSyncedIds(userId: string, hits: MailSearchHit[]) {
 }
 
 /** Searches every active mailbox live. A mailbox that fails is reported, not fatal. */
-export async function searchMail(userId: string, query: string) {
-  const accounts = await getDb().mailAccount.findMany({ where: { userId, status: "active" } })
+export async function searchMail(viewer: MailViewer, query: string) {
+  const accounts = await visibleAccounts(viewer, { active: true })
   const results = await Promise.allSettled(
     accounts.map((account) =>
       withAccessToken(account, (provider, token) => provider.search(token, query)).then((hits) =>
@@ -312,7 +322,7 @@ export async function searchMail(userId: string, query: string) {
     results.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
   )
   return {
-    hits: await withSyncedIds(userId, hits),
+    hits: await withSyncedIds(accounts.map((account) => account.id), hits),
     failedAccounts: accounts.flatMap((account, index) =>
       results[index]?.status === "rejected" ? [account.id] : []
     ),
@@ -323,13 +333,13 @@ export async function searchMail(userId: string, query: string) {
  * Instant matches on what is already synced: sender and subject of the inbox.
  * Shown while the providers search, which also look through the text.
  */
-export async function quickSearch(userId: string, query: string): Promise<MailSearchHit[]> {
+export async function quickSearch(viewer: MailViewer, query: string): Promise<MailSearchHit[]> {
   const words = searchWords(query)
   if (words.length === 0) return []
   const contains = (word: string) => ({ contains: word, mode: "insensitive" as const })
   const rows = await getDb().mailMessage.findMany({
     where: {
-      userId,
+      accountId: { in: await visibleAccountIds(viewer) },
       folder: { notIn: ["spam", "trash"] },
       AND: words.map((word) => ({
         OR: [{ subject: contains(word) }, { fromName: contains(word) }, { fromEmail: contains(word) }],
@@ -368,9 +378,12 @@ const likeEscape = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${ch
  * most recent first; a name or address that starts with what's typed beats one
  * that only contains it. Automated senders are left out.
  */
-export async function suggestContacts(userId: string, query: string): Promise<MailContact[]> {
+export async function suggestContacts(viewer: MailViewer, query: string): Promise<MailContact[]> {
   const term = query.trim().toLocaleLowerCase()
   if (!term) return []
+  const accountIds = await visibleAccountIds(viewer)
+  if (accountIds.length === 0) return []
+  const accounts = Prisma.join(accountIds)
   const anywhere = `%${likeEscape(term)}%`
   const start = `${likeEscape(term)}%`
   const word = `% ${likeEscape(term)}%`
@@ -379,11 +392,11 @@ export async function suggestContacts(userId: string, query: string): Promise<Ma
     WITH people AS (
       SELECT lower(from_email) AS email, from_name AS name, received_at
       FROM mail_messages
-      WHERE user_id = ${userId} AND folder NOT IN ('sent', 'spam') AND from_email IS NOT NULL
+      WHERE account_id IN (${accounts}) AND folder NOT IN ('sent', 'spam') AND from_email IS NOT NULL
       UNION ALL
       SELECT lower(recipient->>'email'), recipient->>'name', received_at
       FROM mail_messages, jsonb_array_elements(to_addresses) AS recipient
-      WHERE user_id = ${userId} AND folder = 'sent'
+      WHERE account_id IN (${accounts}) AND folder = 'sent'
     )
     SELECT email, name FROM (
       SELECT email,
@@ -396,7 +409,7 @@ export async function suggestContacts(userId: string, query: string): Promise<Ma
         AND email NOT ILIKE '%no-reply%'
         AND email NOT ILIKE '%donotreply%'
         AND email !~* '^(notifications?|alerts?|mailer-daemon|postmaster|bounces?|automated|updates?|news|newsletter)[@+]'
-        AND email NOT IN (SELECT lower(email) FROM mail_accounts WHERE user_id = ${userId})
+        AND email NOT IN (SELECT lower(email) FROM mail_accounts WHERE id IN (${accounts}))
         AND (email ILIKE ${anywhere} OR name ILIKE ${anywhere})
       GROUP BY email
     ) contacts
@@ -406,8 +419,8 @@ export async function suggestContacts(userId: string, query: string): Promise<Ma
 }
 
 /** Empties a mailbox's trash for good, one page per call; Outlook only. */
-export async function emptyTrash(userId: string, accountId: string) {
-  const account = await ownedAccount(userId, accountId)
+export async function emptyTrash(viewer: MailViewer, accountId: string) {
+  const account = await ownedAccount(viewer, accountId)
   const result = await withAccessToken(account, async (provider, token) => {
     if (!provider.emptyTrash) throw new UnsupportedActionError("This mailbox can't delete for good")
     return provider.emptyTrash(token)
@@ -417,11 +430,11 @@ export async function emptyTrash(userId: string, accountId: string) {
 }
 
 /** The newest synced message of each conversation, shaped as a list line, by "accountId:threadId". */
-export async function threadLines(userId: string, rows: { accountId: string; threadId: string }[]) {
+export async function threadLines(viewer: MailViewer, rows: { accountId: string; threadId: string }[]) {
   const views = new Map<string, MailThreadView>()
   if (rows.length === 0) return views
   const messages = await getDb().mailMessage.findMany({
-    where: { userId, OR: rows.map(({ accountId, threadId }) => ({ accountId, threadId })) },
+    where: { accountId: { in: await visibleAccountIds(viewer) }, OR: rows.map(({ accountId, threadId }) => ({ accountId, threadId })) },
     orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
   })
   for (const message of messages) {

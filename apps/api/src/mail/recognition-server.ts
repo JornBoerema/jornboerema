@@ -11,8 +11,7 @@ export const REPORT_REASONS = ["not_one", "amount", "status", "other"] as const
  * the subject, the sender's domain and what was found, never the mail.
  */
 export async function reportRecognition(
-  userId: string,
-  { account, threadId }: Conversation,
+  { account, threadId, userId }: Conversation,
   kind: (typeof RECOGNITION_KINDS)[number],
   reason: (typeof REPORT_REASONS)[number]
 ) {
@@ -26,7 +25,7 @@ export async function reportRecognition(
     orderBy: { receivedAt: "desc" },
     select: { fromEmail: true },
   })
-  const { id: _id, userId: _user, accountId: _account, threadId: _thread, messageId: _message, ...found } = row
+  const { id: _id, accountId: _account, threadId: _thread, messageId: _message, ...found } = row
   await db.$transaction([
     kind === "parcel"
       ? db.mailShipment.update({ where, data: { dismissed: true } })

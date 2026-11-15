@@ -1,7 +1,6 @@
 import { scheduledDraftIds } from "./later-server"
-import { getDb } from "@even/db"
 import type { MailDraft, MailDraftContent, MailDraftView } from "@even/mail-core/types"
-import { ownedAccount, withAccessToken } from "./accounts-server"
+import { ownedAccount, visibleAccounts, withAccessToken, type MailViewer } from "./accounts-server"
 
 export type DraftSave = MailDraftContent & { draftId: string | null; attachmentsChanged: boolean }
 
@@ -14,8 +13,8 @@ const sender = (account: { email: string; displayName: string | null }) => ({
  * Drafts live at the provider and are read live, like mail bodies, so nothing of
  * them is stored here. A mailbox that fails is reported instead of failing the list.
  */
-export async function listDrafts(userId: string) {
-  const accounts = await getDb().mailAccount.findMany({ where: { userId, status: "active" } })
+export async function listDrafts(viewer: MailViewer) {
+  const accounts = await visibleAccounts(viewer, { active: true })
   const results = await Promise.allSettled(
     accounts.map((account) =>
       withAccessToken(account, (provider, token) => provider.listDrafts(token)).then((drafts) =>
@@ -30,7 +29,7 @@ export async function listDrafts(userId: string) {
     if (result.status === "rejected")
       console.error("Drafts list failed", result.reason instanceof Error ? result.reason.message : "unknown")
   // Drafts waiting to be sent later show under Scheduled instead.
-  const scheduled = await scheduledDraftIds(userId)
+  const scheduled = await scheduledDraftIds(viewer)
   const drafts = results
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
     .filter((draft) => !scheduled.has(`${draft.accountId}:${draft.id}`))
@@ -38,13 +37,13 @@ export async function listDrafts(userId: string) {
   return { drafts, failedAccounts }
 }
 
-export async function readDraft(userId: string, accountId: string, draftId: string): Promise<MailDraft> {
-  const account = await ownedAccount(userId, accountId)
+export async function readDraft(viewer: MailViewer, accountId: string, draftId: string): Promise<MailDraft> {
+  const account = await ownedAccount(viewer, accountId)
   return withAccessToken(account, (provider, token) => provider.getDraft(token, draftId))
 }
 
-export async function saveDraft(userId: string, accountId: string, input: DraftSave) {
-  const account = await ownedAccount(userId, accountId)
+export async function saveDraft(viewer: MailViewer, accountId: string, input: DraftSave) {
+  const account = await ownedAccount(viewer, accountId)
   const draftId = await withAccessToken(account, (provider, token) =>
     provider.saveDraft(token, { ...input, from: sender(account) })
   )
@@ -52,15 +51,15 @@ export async function saveDraft(userId: string, accountId: string, input: DraftS
 }
 
 /** Saves the final content first, so what goes out is exactly what the user sees. */
-export async function sendDraft(userId: string, accountId: string, input: DraftSave & { draftId: string }) {
-  const account = await ownedAccount(userId, accountId)
+export async function sendDraft(viewer: MailViewer, accountId: string, input: DraftSave & { draftId: string }) {
+  const account = await ownedAccount(viewer, accountId)
   await withAccessToken(account, async (provider, token) => {
     const draftId = await provider.saveDraft(token, { ...input, from: sender(account) })
     await provider.sendDraft(token, draftId)
   })
 }
 
-export async function deleteDraft(userId: string, accountId: string, draftId: string) {
-  const account = await ownedAccount(userId, accountId)
+export async function deleteDraft(viewer: MailViewer, accountId: string, draftId: string) {
+  const account = await ownedAccount(viewer, accountId)
   await withAccessToken(account, (provider, token) => provider.deleteDraft(token, draftId))
 }

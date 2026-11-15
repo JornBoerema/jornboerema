@@ -14,6 +14,8 @@ import { KeyedError, translate } from "../i18n"
 import { NotFoundError, SHARE_TOKEN } from "./workspace-server"
 import { ensureStatuses } from "./board-server"
 import { hasRunningSubscription } from "@even/auth/billing"
+import { defer } from "../lib/defer"
+import { dropUnconnectedMailboxes } from "../mail/accounts-server"
 
 /** Message is a translation key (see ../i18n.ts). */
 export class WorkspaceError extends KeyedError {}
@@ -142,7 +144,7 @@ export async function changeWorkspace(
     await createOrganization(getDb(), userId, command.id, command.name, language)
     return { recipients: [userId] }
   }
-  return getDb().$transaction(async (tx) => {
+  const result = await getDb().$transaction(async (tx) => {
     const { workspace, members, me } = await lockMembership(tx, command.workspaceId, userId)
     const everyone = members.map((m) => m.userId)
     // A personal organization is the user alone: it can be renamed, nothing more.
@@ -164,6 +166,8 @@ export async function changeWorkspace(
         if (me.role === "owner")
           throw new WorkspaceError("ownerCannotLeave")
         await tx.member.delete({ where: { id: me.id } })
+        // Their mailboxes in it leave with them.
+        await tx.mailConnection.deleteMany({ where: { userId, organizationId: workspace.id } })
         return { recipients: everyone, seats: workspace.id }
       case "update-member":
       case "remove-member": {
@@ -179,6 +183,7 @@ export async function changeWorkspace(
           return { recipients: everyone }
         }
         await tx.member.delete({ where: { id: target.id } })
+        await tx.mailConnection.deleteMany({ where: { userId: target.userId, organizationId: workspace.id } })
         return { recipients: everyone, seats: workspace.id }
       }
       case "revoke-invite":
@@ -242,6 +247,10 @@ export async function changeWorkspace(
       }
     }
   })
+  // An organization gone, or someone out of it: mailboxes nobody else has go too.
+  if (command.type === "delete" || command.type === "leave" || command.type === "remove-member")
+    defer(() => dropUnconnectedMailboxes())
+  return result
 }
 
 export async function readInvitation(token: string) {
