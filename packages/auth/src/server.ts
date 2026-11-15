@@ -246,10 +246,11 @@ function createAuth() {
           authEmails.resetPassword(user.email, url, pickLanguage(request?.headers.get("accept-language")))
         ),
     },
-    // Signing in with Google, Microsoft or Apple. An existing account with the same
-    // e-mail address is linked only when the provider vouches for that address.
+    // Signing in with Google, Microsoft or Apple. Signing in links an existing account
+    // with the same e-mail address only when the provider vouches for that address.
+    // Connecting one from the account page, signed in, may use another address.
     socialProviders: social,
-    account: { accountLinking: { enabled: true, allowDifferentEmails: false } },
+    account: { accountLinking: { enabled: true, allowDifferentEmails: true } },
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: true,

@@ -291,7 +291,7 @@ function SettingsRow({
   children,
   footer,
 }: {
-  title: string
+  title: React.ReactNode
   description?: React.ReactNode
   htmlFor?: string
   destructive?: boolean

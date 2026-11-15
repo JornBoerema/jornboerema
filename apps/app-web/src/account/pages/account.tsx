@@ -10,7 +10,7 @@ import {
   SmartPhone01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { webUrl } from "@even/auth/client"
+import { webUrl, type SocialProvider } from "@even/auth/client"
 import { Alert, AlertDescription } from "@even/ui/components/alert"
 import {
   AlertDialog,
@@ -25,6 +25,7 @@ import { Button } from "@even/ui/components/button"
 import { Field, FieldGroup, FieldLabel } from "@even/ui/components/field"
 import { Input } from "@even/ui/components/input"
 import { SettingsRow, SettingsSection } from "@even/ui/components/settings-dialog"
+import { PROVIDER_NAMES, ProviderLogo, useSocialProviders } from "@even/ui/components/social-providers"
 import { Brand } from "@even/shell/brand"
 import { RequireSession } from "@/account/components/require-session"
 import { Subscription } from "@/account/components/subscription"
@@ -73,11 +74,26 @@ function Account({ user, sessionToken }: { user: User; sessionToken: string }) {
         <Subscription />
         <Profile user={user} />
         <SignIn user={user} />
+        <ConnectedAccounts />
         <Sessions current={sessionToken} />
         <DeleteAccount />
       </main>
     </div>
   )
+}
+
+const ACCOUNTS = ["accounts"]
+
+/** How this user can sign in: "credential" (a password) and each linked provider. */
+function useAccounts() {
+  return useQuery({
+    queryKey: ACCOUNTS,
+    queryFn: async () => {
+      const result = await authClient.listAccounts()
+      if (result.error) throw new Error(result.error.code ?? "")
+      return result.data
+    },
+  })
 }
 
 /** Runs one change at a time; a failed one shows a toast. */
@@ -152,6 +168,18 @@ function SignIn({ user }: { user: User }) {
   const [emailSent, setEmailSent] = useState("")
   const [resetSent, setResetSent] = useState(false)
   const [changing, setChanging] = useState(false)
+  // Signed up with Google, Microsoft or Apple: no password yet. The reset link sets one.
+  const accounts = useAccounts()
+  const hasPassword = !accounts.data || accounts.data.some((account) => account.providerId === "credential")
+  const sendResetLink = () =>
+    void perform("reset", async () => {
+      const result = await authClient.requestPasswordReset({
+        email: user.email,
+        redirectTo: webUrl("/reset-password"),
+      })
+      if (result.error) throw new Error()
+      setResetSent(true)
+    })
   const nextEmail = email.trim().toLowerCase()
   const emailUnchanged = !nextEmail || nextEmail === user.email.toLowerCase() || nextEmail === emailSent
   const notice = (text: ReactNode) => (
@@ -198,28 +226,19 @@ function SignIn({ user }: { user: User }) {
       </SettingsRow>
       <SettingsRow
         title={t.password}
-        description={t.passwordHelp}
+        description={hasPassword ? t.passwordHelp : t.noPasswordHelp}
         footer={
           <>
             {changing && <ChangePassword onDone={() => setChanging(false)} />}
-            {resetSent && notice(t.resetSent)}
-            {!resetSent && (
+            {resetSent && notice(hasPassword ? t.resetSent : t.setPasswordSent)}
+            {!resetSent && hasPassword && (
               <p className="text-sm text-muted-foreground">
                 {t.forgotPassword}{" "}
                 <button
                   type="button"
                   className="form-link"
                   disabled={!!busy}
-                  onClick={() =>
-                    void perform("reset", async () => {
-                      const result = await authClient.requestPasswordReset({
-                        email: user.email,
-                        redirectTo: webUrl("/reset-password"),
-                      })
-                      if (result.error) throw new Error()
-                      setResetSent(true)
-                    })
-                  }
+                  onClick={sendResetLink}
                 >
                   {busy === "reset" ? all.common.sending : t.sendResetLink}
                 </button>
@@ -228,12 +247,109 @@ function SignIn({ user }: { user: User }) {
           </>
         }
       >
-        {!changing && (
-          <Button variant="outline" onClick={() => setChanging(true)}>
-            {t.changePassword}
-          </Button>
-        )}
+        {hasPassword
+          ? !changing && (
+              <Button variant="outline" onClick={() => setChanging(true)}>
+                {t.changePassword}
+              </Button>
+            )
+          : !resetSent && (
+              <Button variant="outline" disabled={!!busy} onClick={sendResetLink}>
+                {busy === "reset" ? all.common.sending : t.setPassword}
+              </Button>
+            )}
       </SettingsRow>
+    </SettingsSection>
+  )
+}
+
+/** Back from Google, Microsoft or Apple after linking: say how it went, once. */
+function useLinkResult() {
+  const t = useI18n().t.account
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const linked = url.searchParams.get("linked") as SocialProvider | null
+    if (!linked) return
+    const error = url.searchParams.get("error")
+    if (!error) toast.success(t.linked(PROVIDER_NAMES[linked] ?? linked))
+    else if (error === "account_already_linked_to_different_user") toast.error(t.linkTaken)
+    else toast.error(t.linkFailed)
+    for (const name of ["linked", "error", "error_description"]) url.searchParams.delete(name)
+    window.history.replaceState(null, "", url)
+    void queryClient.invalidateQueries({ queryKey: ACCOUNTS })
+  }, [queryClient, t])
+}
+
+function ConnectedAccounts() {
+  const { t: all, language } = useI18n()
+  const t = all.account
+  const queryClient = useQueryClient()
+  const { busy, perform } = useBusy()
+  const providers = useSocialProviders(authClient, true)
+  const accounts = useAccounts()
+  useLinkResult()
+  if (!providers.length) return null
+  // The last way in can't be removed.
+  const lastOne = (accounts.data?.length ?? 0) <= 1
+  const since = (date: Date | string) =>
+    new Date(date).toLocaleDateString(language, { day: "numeric", month: "long", year: "numeric" })
+  return (
+    <SettingsSection title={t.connected} description={t.connectedHelp}>
+      {providers.map((provider) => {
+        const account = accounts.data?.find((item) => item.providerId === provider)
+        const name = PROVIDER_NAMES[provider]
+        return (
+          <SettingsRow
+            key={provider}
+            title={
+              <span className="flex items-center gap-2.5">
+                <ProviderLogo provider={provider} />
+                {name}
+              </span>
+            }
+            description={account ? t.connectedSince(since(account.createdAt)) : t.notConnected}
+          >
+            {account ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!!busy || lastOne}
+                title={lastOne ? t.lastSignInMethod : undefined}
+                onClick={() =>
+                  void perform(provider, async () => {
+                    // Better Auth's own id for the account, not the provider's.
+                    const result = await authClient.unlinkAccount({ accountId: account.id })
+                    if (result.error?.code === "SESSION_EXPIRED") throw new Error(t.unlinkSignInAgain)
+                    if (result.error) throw new Error(t.unlinkFailed)
+                    await queryClient.invalidateQueries({ queryKey: ACCOUNTS })
+                    toast.success(t.unlinked(name))
+                  })
+                }
+              >
+                {busy === provider ? t.unlinking : t.unlink}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!!busy}
+                onClick={() =>
+                  void perform(provider, async () => {
+                    const back = webUrl(`/account?linked=${provider}`)
+                    const result = await authClient.linkSocial({ provider, callbackURL: back, errorCallbackURL: back })
+                    if (result.error) throw new Error(t.linkFailed)
+                    // On its way to the provider; the button stays busy until the page leaves.
+                    await new Promise(() => {})
+                  })
+                }
+              >
+                {busy === provider ? t.linking : t.link}
+              </Button>
+            )}
+          </SettingsRow>
+        )
+      })}
     </SettingsSection>
   )
 }
@@ -462,20 +578,8 @@ function DeleteAccount() {
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
   // Someone who only signs in with Google, Microsoft or Apple has no password to confirm with.
-  const [hasPassword, setHasPassword] = useState(true)
-  useEffect(() => {
-    if (!open) return
-    let current = true
-    authClient
-      .listAccounts()
-      .then(({ data }) => {
-        if (current && data) setHasPassword(data.some((account) => account.providerId === "credential"))
-      })
-      .catch(() => {})
-    return () => {
-      current = false
-    }
-  }, [open])
+  const accounts = useAccounts()
+  const hasPassword = !accounts.data || accounts.data.some((account) => account.providerId === "credential")
   return (
     <>
       <SettingsSection title={t.dangerZone} destructive>
