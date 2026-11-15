@@ -154,6 +154,17 @@ jobs:
         run: |
           gh release download "$GITHUB_REF_NAME" --pattern latest.json --dir "$RUNNER_TEMP"
           jq -e '.platforms | has("darwin-aarch64") and has("darwin-x86_64") and has("windows-x86_64")' "$RUNNER_TEMP/latest.json"
+          # tauri-action writes api.github.com asset links, which allow 60
+          # requests an hour per IP without a token: one busy network and
+          # every Even there fails its update check. Point them at the
+          # github.com download links, which have no such limit.
+          gh release view "$GITHUB_REF_NAME" --json assets \
+            -q '[.assets[] | {key: .apiUrl, value: .url}] | from_entries' > "$RUNNER_TEMP/links.json"
+          jq --slurpfile links "$RUNNER_TEMP/links.json" \
+            '.platforms |= map_values(.url = ($links[0][.url] // error("no download link for \(.url)")))' \
+            "$RUNNER_TEMP/latest.json" > "$RUNNER_TEMP/latest.fixed.json"
+          mv "$RUNNER_TEMP/latest.fixed.json" "$RUNNER_TEMP/latest.json"
+          jq -e '[.platforms[].url | startswith("https://github.com/")] | all' "$RUNNER_TEMP/latest.json"
           gh release upload "$UPDATES_TAG" "$RUNNER_TEMP/latest.json" --clobber
           # Even vastleggen keeps the latest release.
           [ "$(gh release view --json tagName -q .tagName)" != "$GITHUB_REF_NAME" ] || {
