@@ -129,7 +129,7 @@ export const en = {
     appMail: "Even mailen",
     appMailHelp: "All your mailboxes in one place.",
     appNotes: "Even noteren",
-    appNotesHelp: "Your notes, in every workspace.",
+    appNotesHelp: "Your notes, in every organization.",
     appDesktop: "Even for desktop",
     appDesktopHelp: "Mail and lists together, for macOS and Windows.",
     download: "Download",
@@ -182,10 +182,10 @@ export const en = {
     dangerZone: "Danger zone",
     deleteAccount: "Delete account",
     deleteHelp:
-      "Deletes your account in every Even app: your lists and the workspaces you own, your connected mailboxes and everything kept for them. Your mail itself stays with Gmail or Outlook.",
+      "Deletes your account in every Even app: your lists and the organizations you own, your connected mailboxes and everything kept for them. Your mail itself stays with Gmail or Outlook.",
     deleteTitle: "Delete your account permanently?",
     deleteDescription:
-      "Workspaces you own disappear with all their lists, also for the other members. Your mailboxes are disconnected. Enter your password to confirm.",
+      "Organizations you own disappear with all their lists, also for the other members. Your mailboxes are disconnected. Enter your password to confirm.",
     delete: "Delete",
     deleteFailed: "Deleting didn't work. Check your password and try again.",
     deleting: "Deleting…",

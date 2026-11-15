@@ -2,23 +2,35 @@ import type { ReactNode } from "react"
 import { Settings01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@evido/ui/components/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@evido/ui/components/tooltip"
 import { cn } from "@evido/ui/lib/utils"
 import { EvenMark } from "./brand"
 
 const isMac = navigator.userAgent.includes("Mac")
 
-export type RailApp = { id: string; name: string; icon: IconSvgElement; shortcut?: string }
+export type RailApp = {
+  id: string
+  name: string
+  icon: IconSvgElement
+  shortcut?: string
+}
 
 /**
  * The strip along the left of the window with every Even app; on a phone it lies
  * along the bottom. In the desktop app on macOS the window buttons sit at its top.
- * At its head the Even mark and the dashboard, which looks across the apps.
+ * At its head the Even mark, the organization the apps show (with the menu to
+ * switch), and the dashboard, which looks across the apps.
  * At its foot "restart to update" (once a new version is ready), whatever the
  * holder adds (`foot`), and the settings of every app. Apps still to come show
  * greyed out.
  */
 export function AppRail({
+  organization,
   home,
   apps,
   upcoming,
@@ -29,6 +41,8 @@ export function AppRail({
   soonLabel,
   foot,
 }: {
+  /** The organization picker, under the Even mark. */
+  organization: ReactNode
   /** The dashboard, above the apps. */
   home: RailApp
   apps: RailApp[]
@@ -46,8 +60,12 @@ export function AppRail({
       <nav className="app-rail" aria-label="Apps">
         <div className="app-rail-apps">
           <EvenMark className="app-rail-mark" />
-          <RailButton app={home} selected={home.id === active} onClick={() => onSelect(home.id)} />
-          <span className="app-rail-divider" aria-hidden="true" />
+          {organization}
+          <RailButton
+            app={home}
+            selected={home.id === active}
+            onClick={() => onSelect(home.id)}
+          />
           {apps.map((app) => (
             <RailButton
               key={app.id}
@@ -65,8 +83,18 @@ export function AppRail({
           {foot}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" className="app-rail-button" aria-label={settingsLabel} aria-keyshortcuts="Meta+Comma Control+Comma" onClick={onSettings}>
-                <HugeiconsIcon icon={Settings01Icon} strokeWidth={1.75} aria-hidden="true" />
+              <button
+                type="button"
+                className="app-rail-button"
+                aria-label={settingsLabel}
+                aria-keyshortcuts="Meta+Comma Control+Comma"
+                onClick={onSettings}
+              >
+                <HugeiconsIcon
+                  icon={Settings01Icon}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={10}>
@@ -98,14 +126,22 @@ function RailButton({
       <TooltipTrigger asChild>
         <button
           type="button"
-          className={cn("app-rail-button", selected && "is-selected", upcoming && "is-upcoming")}
+          className={cn(
+            "app-rail-button",
+            selected && "is-selected",
+            upcoming && "is-upcoming"
+          )}
           aria-label={upcoming ? `${app.name}, ${soonLabel}` : app.name}
           aria-current={selected ? "page" : undefined}
           // Not `disabled`: the tooltip still says what is coming.
           aria-disabled={upcoming || undefined}
           onClick={upcoming ? undefined : onClick}
         >
-          <HugeiconsIcon icon={app.icon} strokeWidth={selected ? 2 : 1.75} aria-hidden="true" />
+          <HugeiconsIcon
+            icon={app.icon}
+            strokeWidth={selected ? 2 : 1.75}
+            aria-hidden="true"
+          />
         </button>
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={10}>

@@ -84,7 +84,7 @@ export const board: typeof en = {
     noProject: "Geen project",
     change: (property: string) => `${property} wijzigen`,
     created: "Gemaakt",
-    noMembers: "Alleen leden van de workspace kun je toewijzen.",
+    noMembers: "Alleen leden van de organisatie kun je toewijzen.",
   },
   issue: {
     titleLabel: "Titel van het issue",
@@ -149,11 +149,11 @@ export const board: typeof en = {
     downloadFailed: "Downloaden is niet gelukt.",
     remove: (name: string) => `${name} verwijderen`,
     empty: "Nog geen bestanden. Sleep ze hierheen of voeg ze toe.",
-    membersOnly: "Log in als lid van de workspace om bestanden toe te voegen.",
+    membersOnly: "Log in als lid van de organisatie om bestanden toe te voegen.",
   },
   settings: {
     statusesTitle: "Statussen",
-    statusesHelp: "De kolommen van elk bord in deze workspace, gegroepeerd zoals in Linear. Issues in Afgerond en Geannuleerd tellen als klaar.",
+    statusesHelp: "De kolommen van elk bord in deze organisatie, gegroepeerd zoals in Linear. Issues in Afgerond en Geannuleerd tellen als klaar.",
     addStatus: "Status toevoegen",
     newStatusName: "Naam van de status",
     statusPlaceholder: (category: string) => `Nieuwe status (${category.toLowerCase()})`,

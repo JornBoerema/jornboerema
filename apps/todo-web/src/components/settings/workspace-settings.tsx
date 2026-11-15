@@ -4,7 +4,7 @@ import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
 import { SettingsDialog, type SettingsPage } from "@evido/ui/components/settings-dialog"
 import { AboutSettings, useAboutPage } from "@evido/ui/components/desktop-app"
 import { DesktopSettingsPages, useDesktopSettings } from "@evido/ui/components/desktop-settings"
-import { Folder, Kanban, Palette, Settings, Share, UserCircle, Users } from "@/components/icons"
+import { Building, CreditCard, Folder, Kanban, Palette, Share, UserCircle, Users } from "@/components/icons"
 import { ProjectsSettings, StatusesSettings, type BoardSettingsProps } from "./board-settings"
 import { AppearanceSettings } from "./appearance-settings"
 import { useI18n } from "@/i18n"
@@ -12,6 +12,7 @@ import { AccountSettings } from "./account-settings"
 import { ConnectionsSettings } from "./connections-settings"
 import { WorkspaceGeneralSettings } from "./workspace-general-settings"
 import { WorkspaceMembersSettings } from "./workspace-members-settings"
+import { OrganizationBillingSettings } from "./organization-billing-settings"
 
 const PARAM = "settings"
 
@@ -63,19 +64,24 @@ function useSettingsPages(desktop: boolean): SettingsPage[] {
       icon: <Share aria-hidden="true" />,
       keywords: words(s.keywords.connections),
     },
+    // The active organization's pages belong to no one app: they sit with the account.
     {
       id: "workspace",
-      label: s.pages.general,
-      icon: <Settings aria-hidden="true" />,
-      group: s.pages.workspaceGroup,
+      label: s.pages.workspaceGroup,
+      icon: <Building aria-hidden="true" />,
       keywords: words(s.keywords.general),
     },
     {
       id: "members",
       label: s.pages.members,
       icon: <Users aria-hidden="true" />,
-      group: s.pages.workspaceGroup,
       keywords: words(s.keywords.members),
+    },
+    {
+      id: "billing",
+      label: s.pages.billing,
+      icon: <CreditCard aria-hidden="true" />,
+      keywords: words(s.keywords.billing),
     },
     {
       id: "statuses",
@@ -96,7 +102,7 @@ function useSettingsPages(desktop: boolean): SettingsPage[] {
   ]
   // In the desktop app the window already has the account, appearance and about pages;
   // this adds the lists' part of the shared connections page and its own pages.
-  return desktop ? all.filter((p) => p.id === "connections" || p.group) : all
+  return desktop ? all.filter((p) => !["account", "appearance", "about"].includes(p.id)) : all
 }
 
 /**
@@ -153,9 +159,11 @@ export function WorkspaceSettings({
         key={activeWorkspace.id}
         userId={user.id}
         workspace={activeWorkspace}
-        isLast={workspaces.length === 1}
-        onGone={() => onSelectWorkspace(workspaces.find((w) => w.id !== activeWorkspace.id)!.id)}
+        isLast={activeWorkspace.personal}
+        onGone={() => onSelectWorkspace((workspaces.find((w) => w.personal) ?? workspaces.find((w) => w.id !== activeWorkspace.id))!.id)}
       />
+    ) : id === "billing" ? (
+      <OrganizationBillingSettings key={activeWorkspace.id} workspace={activeWorkspace} />
     ) : id === "statuses" ? (
       <StatusesSettings workspaceId={activeWorkspace.id} {...board} />
     ) : id === "projects" ? (

@@ -1,3 +1,5 @@
+import { useInDesktop } from "@evido/ui/components/app-switcher"
+import { useOrganizations } from "@evido/ui/components/organizations"
 import { useQuery } from "@tanstack/react-query"
 import type { WorkspaceData } from "@evido/todo-core/workspace"
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces"
@@ -42,7 +44,12 @@ function ActiveWorkspace({ user, workspaces }: { user: SessionUser; workspaces: 
 }
 
 function Home({ user }: { user: SessionUser }) {
-  const workspaces = useWorkspaces(user.id)
+  // In the Even shell the rail already has them; the app follows its choice.
+  const inShell = useInDesktop()
+  const shell = useOrganizations()
+  const workspaces = useWorkspaces(user.id, !inShell)
+  if (shell) return <ActiveWorkspace user={user} workspaces={shell.organizations} />
+  if (inShell) return <PageLoading />
   if (workspaces.isError) return <PageError onRetry={() => void workspaces.refetch()} />
   if (!workspaces.data) return <PageLoading />
   return <ActiveWorkspace user={user} workspaces={workspaces.data} />

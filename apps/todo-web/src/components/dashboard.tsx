@@ -6,25 +6,19 @@ import { Button } from "@evido/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@evido/ui/components/card";
 import { Checkbox } from "@evido/ui/components/checkbox";
 import { useDesktopSettings } from "@evido/ui/components/desktop-settings";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@evido/ui/components/dropdown-menu";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@evido/ui/components/empty";
 import { Progress } from "@evido/ui/components/progress";
 import { Skeleton } from "@evido/ui/components/skeleton";
 import { sortTodos, type Todo, type WorkspaceData } from "@evido/todo-core/workspace";
 import { canManageWorkspace, type WorkspaceSummary } from "@evido/todo-core/workspaces";
-import { ChevronsUpDown, UserAdd } from "@/components/icons";
+import { UserAdd } from "@/components/icons";
 import { PageError } from "@/components/page-error";
 import { PageLoading } from "@/components/page-loading";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { apiFetch } from "@/lib/api";
 import { RequireSession, type SessionUser } from "@/lib/session";
-import { useActiveWorkspace, useWorkspaceMembers, useWorkspaces } from "@/lib/workspaces";
+import { useWorkspaceMembers } from "@/lib/workspaces";
+import { useOrganizations } from "@evido/ui/components/organizations";
 import { useI18n } from "@/i18n";
 
 const MAX_AVATARS = 5;
@@ -54,17 +48,14 @@ export function DashboardPage() {
   return <RequireSession>{(user) => <Workspaces user={user} />}</RequireSession>;
 }
 
+/** The organization picked in the rail; the dashboard only lives in the Even shell. */
 function Workspaces({ user }: { user: SessionUser }) {
-  const workspaces = useWorkspaces(user.id);
-  if (workspaces.isError) return <PageError onRetry={() => void workspaces.refetch()} />;
-  if (!workspaces.data) return <PageLoading />;
-  return <ActiveWorkspace user={user} workspaces={workspaces.data} />;
+  const organizations = useOrganizations();
+  if (!organizations) return <PageLoading />;
+  return <ActiveWorkspace user={user} active={organizations.active} />;
 }
 
-function ActiveWorkspace({ user, workspaces }: { user: SessionUser; workspaces: WorkspaceSummary[] }) {
-  // Even doen and Even noteren remember the workspace; coming back here follows them.
-  useAppSwitcher();
-  const { active, select } = useActiveWorkspace(workspaces);
+function ActiveWorkspace({ user, active }: { user: SessionUser; active: WorkspaceSummary }) {
   const workspace = useQuery({
     queryKey: ["workspace", user.id, active.id],
     queryFn: () => getJson<WorkspaceData>(`/api/workspace?workspaceId=${encodeURIComponent(active.id)}`),
@@ -80,18 +71,15 @@ function ActiveWorkspace({ user, workspaces }: { user: SessionUser; workspaces: 
     <Dashboard
       key={active.id}
       user={user}
-      workspaces={workspaces}
       workspace={active}
-      onSelectWorkspace={select}
       initialData={workspace.data}
       realtimeEnabled={!!config.data?.realtime}
     />
   );
 }
 
-function Dashboard({ user, workspaces, workspace, onSelectWorkspace, initialData, realtimeEnabled }: {
-  user: SessionUser; workspaces: WorkspaceSummary[]; workspace: WorkspaceSummary; onSelectWorkspace: (id: string) => void;
-  initialData: WorkspaceData; realtimeEnabled: boolean;
+function Dashboard({ user, workspace, initialData, realtimeEnabled }: {
+  user: SessionUser; workspace: WorkspaceSummary; initialData: WorkspaceData; realtimeEnabled: boolean;
 }) {
   const { t: { workspace: wt }, locale } = useI18n();
   const t = wt.dashboard;
@@ -149,19 +137,6 @@ function Dashboard({ user, workspaces, workspace, onSelectWorkspace, initialData
             <h1>{greeting}{firstName ? `, ${firstName}` : ""}.</h1>
             <p>{now && new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(now)}</p>
           </div>
-          {workspaces.length > 1 && <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" aria-label={`${t.workspace}: ${workspace.name}`}>
-                <span className="max-w-48 truncate">{workspace.name}</span>
-                <ChevronsUpDown data-icon="inline-end" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup value={workspace.id} onValueChange={onSelectWorkspace}>
-                {workspaces.map((item) => <DropdownMenuRadioItem key={item.id} value={item.id}>{item.name}</DropdownMenuRadioItem>)}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>}
         </div>
 
         {!data.lists.length ? <Empty className="py-10">

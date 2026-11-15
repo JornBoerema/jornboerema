@@ -1,5 +1,7 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  CreditCardIcon,
+  Building03Icon,
   Download04Icon,
   Image01Icon,
   ArrowLeft01Icon,
@@ -102,3 +104,5 @@ export const Layers = appIcon(Layers01Icon);
 export const Maximize = appIcon(ArrowExpandIcon);
 export const Minimize = appIcon(ArrowShrinkIcon);
 export const Filter = appIcon(FilterIcon);
+export const CreditCard = appIcon(CreditCardIcon);
+export const Building = appIcon(Building03Icon);

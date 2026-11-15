@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MotionConfig } from "motion/react"
 import { BrowserRouter, Route, Routes } from "react-router"
@@ -7,6 +7,7 @@ import { EmbedRouter } from "@evido/ui/components/embed-router"
 import { I18nProvider } from "./i18n"
 import { HomePage } from "./pages/home"
 import { DashboardPage } from "./components/dashboard"
+import { ShellOrganizations } from "./components/organizations"
 import { AuthLayout } from "./pages/auth-layout"
 import { InvitationPage } from "./pages/invitation"
 import { SharedListPage } from "./pages/shared-list"
@@ -15,6 +16,7 @@ import { DesktopSettingsNav } from "./components/settings/workspace-settings"
 import "./app.css"
 
 export { authClient } from "./lib/auth-client"
+export { OrganizationPicker } from "./components/organizations"
 
 /** The lists lost their session; the shell starts again at signing in. */
 function SignedOut() {
@@ -46,6 +48,21 @@ export function TodoEmbed() {
             </Routes>
           </EmbedRouter>
         </MotionConfig>
+      </QueryClientProvider>
+    </I18nProvider>
+  )
+}
+
+/**
+ * The organizations for the whole shell: around every app, so each shows the active
+ * one. The rail's OrganizationPicker must sit inside it.
+ */
+export function TodoOrganizations({ children }: { children: ReactNode }) {
+  const client = useQueryClient()
+  return (
+    <I18nProvider>
+      <QueryClientProvider client={client}>
+        <ShellOrganizations>{children}</ShellOrganizations>
       </QueryClientProvider>
     </I18nProvider>
   )

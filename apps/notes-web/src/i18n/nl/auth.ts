@@ -4,18 +4,18 @@ import type { auth as en } from "../en/auth"
 export const auth: typeof en = {
   layout: {
     homeLabel: "Even noteren, naar je notities",
-    tagline: "Je notities, in elke workspace.",
+    tagline: "Je notities, in elke organisatie.",
   },
   invitation: {
-    pageTitle: "Uitnodiging voor een workspace",
+    pageTitle: "Uitnodiging voor een organisatie",
     unavailableTitle: "Uitnodiging niet beschikbaar",
     unavailableDescription: "Deze link is verlopen of ingetrokken. Vraag de eigenaar om een nieuwe uitnodiging.",
     joinTitle: (workspace) => `Doe mee met ${workspace}`,
     invitedTitle: "Je bent uitgenodigd",
     joinDescription: (role) =>
-      `Je wordt ${role === "admin" ? "beheerder" : "lid"} van deze workspace en ziet al zijn notities.`,
+      `Je wordt ${role === "admin" ? "beheerder" : "lid"} van deze organisatie en ziet al zijn notities.`,
     invitedDescription: (workspace) =>
-      `Je bent uitgenodigd voor de workspace ${workspace}. Maak een account aan of log in om de uitnodiging te accepteren.`,
+      `Je bent uitgenodigd voor de organisatie ${workspace}. Maak een account aan of log in om de uitnodiging te accepteren.`,
     useInvitedEmail: "Gebruik het e-mailadres waarop je de uitnodiging hebt ontvangen.",
     createAccount: "Account aanmaken",
     haveAccount: "Ik heb al een account",

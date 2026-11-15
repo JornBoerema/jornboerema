@@ -74,6 +74,10 @@ export function WorkspaceMembersSettings({
     }
   }
 
+  // A personal organization is the user alone.
+  if (workspace.personal)
+    return <SettingsSection title={s.members.personalTitle} description={s.members.personalHelp}>{null}</SettingsSection>
+
   return (
     <>
       {canManage && (

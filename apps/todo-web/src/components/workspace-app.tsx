@@ -19,7 +19,6 @@ import {
 import { BoardView } from "@/components/board/board-view";
 import { ListSpotlight } from "@/components/list-spotlight";
 import { WorkspaceSettings } from "@/components/settings/workspace-settings";
-import { useWorkspaceMenu, WorkspaceSwitcher } from "@/components/workspace-switcher";
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces";
 import {
   sortTodos,
@@ -107,12 +106,6 @@ export function WorkspaceApp({
   shareToken?: string;
 }) {
   const { t: { workspace: t, board: bt } } = useI18n();
-  // Workspaces, settings and sign-out: the footer menu; in the desktop app only workspaces, as the rail opens settings.
-  const workspaceMenu = useWorkspaceMenu(
-    user && activeWorkspace && onSelectWorkspace
-      ? { user, workspaces, active: activeWorkspace, onSelect: onSelectWorkspace }
-      : null
-  );
   const { data, run, pending, online, connection, error, refresh, unavailable } =
     useWorkspace(user?.id ?? "guest", activeWorkspace?.id ?? "", initialData, realtimeEnabled, shareToken);
   // Notes live in Even noteren; this app has the task lists and boards.
@@ -278,16 +271,9 @@ export function WorkspaceApp({
             </section>;
           })}
         </div>
-        {/* Workspace, settings and sign-out live in one menu at the bottom; in the desktop app only the workspaces. */}
-        {user && activeWorkspace && onSelectWorkspace && (
-          <div className="sidebar-footer">
-            <WorkspaceSwitcher user={user} active={activeWorkspace} items={workspaceMenu.items} />
-          </div>
-        )}
         {user && activeWorkspace && onSelectWorkspace && (
           <WorkspaceSettings user={user} workspaces={workspaces} activeWorkspace={activeWorkspace} onSelectWorkspace={onSelectWorkspace} board={{ data, run, disabled }} />
         )}
-        {workspaceMenu.dialog}
       </aside>}
       <main id="tasks" className="workspace-main" tabIndex={-1}>
       {!shareToken && <Button ref={sidebarExpand} variant="ghost" size="icon" className="sidebar-corner-toggle"

@@ -42,13 +42,13 @@ export const todoEmails = {
     input.language === "nl"
       ? {
           to: input.to,
-          subject: `Uitnodiging voor ${input.workspaceName} · Even doen`,
-          text: `${input.inviterName} nodigt je uit voor de workspace “${input.workspaceName}” in Even doen.\n\nJe wordt ${input.role === "admin" ? "beheerder: je kunt alle lijsten bewerken en leden uitnodigen" : "lid: je kunt alle lijsten in deze workspace bekijken en bewerken"}.\n\nBekijk en accepteer de uitnodiging:\n${input.url}\n\nNog geen account? Maak er eerst een aan met dit e-mailadres en bevestig je e-mail. Daarna kom je terug bij de uitnodiging.\n\nDe uitnodiging is 7 dagen geldig. Niet verwacht? Dan kun je deze e-mail negeren.`,
+          subject: `Uitnodiging voor ${input.workspaceName} · Even`,
+          text: `${input.inviterName} nodigt je uit voor de organisatie “${input.workspaceName}” in Even.\n\nJe wordt ${input.role === "admin" ? "beheerder: je kunt alle lijsten en notities bewerken en leden uitnodigen" : "lid: je kunt alle lijsten en notities in deze organisatie bekijken en bewerken"}.\n\nBekijk en accepteer de uitnodiging:\n${input.url}\n\nNog geen account? Maak er eerst een aan met dit e-mailadres en bevestig je e-mail. Daarna kom je terug bij de uitnodiging.\n\nDe uitnodiging is 7 dagen geldig. Niet verwacht? Dan kun je deze e-mail negeren.`,
         }
       : {
           to: input.to,
-          subject: `Invitation to ${input.workspaceName} · Even doen`,
-          text: `${input.inviterName} invited you to the workspace “${input.workspaceName}” in Even doen.\n\nYou'll be ${input.role === "admin" ? "an admin: you can edit all lists and invite members" : "a member: you can view and edit all lists in this workspace"}.\n\nView and accept the invitation:\n${input.url}\n\nNo account yet? Create one with this email address first and confirm your email. You'll then return to the invitation.\n\nThe invitation is valid for 7 days. Not expecting this? You can ignore this email.`,
+          subject: `Invitation to ${input.workspaceName} · Even`,
+          text: `${input.inviterName} invited you to the organization “${input.workspaceName}” in Even.\n\nYou'll be ${input.role === "admin" ? "an admin: you can edit all lists and notes and invite members" : "a member: you can view and edit all lists and notes in this organization"}.\n\nView and accept the invitation:\n${input.url}\n\nNo account yet? Create one with this email address first and confirm your email. You'll then return to the invitation.\n\nThe invitation is valid for 7 days. Not expecting this? You can ignore this email.`,
         },
 }
 

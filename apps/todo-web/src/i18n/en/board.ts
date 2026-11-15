@@ -84,7 +84,7 @@ export const board = {
     noProject: "No project",
     change: (property: string) => `Change ${property.toLowerCase()}`,
     created: "Created",
-    noMembers: "Only workspace members can be assigned.",
+    noMembers: "Only organization members can be assigned.",
   },
   issue: {
     titleLabel: "Issue title",
@@ -149,11 +149,11 @@ export const board = {
     downloadFailed: "Downloading didn't work.",
     remove: (name: string) => `Remove ${name}`,
     empty: "No files yet. Drop them here or add them.",
-    membersOnly: "Sign in as a workspace member to add files.",
+    membersOnly: "Sign in as an organization member to add files.",
   },
   settings: {
     statusesTitle: "Statuses",
-    statusesHelp: "The columns of every board in this workspace, grouped like in Linear. Issues in Completed and Canceled count as done.",
+    statusesHelp: "The columns of every board in this organization, grouped like in Linear. Issues in Completed and Canceled count as done.",
     addStatus: "Add status",
     newStatusName: "Status name",
     statusPlaceholder: (category: string) => `New ${category.toLowerCase()} status`,

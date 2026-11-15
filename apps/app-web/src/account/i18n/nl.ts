@@ -131,7 +131,7 @@ export const nl: typeof en = {
     appMail: "Even mailen",
     appMailHelp: "Al je mailboxen op één plek.",
     appNotes: "Even noteren",
-    appNotesHelp: "Je notities, in elke workspace.",
+    appNotesHelp: "Je notities, in elke organisatie.",
     appDesktop: "Even voor desktop",
     appDesktopHelp: "Mail en lijsten samen, voor macOS en Windows.",
     download: "Downloaden",
@@ -184,10 +184,10 @@ export const nl: typeof en = {
     dangerZone: "Gevarenzone",
     deleteAccount: "Account verwijderen",
     deleteHelp:
-      "Verwijdert je account in alle Even-apps: je lijsten en de workspaces waarvan jij eigenaar bent, je gekoppelde mailboxen en alles wat daarvoor bewaard wordt. Je mail zelf blijft bij Gmail of Outlook.",
+      "Verwijdert je account in alle Even-apps: je lijsten en de organisaties waarvan jij eigenaar bent, je gekoppelde mailboxen en alles wat daarvoor bewaard wordt. Je mail zelf blijft bij Gmail of Outlook.",
     deleteTitle: "Je account definitief verwijderen?",
     deleteDescription:
-      "Workspaces waarvan jij eigenaar bent verdwijnen met al hun lijsten, ook voor de andere leden. Je mailboxen worden ontkoppeld. Vul je wachtwoord in om te bevestigen.",
+      "Organisaties waarvan jij eigenaar bent verdwijnen met al hun lijsten, ook voor de andere leden. Je mailboxen worden ontkoppeld. Vul je wachtwoord in om te bevestigen.",
     delete: "Verwijderen",
     deleteFailed: "Verwijderen is niet gelukt. Controleer je wachtwoord en probeer het opnieuw.",
     deleting: "Verwijderen…",

@@ -9,12 +9,28 @@ import {
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
-import { DashboardEmbed, TodoEmbed, TodoSettingsNav } from "@evido/todo-web/embed"
+import {
+  DashboardEmbed,
+  OrganizationPicker,
+  TodoEmbed,
+  TodoOrganizations,
+  TodoSettingsNav,
+} from "@evido/todo-web/embed"
 import { NotesEmbed } from "@evido/notes-web/embed"
-import { AppSwitcherProvider, type AppRequest, type SwitchableApp } from "@evido/ui/components/app-switcher"
-import { DesktopSettingsProvider, useDesktopSettings } from "@evido/ui/components/desktop-settings"
+import {
+  AppSwitcherProvider,
+  type AppRequest,
+  type SwitchableApp,
+} from "@evido/ui/components/app-switcher"
+import {
+  DesktopSettingsProvider,
+  useDesktopSettings,
+} from "@evido/ui/components/desktop-settings"
 import { useCurrentLanguage } from "@evido/i18n/react"
-import { DesktopProvider, type DesktopApp } from "@evido/ui/components/desktop-app"
+import {
+  DesktopProvider,
+  type DesktopApp,
+} from "@evido/ui/components/desktop-app"
 import { cn } from "@evido/ui/lib/utils"
 import { AppRail } from "./rail"
 
@@ -23,7 +39,11 @@ export type AppId = "dashboard" | "mail" | "todo" | "notes"
 const isMac = navigator.userAgent.includes("Mac")
 
 /** In rail order; the number keys follow it. */
-const APP_LIST: { id: Exclude<AppId, "dashboard">; name: string; icon: IconSvgElement }[] = [
+const APP_LIST: {
+  id: Exclude<AppId, "dashboard">
+  name: string
+  icon: IconSvgElement
+}[] = [
   { id: "mail", name: "Even mailen", icon: Mail01Icon },
   { id: "todo", name: "Even doen", icon: CheckmarkSquare02Icon },
   { id: "notes", name: "Even noteren", icon: Note01Icon },
@@ -91,7 +111,11 @@ function firstApp(web: boolean): AppId {
   const named = appInAddress()
   if (named) return named
   const app = storedApp()
-  window.history.replaceState(window.history.state, "", APP_PATHS[app] + window.location.search)
+  window.history.replaceState(
+    window.history.state,
+    "",
+    APP_PATHS[app] + window.location.search
+  )
   return app
 }
 
@@ -124,13 +148,18 @@ export function EvenShell({
     setSettingsOpen(open)
   }
 
-  const shortcut = (index: number) => (isMac ? `⌘${index + 1}` : `Ctrl+${index + 1}`)
-  const apps: (SwitchableApp & { id: AppId })[] = APP_LIST.map((app, index) => ({ ...app, shortcut: shortcut(index) }))
+  const shortcut = (index: number) =>
+    isMac ? `⌘${index + 1}` : `Ctrl+${index + 1}`
+  const apps: (SwitchableApp & { id: AppId })[] = APP_LIST.map(
+    (app, index) => ({ ...app, shortcut: shortcut(index) })
+  )
 
   const select = (app: string) => {
     if (!isAppId(app)) return
     setActive(app)
-    setOpened((current) => (current.includes(app) ? current : [...current, app]))
+    setOpened((current) =>
+      current.includes(app) ? current : [...current, app]
+    )
     try {
       localStorage.setItem(APP_KEY, app)
     } catch {
@@ -179,40 +208,70 @@ export function EvenShell({
 
   return (
     <DesktopProvider value={desktop}>
-      <AppSwitcherProvider value={{ apps, active, onSelect: select, paths: web ? APP_PATHS : undefined, open, request }}>
-        <DesktopSettingsProvider apps={apps} open={settingsOpen} onOpenChange={openSettingsWindow} labels={texts}>
+      <AppSwitcherProvider
+        value={{
+          apps,
+          active,
+          onSelect: select,
+          paths: web ? APP_PATHS : undefined,
+          open,
+          request,
+        }}
+      >
+        <DesktopSettingsProvider
+          apps={apps}
+          open={settingsOpen}
+          onOpenChange={openSettingsWindow}
+          labels={texts}
+        >
           {/* Even doen's pages are in the settings from the start, not only once it runs. */}
           <TodoSettingsNav />
-          <div className={cn("desktop-app", !web && isMac && "mac", web && "is-web")}>
-            <Rail apps={apps} active={active} onSelect={select} texts={texts} foot={railFoot} />
-            <div className="desktop-stage">
-              {opened.includes("dashboard") && (
-                <div className="desktop-pane" hidden={active !== "dashboard"}>
-                  <Activity mode={active === "dashboard" ? "visible" : "hidden"}>
-                    <DashboardEmbed />
-                  </Activity>
-                </div>
+          <TodoOrganizations>
+            <div
+              className={cn(
+                "desktop-app",
+                !web && isMac && "mac",
+                web && "is-web"
               )}
-              {/* Mail stays mounted from the start, so new mail notifies from any app. */}
-              <div className="desktop-pane" hidden={active !== "mail"}>
-                <MailEmbed active={running("mail")} />
+            >
+              <Rail
+                apps={apps}
+                active={active}
+                onSelect={select}
+                texts={texts}
+                foot={railFoot}
+              />
+              <div className="desktop-stage">
+                {opened.includes("dashboard") && (
+                  <div className="desktop-pane" hidden={active !== "dashboard"}>
+                    <Activity
+                      mode={active === "dashboard" ? "visible" : "hidden"}
+                    >
+                      <DashboardEmbed />
+                    </Activity>
+                  </div>
+                )}
+                {/* Mail stays mounted from the start, so new mail notifies from any app. */}
+                <div className="desktop-pane" hidden={active !== "mail"}>
+                  <MailEmbed active={running("mail")} />
+                </div>
+                {opened.includes("todo") && (
+                  <div className="desktop-pane" hidden={active !== "todo"}>
+                    <Activity mode={running("todo") ? "visible" : "hidden"}>
+                      <TodoEmbed />
+                    </Activity>
+                  </div>
+                )}
+                {opened.includes("notes") && (
+                  <div className="desktop-pane" hidden={active !== "notes"}>
+                    <Activity mode={running("notes") ? "visible" : "hidden"}>
+                      <NotesEmbed />
+                    </Activity>
+                  </div>
+                )}
               </div>
-              {opened.includes("todo") && (
-                <div className="desktop-pane" hidden={active !== "todo"}>
-                  <Activity mode={running("todo") ? "visible" : "hidden"}>
-                    <TodoEmbed />
-                  </Activity>
-                </div>
-              )}
-              {opened.includes("notes") && (
-                <div className="desktop-pane" hidden={active !== "notes"}>
-                  <Activity mode={running("notes") ? "visible" : "hidden"}>
-                    <NotesEmbed />
-                  </Activity>
-                </div>
-              )}
             </div>
-          </div>
+          </TodoOrganizations>
         </DesktopSettingsProvider>
       </AppSwitcherProvider>
     </DesktopProvider>
@@ -248,7 +307,12 @@ function Rail({
   }, [active, settings])
   return (
     <AppRail
-      home={{ id: "dashboard", name: texts.dashboard, icon: DashboardSquare01Icon }}
+      organization={<OrganizationPicker />}
+      home={{
+        id: "dashboard",
+        name: texts.dashboard,
+        icon: DashboardSquare01Icon,
+      }}
       apps={apps}
       upcoming={UPCOMING}
       active={active}

@@ -1,5 +1,10 @@
 import * as React from "react"
-import { MemoryRouter, useLocation, useNavigate, useNavigationType } from "react-router"
+import {
+  MemoryRouter,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from "react-router"
 import { useAppSwitcher } from "@evido/ui/components/app-switcher"
 
 /**
@@ -25,8 +30,12 @@ export function EmbedRouter({
   const switcher = useAppSwitcher()
   const base = switcher?.paths?.[app]
   // Opened from another app at a place of its own: start there.
-  const [asked] = React.useState(() => (switcher?.request?.app === app ? switcher.request : null))
-  const [initial] = React.useState(() => asked?.to || (base && query && addressUnder(base)) || "/")
+  const [asked] = React.useState(() =>
+    switcher?.request?.app === app ? switcher.request : null
+  )
+  const [initial] = React.useState(
+    () => asked?.to || (base && query && addressUnder(base)) || "/"
+  )
   return (
     <MemoryRouter initialEntries={[initial]}>
       <FollowRequests app={app} handled={asked?.n ?? 0} />
@@ -56,10 +65,22 @@ const pathNow = () => window.location.pathname.replace(/\/+$/, "") || "/"
 function addressUnder(base: string) {
   const path = pathNow()
   if (path !== base && !path.startsWith(`${base}/`)) return null
-  return (path.slice(base.length) || "/") + window.location.search + window.location.hash
+  return (
+    (path.slice(base.length) || "/") +
+    window.location.search +
+    window.location.hash
+  )
 }
 
-function AddressBridge({ app, base, query }: { app: string; base: string; query: boolean }) {
+function AddressBridge({
+  app,
+  base,
+  query,
+}: {
+  app: string
+  base: string
+  query: boolean
+}) {
   // Not "is it running": while the settings are open every app runs, and only one may own the address.
   const active = useAppSwitcher()?.active === app
   const location = useLocation()
@@ -73,12 +94,15 @@ function AddressBridge({ app, base, query }: { app: string; base: string; query:
     const under = addressUnder(base)
     if (!query) {
       // Coming from another app is a step Back can undo.
-      if (under === null) window.history.pushState(window.history.state, "", base)
+      if (under === null)
+        window.history.pushState(window.history.state, "", base)
       return
     }
     if (under === shown) return
-    const target = base + (shown.startsWith("/?") || shown === "/" ? shown.slice(1) : shown)
-    const step = under === null || type === "PUSH" ? "pushState" : "replaceState"
+    const target =
+      base + (shown.startsWith("/?") || shown === "/" ? shown.slice(1) : shown)
+    const step =
+      under === null || type === "PUSH" ? "pushState" : "replaceState"
     window.history[step](window.history.state, "", target)
   }, [active, base, query, shown, type])
 
