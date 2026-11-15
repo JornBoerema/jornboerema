@@ -16,6 +16,7 @@
   "dependencies": {
     "@evido/auth": "workspace:*",
     "@evido/i18n": "workspace:*",
+    "@evido/mail-core": "workspace:*",
     "@evido/realtime": "workspace:*",
     "@evido/todo-core": "workspace:*",
     "@evido/ui": "workspace:*",

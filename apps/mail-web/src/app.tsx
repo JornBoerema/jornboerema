@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { MailDraftView } from "@evido/mail-core/types"
 import { errorText } from "@/lib/api"
-import { Navigate, useLocation } from "react-router"
+import { Navigate, useLocation, useNavigate } from "react-router"
 import { useCollapsibleSidebar } from "@evido/ui/hooks/use-collapsible-sidebar"
 import { cn } from "@evido/ui/lib/utils"
 import type { MailThreadView } from "@evido/mail-core/types"
@@ -40,6 +40,9 @@ function WithCachedMail({ userId, children }: { userId: string; children: ReactN
   return ready ? children : null
 }
 
+/** The lists the dashboard may open. */
+const DASHBOARD_VIEWS: MailView[] = ["inbox", "snoozed", "scheduled"]
+
 function MailApp({ user }: { user: { id: string; name: string; email: string } }) {
   const sidebar = useCollapsibleSidebar()
   const accounts = useAccounts()
@@ -66,6 +69,35 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
     if (new URLSearchParams(window.location.search).has("conversation"))
       window.history.replaceState(window.history.state, "", window.location.pathname)
   }, [])
+  // The dashboard opens a conversation (`?open=<id>&account=…&subject=…`) or a list
+  // (`?view=snoozed`) here; the address then goes back to plain.
+  const location = useLocation()
+  const navigate = useNavigate()
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const id = params.get("open")
+    const asked = params.get("view")
+    if (!id && !asked) return
+    setFilter("")
+    if (asked && DASHBOARD_VIEWS.includes(asked as MailView)) setView(asked as MailView)
+    if (id) {
+      setView("inbox")
+      setOpen({
+        id,
+        accountId: params.get("account") ?? "",
+        subject: params.get("subject") ?? "",
+        snippet: "",
+        fromName: null,
+        fromEmail: null,
+        receivedAt: new Date().toISOString(),
+        isRead: true,
+        isStarred: false,
+        hasAttachments: false,
+        messageCount: 1,
+      })
+    }
+    navigate("/", { replace: true })
+  }, [location.search, navigate])
   const [composeHidden, setComposeHidden] = useState(false)
   const hideCompose = useCallback(() => setComposeHidden(true), [])
   const showCompose = useCallback(() => {

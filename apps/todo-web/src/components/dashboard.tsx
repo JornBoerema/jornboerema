@@ -1,37 +1,32 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { MailScheduledView, MailSnoozedView, MailThreadsPage, MailThreadView } from "@evido/mail-core/types";
 import { useAppSwitcher } from "@evido/ui/components/app-switcher";
-import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@evido/ui/components/avatar";
 import { Button } from "@evido/ui/components/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@evido/ui/components/card";
 import { Checkbox } from "@evido/ui/components/checkbox";
-import { useDesktopSettings } from "@evido/ui/components/desktop-settings";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@evido/ui/components/empty";
-import { Progress } from "@evido/ui/components/progress";
+import { useOrganizations } from "@evido/ui/components/organizations";
 import { Skeleton } from "@evido/ui/components/skeleton";
+import { cn } from "@evido/ui/lib/utils";
 import { sortTodos, type Todo, type WorkspaceData } from "@evido/todo-core/workspace";
-import { canManageWorkspace, type WorkspaceSummary } from "@evido/todo-core/workspaces";
-import { UserAdd } from "@/components/icons";
+import type { WorkspaceSummary } from "@evido/todo-core/workspaces";
 import { PageError } from "@/components/page-error";
 import { PageLoading } from "@/components/page-loading";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { apiFetch } from "@/lib/api";
 import { RequireSession, type SessionUser } from "@/lib/session";
-import { useWorkspaceMembers } from "@/lib/workspaces";
-import { useOrganizations } from "@evido/ui/components/organizations";
 import { useI18n } from "@/i18n";
 
-const MAX_AVATARS = 5;
-const MAX_NOTES = 6;
-const initials = (name: string) =>
-  name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
+const INBOX_ROWS = 9;
+const SIDE_ROWS = 4;
+const NOTES = 3;
+const MAIL_KEY = ["dashboard-mail"];
 
-/** First meaningful lines of a note, without Markdown and without repeating its title. */
+/** First meaningful line of a note, without Markdown and without repeating its title. */
 function excerpt(markdown: string, title: string) {
   const plain = (line: string) =>
     line.trim().replace(/^(#{1,6}\s+|[-*+]\s+(\[[ xX]\]\s+)?|>\s+|\d+\.\s+)/, "").replace(/[*_`~]/g, "").trim();
   const same = (line: string) => line.toLocaleLowerCase() === title.trim().toLocaleLowerCase();
-  return markdown.split("\n").map(plain).filter((line) => line && !same(line)).slice(0, 4).join(" ");
+  return markdown.split("\n").map(plain).find((line) => line && !same(line)) ?? "";
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -40,9 +35,56 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json();
 }
 
+/** Even mailen's API answers 403 to people it isn't open to yet; that is a state, not an error. */
+class NoMailAccess extends Error {}
+
+async function getMail<T>(path: string): Promise<T> {
+  const response = await apiFetch(`/api/mail${path}`);
+  if (response.status === 403) throw new NoMailAccess();
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+type DashboardMail =
+  | { state: "no-access" }
+  | { state: "no-mailbox" }
+  | {
+      state: "ready";
+      unread: number;
+      threads: MailThreadView[];
+      snoozed: MailSnoozedView[];
+      scheduled: MailScheduledView[];
+    };
+
+/** The inbox, what comes back from snooze and what waits to be sent, in one go. */
+async function loadMail(): Promise<DashboardMail> {
+  try {
+    const { accounts } = await getMail<{ accounts: { status: string }[] }>("/accounts");
+    if (!accounts.length) return { state: "no-mailbox" };
+    const [unread, page, snoozes, scheduled] = await Promise.all([
+      getMail<{ count: number }>("/unread"),
+      getMail<MailThreadsPage>("/threads"),
+      getMail<{ snoozed: MailSnoozedView[] }>("/snoozes"),
+      getMail<{ scheduled: MailScheduledView[] }>("/scheduled"),
+    ]);
+    return {
+      state: "ready",
+      unread: unread.count,
+      // Unread first, each part newest first, as the eye wants to work through it.
+      threads: [...page.threads.filter((t) => !t.isRead), ...page.threads.filter((t) => t.isRead)].slice(0, INBOX_ROWS),
+      snoozed: [...snoozes.snoozed].sort((a, b) => a.until.localeCompare(b.until)),
+      scheduled: scheduled.scheduled,
+    };
+  } catch (error) {
+    if (error instanceof NoMailAccess) return { state: "no-access" };
+    throw error;
+  }
+}
+
 /**
- * The dashboard at the head of the Even rail: a look across the apps for the
- * active workspace. What it shows opens in the app it belongs to.
+ * The dashboard at the head of the Even rail. Mail comes first: what is unread,
+ * what comes back and what goes out; the active organization's tasks and notes
+ * follow, small. Everything opens in the app it belongs to.
  */
 export function DashboardPage() {
   return <RequireSession>{(user) => <Workspaces user={user} />}</RequireSession>;
@@ -78,6 +120,34 @@ function ActiveWorkspace({ user, active }: { user: SessionUser; active: Workspac
   );
 }
 
+/** Today: 14:05. Within the week: the weekday. Older: the date. */
+function useWhen() {
+  const { locale } = useI18n();
+  return (iso: string) => {
+    const date = new Date(iso);
+    const now = new Date();
+    if (date.toDateString() === now.toDateString())
+      return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+    if (now.getTime() - date.getTime() < 6 * 86400000)
+      return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date);
+    return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date);
+  };
+}
+
+/** A moment ahead: "Today 14:00", "Tomorrow 09:00", or the weekday and time. */
+function useAhead() {
+  const { locale, t: { workspace: { dashboard: t } } } = useI18n();
+  return (iso: string) => {
+    const date = new Date(iso);
+    const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+    const day = new Date();
+    if (date.toDateString() === day.toDateString()) return t.today(time);
+    day.setDate(day.getDate() + 1);
+    if (date.toDateString() === day.toDateString()) return t.tomorrow(time);
+    return new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
+  };
+}
+
 function Dashboard({ user, workspace, initialData, realtimeEnabled }: {
   user: SessionUser; workspace: WorkspaceSummary; initialData: WorkspaceData; realtimeEnabled: boolean;
 }) {
@@ -85,6 +155,9 @@ function Dashboard({ user, workspace, initialData, realtimeEnabled }: {
   const t = wt.dashboard;
   const { data, run, online } = useWorkspace(user.id, workspace.id, initialData, realtimeEnabled);
   const switcher = useAppSwitcher();
+  const client = useQueryClient();
+  const mail = useQuery({ queryKey: MAIL_KEY, queryFn: loadMail, refetchInterval: 60_000, retry: 1 });
+  const inFront = switcher?.active === "dashboard";
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     const update = () => setNow(new Date());
@@ -92,164 +165,174 @@ function Dashboard({ user, workspace, initialData, realtimeEnabled }: {
     const timer = window.setInterval(update, 60000);
     return () => window.clearInterval(timer);
   }, []);
+  // Back in front: the title, and mail as it is now (it moved on while the inbox was open).
   useEffect(() => {
-    if (switcher?.active === "dashboard") document.title = `${t.title} · Even`;
-  }, [switcher?.active, t.title]);
+    if (!inFront) return;
+    document.title = `${t.title} · Even`;
+    void client.invalidateQueries({ queryKey: MAIL_KEY });
+  }, [inFront, t.title, client]);
+
   const hour = now?.getHours();
   const greeting = hour === undefined ? t.welcome : hour < 12 ? t.morning : hour < 18 ? t.afternoon : t.evening;
   const firstName = user.name.trim().split(/\s+/)[0];
 
-  // A list opens in Even doen, a note in Even noteren, in this workspace.
-  const inWorkspace = (key: string, id?: string) => {
-    const query = new URLSearchParams({ workspace: workspace.id });
-    if (id) query.set(key, id);
-    return `/?${query}`;
-  };
-  const openList = (id?: string) => switcher?.open?.("todo", inWorkspace("list", id));
-  const openNote = (id?: string) => switcher?.open?.("notes", inWorkspace("note", id));
+  const open = (app: string, query: Record<string, string>) => switcher?.open?.(app, `/?${new URLSearchParams(query)}`);
+  const openThread = (thread: MailThreadView) =>
+    open("mail", { open: thread.id, account: thread.accountId, subject: thread.subject });
+  const inWorkspace = (key: string, id?: string) => ({ workspace: workspace.id, ...(id ? { [key]: id } : {}) });
 
-  const taskLists = data.lists.filter((list) => (list.kind ?? "todo") === "todo");
-  const notes = data.lists.filter((list) => list.kind === "note");
-  const listIds = new Set(taskLists.map((list) => list.id));
-  const tasks = data.todos.filter((item) => listIds.has(item.listId));
-  const open = tasks.filter((item) => !item.completed);
-  const busy = sortTodos(open.filter((item) => item.inProgress));
-  const done = tasks.length - open.length;
+  const ready = mail.data?.state === "ready" ? mail.data : null;
+  const today = now?.toDateString();
+  const returningToday = ready?.snoozed.filter((s) => new Date(s.until).toDateString() === today).length ?? 0;
+  const briefing = ready
+    ? [
+        ready.unread ? t.unread(ready.unread) : t.inboxZero,
+        returningToday ? t.returning(returningToday) : "",
+        ready.scheduled.length ? t.scheduledCount(ready.scheduled.length) : "",
+      ].filter(Boolean)
+    : [];
+
+  const taskLists = new Set(data.lists.filter((list) => (list.kind ?? "todo") !== "note").map((list) => list.id));
+  const busy = sortTodos(data.todos.filter((item) => taskLists.has(item.listId) && item.inProgress && !item.completed));
+  const notes = data.lists.filter((list) => list.kind === "note").slice(0, NOTES);
   const listName = (id: string) => data.lists.find((list) => list.id === id)?.name ?? "";
-  const disabled = !online;
-
-  // Same cycle as in a list: to do → in progress → done.
-  const toggle = (todo: Todo) =>
-    void run({ type: "update-todo", id: todo.id, completed: !todo.completed && !!todo.inProgress, inProgress: !todo.completed && !todo.inProgress });
-
-  const stats = [
-    { label: t.stats.open, value: open.length },
-    { label: t.stats.inProgress, value: busy.length },
-    { label: t.stats.done, value: done },
-    { label: t.stats.notes, value: notes.length },
-  ];
+  // Same cycle as in a list: in progress → done.
+  const finish = (todo: Todo) => void run({ type: "update-todo", id: todo.id, completed: true, inProgress: false });
 
   return <main className="workspace-main dashboard-page">
     <div className="task-content dashboard-content scroll-fade">
-      <div className="dashboard">
-        <div className="task-heading">
-          <div className="min-w-0 flex-1">
-            <h1>{greeting}{firstName ? `, ${firstName}` : ""}.</h1>
-            <p>{now && new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(now)}</p>
-          </div>
+      <div className="dash">
+        <header className="dash-heading">
+          <h1>{greeting}{firstName ? `, ${firstName}` : ""}.</h1>
+          <p>
+            {now && <span>{new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(now)}</span>}
+            {briefing.map((line) => <span key={line}>{line}</span>)}
+          </p>
+        </header>
+
+        <div className="dash-mail">
+          <section className="dash-inbox" aria-labelledby="dash-inbox">
+            <div className="dash-section-head">
+              <h2 id="dash-inbox">{t.inbox}{ready && ready.unread > 0 && <span className="dash-count">{ready.unread.toLocaleString(locale)}</span>}</h2>
+              {ready && <Button variant="ghost" size="sm" onClick={() => open("mail", { view: "inbox" })}>{t.openInbox}</Button>}
+            </div>
+            {mail.isPending ? <RowsLoading rows={6} /> : mail.isError ? (
+              <MailNotice title={t.mailFailed} action={t.retry} onAction={() => void mail.refetch()} />
+            ) : mail.data.state === "no-mailbox" ? (
+              <MailNotice title={t.noMailbox} body={t.noMailboxBody} action={t.openMail} onAction={() => open("mail", { view: "inbox" })} primary />
+            ) : mail.data.state === "no-access" ? (
+              <MailNotice title={t.noAccess} body={t.noAccessBody} action={t.openMail} onAction={() => open("mail", { view: "inbox" })} />
+            ) : mail.data.threads.length ? (
+              <ul className="dash-threads">
+                {mail.data.threads.map((thread) => <li key={thread.id}><ThreadRow thread={thread} onOpen={() => openThread(thread)} /></li>)}
+              </ul>
+            ) : <p className="dash-empty">{t.inboxEmpty}</p>}
+          </section>
+
+          {ready && <aside className="dash-later">
+            <section aria-labelledby="dash-returning">
+              <div className="dash-section-head">
+                <h2 id="dash-returning">{t.returningTitle}</h2>
+              </div>
+              {ready.snoozed.length ? <ul className="dash-side-list">
+                {ready.snoozed.slice(0, SIDE_ROWS).map((item) => (
+                  <li key={item.thread.id}><SideRow when={item.until} title={item.thread.subject || t.noSubject} detail={item.thread.fromName ?? item.thread.fromEmail ?? t.unknownSender} onOpen={() => open("mail", { view: "snoozed" })} /></li>
+                ))}
+              </ul> : <p className="dash-empty">{t.returningEmpty}</p>}
+            </section>
+            <section aria-labelledby="dash-scheduled">
+              <div className="dash-section-head">
+                <h2 id="dash-scheduled">{t.scheduledTitle}</h2>
+              </div>
+              {ready.scheduled.length ? <ul className="dash-side-list">
+                {ready.scheduled.slice(0, SIDE_ROWS).map((item) => (
+                  <li key={item.id}><SideRow when={item.sendAt} failed={item.failed} title={item.subject || t.noSubject} detail={t.to(item.to.map((to) => to.name ?? to.email).join(", "))} onOpen={() => open("mail", { view: "scheduled" })} /></li>
+                ))}
+              </ul> : <p className="dash-empty">{t.scheduledEmpty}</p>}
+            </section>
+          </aside>}
         </div>
 
-        {!data.lists.length ? <Empty className="py-10">
-          <EmptyHeader><EmptyTitle>{t.emptyTitle}</EmptyTitle><EmptyDescription>{t.emptyBody}</EmptyDescription></EmptyHeader>
-          <EmptyContent><div className="flex flex-wrap justify-center gap-2">
-            <Button onClick={() => openList()}>{t.openTodo}</Button>
-            <Button variant="outline" onClick={() => openNote()}>{t.openNotes}</Button>
-          </div></EmptyContent>
-        </Empty> : <div className="widgets">
-          <dl className="widget-stats" aria-label={t.stats.label}>
-            {stats.map((stat) => (
-              <Card key={stat.label} size="sm" className="widget-stat">
-                <CardContent className="flex flex-col gap-1">
-                  <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-                  <dd className="text-2xl font-semibold tabular-nums">{stat.value}</dd>
-                </CardContent>
-              </Card>
-            ))}
-          </dl>
-
-          <Card size="sm" className="widget">
-            <CardHeader><CardTitle>{t.inProgress}</CardTitle></CardHeader>
-            <CardContent>
-              {busy.length ? <ul className="flex flex-col">
-                {busy.map((todo) => (
-                  <li key={todo.id} className="widget-task">
-                    <Checkbox
-                      checked="indeterminate"
-                      onCheckedChange={() => toggle(todo)}
-                      disabled={disabled}
-                      aria-label={wt.task.checkboxLabel(todo.title, "busy")}
-                    />
-                    <button type="button" className="widget-task-body" onClick={() => openList(todo.listId)}>
-                      <span className="truncate">{todo.title}</span>
-                      <span className="truncate text-xs text-muted-foreground">{listName(todo.listId)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul> : <p className="widget-empty">{t.inProgressEmpty}</p>}
-            </CardContent>
-          </Card>
-
-          <Card size="sm" className="widget">
-            <CardHeader><CardTitle>{t.progress}</CardTitle></CardHeader>
-            <CardContent>
-              {tasks.length ? <ul className="flex flex-col gap-1">
-                {taskLists.filter((list) => tasks.some((item) => item.listId === list.id)).map((list) => {
-                  const items = tasks.filter((item) => item.listId === list.id);
-                  const finished = items.filter((item) => item.completed).length;
-                  return <li key={list.id}>
-                    <button type="button" className="widget-progress-row" onClick={() => openList(list.id)}>
-                      <span className="flex items-baseline justify-between gap-3">
-                        <span className="truncate">{list.name}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{t.progressCount(finished, items.length)}</span>
-                      </span>
-                      <Progress value={items.length ? (finished / items.length) * 100 : 0} aria-label={t.progressLabel(list.name, finished, items.length)} />
-                    </button>
-                  </li>;
-                })}
-              </ul> : <p className="widget-empty">{t.progressEmpty}</p>}
-            </CardContent>
-          </Card>
-
-          <section className="widget-notes" aria-labelledby="dashboard-notes">
-            <div className="widget-notes-heading">
-              <h2 id="dashboard-notes">{t.notes}</h2>
-              <Button variant="ghost" size="sm" onClick={() => openNote()}>{t.openNotes}</Button>
+        <div className="dash-work">
+          <section aria-labelledby="dash-busy">
+            <div className="dash-section-head">
+              <h2 id="dash-busy">{t.inProgress}</h2>
+              <Button variant="ghost" size="sm" onClick={() => open("todo", inWorkspace("list"))}>{t.openTodo}</Button>
             </div>
-            {notes.length ? <ul className="note-grid">
-              {notes.slice(0, MAX_NOTES).map((note) => (
-                <li key={note.id}>
-                  <button type="button" className="note-card" onClick={() => openNote(note.id)}>
-                    <span className="note-card-title">{note.name}</span>
-                    <span className="note-card-excerpt">{excerpt(note.note?.markdown ?? "", note.name) || t.emptyNote}</span>
+            {busy.length ? <ul className="dash-side-list">
+              {busy.slice(0, SIDE_ROWS).map((todo) => (
+                <li key={todo.id} className="dash-task">
+                  <Checkbox checked="indeterminate" onCheckedChange={() => finish(todo)} disabled={!online} aria-label={wt.task.checkboxLabel(todo.title, "busy")} />
+                  <button type="button" className="dash-row-body" onClick={() => open("todo", inWorkspace("list", todo.listId))}>
+                    <span className="dash-row-title">{todo.title}</span>
+                    <span className="dash-row-detail">{listName(todo.listId)}</span>
                   </button>
                 </li>
               ))}
-            </ul> : <p className="widget-empty">{t.notesEmpty}</p>}
+            </ul> : <p className="dash-empty">{t.inProgressEmpty}</p>}
           </section>
-
-          <MembersWidget workspace={workspace} />
-        </div>}
+          <section aria-labelledby="dash-notes">
+            <div className="dash-section-head">
+              <h2 id="dash-notes">{t.notes}</h2>
+              <Button variant="ghost" size="sm" onClick={() => open("notes", inWorkspace("note"))}>{t.openNotes}</Button>
+            </div>
+            {notes.length ? <ul className="dash-side-list">
+              {notes.map((note) => (
+                <li key={note.id}>
+                  <button type="button" className="dash-row dash-row-body" onClick={() => open("notes", inWorkspace("note", note.id))}>
+                    <span className="dash-row-title">{note.name}</span>
+                    <span className="dash-row-detail">{excerpt(note.note?.markdown ?? "", note.name) || t.emptyNote}</span>
+                  </button>
+                </li>
+              ))}
+            </ul> : <p className="dash-empty">{t.notesEmpty}</p>}
+          </section>
+        </div>
       </div>
     </div>
   </main>;
 }
 
-function MembersWidget({ workspace }: { workspace: WorkspaceSummary }) {
+/** One conversation: who, what and when; unread ones stand out by weight and a dot. */
+function ThreadRow({ thread, onOpen }: { thread: MailThreadView; onOpen: () => void }) {
   const { t: { workspace: { dashboard: t } } } = useI18n();
-  const settings = useDesktopSettings("todo");
-  const members = useWorkspaceMembers(workspace.id);
-  const list = members.data?.members ?? [];
-  return <Card size="sm" className="widget">
-    <CardHeader>
-      <CardTitle>{t.members}</CardTitle>
-      {settings && !workspace.personal && canManageWorkspace(workspace.role) && (
-        <CardAction>
-          <Button variant="ghost" size="sm" onClick={() => settings.open("members")}><UserAdd data-icon="inline-start" />{t.invite}</Button>
-        </CardAction>
-      )}
-    </CardHeader>
-    <CardContent className="flex items-center gap-3">
-      {members.isPending ? <Skeleton className="h-8 w-32" /> : <>
-        <AvatarGroup>
-          {list.slice(0, MAX_AVATARS).map((member) => (
-            <Avatar key={member.id} title={member.name}>
-              <AvatarFallback>{initials(member.name)}</AvatarFallback>
-            </Avatar>
-          ))}
-          {list.length > MAX_AVATARS && <AvatarGroupCount>+{list.length - MAX_AVATARS}</AvatarGroupCount>}
-        </AvatarGroup>
-        <span className="text-sm text-muted-foreground">{t.memberCount(list.length)}</span>
-      </>}
-    </CardContent>
-  </Card>;
+  const when = useWhen();
+  return <button type="button" className={cn("dash-thread", !thread.isRead && "is-unread")} onClick={onOpen}>
+    <span className="dash-thread-dot" aria-hidden="true" />
+    <span className="dash-thread-from">{thread.fromName || thread.fromEmail || t.unknownSender}</span>
+    <span className="dash-thread-text">
+      <span className="dash-thread-subject">{thread.subject || t.noSubject}</span>
+      {thread.snippet && <span className="dash-thread-snippet">{thread.snippet}</span>}
+    </span>
+    <time className="dash-thread-when" dateTime={thread.receivedAt}>{when(thread.receivedAt)}</time>
+    {!thread.isRead && <span className="sr-only">{t.unreadMark}</span>}
+  </button>;
+}
+
+function SideRow({ when, title, detail, failed = false, onOpen }: {
+  when: string; title: string; detail: string; failed?: boolean; onOpen: () => void;
+}) {
+  const { t: { workspace: { dashboard: t } } } = useI18n();
+  const ahead = useAhead();
+  return <button type="button" className="dash-row dash-row-body" onClick={onOpen}>
+    <span className={cn("dash-row-when", failed && "is-failed")}>{failed ? t.scheduledFailed : ahead(when)}</span>
+    <span className="dash-row-title">{title}</span>
+    <span className="dash-row-detail">{detail}</span>
+  </button>;
+}
+
+function MailNotice({ title, body, action, onAction, primary = false }: {
+  title: string; body?: string; action: string; onAction: () => void; primary?: boolean;
+}) {
+  return <div className="dash-notice">
+    <p className="dash-notice-title">{title}</p>
+    {body && <p className="dash-notice-body">{body}</p>}
+    <Button size="sm" variant={primary ? "default" : "outline"} onClick={onAction}>{action}</Button>
+  </div>;
+}
+
+function RowsLoading({ rows }: { rows: number }) {
+  return <div className="flex flex-col gap-3 py-2" aria-hidden="true">
+    {Array.from({ length: rows }, (_, index) => <Skeleton key={index} className="h-9 w-full" />)}
+  </div>;
 }

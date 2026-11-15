@@ -597,6 +597,9 @@ importers:
       '@evido/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@evido/mail-core':
+        specifier: workspace:*
+        version: link:../../packages/mail-core
       '@evido/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime

@@ -386,36 +386,69 @@ a.todo-mail:focus-visible {
   .shared-workspace .sync-status span { display: none; }
 }
 
-/* The dashboard at the head of the rail: the same typography and open rows as the lists. */
+/* The dashboard at the head of the rail. Mail first, in a wide column of open rows
+   like the inbox; what comes back and goes out beside it; tasks and notes small below.
+   No cards: hairlines and space carry the structure, as in the lists. */
 .dashboard-page { height: 100%; }
-.dashboard-content { overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
+.dashboard-content { max-width: 1120px; overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
 .dashboard-content::-webkit-scrollbar { display: none; }
-.dashboard { padding-bottom: 24px; }
-/* A grid of widgets; the notes span its width. */
-.dashboard-content { max-width: 1040px; }
-.widgets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-bottom: 32px; }
-.widget-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.widget-stat dd { letter-spacing: -0.02em; }
-.widget-empty { font-size: 13px; color: var(--muted-foreground); }
-.widget-progress-row { display: flex; width: 100%; flex-direction: column; gap: 8px; padding: 8px; margin: 0 -8px; width: calc(100% + 16px); text-align: left; border-radius: var(--radius-md); }
-.widget-progress-row:hover { background: var(--muted); }
-.widget-task { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
-.widget-task-body, .widget-note { display: flex; min-width: 0; flex: 1; text-align: left; border-radius: var(--radius-md); }
-.widget-task-body { flex-direction: column; }
-.widget-task-body:hover > span:first-child, .widget-note:hover > span > span:first-child { text-decoration: underline; text-underline-offset: 3px; }
-.widget-note { gap: 10px; padding: 6px 0; }
-.widget-notes { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; }
-.widget-notes-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.widget-notes-heading h2 { font-size: 14px; font-weight: 600; }
-.note-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.note-card { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 132px; padding: 14px 16px; text-align: left; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); transition: border-color 120ms ease, background-color 120ms ease; }
-.note-card:hover { border-color: color-mix(in oklab, var(--foreground) 22%, var(--border)); }
-.note-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.note-card-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.note-card-excerpt { font-size: 13px; line-height: 1.5; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-@media (max-width: 760px) {
-  .widgets { grid-template-columns: minmax(0, 1fr); }
-  .widget-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dash { display: flex; flex-direction: column; gap: 40px; padding-bottom: 24px; }
+.dash-heading h1 { font-size: 28px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; text-wrap: balance; }
+.dash-heading p { display: flex; flex-wrap: wrap; gap: 4px 0; margin-top: 6px; font-size: 14px; color: var(--muted-foreground); }
+.dash-heading p > span + span::before { content: "·"; margin: 0 8px; opacity: 0.6; }
+.dash-heading p > span:nth-child(2) { color: var(--foreground); }
+
+.dash-mail { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 48px; align-items: start; }
+.dash-later { display: flex; flex-direction: column; gap: 32px; }
+.dash-work { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; padding-top: 28px; border-top: 1px solid var(--border); }
+
+.dash-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; margin-bottom: 6px; }
+.dash-section-head h2 { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.dash-inbox .dash-section-head h2 { font-size: 15px; color: var(--foreground); }
+.dash-count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: color-mix(in oklch, var(--primary) 16%, transparent); color: var(--primary); font-size: 12px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.dash-section-head [data-slot="button"] { margin-right: -10px; color: var(--muted-foreground); }
+.dash-section-head [data-slot="button"]:hover { color: var(--foreground); }
+.dash-empty { padding: 6px 0; font-size: 13px; color: var(--muted-foreground); }
+
+/* An inbox line: dot, sender, subject with snippet, time. Unread by weight and the dot. */
+.dash-threads { display: flex; flex-direction: column; margin: 0 -10px; }
+.dash-thread { display: grid; grid-template-columns: 8px minmax(0, 168px) minmax(0, 1fr) auto; align-items: baseline; gap: 12px; width: 100%; padding: 9px 10px; border-radius: var(--radius-md); text-align: left; font-size: 14px; transition: background-color 120ms ease; }
+.dash-thread:hover { background: var(--muted); }
+.dash-thread:focus-visible, .dash-row-body:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.dash-thread-dot { width: 7px; height: 7px; border-radius: 50%; align-self: center; }
+.dash-thread.is-unread .dash-thread-dot { background: var(--primary); }
+.dash-thread-from { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); }
+.dash-thread-text { display: flex; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.dash-thread-subject { flex-shrink: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; color: var(--muted-foreground); }
+.dash-thread-snippet { overflow: hidden; text-overflow: ellipsis; color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); }
+.dash-thread.is-unread .dash-thread-from, .dash-thread.is-unread .dash-thread-subject { color: var(--foreground); font-weight: 600; }
+.dash-thread-when { font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dash-thread.is-unread .dash-thread-when { color: var(--foreground); }
+
+/* The smaller rows: snoozed, scheduled, tasks, notes. */
+.dash-side-list { display: flex; flex-direction: column; margin: 0 -10px; }
+.dash-row-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; padding: 7px 10px; border-radius: var(--radius-md); text-align: left; transition: background-color 120ms ease; }
+.dash-row-body:hover { background: var(--muted); }
+.dash-row-when { font-size: 12px; font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
+.dash-row-when.is-failed { color: var(--destructive); }
+.dash-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.dash-row-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted-foreground); }
+.dash-task { display: flex; align-items: center; gap: 2px; padding-left: 10px; }
+.dash-task .dash-row-body { margin-left: 2px; }
+
+.dash-notice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 0 8px; }
+.dash-notice-title { font-size: 15px; font-weight: 600; }
+.dash-notice-body { max-width: 52ch; font-size: 14px; line-height: 1.5; color: var(--muted-foreground); margin-bottom: 8px; }
+
+@media (max-width: 960px) {
+  .dash-mail { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .dash-later { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+}
+@media (max-width: 640px) {
+  .dash-thread { grid-template-columns: 8px minmax(0, 1fr) auto; row-gap: 2px; }
+  .dash-thread-text { grid-column: 2 / -1; }
+  .dash-thread-snippet { display: none; }
+  .dash-later, .dash-work { grid-template-columns: minmax(0, 1fr); gap: 28px; }
 }
 @media (max-width: 700px) {
   .dashboard-content { padding-bottom: 24px; }
