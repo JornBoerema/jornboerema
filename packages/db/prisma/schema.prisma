@@ -941,3 +941,32 @@ model Subscription {
   @@index([stripeSubscriptionId], map: "subscription_stripe_subscription_id_idx")
   @@map("subscription")
 }
+
+// ─── Visitor statistics (admin) ─────────────────────────────────────────────
+
+/// One page view on jornboerema.nl or app.jornboerema.nl, counted without cookies.
+/// No IP address is kept: `visitor` is a hash of IP and browser with a salt that
+/// changes every day, so a visitor can be counted once a day but not followed.
+model PageView {
+  id        String   @id
+  createdAt DateTime @default(now()) @map("created_at")
+  /// "home" (jornboerema.nl) or "app" (app.jornboerema.nl).
+  site      String
+  /// The path without query; app paths are cut to their section ("/mail").
+  path      String
+  /// The host the visitor came from, when it was another site.
+  referrer  String?
+  /// utm_source, when the link had one.
+  source    String?
+  /// ISO country code from Vercel's edge, such as "NL".
+  country   String?
+  /// "desktop", "mobile" or "tablet".
+  device    String
+  browser   String
+  os        String
+  visitor   String
+
+  @@index([createdAt], map: "page_views_created_idx")
+  @@index([site, createdAt], map: "page_views_site_created_idx")
+  @@map("page_views")
+}

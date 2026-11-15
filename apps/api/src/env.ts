@@ -10,8 +10,10 @@ export const env = {
   appWebUrl,
   todoWebUrl: `${appWebUrl}/todo`,
   mailWebUrl: `${appWebUrl}/mail`,
-  /** jornboerema.nl, whose /admin manages every app. */
-  adminWebUrl: (process.env.ADMIN_WEB_URL ?? "http://localhost:3002").replace(/\/$/, ""),
+  /** The admin portal, in the web app: who may use which app, statistics and builds. */
+  adminUrl: `${appWebUrl}/admin`,
+  /** jornboerema.nl, the website; its page views count in the admin's statistics. */
+  homeWebUrl: (process.env.HOME_WEB_URL ?? "https://jornboerema.nl").replace(/\/$/, ""),
   /** Who may use the admin portal, by verified sign-in email. */
   adminEmails: (process.env.ADMIN_EMAILS ?? "")
     .split(",")

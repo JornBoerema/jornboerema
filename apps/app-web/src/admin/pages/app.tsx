@@ -18,9 +18,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@even/ui/components/avatar"
 import { Button } from "@even/ui/components/button"
 import { Input } from "@even/ui/components/input"
-import { useI18n } from "@/i18n"
-import { api, errorText } from "@/lib/api"
-import { authClient } from "@/lib/auth-client"
+import { useI18n } from "@/admin/i18n"
+import { api, errorText } from "@/admin/lib/api"
+import { authClient } from "@/admin/lib/auth-client"
 
 type Person = { id: string; name: string; email: string; image: string | null }
 

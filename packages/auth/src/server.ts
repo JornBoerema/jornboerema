@@ -99,15 +99,14 @@ function originOf(address: string) {
 }
 
 /**
- * Web origins that may call the API with credentials: the Even web app, the
- * website's admin, the desktop app, and whatever TRUSTED_ORIGINS adds.
+ * Web origins that may call the API with credentials: the Even web app (which
+ * holds the admin too), the desktop app, and whatever TRUSTED_ORIGINS adds.
  */
 export function trustedOrigins() {
   const origins = [
     ...(process.env.TRUSTED_ORIGINS ?? "").split(","),
     ...DESKTOP_ORIGINS,
     process.env.APP_WEB_URL ?? "",
-    process.env.ADMIN_WEB_URL ?? "",
   ]
     .map(originOf)
     .filter(Boolean)

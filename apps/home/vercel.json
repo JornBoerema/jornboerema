@@ -5,14 +5,8 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/admin/:path*", "destination": "/admin/index.html" }],
-  "headers": [
-    {
-      "source": "/admin/:path*",
-      "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
-        { "key": "X-Frame-Options", "value": "DENY" }
-      ]
-    }
+  "redirects": [
+    { "source": "/admin", "destination": "https://app.jornboerema.nl/admin", "permanent": true },
+    { "source": "/admin/:path*", "destination": "https://app.jornboerema.nl/admin/:path*", "permanent": true }
   ]
 }

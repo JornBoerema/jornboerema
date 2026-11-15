@@ -1,21 +1,35 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query"
 import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes } from "react-router"
-import { DashboardSquare01Icon, Logout03Icon, Shield02Icon, UserGroupIcon } from "@hugeicons/core-free-icons"
+import {
+  Analytics01Icon,
+  CodeIcon,
+  DashboardSquare01Icon,
+  Logout03Icon,
+  Shield02Icon,
+  UserGroupIcon,
+  UserMultiple02Icon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ToAccountSite } from "@even/ui/components/account-site"
+import { goToSignIn } from "@even/auth/client"
+import { hideSplash } from "@even/shell/splash"
 import { Avatar, AvatarFallback, AvatarImage } from "@even/ui/components/avatar"
 import { Button } from "@even/ui/components/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@even/ui/components/empty"
 import { Toaster } from "@even/ui/components/sonner"
 import { ThemeProvider } from "@even/ui/lib/theme"
 import { cn } from "@even/ui/lib/utils"
-import { I18nProvider, useI18n } from "@/i18n"
-import { api } from "@/lib/api"
-import { authClient, signOut } from "@/lib/auth-client"
-import { AppPage } from "@/pages/app"
-import { AppsPage, type AppSummary } from "@/pages/apps"
-import { DashboardPage } from "@/pages/dashboard"
+import { I18nProvider, useI18n } from "@/admin/i18n"
+import { api } from "@/admin/lib/api"
+import { authClient, signOut } from "@/admin/lib/auth-client"
+import { AppPage } from "@/admin/pages/app"
+import { AppsPage, type AppSummary } from "@/admin/pages/apps"
+import { BuildsPage } from "@/admin/pages/builds"
+import { OverviewPage } from "@/admin/pages/overview"
+import { UserPage } from "@/admin/pages/user"
+import { UsersPage } from "@/admin/pages/users"
+import { VisitorsPage } from "@/admin/pages/visitors"
+import "./admin.css"
 
 function Brand() {
   const t = useI18n().t.shell
@@ -40,8 +54,11 @@ function Shell() {
     enabled: Boolean(session.data),
     retry: false,
   })
-  if (session.isPending) return null
-  if (!session.data) return <Navigate replace to="/login" />
+  const signedOut = !session.isPending && !session.data
+  useEffect(() => {
+    if (signedOut) goToSignIn({ returnTo: window.location.href })
+  }, [signedOut])
+  if (session.isPending || !session.data) return null
   if (me.isPending) return null
   if (!me.data?.admin)
     return (
@@ -86,7 +103,15 @@ function Layout({ email, name, image }: { email: string; name: string; image: st
         <nav className="list-navigation admin-nav" aria-label={t.nav.label}>
           <NavLink to="/" end className={link}>
             <HugeiconsIcon icon={DashboardSquare01Icon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
-            <span>{t.nav.dashboard}</span>
+            <span>{t.nav.overview}</span>
+          </NavLink>
+          <NavLink to="/visitors" className={link}>
+            <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
+            <span>{t.nav.visitors}</span>
+          </NavLink>
+          <NavLink to="/users" className={link}>
+            <HugeiconsIcon icon={UserMultiple02Icon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
+            <span>{t.nav.users}</span>
           </NavLink>
           <NavLink to="/apps" className={link}>
             <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
@@ -96,6 +121,10 @@ function Layout({ email, name, image }: { email: string; name: string; image: st
                 {requests}
               </span>
             )}
+          </NavLink>
+          <NavLink to="/builds" className={link}>
+            <HugeiconsIcon icon={CodeIcon} strokeWidth={2} aria-hidden="true" className="size-4 shrink-0" />
+            <span>{t.nav.builds}</span>
           </NavLink>
         </nav>
         <div className="sidebar-footer admin-account">
@@ -129,7 +158,14 @@ function Layout({ email, name, image }: { email: string; name: string; image: st
   )
 }
 
-export function App() {
+/** app.jornboerema.nl/admin: statistics, people, who may use which app, and builds. */
+export function AdminApp() {
+  // The web app's page doesn't scroll (the apps scroll inside); the admin does, on phones.
+  useEffect(() => {
+    hideSplash()
+    document.body.classList.remove("overflow-hidden")
+    document.title = "Admin · Even"
+  }, [])
   const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 10_000 } } }))
   return (
     <ThemeProvider>
@@ -137,12 +173,14 @@ export function App() {
         <QueryClientProvider client={client}>
           <BrowserRouter basename="/admin">
             <Routes>
-              {/* Signing in happens in the Even web app (app.jornboerema.nl). */}
-              <Route path="login" element={<ToAccountSite path="/login" home="/admin/" />} />
               <Route element={<Shell />}>
-                <Route index element={<DashboardPage />} />
+                <Route index element={<OverviewPage />} />
+                <Route path="visitors" element={<VisitorsPage />} />
+                <Route path="users" element={<UsersPage />} />
+                <Route path="users/:id" element={<UserPage />} />
                 <Route path="apps" element={<AppsPage />} />
                 <Route path="apps/:app" element={<AppPage />} />
+                <Route path="builds" element={<BuildsPage />} />
               </Route>
               <Route path="*" element={<Navigate replace to="/" />} />
             </Routes>

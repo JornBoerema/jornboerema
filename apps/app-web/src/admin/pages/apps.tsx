@@ -4,8 +4,8 @@ import { ArrowRight01Icon, Mail01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Badge } from "@even/ui/components/badge"
 import { Skeleton } from "@even/ui/components/skeleton"
-import { useI18n } from "@/i18n"
-import { api } from "@/lib/api"
+import { useI18n } from "@/admin/i18n"
+import { api } from "@/admin/lib/api"
 
 export type AppSummary = {
   id: string

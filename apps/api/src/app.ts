@@ -12,6 +12,7 @@ import { accessRoutes, adminRoutes } from "./admin/routes"
 import { mailRoutes } from "./mail/routes"
 import { billingRoutes } from "./billing/routes"
 import { connectionRoutes } from "./connections/routes"
+import { statsRoutes } from "./stats/routes"
 import { todoRoutes } from "./todo/routes"
 
 export const app = new Hono()
@@ -49,4 +50,5 @@ app.route("/api/billing", billingRoutes)
 app.route("/api/connections", connectionRoutes)
 app.route("/api/access", accessRoutes)
 app.route("/api/admin", adminRoutes)
+app.route("/api/stats", statsRoutes)
 app.route("/api", todoRoutes)

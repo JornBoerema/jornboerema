@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { ComputerIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { goToSignIn } from "@even/auth/client"
@@ -29,6 +29,10 @@ const TEXTS = {
     retry: "Opnieuw proberen",
   },
 }
+
+/** The admin portal, loaded only by those who open it. */
+const AdminApp = lazy(() => import("@/admin/app").then((module) => ({ default: module.AdminApp })))
+const ADMIN = /^\/admin(\/|$)/
 
 /**
  * A shared list or note and an invitation are for people without the app
@@ -110,6 +114,12 @@ function Public({ app }: { app: "todo" | "notes" }) {
 }
 
 export function App() {
+  if (ADMIN.test(window.location.pathname))
+    return (
+      <Suspense>
+        <AdminApp />
+      </Suspense>
+    )
   // Signing in and the account have pages of their own, with or without a session.
   if (ACCOUNT_PATHS.test(window.location.pathname)) return <Account />
   const open = PUBLIC.exec(window.location.pathname)

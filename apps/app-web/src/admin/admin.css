@@ -70,12 +70,22 @@
   .admin-sidebar .brand {
     font-size: 17px;
   }
+  .admin-sidebar .brand > span {
+    display: none;
+  }
+  /* Five places don't fit a phone: the row scrolls sideways. */
   .admin-nav {
     flex-direction: row;
-    overflow: visible;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .admin-nav::-webkit-scrollbar {
+    display: none;
   }
   .admin-nav .list-link {
     width: auto;
+    flex-shrink: 0;
     gap: 6px;
   }
   .admin-nav .list-link > svg {

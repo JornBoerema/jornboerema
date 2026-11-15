@@ -7,6 +7,9 @@ import "@even/ui/spotlight.css"
 import "@even/shell/shell.css"
 import "./app.css"
 import { App } from "./app"
+import { countPageViews } from "./stats"
+
+countPageViews()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

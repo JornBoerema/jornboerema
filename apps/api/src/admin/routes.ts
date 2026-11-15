@@ -8,6 +8,7 @@ import { languageOf, msg } from "../i18n"
 import { canUse, forgetAccess, isAdmin, needsPlan, requestAccess, requireAdmin } from "../lib/access"
 import { APPS, findApp } from "../lib/apps"
 import { noStore, requireSession, requireTrustedOrigin, type AppEnv } from "../lib/session"
+import { overview, rangeOf, userDetail, userList, visitors } from "./stats"
 import { GithubError, getStatus } from "./status"
 
 /** Asked by the apps themselves: may this user come in, and if not, ask for it. */
@@ -35,17 +36,32 @@ accessRoutes.post("/:app/request", requireTrustedOrigin, requireSession, async (
   // One mail per request, not per click.
   if (created)
     for (const to of env.adminEmails)
-      queueEmail(accessEmails.requested({ to, appName: app.name, who: `${user.name} (${user.email})`, url: `${env.adminWebUrl}/admin` }))
+      queueEmail(accessEmails.requested({ to, appName: app.name, who: `${user.name} (${user.email})`, url: `${env.adminUrl}/apps/${app.id}` }))
   return c.json({ access: false, requested: true }, 200, noStore)
 })
 
-/** jornboerema.nl/admin: who may use which app. */
+/** app.jornboerema.nl/admin: statistics, users, who may use which app, and builds. */
 export const adminRoutes = new Hono<AppEnv>()
 adminRoutes.use("*", requireSession, requireAdmin)
 
 adminRoutes.get("/me", (c) => {
   const user = c.get("session").user
   return c.json({ admin: isAdmin(user), name: user.name, email: user.email }, 200, noStore)
+})
+
+adminRoutes.get("/overview", async (c) => c.json(await overview(rangeOf(c.req.query("days"))), 200, noStore))
+
+adminRoutes.get("/visitors", async (c) => {
+  const site = c.req.query("site")
+  return c.json(await visitors(rangeOf(c.req.query("days")), site === "home" || site === "app" ? site : null), 200, noStore)
+})
+
+adminRoutes.get("/users", async (c) => c.json({ users: await userList(c.req.query("q") ?? "") }, 200, noStore))
+
+adminRoutes.get("/users/:id", async (c) => {
+  const user = await userDetail(c.req.param("id"))
+  if (!user) return c.json({ error: msg(c, "invalidRequest") }, 404)
+  return c.json({ user, admin: isAdmin(user) }, 200, noStore)
 })
 
 /** Builds, GitHub Actions and the version of every app. */

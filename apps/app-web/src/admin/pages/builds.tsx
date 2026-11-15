@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   Alert02Icon,
@@ -18,8 +18,9 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { cn } from "@even/ui/lib/utils"
 import { Button } from "@even/ui/components/button"
 import { Skeleton } from "@even/ui/components/skeleton"
-import { useI18n } from "@/i18n"
-import { ApiError, api } from "@/lib/api"
+import { useI18n } from "@/admin/i18n"
+import { ApiError, api } from "@/admin/lib/api"
+import { useFormat } from "@/admin/lib/format"
 
 type RunState = "queued" | "running" | "success" | "failure" | "cancelled" | "skipped"
 type BuildState = "building" | "ready" | "skipped" | "failed"
@@ -64,41 +65,6 @@ type Status = {
 }
 
 const busy = (state: State) => state === "running" || state === "queued" || state === "building"
-
-/** Re-renders every so often, so "2 min ago" keeps up. */
-function useNow(interval = 15_000) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), interval)
-    return () => clearInterval(timer)
-  }, [interval])
-  return now
-}
-
-function useFormat() {
-  const { locale } = useI18n()
-  const now = useNow()
-  const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "short" })
-  const ago = (value: string | null) => {
-    if (!value) return ""
-    const seconds = Math.round((new Date(value).getTime() - now) / 1000)
-    const abs = Math.abs(seconds)
-    if (abs < 45) return relative.format(0, "second")
-    if (abs < 3600) return relative.format(Math.round(seconds / 60), "minute")
-    if (abs < 86_400) return relative.format(Math.round(seconds / 3600), "hour")
-    return relative.format(Math.round(seconds / 86_400), "day")
-  }
-  const duration = (from: string, to: string | number) => {
-    const seconds = Math.max(0, Math.round(((typeof to === "number" ? to : new Date(to).getTime()) - new Date(from).getTime()) / 1000))
-    if (seconds < 60) return `${seconds}s`
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`
-    return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`
-  }
-  const full = (value: string | null) =>
-    value ? new Date(value).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }) : ""
-  return { ago, duration, full, now }
-}
 
 const STATE_ICON: Record<State, { icon: typeof Clock01Icon; className: string; spin?: boolean }> = {
   success: { icon: CheckmarkCircle02Icon, className: "text-emerald-600 dark:text-emerald-400" },
@@ -304,7 +270,7 @@ function Loading() {
   )
 }
 
-export function DashboardPage() {
+export function BuildsPage() {
   const t = useI18n().t.dashboard
   const { ago, full } = useFormat()
   const [showAllRuns, setShowAllRuns] = useState(false)

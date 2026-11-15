@@ -7,12 +7,12 @@ Monorepo (Turborepo + pnpm) voor de Even-apps. Alle apps delen één account (Be
 ```
 apps/
   api/          Hono API (Node): /api/auth/*, todo- en mail-endpoints
-  app-web/      app.jornboerema.nl — de Even web-app: mail, taken en notities (/mail, /todo, /notes), inloggen en het accountportaal
+  app-web/      app.jornboerema.nl — de Even web-app: mail, taken en notities (/mail, /todo, /notes), inloggen, het accountportaal en /admin (statistieken, mensen, toegang, builds)
   mail-web/     Even mailen — geen eigen site; `./embed` wordt door de schil geladen
   todo-web/     Even doen — idem
   notes-web/    Even noteren — idem
   desktop/      Even voor macOS en Windows (Tauri 2): dezelfde schil als app-web
-  home/         jornboerema.nl — de website, privacy, voorwaarden, download en /admin
+  home/         jornboerema.nl — de website, privacy, voorwaarden en download
   capture-desktop/  Even vastleggen — screenshot-app (Tauri 2 + React) voor macOS en Windows
 packages/
   ui/           shadcn/ui componenten + globals.css (design tokens) — gedeeld door alle React-apps

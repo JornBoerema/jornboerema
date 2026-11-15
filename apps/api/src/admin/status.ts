@@ -82,12 +82,8 @@ export class GithubError extends Error {
  * after ("deploy @even/mail-web"), in the order the dashboard lists them.
  */
 const PROJECTS = [
-  { project: "@even/mail-web", vercel: "even-mailen", name: "Even mailen", kind: "web" },
-  { project: "@even/todo-web", vercel: "even-doen", name: "Even doen", kind: "web" },
-  { project: "@even/notes-web", vercel: "even-noteren", name: "Even noteren", kind: "web" },
-  { project: "@even/capture-web", vercel: "even-vastleggen", name: "Even vastleggen (web)", kind: "web" },
+  { project: "@even/app-web", vercel: "even-app", name: "app.jornboerema.nl", kind: "web" },
   { project: "@even/home", vercel: "jornboerema", name: "jornboerema.nl", kind: "web" },
-  { project: "@even/auth-web", vercel: "jornboerema-auth", name: "Account", kind: "web" },
   { project: "@even/api", vercel: "jornboerema-api", name: "API", kind: "api" },
 ] as const
 
@@ -224,12 +220,21 @@ async function load(): Promise<Status> {
 
   // Each web update and the apps it deployed. Older runs only until every app has a live one.
   const jobsOf = (run: GhRun) => github<{ jobs: GhJob[] }>(`/actions/runs/${run.id}/jobs?per_page=50`)
+  // The newest updates at once; older ones, a few at a time, only until every app has a live one.
   const updates: Commit[] = []
-  for (const run of webRuns.workflow_runs) {
-    const done = updates.length >= UPDATES &&
-      PROJECTS.every((project) => updates.some((update) => update.builds.some((b) => b.project === project.project && b.state === "ready")))
-    if (done) break
-    const { jobs } = await jobsOf(run)
+  const allLive = () =>
+    PROJECTS.every((project) => updates.some((update) => update.builds.some((b) => b.project === project.project && b.state === "ready")))
+  const queue = webRuns.workflow_runs
+  const jobsFor = new Map<number, Promise<{ jobs: GhJob[] }>>()
+  const prefetch = (from: number, count: number) =>
+    queue.slice(from, from + count).forEach((run) => {
+      if (!jobsFor.has(run.id)) jobsFor.set(run.id, jobsOf(run).catch(() => ({ jobs: [] })))
+    })
+  prefetch(0, UPDATES)
+  for (const [index, run] of queue.entries()) {
+    if (updates.length >= UPDATES && allLive()) break
+    if (index >= UPDATES) prefetch(index, 4)
+    const { jobs } = await jobsFor.get(run.id)!
     const builds = jobs
       .map((job) => ({ job, project: PROJECTS.find((item) => job.name === `deploy ${item.project}`) }))
       .filter((item) => item.project)

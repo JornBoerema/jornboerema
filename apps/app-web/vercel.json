@@ -1,23 +1,39 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": { "deploymentEnabled": false },
+  "git": {
+    "deploymentEnabled": false
+  },
   "framework": "vite",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
       ]
     },
     {
       "source": "/(login|signup|forgot-password|reset-password|connect|desktop|account)(.*)",
       "headers": [
-        { "key": "Referrer-Policy", "value": "no-referrer" },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
         {
           "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.jornboerema.nl; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
@@ -27,13 +43,37 @@
     {
       "source": "/(todo|notes)/shared/(.*)",
       "headers": [
-        { "key": "Referrer-Policy", "value": "no-referrer" },
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
       ]
     },
     {
       "source": "/(todo|notes)/invite/(.*)",
-      "headers": [{ "key": "Referrer-Policy", "value": "no-referrer" }]
+      "headers": [
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/admin(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
     }
   ]
 }
