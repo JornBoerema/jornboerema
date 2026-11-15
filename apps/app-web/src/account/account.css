@@ -97,6 +97,11 @@
   grid-template-columns: 64px 1fr;
   align-items: center;
 }
+/* The keys keep their own size; the column only lines the labels up. */
+.welcome-tips li > span:first-child {
+  display: flex;
+  gap: 4px;
+}
 .welcome-key {
   display: inline-flex;
   align-items: center;

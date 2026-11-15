@@ -562,20 +562,27 @@ function DoneStep({
         <ul className="welcome-tips">
           <li>
             <span>
-              <Key>J</Key> <Key>K</Key>
+              <Key>J</Key>
+              <Key>K</Key>
             </span>
             {t.tipMove}
           </li>
           <li>
-            <Key>E</Key>
+            <span>
+              <Key>E</Key>
+            </span>
             {t.tipArchive}
           </li>
           <li>
-            <Key>B</Key>
+            <span>
+              <Key>B</Key>
+            </span>
             {t.tipSnooze}
           </li>
           <li>
-            <Key>?</Key>
+            <span>
+              <Key>?</Key>
+            </span>
             {t.tipAll}
           </li>
         </ul>
