@@ -61,14 +61,22 @@ function Gate() {
   const { data, isPending, error } = authClient.useSession()
   const t = TEXTS[useCurrentLanguage()] ?? TEXTS.en
   const signedOut = !isPending && !data && !error
+  // A new account goes through the first-run steps once. Null means not yet; a
+  // session without the field (an older API) counts as done.
+  const firstRun = (data?.user as { onboardedAt?: unknown } | undefined)?.onboardedAt === null
   useEffect(() => {
     if (signedOut) goToSignIn()
   }, [signedOut])
   useEffect(() => {
-    // Signed out, the splash stays until the account site takes over.
-    if (!isPending && !signedOut) hideSplash()
-  }, [isPending, signedOut])
-  if (isPending || signedOut) return null
+    if (!firstRun) return
+    const here = `${window.location.pathname}${window.location.search}`
+    window.location.replace(`/welcome?next=${encodeURIComponent(here)}`)
+  }, [firstRun])
+  useEffect(() => {
+    // Signed out or on the way to the first-run steps, the splash stays until the account site takes over.
+    if (!isPending && !signedOut && !firstRun) hideSplash()
+  }, [isPending, signedOut, firstRun])
+  if (isPending || signedOut || firstRun) return null
   if (!data)
     return (
       <main className="app-notice">

@@ -76,8 +76,11 @@ export async function listAccounts(userId: string): Promise<MailAccountView[]> {
   return accounts.map(toView)
 }
 
+/** Where a connect flow may send the browser back to, besides the mail app. */
+export type ConnectReturn = "welcome"
+
 /** Starts a connect flow and returns the provider URL to send the browser to. */
-export async function startConnect(userId: string, providerId: MailProviderId) {
+export async function startConnect(userId: string, providerId: MailProviderId, returnTo?: ConnectReturn) {
   const provider = providerFor(providerId)
   const key = tokenKey()
   const { state, codeVerifier, codeChallenge } = createOAuthState()
@@ -89,6 +92,7 @@ export async function startConnect(userId: string, providerId: MailProviderId) {
       userId,
       provider: providerId,
       codeVerifier: sealToken(codeVerifier, key, stateContext(userId, providerId)),
+      returnTo: returnTo ?? null,
       expiresAt: new Date(Date.now() + STATE_TTL_MS),
     },
   })
@@ -97,6 +101,12 @@ export async function startConnect(userId: string, providerId: MailProviderId) {
     codeChallenge,
     redirectUri: redirectUri(providerId),
   })
+}
+
+/** Where the browser goes back to for a connect flow under way; read before it is finished. */
+export async function connectReturn(state: string): Promise<ConnectReturn | null> {
+  const pending = await getDb().mailOauthState.findUnique({ where: { id: hashState(state) }, select: { returnTo: true } })
+  return pending?.returnTo === "welcome" ? "welcome" : null
 }
 
 /** The link an organization's admin opens to approve Even mailen for everyone in it. */

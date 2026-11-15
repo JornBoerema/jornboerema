@@ -12,6 +12,7 @@ import { accessRoutes, adminRoutes } from "./admin/routes"
 import { mailRoutes } from "./mail/routes"
 import { billingRoutes } from "./billing/routes"
 import { connectionRoutes } from "./connections/routes"
+import { onboardingRoutes } from "./onboarding/routes"
 import { statsRoutes } from "./stats/routes"
 import { todoRoutes } from "./todo/routes"
 
@@ -49,6 +50,7 @@ app.route("/api/mail", mailRoutes)
 app.route("/api/billing", billingRoutes)
 app.route("/api/connections", connectionRoutes)
 app.route("/api/access", accessRoutes)
+app.route("/api/onboarding", onboardingRoutes)
 app.route("/api/admin", adminRoutes)
 app.route("/api/stats", statsRoutes)
 app.route("/api", todoRoutes)

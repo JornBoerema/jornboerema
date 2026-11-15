@@ -24,6 +24,8 @@ model User {
   image            String?
   /// No longer used: subscriptions belong to organizations (Organization.stripeCustomerId).
   stripeCustomerId String?  @map("stripe_customer_id")
+  /// When the first-run steps at /welcome were finished or skipped; null sends a new user there.
+  onboardedAt      DateTime? @map("onboarded_at")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -699,6 +701,8 @@ model MailOauthState {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider     MailProvider
   codeVerifier String       @map("code_verifier_sealed")
+  /// Where the browser goes after the provider: null for the mail app, "welcome" for the first-run steps.
+  returnTo     String?      @map("return_to")
   expiresAt    DateTime     @map("expires_at")
 
   @@index([expiresAt], map: "mail_oauth_states_expires_idx")

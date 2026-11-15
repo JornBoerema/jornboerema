@@ -8,16 +8,17 @@ import { AccountPage } from "@/account/pages/account"
 import { AuthPage } from "@/account/pages/auth"
 import { DesktopDonePage, DesktopPage } from "@/account/pages/desktop"
 import { AuthLayout } from "@/account/pages/layout"
+import { WelcomePage } from "@/account/pages/welcome"
 import "./account.css"
 
 /**
  * The addresses of signing in and the account: everything else on this site is
  * the apps. app.tsx sends these here, and pages here leave by loading the address anew.
  */
-export const ACCOUNT_PATHS = /^\/(login|signup|forgot-password|reset-password|desktop|account)(\/|$)/
+export const ACCOUNT_PATHS = /^\/(login|signup|forgot-password|reset-password|desktop|account|welcome)(\/|$)/
 
 /** Of those, the ones that show nothing until the session is known. */
-export const SESSION_PATHS = /^\/(desktop|account)\/?$/
+export const SESSION_PATHS = /^\/(desktop|account|welcome)\/?$/
 
 /** Signed in, or the brand clicked: on to the apps, which load from the address. */
 function ToApps() {
@@ -47,6 +48,7 @@ export function AccountSite() {
                 <Route path="reset-password" element={<AuthPage mode="reset" />} />
                 <Route path="desktop" element={<DesktopPage />} />
                 <Route path="desktop/done" element={<DesktopDonePage />} />
+                <Route path="welcome" element={<WelcomePage />} />
               </Route>
               <Route path="*" element={<ToApps />} />
             </Routes>

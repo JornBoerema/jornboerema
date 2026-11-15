@@ -38,6 +38,7 @@ import { noStore, requireSession as signedIn, requireTrustedOrigin, type AppEnv 
 const requireSession = every(signedIn, requireAppAccess("mail"))
 import {
   ConnectExpiredError,
+  connectReturn,
   disconnectAccount,
   finishConnect,
   listAccounts,
@@ -317,8 +318,11 @@ mailRoutes.post("/connect/:provider", requireTrustedOrigin, requireSession, asyn
   const user = c.get("session").user
   if (provider === "gmail" && !(await canUse(user, "gmail")))
     return c.json({ error: msg(c, "gmailInviteOnly"), gmailInvite: true }, 403)
+  // The first-run steps ask to come back to them; anything else goes to the mail app.
+  const body = (await c.req.json().catch(() => null)) as { returnTo?: unknown } | null
+  const returnTo = body?.returnTo === "welcome" ? "welcome" : undefined
   try {
-    return c.json({ url: await startConnect(user.id, provider) }, 200, noStore)
+    return c.json({ url: await startConnect(user.id, provider, returnTo) }, 200, noStore)
   } catch (error) {
     return failure(c, error)
   }
@@ -360,13 +364,14 @@ function adminConsentPage(c: Context, approved: boolean) {
 // Reached by a top-level redirect from the provider, so failures go back to the
 // web app as a code in the URL instead of a JSON body nobody would see.
 mailRoutes.get("/callback/:provider", async (c) => {
-  const fail = (code: ConnectErrorCode) => c.redirect(`${env.mailWebUrl}/?error=${code}`)
   const provider = c.req.param("provider")
   const state = c.req.query("state")
   const code = c.req.query("code")
   // An admin coming back from approving the app for their organization.
   if (provider === "outlook" && (c.req.query("admin_consent") || state === "admin"))
     return adminConsentPage(c, /^true$/i.test(c.req.query("admin_consent") ?? "") && !c.req.query("error"))
+  const back = state && (await connectReturn(state)) === "welcome" ? `${env.appWebUrl}/welcome` : env.mailWebUrl
+  const fail = (code: ConnectErrorCode) => c.redirect(`${back}/?error=${code}`)
   if (c.req.query("error"))
     return fail(
       provider === "outlook" && NEEDS_ADMIN.test(c.req.query("error_description") ?? "") ? "admin_consent" : "denied"
@@ -379,7 +384,7 @@ mailRoutes.get("/callback/:provider", async (c) => {
   try {
     const account = await finishConnect(session.user.id, provider, state, code)
     defer(() => ensureWatch(account))
-    return c.redirect(`${env.mailWebUrl}/?connected=1`)
+    return c.redirect(`${back}/?connected=1`)
   } catch (error) {
     if (error instanceof ConnectExpiredError) return fail("expired")
     if (error instanceof MissingScopeError) return fail("missing_scope")

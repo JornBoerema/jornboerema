@@ -13,3 +13,100 @@
   gap: 36px;
   padding: 16px 24px 96px;
 }
+
+/* The first-run steps at /welcome: one step at a time in the sign-in layout. */
+.welcome-progress {
+  display: flex;
+  gap: 6px;
+}
+.welcome-progress span {
+  height: 3px;
+  flex: 1;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background-color 200ms ease;
+}
+.welcome-progress span[data-state="done"],
+.welcome-progress span[data-state="current"] {
+  background: var(--primary);
+}
+.welcome-skip {
+  align-self: center;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.welcome-skip:hover {
+  color: var(--foreground);
+}
+.welcome-mailboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+.welcome-mailboxes li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.welcome-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.welcome-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 10px);
+  background: var(--background);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.welcome-choice > svg {
+  margin-top: 2px;
+  color: var(--muted-foreground);
+}
+.welcome-choice:hover {
+  border-color: color-mix(in oklab, var(--primary) 40%, var(--border));
+}
+.welcome-choice:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.welcome-choice.is-selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.welcome-choice.is-selected > svg {
+  color: var(--primary);
+}
+.welcome-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+.welcome-tips li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+}
+.welcome-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font: 500 12px/1 var(--font-mono, ui-monospace, monospace);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--background);
+}

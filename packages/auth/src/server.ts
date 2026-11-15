@@ -191,6 +191,8 @@ function createAuth() {
       ...(billingConfigured() ? [billingPlugin()] : []),
     ],
     user: {
+      // Null until the first-run steps at /welcome are done: the web app sends a new user there.
+      additionalFields: { onboardedAt: { type: "date", required: false, input: false } },
       changeEmail: { enabled: true },
       deleteUser: {
         enabled: true,
