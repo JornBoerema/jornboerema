@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@evido/ui/components/dialog";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@evido/ui/components/command";
-import { Home, ListTodo, Kanban } from "@/components/icons";
+import { ListTodo, Kanban } from "@/components/icons";
 import type { TodoList } from "@evido/todo-core/workspace";
 import { useI18n } from "@/i18n";
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
-export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
-  lists: TodoList[]; selectedId?: string; onSelect: (id: string) => void; onOverview: () => void;
+export function ListSpotlight({ lists, selectedId, onSelect }: {
+  lists: TodoList[]; selectedId?: string; onSelect: (id: string) => void;
 }) {
   const { t: { workspace: { spotlight: t }, board: { sidebar: { boards } } } } = useI18n();
   const [open, setOpen] = useState(false);
@@ -25,10 +25,10 @@ export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
     document.addEventListener("keydown", keydown);
     return () => document.removeEventListener("keydown", keydown);
   }, [open]);
-  function choose(id?: string) {
+  function choose(id: string) {
     navigating.current = true;
     setOpen(false);
-    if (id) onSelect(id); else onOverview();
+    onSelect(id);
   }
   return <>
   <Dialog open={open} onOpenChange={(value) => {
@@ -48,9 +48,6 @@ export function ListSpotlight({ lists, selectedId, onSelect, onOverview }: {
         <CommandInput aria-label={t.search} placeholder={t.placeholder} autoComplete="off" autoCorrect="off" spellCheck={false} />
         <CommandList aria-label={t.results}>
           <CommandEmpty>{t.empty}</CommandEmpty>
-          <CommandGroup>
-            <CommandItem value="overview" keywords={t.overviewKeywords.split(" ")} data-checked={!selectedId} onSelect={() => choose()}><Home /><span>{t.overview}</span></CommandItem>
-          </CommandGroup>
           {(["todo", "board"] as const).map((kind) => {
             const matches = lists.filter((list) => (list.kind ?? "todo") === kind);
             const Icon = kind === "board" ? Kanban : ListTodo;

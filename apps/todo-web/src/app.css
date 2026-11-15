@@ -386,11 +386,12 @@ a.todo-mail:focus-visible {
   .shared-workspace .sync-status span { display: none; }
 }
 
-/* Overview follows the same typography and open rows as the lists. */
+/* The dashboard at the head of the rail: the same typography and open rows as the lists. */
+.dashboard-page { height: 100%; }
 .dashboard-content { overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
 .dashboard-content::-webkit-scrollbar { display: none; }
 .dashboard { padding-bottom: 24px; }
-/* Overview: a grid of widgets. */
+/* A grid of widgets; the notes span its width. */
 .dashboard-content { max-width: 1040px; }
 .widgets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-bottom: 32px; }
 .widget-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
@@ -403,12 +404,20 @@ a.todo-mail:focus-visible {
 .widget-task-body { flex-direction: column; }
 .widget-task-body:hover > span:first-child, .widget-note:hover > span > span:first-child { text-decoration: underline; text-underline-offset: 3px; }
 .widget-note { gap: 10px; padding: 6px 0; }
+.widget-notes { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; }
+.widget-notes-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.widget-notes-heading h2 { font-size: 14px; font-weight: 600; }
+.note-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.note-card { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 132px; padding: 14px 16px; text-align: left; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); transition: border-color 120ms ease, background-color 120ms ease; }
+.note-card:hover { border-color: color-mix(in oklab, var(--foreground) 22%, var(--border)); }
+.note-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.note-card-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-card-excerpt { font-size: 13px; line-height: 1.5; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .widgets { grid-template-columns: minmax(0, 1fr); }
   .widget-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
-  .dashboard-nav { align-self: flex-start; }
   .dashboard-content { padding-bottom: 24px; }
 }
 

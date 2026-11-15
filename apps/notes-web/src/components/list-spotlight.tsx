@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@evido/ui/components/dialog";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@evido/ui/components/command";
-import { Note, Home } from "@/components/icons";
+import { Note } from "@/components/icons";
 import type { TodoList } from "@evido/todo-core/workspace";
 import { useI18n } from "@/i18n";
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase();
 
 /** ⌘K / Ctrl+K: jump to a note by its title or its text. */
-export function ListSpotlight({ notes, selectedId, onSelect, onOverview }: {
-  notes: TodoList[]; selectedId?: string; onSelect: (id: string) => void; onOverview: () => void;
+export function ListSpotlight({ notes, selectedId, onSelect }: {
+  notes: TodoList[]; selectedId?: string; onSelect: (id: string) => void;
 }) {
   const { t: { workspace: { spotlight: t } } } = useI18n();
   const [open, setOpen] = useState(false);
@@ -27,10 +27,10 @@ export function ListSpotlight({ notes, selectedId, onSelect, onOverview }: {
     document.addEventListener("keydown", keydown);
     return () => document.removeEventListener("keydown", keydown);
   }, [open]);
-  function choose(id?: string) {
+  function choose(id: string) {
     navigating.current = true;
     setOpen(false);
-    if (id) onSelect(id); else onOverview();
+    onSelect(id);
   }
   return <Dialog open={open} onOpenChange={(value) => {
     if (value) previousFocus.current = document.activeElement as HTMLElement;
@@ -49,9 +49,6 @@ export function ListSpotlight({ notes, selectedId, onSelect, onOverview }: {
         <CommandInput aria-label={t.search} placeholder={t.placeholder} autoComplete="off" autoCorrect="off" spellCheck={false} />
         <CommandList aria-label={t.results}>
           <CommandEmpty>{t.empty}</CommandEmpty>
-          <CommandGroup>
-            <CommandItem value="overview" keywords={t.overviewKeywords.split(" ")} data-checked={!selectedId} onSelect={() => choose()}><Home /><span>{t.overview}</span></CommandItem>
-          </CommandGroup>
           {notes.length > 0 && <CommandGroup heading={t.notes}>
             {notes.map((note) => <CommandItem key={note.id} value={note.id} keywords={[note.name, (note.note?.markdown ?? "").slice(0, 2000)]} data-checked={note.id === selectedId} onSelect={() => choose(note.id)}>
               <Note /><span className="spotlight-name">{note.name}</span>

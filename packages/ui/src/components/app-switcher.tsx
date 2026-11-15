@@ -12,7 +12,16 @@ type AppSwitcherState = {
    * front owns the browser's address. The desktop app has no address and leaves this out.
    */
   paths?: Record<string, string>
+  /**
+   * Opens a place in another app: `open("todo", "/?list=…")` brings Even doen to the
+   * front at that list. The app's router follows `request` (see EmbedRouter).
+   */
+  open?: (app: string, to: string) => void
+  /** The last place asked for with `open`; `n` counts, so asking twice for the same place still goes there. */
+  request?: AppRequest | null
 }
+
+export type AppRequest = { app: string; to: string; n: number }
 
 const AppSwitcherContext = createContext<AppSwitcherState | null>(null)
 

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
 import {
-  Home,
   SidebarToggle,
   CloudCheck,
   CloudOff,
@@ -30,7 +29,6 @@ import {
   type Command,
 } from "@evido/todo-core/workspace";
 import { InlineName } from "@/components/inline-name";
-import { WorkspaceDashboard } from "@/components/workspace-dashboard";
 import { Sortable } from "@/components/sortable";
 import { ShareListDialog } from "@/components/share-list-dialog";
 import type { TodoList, TodoMail } from "@evido/todo-core/workspace";
@@ -130,8 +128,7 @@ export function WorkspaceApp({
   const listScroller = useScrollFade<HTMLDivElement>();
   const pageScroller = useScrollFade<HTMLDivElement>();
   const taskInput = useRef<HTMLInputElement>(null);
-  const showDashboard = !shareToken && !selectedId;
-  const selected = showDashboard ? undefined : lists.find((l) => l.id === selectedId) ?? lists[0];
+  const selected = lists.find((l) => l.id === selectedId) ?? lists[0];
   // An old link to a note (?list=<note>) opens it in Even noteren. Only on the
   // web: the desktop app keeps its own (in-memory) address and has notes in the rail.
   const movedNoteId = !shareToken && selectedId && data.lists.some((l) => l.id === selectedId && l.kind === "note")
@@ -144,13 +141,6 @@ export function WorkspaceApp({
     url.searchParams.set("note", movedNoteId);
     window.location.replace(url.toString());
   }, [movedNoteId, workspaceId]);
-  function showOverview() {
-    const next = new URLSearchParams(window.location.search);
-    next.delete("list");
-    next.delete("issue");
-    navigate({ search: next.toString() });
-    setTaskTitle("");
-  }
   const activeListId = selected?.id;
   function selectList(id: string) {
     const next = new URLSearchParams(window.location.search);
@@ -171,7 +161,7 @@ export function WorkspaceApp({
     navigate({ search: url.searchParams.toString() }, { replace: true });
   }, [activeListId, selectedId, pending, movedNoteId, navigate]);
   useEffect(() => {
-    document.title = selected?.name ? t.pageTitle(selected.name) : t.overviewTitle;
+    document.title = selected?.name ? t.pageTitle(selected.name) : t.appName;
   }, [selected?.name, t]);
   const items = sortTodos(data.todos.filter((t) => t.listId === selected?.id));
   const canEditTasks = selected?.role !== "viewer";
@@ -229,8 +219,7 @@ export function WorkspaceApp({
         <div className="sidebar-brand-row"><Brand /></div>
         <div className="list-navigation sidebar-sections">
           <div className="sidebar-top">
-            <ListSpotlight lists={lists} selectedId={selected?.id} onSelect={selectList} onOverview={showOverview} />
-            <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>{t.sidebar.overview}</span></button>
+            <ListSpotlight lists={lists} selectedId={selected?.id} onSelect={selectList} />
           </div>
           {(["todo", "board"] as const).map((kind) => {
             const sectionLists = lists.filter((list) => (list.kind ?? "todo") === kind);
@@ -325,7 +314,7 @@ export function WorkspaceApp({
             )}
             <span role="status">{connectionText}</span>
           </button>
-        <div ref={pageScroller} className={cn("task-content", showDashboard && "dashboard-content scroll-fade", isBoard && "board-content")}>
+        <div ref={pageScroller} className={cn("task-content", isBoard && "board-content")}>
           {(!online || error) && (
             <Alert>
               <AlertTitle>
@@ -336,7 +325,7 @@ export function WorkspaceApp({
               </AlertDescription>
             </Alert>
           )}
-          {showDashboard ? <WorkspaceDashboard data={{ ...data, lists }} name={user?.name ?? ""} workspace={activeWorkspace} onSelect={selectList} onCreate={(kind) => setEditor({ type: "create-list", value: "", kind })} run={run} disabled={disabled} /> : selected ? (
+          {selected ? (
             <>
               <div className="task-heading">
                 <div className="min-w-0 flex-1">

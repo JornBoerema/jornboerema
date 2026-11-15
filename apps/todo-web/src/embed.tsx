@@ -6,6 +6,7 @@ import { ToAccountSite } from "@evido/ui/components/account-site"
 import { EmbedRouter } from "@evido/ui/components/embed-router"
 import { I18nProvider } from "./i18n"
 import { HomePage } from "./pages/home"
+import { DashboardPage } from "./components/dashboard"
 import { AuthLayout } from "./pages/auth-layout"
 import { InvitationPage } from "./pages/invitation"
 import { SharedListPage } from "./pages/shared-list"
@@ -41,6 +42,29 @@ export function TodoEmbed() {
           <EmbedRouter app="todo" query>
             <Routes>
               <Route index element={<HomePage />} />
+              <Route path="*" element={<SignedOut />} />
+            </Routes>
+          </EmbedRouter>
+        </MotionConfig>
+      </QueryClientProvider>
+    </I18nProvider>
+  )
+}
+
+/**
+ * The dashboard at the head of the Even rail: tasks, notes and members of the
+ * active workspace, each opening in its own app. It reads the same workspace
+ * data as Even doen, so it lives here.
+ */
+export function DashboardEmbed() {
+  const client = useQueryClient()
+  return (
+    <I18nProvider>
+      <QueryClientProvider client={client}>
+        <MotionConfig reducedMotion="user">
+          <EmbedRouter app="dashboard">
+            <Routes>
+              <Route index element={<DashboardPage />} />
               <Route path="*" element={<SignedOut />} />
             </Routes>
           </EmbedRouter>

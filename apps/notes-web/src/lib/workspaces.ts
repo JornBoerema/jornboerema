@@ -82,7 +82,7 @@ export function useActiveWorkspace(workspaces: WorkspaceSummary[]) {
   const select = useCallback(
     (id: string) => {
       localStorage.setItem(STORAGE_KEY, id)
-      // Lists belong to one workspace: go back to its overview.
+      // Lists belong to one workspace: start again at its first one.
       navigate({ search: "" })
     },
     [navigate]

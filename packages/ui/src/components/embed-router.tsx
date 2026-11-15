@@ -22,14 +22,31 @@ export function EmbedRouter({
   query?: boolean
   children: React.ReactNode
 }) {
-  const base = useAppSwitcher()?.paths?.[app]
-  const [initial] = React.useState(() => (base && query && addressUnder(base)) || "/")
+  const switcher = useAppSwitcher()
+  const base = switcher?.paths?.[app]
+  // Opened from another app at a place of its own: start there.
+  const [asked] = React.useState(() => (switcher?.request?.app === app ? switcher.request : null))
+  const [initial] = React.useState(() => asked?.to || (base && query && addressUnder(base)) || "/")
   return (
     <MemoryRouter initialEntries={[initial]}>
+      <FollowRequests app={app} handled={asked?.n ?? 0} />
       {base && <AddressBridge app={app} base={base} query={query} />}
       {children}
     </MemoryRouter>
   )
+}
+
+/** Another app asked to show a place in this one (the shell's `open`): go there. */
+function FollowRequests({ app, handled }: { app: string; handled: number }) {
+  const request = useAppSwitcher()?.request
+  const navigate = useNavigate()
+  const last = React.useRef(handled)
+  React.useEffect(() => {
+    if (!request || request.app !== app || request.n <= last.current) return
+    last.current = request.n
+    navigate(request.to)
+  }, [request, app, navigate])
+  return null
 }
 
 /** "/todo/" and "/todo" are the same place. */

@@ -4,11 +4,9 @@ import type { workspace as en } from "../en/workspace"
 export const workspace: typeof en = {
   appName: "Even noteren",
   pageTitle: (name) => `${name} · Even noteren`,
-  overviewTitle: "Overzicht · Even noteren",
   skipToNote: "Ga naar de notitie",
   sidebar: {
     label: "Notities",
-    overview: "Overzicht",
     notes: "Notities",
     newNote: "Nieuwe notitie",
     expand: "Sidebar uitklappen",
@@ -63,17 +61,6 @@ export const workspace: typeof en = {
     rowHelp: "Sleep om te verplaatsen. Op je telefoon: houd even ingedrukt. Of gebruik de pijltjestoetsen.",
     contentHelp: "Sleep om te verplaatsen, of gebruik Option of Alt met de pijltjestoetsen.",
   },
-  dashboard: {
-    welcome: "Welkom",
-    morning: "Goedemorgen",
-    afternoon: "Goedemiddag",
-    evening: "Goedenavond",
-    notes: "Notities",
-    newNote: "Nieuwe notitie",
-    emptyNote: "Lege notitie",
-    emptyTitle: "Wat wil je even noteren?",
-    emptyBody: "Schrijf ideeën, aantekeningen of alles wat je wilt bewaren op.",
-  },
   spotlight: {
     title: "Ga naar een notitie",
     description: "Zoek een notitie. Gebruik de pijltjestoetsen om te kiezen en Enter om te openen.",
@@ -81,8 +68,6 @@ export const workspace: typeof en = {
     placeholder: "Zoek in je notities…",
     results: "Notities",
     empty: "Geen notities gevonden. Probeer een ander woord.",
-    overview: "Overzicht",
-    overviewKeywords: "Overzicht Dashboard Home",
     notes: "Notities",
     current: "Huidige notitie",
     choose: "↑ ↓ kiezen",

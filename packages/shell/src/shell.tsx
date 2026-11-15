@@ -3,26 +3,27 @@ import {
   BubbleChatIcon,
   Calendar03Icon,
   CheckmarkSquare02Icon,
+  DashboardSquare01Icon,
   Mail01Icon,
   Note01Icon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 import { MailEmbed } from "@evido/mail-web/embed"
-import { TodoEmbed, TodoSettingsNav } from "@evido/todo-web/embed"
+import { DashboardEmbed, TodoEmbed, TodoSettingsNav } from "@evido/todo-web/embed"
 import { NotesEmbed } from "@evido/notes-web/embed"
-import { AppSwitcherProvider, type SwitchableApp } from "@evido/ui/components/app-switcher"
+import { AppSwitcherProvider, type AppRequest, type SwitchableApp } from "@evido/ui/components/app-switcher"
 import { DesktopSettingsProvider, useDesktopSettings } from "@evido/ui/components/desktop-settings"
 import { useCurrentLanguage } from "@evido/i18n/react"
 import { DesktopProvider, type DesktopApp } from "@evido/ui/components/desktop-app"
 import { cn } from "@evido/ui/lib/utils"
 import { AppRail } from "./rail"
 
-export type AppId = "mail" | "todo" | "notes"
+export type AppId = "dashboard" | "mail" | "todo" | "notes"
 
 const isMac = navigator.userAgent.includes("Mac")
 
 /** In rail order; the number keys follow it. */
-const APP_LIST: { id: AppId; name: string; icon: IconSvgElement }[] = [
+const APP_LIST: { id: Exclude<AppId, "dashboard">; name: string; icon: IconSvgElement }[] = [
   { id: "mail", name: "Even mailen", icon: Mail01Icon },
   { id: "todo", name: "Even doen", icon: CheckmarkSquare02Icon },
   { id: "notes", name: "Even noteren", icon: Note01Icon },
@@ -34,7 +35,12 @@ const UPCOMING = [
 ]
 
 /** On the web each app lives under its own path, which the browser's address shows. */
-export const APP_PATHS: Record<AppId, string> = { mail: "/mail", todo: "/todo", notes: "/notes" }
+export const APP_PATHS: Record<AppId, string> = {
+  dashboard: "/dashboard",
+  mail: "/mail",
+  todo: "/todo",
+  notes: "/notes",
+}
 
 const APP_KEY = "even.desktop.app"
 
@@ -47,6 +53,7 @@ const TEXTS = {
     noResults: "No settings found.",
     close: "Close",
     soon: "Coming soon",
+    dashboard: "Dashboard",
   },
   nl: {
     title: "Instellingen",
@@ -55,10 +62,12 @@ const TEXTS = {
     noResults: "Geen instellingen gevonden.",
     close: "Sluiten",
     soon: "Binnenkort",
+    dashboard: "Dashboard",
   },
 }
 
-const isAppId = (value: unknown): value is AppId => APP_LIST.some((app) => app.id === value)
+const isAppId = (value: unknown): value is AppId =>
+  value === "dashboard" || APP_LIST.some((app) => app.id === value)
 
 /** The app the browser's address names: "/todo?list=…" is Even doen. */
 function appInAddress(): AppId | null {
@@ -129,6 +138,14 @@ export function EvenShell({
     }
   }
 
+  // A place in another app, asked for from the dashboard: its router goes there.
+  const [request, setRequest] = useState<AppRequest | null>(null)
+  const open = (app: string, to: string) => {
+    if (!isAppId(app)) return
+    setRequest((last) => ({ app, to, n: (last?.n ?? 0) + 1 }))
+    select(app)
+  }
+
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.repeat || event.shiftKey) return
@@ -162,13 +179,20 @@ export function EvenShell({
 
   return (
     <DesktopProvider value={desktop}>
-      <AppSwitcherProvider value={{ apps, active, onSelect: select, paths: web ? APP_PATHS : undefined }}>
+      <AppSwitcherProvider value={{ apps, active, onSelect: select, paths: web ? APP_PATHS : undefined, open, request }}>
         <DesktopSettingsProvider apps={apps} open={settingsOpen} onOpenChange={openSettingsWindow} labels={texts}>
           {/* Even doen's pages are in the settings from the start, not only once it runs. */}
           <TodoSettingsNav />
           <div className={cn("desktop-app", !web && isMac && "mac", web && "is-web")}>
             <Rail apps={apps} active={active} onSelect={select} texts={texts} foot={railFoot} />
             <div className="desktop-stage">
+              {opened.includes("dashboard") && (
+                <div className="desktop-pane" hidden={active !== "dashboard"}>
+                  <Activity mode={active === "dashboard" ? "visible" : "hidden"}>
+                    <DashboardEmbed />
+                  </Activity>
+                </div>
+              )}
               {/* Mail stays mounted from the start, so new mail notifies from any app. */}
               <div className="desktop-pane" hidden={active !== "mail"}>
                 <MailEmbed active={running("mail")} />
@@ -209,9 +233,22 @@ function Rail({
   texts: (typeof TEXTS)["en"]
   foot?: ReactNode
 }) {
-  const settings = useDesktopSettings(active)
+  // The dashboard has no settings of its own: the window opens at the account.
+  const settings = useDesktopSettings(active === "dashboard" ? "mail" : active)
+  // The apps open the settings with ⌘, themselves; on the dashboard the shell does.
+  useEffect(() => {
+    if (active !== "dashboard") return
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== "," || !(event.metaKey || event.ctrlKey)) return
+      event.preventDefault()
+      settings?.open()
+    }
+    window.addEventListener("keydown", keydown)
+    return () => window.removeEventListener("keydown", keydown)
+  }, [active, settings])
   return (
     <AppRail
+      home={{ id: "dashboard", name: texts.dashboard, icon: DashboardSquare01Icon }}
       apps={apps}
       upcoming={UPCOMING}
       active={active}

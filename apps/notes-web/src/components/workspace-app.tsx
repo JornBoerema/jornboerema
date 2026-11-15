@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import {
   Download,
   Note,
-  Home,
+
   SidebarToggle,
   CloudCheck,
   CloudOff,
@@ -19,7 +19,6 @@ import { useWorkspaceMenu, WorkspaceSwitcher } from "@/components/workspace-swit
 import type { WorkspaceSummary } from "@evido/todo-core/workspaces";
 import type { WorkspaceData, TodoList } from "@evido/todo-core/workspace";
 import { InlineName } from "@/components/inline-name";
-import { WorkspaceDashboard } from "@/components/workspace-dashboard";
 import { Sortable } from "@/components/sortable";
 import { ShareListDialog } from "@/components/share-list-dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -106,14 +105,7 @@ export function WorkspaceApp({
   const pageScroller = useScrollFade<HTMLDivElement>();
   const noteDownload = useRef<(() => void) | null>(null);
   const noteSave = useRef<(() => Promise<boolean>) | null>(null);
-  const showDashboard = !shareToken && !selectedId;
-  const selected = showDashboard ? undefined : notes.find((l) => l.id === selectedId) ?? notes[0];
-  async function showOverview() {
-    if (noteSave.current && !(await noteSave.current())) return;
-    const next = new URLSearchParams(window.location.search);
-    next.delete("note");
-    navigate({ search: next.toString() });
-  }
+  const selected = notes.find((l) => l.id === selectedId) ?? notes[0];
   const activeNoteId = selected?.id;
   async function selectNote(id: string) {
     if (noteSave.current && !(await noteSave.current())) return;
@@ -133,7 +125,7 @@ export function WorkspaceApp({
     navigate({ search: url.searchParams.toString() }, { replace: true });
   }, [activeNoteId, selectedId, pending, navigate]);
   useEffect(() => {
-    document.title = selected?.name ? t.pageTitle(selected.name) : t.overviewTitle;
+    document.title = selected?.name ? t.pageTitle(selected.name) : t.appName;
   }, [selected?.name, t]);
   // Saving happens in the background; only offline (or a broken link) blocks editing.
   const disabled = !online || (!!shareToken && error);
@@ -167,8 +159,7 @@ export function WorkspaceApp({
         <div className="sidebar-brand-row"><Brand /></div>
         <div className="list-navigation sidebar-sections">
           <div className="sidebar-top">
-            <ListSpotlight notes={notes} selectedId={selected?.id} onSelect={selectNote} onOverview={showOverview} />
-            <button className={cn("list-link", "dashboard-nav", showDashboard && "is-selected")} aria-current={showDashboard ? "page" : undefined} onClick={showOverview}><Home className="size-4 shrink-0" aria-hidden="true" /><span>{t.sidebar.overview}</span></button>
+            <ListSpotlight notes={notes} selectedId={selected?.id} onSelect={selectNote} />
           </div>
           <section className="sidebar-list-section" aria-labelledby="sidebar-notes">
             <div className="sidebar-heading">
@@ -227,7 +218,7 @@ export function WorkspaceApp({
             )}
             <span role="status">{connectionText}</span>
           </button>
-        <div ref={pageScroller} className={cn("task-content", showDashboard ? "dashboard-content scroll-fade" : "note-content")}>
+        <div ref={pageScroller} className={"task-content note-content"}>
           {(!online || error) && (
             <Alert>
               <AlertTitle>
@@ -238,7 +229,7 @@ export function WorkspaceApp({
               </AlertDescription>
             </Alert>
           )}
-          {showDashboard ? <WorkspaceDashboard notes={notes} name={user?.name ?? ""} onSelect={selectNote} onCreate={() => setCreating("")} disabled={disabled} /> : selected ? (
+          {selected ? (
             <>
               <div className="task-heading">
                 <div className="min-w-0 flex-1">

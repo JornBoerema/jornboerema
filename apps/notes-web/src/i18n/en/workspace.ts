@@ -3,11 +3,9 @@
 export const workspace = {
   appName: "Even noteren",
   pageTitle: (name: string) => `${name} · Even noteren`,
-  overviewTitle: "Overview · Even noteren",
   skipToNote: "Go to the note",
   sidebar: {
     label: "Notes",
-    overview: "Overview",
     notes: "Notes",
     newNote: "New note",
     expand: "Expand sidebar",
@@ -62,17 +60,6 @@ export const workspace = {
     rowHelp: "Drag to move. On your phone: press and hold. Or use the arrow keys.",
     contentHelp: "Drag to move, or use Option or Alt with the arrow keys.",
   },
-  dashboard: {
-    welcome: "Welcome",
-    morning: "Good morning",
-    afternoon: "Good afternoon",
-    evening: "Good evening",
-    notes: "Notes",
-    newNote: "New note",
-    emptyNote: "Empty note",
-    emptyTitle: "What's on your mind?",
-    emptyBody: "Write down ideas, meeting notes or anything else you want to keep.",
-  },
   spotlight: {
     title: "Go to a note",
     description: "Search for a note. Use the arrow keys to choose and Enter to open.",
@@ -80,8 +67,6 @@ export const workspace = {
     placeholder: "Search your notes…",
     results: "Notes",
     empty: "No notes found. Try another word.",
-    overview: "Overview",
-    overviewKeywords: "Overview Dashboard Home",
     notes: "Notes",
     current: "Current note",
     choose: "↑ ↓ choose",

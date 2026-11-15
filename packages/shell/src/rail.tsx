@@ -4,6 +4,7 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { UpdateButton } from "@evido/ui/components/desktop-app"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@evido/ui/components/tooltip"
 import { cn } from "@evido/ui/lib/utils"
+import { EvenMark } from "./brand"
 
 const isMac = navigator.userAgent.includes("Mac")
 
@@ -12,11 +13,13 @@ export type RailApp = { id: string; name: string; icon: IconSvgElement; shortcut
 /**
  * The strip along the left of the window with every Even app; on a phone it lies
  * along the bottom. In the desktop app on macOS the window buttons sit at its top.
+ * At its head the Even mark and the dashboard, which looks across the apps.
  * At its foot "restart to update" (once a new version is ready), whatever the
  * holder adds (`foot`), and the settings of every app. Apps still to come show
  * greyed out.
  */
 export function AppRail({
+  home,
   apps,
   upcoming,
   active,
@@ -26,6 +29,8 @@ export function AppRail({
   soonLabel,
   foot,
 }: {
+  /** The dashboard, above the apps. */
+  home: RailApp
   apps: RailApp[]
   upcoming: RailApp[]
   active: string
@@ -40,6 +45,9 @@ export function AppRail({
     <TooltipProvider delayDuration={300} skipDelayDuration={400}>
       <nav className="app-rail" aria-label="Apps">
         <div className="app-rail-apps">
+          <EvenMark className="app-rail-mark" />
+          <RailButton app={home} selected={home.id === active} onClick={() => onSelect(home.id)} />
+          <span className="app-rail-divider" aria-hidden="true" />
           {apps.map((app) => (
             <RailButton
               key={app.id}

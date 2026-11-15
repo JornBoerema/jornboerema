@@ -66,6 +66,19 @@ body {
   align-items: center;
   gap: 6px;
 }
+/* The Even mark heads the rail; the dashboard sits under it, set off from the apps. */
+.app-rail-mark {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.app-rail-divider {
+  width: 20px;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border);
+}
 .app-rail-button {
   position: relative;
   display: grid;
@@ -201,6 +214,15 @@ body {
   .is-web .app-rail-button {
     width: 44px;
     height: 44px;
+  }
+  /* No room for the mark on the bar; the divider stands upright. */
+  .is-web .app-rail-mark {
+    display: none;
+  }
+  .is-web .app-rail-divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
   }
   /* The raised button is mark enough on a bar this small. */
   .is-web .app-rail-button::before {

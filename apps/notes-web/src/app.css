@@ -386,24 +386,6 @@ a.todo-mail:focus-visible {
   .shared-workspace .sync-status span { display: none; }
 }
 
-/* Overview follows the same typography and open rows as the lists. */
-.dashboard-content { overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
-.dashboard-content::-webkit-scrollbar { display: none; }
-.dashboard { padding-bottom: 24px; }
-/* Overview: every note as a card. */
-.dashboard-content { max-width: 1040px; }
-.note-dashboard .task-heading { align-items: flex-end; }
-.note-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding-bottom: 32px; }
-.note-card { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 132px; padding: 14px 16px; text-align: left; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); transition: border-color 120ms ease, background-color 120ms ease; }
-.note-card:hover { border-color: color-mix(in oklab, var(--foreground) 22%, var(--border)); }
-.note-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.note-card-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.note-card-excerpt { font-size: 13px; line-height: 1.5; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-@media (max-width: 700px) {
-  .dashboard-nav { align-self: flex-start; }
-  .dashboard-content { padding-bottom: 24px; }
-}
-
 .spotlight-shared { display: block; color: var(--muted-foreground); font-size: 11px; margin-top: 2px; }
 
 .note-content { overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
