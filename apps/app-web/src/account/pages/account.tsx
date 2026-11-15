@@ -17,6 +17,7 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { webUrl, type SocialProvider } from "@even/auth/client"
 import { Alert, AlertDescription } from "@even/ui/components/alert"
 import { PASSKEY_DISMISSED } from "@even/ui/components/auth-form"
+import { CodeInput } from "@even/ui/components/code-input"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -459,8 +460,11 @@ function TwoFactor({ enabled, hasPassword }: { enabled: boolean; hasPassword: bo
   const { busy, perform } = useBusy()
   const [flow, setFlow] = useState<TwoFactorFlow | null>(null)
   const [error, setError] = useState("")
+  const [code, setCode] = useState("")
+  const scanFormRef = useRef<HTMLFormElement>(null)
   const close = () => {
     setFlow(null)
+    setCode("")
     setError("")
   }
   const start = (action: "enable" | "disable" | "codes") => {
@@ -526,14 +530,18 @@ function TwoFactor({ enabled, hasPassword }: { enabled: boolean; hasPassword: bo
 
   const scanForm = flow?.step === "scan" && (
     <form
+      ref={scanFormRef}
       className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4"
       onSubmit={(event) => {
         event.preventDefault()
-        const code = String(new FormData(event.currentTarget).get("code") ?? "").replace(/\s/g, "")
+        if (code.length < 6) return
         setError("")
         void perform("verify", async () => {
           const result = await authClient.twoFactor.verifyTotp({ code })
-          if (result.error) return setError(securityError(all, result.error.code))
+          if (result.error) {
+            setCode("")
+            return setError(securityError(all, result.error.code))
+          }
           toast.success(t.twoFactorEnabled)
           setFlow({ step: "codes", codes: flow.codes })
         })
@@ -549,18 +557,19 @@ function TwoFactor({ enabled, hasPassword }: { enabled: boolean; hasPassword: bo
       </div>
       <Field data-invalid={!!error}>
         <FieldLabel htmlFor="two-factor-code">{t.enterCode}</FieldLabel>
-        <Input
-          id="two-factor-code"
-          name="code"
-          className="sm:w-40"
-          autoComplete="one-time-code"
-          inputMode="numeric"
-          pattern="\s*(\d\s*){6}"
-          maxLength={9}
-          required
-          disabled={!!busy}
-          aria-invalid={!!error}
-        />
+        <div className="sm:w-72">
+          <CodeInput
+            id="two-factor-code"
+            value={code}
+            onChange={(value) => {
+              setCode(value)
+              if (value) setError("")
+            }}
+            onComplete={() => scanFormRef.current?.requestSubmit()}
+            disabled={!!busy}
+            invalid={!!error}
+          />
+        </div>
       </Field>
       {error && (
         <p role="alert" className="text-sm text-destructive">

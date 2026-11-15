@@ -13,6 +13,7 @@ import { PROVIDER_NAMES, ProviderLogo, useSocialProviders } from "@even/ui/compo
 import { Alert, AlertDescription, AlertTitle } from "@even/ui/components/alert"
 import { Button } from "@even/ui/components/button"
 import { Checkbox } from "@even/ui/components/checkbox"
+import { CodeInput } from "@even/ui/components/code-input"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@even/ui/components/field"
 import { Input } from "@even/ui/components/input"
 
@@ -133,6 +134,8 @@ export function AuthForm({
   const [socialPending, setSocialPending] = useState<SocialProvider | null>(null);
   const [passkeyPending, setPasskeyPending] = useState(false);
   const [step, setStep] = useState<Step>("credentials");
+  const [code, setCode] = useState("");
+  const secondStepForm = useRef<HTMLFormElement>(null);
   const alive = useRef(true);
   const providers = useSocialProviders(authClient, mode === "login" || mode === "register");
   const socialError = params.get("social") ? params.get("error") : null;
@@ -190,15 +193,19 @@ export function AuthForm({
     if (pending) return;
     setError("");
     const data = new FormData(event.currentTarget);
-    const code = String(data.get("code") ?? "").trim();
+    const entered = step === "totp" ? code : String(data.get("code") ?? "").trim();
     const trustDevice = data.get("trust") === "on";
+    if (step === "totp" && entered.length < 6) return;
     setPending(true);
     try {
       const result =
         step === "totp"
-          ? await authClient.twoFactor.verifyTotp({ code: code.replace(/\s/g, ""), trustDevice })
-          : await authClient.twoFactor.verifyBackupCode({ code, trustDevice });
+          ? await authClient.twoFactor.verifyTotp({ code: entered, trustDevice })
+          : await authClient.twoFactor.verifyBackupCode({ code: entered, trustDevice });
       if (result.error) {
+        // A wrong code: the boxes empty and take focus for the next try.
+        setCode("");
+        setTimeout(() => document.getElementById("code")?.focus(), 0);
         // The ten minutes to enter a code are over, or too many tries: start again.
         if (result.error.code === "INVALID_TWO_FACTOR_COOKIE" || result.error.code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE") {
           setStep("credentials");
@@ -261,6 +268,7 @@ export function AuthForm({
       }
       // Two-factor is on: the password was right, now the code.
       if (mode === "login" && result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+        setCode("");
         setStep("totp");
         return;
       }
@@ -308,23 +316,37 @@ export function AuthForm({
             {step === "totp" ? t.twoFactor.description : t.twoFactor.backupDescription}
           </p>
         </div>
-        <form key={step} onSubmit={verifySecondStep} className="flex flex-col gap-5">
+        <form ref={secondStepForm} key={step} onSubmit={verifySecondStep} className="flex flex-col gap-5">
           <FieldGroup>
             <Field data-invalid={!!error}>
               <FieldLabel htmlFor="code">{step === "totp" ? t.twoFactor.code : t.twoFactor.backupCode}</FieldLabel>
-              <Input
-                id="code"
-                name="code"
-                autoFocus
-                required
-                autoComplete={step === "totp" ? "one-time-code" : "off"}
-                inputMode={step === "totp" ? "numeric" : "text"}
-                pattern={step === "totp" ? "\\s*(\\d\\s*){6}" : undefined}
-                maxLength={step === "totp" ? 9 : 32}
-                spellCheck={false}
-                disabled={pending}
-                aria-invalid={!!error}
-              />
+              {step === "totp" ? (
+                <CodeInput
+                  id="code"
+                  value={code}
+                  onChange={(value) => {
+                    setCode(value);
+                    if (value) setError("");
+                  }}
+                  // Six digits in: on its way, no button needed.
+                  onComplete={() => secondStepForm.current?.requestSubmit()}
+                  disabled={pending}
+                  invalid={!!error}
+                  autoFocus
+                />
+              ) : (
+                <Input
+                  id="code"
+                  name="code"
+                  autoFocus
+                  required
+                  autoComplete="off"
+                  maxLength={32}
+                  spellCheck={false}
+                  disabled={pending}
+                  aria-invalid={!!error}
+                />
+              )}
             </Field>
             <Field orientation="horizontal">
               <Checkbox id="trust" name="trust" disabled={pending} />
@@ -353,6 +375,7 @@ export function AuthForm({
             disabled={pending}
             onClick={() => {
               setError("");
+              setCode("");
               setStep(step === "totp" ? "backup" : "totp");
             }}
           >
