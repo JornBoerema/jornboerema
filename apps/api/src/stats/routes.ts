@@ -56,7 +56,9 @@ const SITES = () => ({
 
 function siteOf(origin: string | undefined) {
   if (!origin) return null
-  for (const [site, url] of Object.entries(SITES())) if (new URL(url).origin === origin) return site
+  // The website answers on both jornboerema.nl and www.jornboerema.nl.
+  const bare = origin.replace("://www.", "://")
+  for (const [site, url] of Object.entries(SITES())) if (new URL(url).origin.replace("://www.", "://") === bare) return site
   // While developing, any localhost page counts as the site it says it is.
   return /^http:\/\/localhost:\d+$/.test(origin) && !env.apiUrl.startsWith("https://") ? "dev" : null
 }
