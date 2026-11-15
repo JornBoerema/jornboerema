@@ -114,6 +114,9 @@ export function billingPlugin() {
           // An invoice needs an address, and a business its VAT number for the reverse charge.
           billing_address_collection: "required",
           tax_id_collection: { enabled: true },
+          // An organization's customer exists before checkout, and Stripe only collects a
+          // tax id when checkout may write the business name and address back onto it.
+          customer_update: { name: "auto", address: "auto" },
           // Only once a tax registration exists at Stripe: without one it would collect nothing.
           ...(process.env.STRIPE_AUTOMATIC_TAX === "1" && { automatic_tax: { enabled: true } }),
         },
