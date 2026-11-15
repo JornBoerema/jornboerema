@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
@@ -501,6 +501,21 @@ function DeleteAccount() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
+  // Someone who only signs in with Google, Microsoft or Apple has no password to confirm with.
+  const [hasPassword, setHasPassword] = useState(true)
+  useEffect(() => {
+    if (!open) return
+    let current = true
+    authClient
+      .listAccounts()
+      .then(({ data }) => {
+        if (current && data) setHasPassword(data.some((account) => account.providerId === "credential"))
+      })
+      .catch(() => {})
+    return () => {
+      current = false
+    }
+  }, [open])
   return (
     <>
       <SettingsSection title={t.dangerZone} destructive>
@@ -529,11 +544,17 @@ function DeleteAccount() {
             className="flex flex-col gap-6"
             onSubmit={async (event) => {
               event.preventDefault()
-              if (!password || pending) return
+              if ((hasPassword && !password) || pending) return
               setPending(true)
               setError("")
               try {
-                const result = await authClient.deleteUser({ password })
+                // Without a password, the API asks for a session started in the last day.
+                const result = await authClient.deleteUser(hasPassword ? { password } : {})
+                if (result.error?.code === "SESSION_EXPIRED") {
+                  setError(t.deleteSignInAgain)
+                  setPending(false)
+                  return
+                }
                 if (result.error) throw new Error()
                 toast.success(t.deleted)
                 window.location.assign("/login")
@@ -543,6 +564,7 @@ function DeleteAccount() {
               }
             }}
           >
+            {hasPassword && (
             <FieldGroup>
               <Field data-invalid={!!error}>
                 <FieldLabel htmlFor="delete-password">{t.currentPassword}</FieldLabel>
@@ -562,6 +584,7 @@ function DeleteAccount() {
                 />
               </Field>
             </FieldGroup>
+            )}
             {error && (
               <p id="delete-error" role="alert" className="text-sm text-destructive">
                 {error}
@@ -571,7 +594,7 @@ function DeleteAccount() {
               <AlertDialogCancel type="button" disabled={pending}>
                 {all.common.cancel}
               </AlertDialogCancel>
-              <Button type="submit" variant="destructive" disabled={pending || !password}>
+              <Button type="submit" variant="destructive" disabled={pending || (hasPassword && !password)}>
                 {pending ? t.deleting : t.deletePermanently}
               </Button>
             </AlertDialogFooter>

@@ -63,6 +63,12 @@ export const nl: typeof en = {
       title: "Wachtwoord gewijzigd",
       description: "Je kunt inloggen met je nieuwe wachtwoord.",
     },
+    social: {
+      divider: "of",
+      continueWith: "Doorgaan met {provider}",
+      accountNotLinked: "Er is al een account met dit e-mailadres. Log in met je wachtwoord.",
+      failed: "Inloggen is niet gelukt. Probeer het opnieuw.",
+    },
     verificationExpired: {
       title: "Bevestigingslink verlopen",
       description: "Log hieronder in om een nieuwe bevestigingslink te krijgen.",
@@ -191,6 +197,7 @@ export const nl: typeof en = {
     delete: "Verwijderen",
     deleteFailed: "Verwijderen is niet gelukt. Controleer je wachtwoord en probeer het opnieuw.",
     deleting: "Verwijderen…",
+    deleteSignInAgain: "Log uit en opnieuw in, en verwijder je account dan meteen.",
     deletePermanently: "Definitief verwijderen",
     deleted: "Je account is verwijderd.",
   },

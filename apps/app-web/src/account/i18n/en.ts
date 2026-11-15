@@ -61,6 +61,12 @@ export const en = {
       title: "Password changed",
       description: "You can sign in with your new password.",
     },
+    social: {
+      divider: "or",
+      continueWith: "Continue with {provider}",
+      accountNotLinked: "There's already an account with this e-mail address. Sign in with your password.",
+      failed: "Signing in didn't work. Try again.",
+    },
     verificationExpired: {
       title: "Confirmation link expired",
       description: "Sign in below to receive a new confirmation link.",
@@ -189,6 +195,7 @@ export const en = {
     delete: "Delete",
     deleteFailed: "Deleting didn't work. Check your password and try again.",
     deleting: "Deleting…",
+    deleteSignInAgain: "Sign out and in again, then delete your account right away.",
     deletePermanently: "Delete permanently",
     deleted: "Your account has been deleted.",
   },

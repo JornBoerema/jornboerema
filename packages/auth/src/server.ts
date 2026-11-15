@@ -1,9 +1,12 @@
-import { betterAuth } from "better-auth"
+import { createSign } from "node:crypto"
+import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth"
+import { createAuthEndpoint } from "better-auth/api"
 import { bearer, jwt, organization } from "better-auth/plugins"
 import { mcp } from "@better-auth/mcp"
 import { prismaAdapter } from "@better-auth/prisma-adapter"
 import { billingConfigured, billingPlugin, endSubscriptions, syncSeats } from "./billing"
 import { desktopSignIn } from "./desktop-sign-in"
+import type { SocialProvider } from "./client"
 import { getDb, Prisma } from "@even/db"
 import { authEmails, queueEmail } from "@even/email"
 import { pickLanguage } from "@even/i18n"
@@ -58,6 +61,70 @@ function required(name: string) {
   return value
 }
 
+
+
+const base64Url = (data: string | Buffer) => Buffer.from(data).toString("base64url")
+
+/**
+ * Apple takes no fixed client secret: it is a JWT (ES256) signed with the .p8 key
+ * from the Apple developer account, valid for at most six months. Made once per
+ * server start, so it never gets old.
+ */
+function appleClientSecret(clientId: string, teamId: string, keyId: string, privateKey: string) {
+  const now = Math.floor(Date.now() / 1000)
+  const header = base64Url(JSON.stringify({ alg: "ES256", kid: keyId }))
+  const claims = base64Url(
+    JSON.stringify({ iss: teamId, iat: now, exp: now + 150 * 24 * 60 * 60, aud: "https://appleid.apple.com", sub: clientId })
+  )
+  const signature = createSign("SHA256")
+    .update(`${header}.${claims}`)
+    // Env vars hold the key on one line, with \n for its line breaks.
+    .sign({ key: privateKey.replace(/\\n/g, "\n"), dsaEncoding: "ieee-p1363" })
+  return `${header}.${claims}.${base64Url(signature)}`
+}
+
+/** Google, Microsoft and Apple, each once its keys are set. */
+function socialProviders(): NonNullable<BetterAuthOptions["socialProviders"]> {
+  const env = process.env
+  const providers: NonNullable<BetterAuthOptions["socialProviders"]> = {}
+  if (env.GOOGLE_AUTH_CLIENT_ID && env.GOOGLE_AUTH_CLIENT_SECRET)
+    providers.google = {
+      clientId: env.GOOGLE_AUTH_CLIENT_ID,
+      clientSecret: env.GOOGLE_AUTH_CLIENT_SECRET,
+      prompt: "select_account",
+    }
+  if (env.MICROSOFT_AUTH_CLIENT_ID && env.MICROSOFT_AUTH_CLIENT_SECRET)
+    providers.microsoft = {
+      clientId: env.MICROSOFT_AUTH_CLIENT_ID,
+      clientSecret: env.MICROSOFT_AUTH_CLIENT_SECRET,
+      // Work and school accounts of any organization, and personal Microsoft accounts.
+      tenantId: "common",
+      prompt: "select_account",
+    }
+  if (env.APPLE_AUTH_CLIENT_ID && env.APPLE_AUTH_TEAM_ID && env.APPLE_AUTH_KEY_ID && env.APPLE_AUTH_PRIVATE_KEY)
+    providers.apple = {
+      clientId: env.APPLE_AUTH_CLIENT_ID,
+      clientSecret: appleClientSecret(
+        env.APPLE_AUTH_CLIENT_ID,
+        env.APPLE_AUTH_TEAM_ID,
+        env.APPLE_AUTH_KEY_ID,
+        env.APPLE_AUTH_PRIVATE_KEY
+      ),
+    }
+  return providers
+}
+
+/** Tells the sign-in page which provider buttons to show. */
+const signInProviders = (providers: SocialProvider[]) =>
+  ({
+    id: "sign-in-providers",
+    endpoints: {
+      listSignInProviders: createAuthEndpoint("/sign-in/providers", { method: "GET" }, async (ctx) =>
+        ctx.json({ providers })
+      ),
+    },
+  }) satisfies BetterAuthPlugin
+
 /** Where the Even desktop app runs: tauri://localhost on macOS, tauri.localhost on Windows. */
 const DESKTOP_ORIGINS = ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"]
 
@@ -110,12 +177,15 @@ function createAuth() {
   // Signing in and the consent page are pages of the Even web app.
   const authUiUrl = required("APP_WEB_URL").replace(/\/$/, "")
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN
+  const social = socialProviders()
+  const enabled = Object.keys(social) as SocialProvider[]
 
   return betterAuth({
     appName: "Even",
     baseURL,
     secret: required("BETTER_AUTH_SECRET"),
-    trustedOrigins: trustedOrigins(),
+    // Apple posts its answer back to the callback from its own origin.
+    trustedOrigins: [...trustedOrigins(), ...(social.apple ? ["https://appleid.apple.com"] : [])],
     database: prismaAdapter(authDb(), { provider: "postgresql" }),
     disabledPaths: ["/token", ...ORGANIZATION_WRITES],
     advanced: cookieDomain
@@ -136,6 +206,7 @@ function createAuth() {
         },
       }),
       desktopSignIn(),
+      signInProviders(enabled),
       mcp({
         loginPage: `${authUiUrl}/login`,
         consentPage: `${authUiUrl}/connect`,
@@ -175,6 +246,10 @@ function createAuth() {
           authEmails.resetPassword(user.email, url, pickLanguage(request?.headers.get("accept-language")))
         ),
     },
+    // Signing in with Google, Microsoft or Apple. An existing account with the same
+    // e-mail address is linked only when the provider vouches for that address.
+    socialProviders: social,
+    account: { accountLinking: { enabled: true, allowDifferentEmails: false } },
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: true,
@@ -192,6 +267,7 @@ function createAuth() {
       customRules: {
         "/sign-in/email": { window: 60, max: 5 },
         "/sign-up/email": { window: 60, max: 3 },
+        "/sign-in/social": { window: 60, max: 10 },
         "/request-password-reset": { window: 60, max: 3 },
         "/change-email": { window: 60, max: 3 },
         "/delete-user": { window: 60, max: 5 },

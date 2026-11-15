@@ -2,6 +2,9 @@ import { createAuthClient } from "better-auth/react"
 import { oauthProviderClient } from "@better-auth/oauth-provider/client"
 import { organizationClient } from "better-auth/client/plugins"
 
+/** The sign-in providers on the sign-in page, besides e-mail and password. */
+export type SocialProvider = "google" | "microsoft" | "apple"
+
 const TOKEN_KEY = "even.session-token"
 
 /** True inside the Even desktop app (Tauri), where the API can't keep a cookie. */
