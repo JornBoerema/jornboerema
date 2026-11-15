@@ -342,7 +342,10 @@ export function Root() {
   if (!data && !sessionError) forgetSignedOutUser()
   if (data)
     return (
-      <AccessGate user={data.user}>
+      <AccessGate
+        user={data.user}
+        settings={<MailSettings sharedOnly open={false} onOpenChange={() => {}} user={data.user} />}
+      >
         <WithCachedMail userId={data.user.id}>
           <MailApp user={data.user} />
         </WithCachedMail>

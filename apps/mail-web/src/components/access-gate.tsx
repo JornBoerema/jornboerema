@@ -39,7 +39,16 @@ function remember(userId: string, access: boolean) {
  * without access see why, and can ask for it or subscribe; the API refuses
  * them either way.
  */
-export function AccessGate({ user, children }: { user: { id: string; email: string }; children: ReactNode }) {
+export function AccessGate({
+  user,
+  children,
+  settings,
+}: {
+  user: { id: string; email: string }
+  children: ReactNode
+  /** Shown beside the paywall or the request screen: the settings that need no access. */
+  settings?: ReactNode
+}) {
   const t = useI18n().t.access
   const queryClient = useQueryClient()
   const remembered = rememberedFor(user.id)
@@ -65,10 +74,17 @@ export function AccessGate({ user, children }: { user: { id: string; email: stri
   // Unreachable check: the app tries anyway, since the API refuses outsiders itself.
   if (access || (check.isError && !check.data)) return children
   if (!check.data) return null
-  if (check.data.needsPlan) return <Paywall email={user.email} />
+  if (check.data.needsPlan)
+    return (
+      <>
+        <Paywall email={user.email} />
+        {settings}
+      </>
+    )
   const requested = check.data.requested
   return (
     <div className="auth-layout">
+      {settings}
       <header>
         <Brand />
       </header>

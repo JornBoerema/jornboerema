@@ -228,10 +228,17 @@ export function MailSettings({
   open,
   onOpenChange,
   user,
+  sharedOnly = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: { name: string; email: string }
+  /**
+   * Only the pages every app shares (account, appearance, about): for someone who
+   * can't use Even mailen yet. In the desktop app and the web shell those pages come
+   * from mail, so without them the settings would have no account page at all.
+   */
+  sharedOnly?: boolean
 }) {
   const strings = useI18n().t
   const t = strings.shell
@@ -243,7 +250,7 @@ export function MailSettings({
   const about = useAboutPage()
   const desktop = useDesktopSettings("mail")
   // As in Even doen: the account first, then what belongs to this app.
-  const pages: SettingsPage[] = [
+  const allPages: SettingsPage[] = [
     {
       id: "account",
       label: t.accountPage,
@@ -300,6 +307,7 @@ export function MailSettings({
     // Only in the desktop app: its version and updates.
     ...(about ? [about] : []),
   ]
+  const pages = sharedOnly ? allPages.filter((p) => ["account", "appearance", "about"].includes(p.id)) : allPages
   const content = (id: string) => (
     <>
       {id === "account" && <AccountSettings user={user} />}
@@ -315,6 +323,8 @@ export function MailSettings({
     </>
   )
   if (desktop) return <DesktopSettingsPages app="mail" pages={pages}>{content}</DesktopSettingsPages>
+  // Standalone, someone without access has no settings to open.
+  if (sharedOnly) return null
   return (
     <SettingsDialog
       open={open}
