@@ -46,6 +46,7 @@ import {
   ArrowExpandIcon,
   ArrowShrinkIcon,
   FilterIcon,
+  FoldVerticalIcon,
 } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "react";
 
@@ -87,6 +88,7 @@ export const ImageIcon = appIcon(Image01Icon);
 export const ChevronLeft = appIcon(ArrowLeft01Icon);
 export const ChevronRight = appIcon(ArrowRight01Icon);
 export const Grip = appIcon(DragDropVerticalIcon);
+export const Fold = appIcon(FoldVerticalIcon);
 
 export const Settings = appIcon(Settings01Icon);
 export const ChevronsUpDown = appIcon(UnfoldMoreIcon);

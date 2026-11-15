@@ -156,7 +156,7 @@ export const board = {
   settings: {
     statusesTitle: "Statuses",
     statusesHelp: "The columns of every board in this organization, in this order. Drag to reorder. Issues in a completed or canceled status count as done.",
-    folded: "Collapsed",
+    folded: "Collapsed by default",
     foldedHelp: (name: string) => `${name} collapsed by default in list view`,
     categoryLabel: "Category",
     addStatus: "Add status",

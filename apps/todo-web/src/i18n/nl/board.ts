@@ -156,7 +156,7 @@ export const board: typeof en = {
   settings: {
     statusesTitle: "Statussen",
     statusesHelp: "De kolommen van elk bord in deze organisatie, in deze volgorde. Sleep om te ordenen. Issues in een afgeronde of geannuleerde status tellen als klaar.",
-    folded: "Ingeklapt",
+    folded: "Standaard ingeklapt",
     foldedHelp: (name: string) => `${name} standaard ingeklapt in de lijstweergave`,
     categoryLabel: "Categorie",
     addStatus: "Status toevoegen",

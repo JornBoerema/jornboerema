@@ -21,7 +21,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
+  DropdownMenuCheckboxItem,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@even/ui/components/dropdown-menu";
 import {
@@ -35,8 +37,7 @@ import {
   AlertDialogTitle,
 } from "@even/ui/components/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@even/ui/components/dialog";
-import { Switch } from "@even/ui/components/switch";
-import { Folder, Grip, MoreHorizontal, Pencil, Plus, Trash2 } from "@/components/icons";
+import { Fold, Folder, Grip, MoreHorizontal, Pencil, Plus, Trash2 } from "@/components/icons";
 import { Sortable } from "@/components/sortable";
 import { StatusIcon, ProjectDot } from "@/components/board/board-meta";
 import { useI18n } from "@/i18n";
@@ -80,7 +81,7 @@ function NameInput({ value, label, maxLength, disabled, onSave }: { value: strin
     setDraft(value);
   }
   return (
-    <Input value={draft} aria-label={label} maxLength={maxLength} disabled={disabled} className="h-8 border-transparent bg-transparent px-2 shadow-none hover:bg-input/50 focus-visible:bg-input/50"
+    <Input value={draft} aria-label={label} maxLength={maxLength} disabled={disabled} className="h-8 cursor-text border-transparent bg-transparent px-2 shadow-none focus-visible:border-transparent focus-visible:bg-muted/60 focus-visible:ring-0 dark:bg-transparent"
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => { const next = draft.trim(); if (!next) setDraft(value); else if (next !== value) onSave(next); }}
       onKeyDown={(e) => {
@@ -130,13 +131,10 @@ export function StatusesSettings({ workspaceId, data, run, disabled }: BoardSett
                   </ColorMenu>
                   <div className="min-w-0 flex-1"><NameInput value={status.name} label={s.rename(status.name)} maxLength={40} disabled={disabled}
                     onSave={(name) => void run({ type: "update-status", id: status.id, name })} /></div>
-                  <span className="status-category">{categories[status.category]}</span>
                   <span className="status-usage">{s.issueCount(usage(status.id))}</span>
-                  <label className="status-fold" title={s.foldedHelp(status.name)}>
-                    <span>{s.folded}</span>
-                    <Switch size="sm" checked={!!status.collapsed} disabled={disabled} aria-label={s.foldedHelp(status.name)}
-                      onCheckedChange={(collapsed) => void run({ type: "update-status", id: status.id, collapsed })} />
-                  </label>
+                  <Button variant="ghost" size="icon-sm" className="status-fold" aria-pressed={!!status.collapsed} disabled={disabled}
+                    aria-label={s.foldedHelp(status.name)} title={s.foldedHelp(status.name)}
+                    onClick={() => void run({ type: "update-status", id: status.id, collapsed: !status.collapsed })}><Fold /></Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={disabled}>
                       <Button variant="ghost" size="icon-sm" aria-label={status.name}><MoreHorizontal /></Button>
@@ -144,10 +142,13 @@ export function StatusesSettings({ workspaceId, data, run, disabled }: BoardSett
                     <DropdownMenuContent align="end" className="min-w-48">
                       {index > 0 && <DropdownMenuItem onSelect={() => void run({ type: "move-status", id: status.id, targetId: statuses[index - 1].id, placement: "before" })}>{s.moveUp(status.name)}</DropdownMenuItem>}
                       {index < statuses.length - 1 && <DropdownMenuItem onSelect={() => void run({ type: "move-status", id: status.id, targetId: statuses[index + 1].id, placement: "after" })}>{s.moveDown(status.name)}</DropdownMenuItem>}
+                      <DropdownMenuCheckboxItem checked={!!status.collapsed} onCheckedChange={(collapsed) => void run({ type: "update-status", id: status.id, collapsed: !!collapsed })}>{s.folded}</DropdownMenuCheckboxItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuLabel>{s.category(status.name)}</DropdownMenuLabel>
                       <DropdownMenuRadioGroup value={status.category} onValueChange={(next) => void run({ type: "update-status", id: status.id, category: next as StatusCategory })}>
                         {statusCategories.map((c) => <DropdownMenuRadioItem key={c} value={c}><StatusIcon status={{ category: c, color: status.color }} />{categories[c]}</DropdownMenuRadioItem>)}
                       </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem variant="destructive" disabled={statuses.length < 2}
                         onSelect={() => { setDeleting(status); setReplacement(statuses.find((other) => other.id !== status.id && other.category === status.category)?.id ?? statuses.find((other) => other.id !== status.id)!.id); }}>
                         <Trash2 aria-hidden="true" />{s.deleteStatus(status.name)}
