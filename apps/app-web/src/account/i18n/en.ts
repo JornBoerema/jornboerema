@@ -11,7 +11,7 @@ export const en = {
   },
   layout: {
     homeLabel: "Even account",
-    tagline: "One account for every Even app.",
+    tagline: "Mail, tasks and notes in one place.",
   },
   auth: {
     pageTitles: {
@@ -26,8 +26,8 @@ export const en = {
       action: "Sign in",
     },
     register: {
-      title: "One account, every app",
-      description: "Create an account for Even doen, Even mailen, Even noteren and the Even desktop app.",
+      title: "Create your Even account",
+      description: "Mail, tasks and notes in one place. In your browser and as an app on your computer.",
       action: "Create account",
     },
     legal: { before: "By creating an account you agree to the", terms: "terms", and: "and the", privacy: "privacy policy" },
@@ -129,7 +129,7 @@ export const en = {
   account: {
     pageTitle: "Your account",
     title: "Your account",
-    description: "One account for Even doen, Even mailen, Even noteren and the Even desktop app.",
+    description: "Your Even account, in the browser and in the desktop app.",
     profile: "Profile",
     profileHelp: "How others see you, for example in shared lists.",
     name: "Name",
@@ -213,13 +213,13 @@ export const en = {
     plan: "Subscription",
     planName: "Even Pro",
     planFree: "No subscription",
-    planNone: "Even mailen takes a subscription. The other Even apps are free.",
+    planNone: "Mail takes Even Pro. Tasks and notes are free.",
     planTrial: (date: string) => `Free trial until ${date}. After that your subscription starts.`,
     planRenews: (date: string) => `Renews on ${date}.`,
     planEnds: (date: string) => `Cancelled. You keep access until ${date}.`,
     planPastDue: "The last payment failed. Update your payment method to keep access.",
     planManage: "Manage subscription",
-    planStart: "Open Even mailen",
+    planStart: "Open Mail",
     sessions: "Devices",
     sessionsHelp: "Where you're signed in right now.",
     thisDevice: "This device",
@@ -236,7 +236,7 @@ export const en = {
     dangerZone: "Danger zone",
     deleteAccount: "Delete account",
     deleteHelp:
-      "Deletes your account in every Even app: your lists and the organizations you own, your connected mailboxes and everything kept for them. Your mail itself stays with Gmail or Outlook.",
+      "Deletes your Even account: your lists and the organizations you own, your connected mailboxes and everything kept for them. Your mail itself stays with Gmail or Outlook.",
     deleteTitle: "Delete your account permanently?",
     deleteDescription:
       "Organizations you own disappear with all their lists, also for the other members. Your mailboxes are disconnected. Enter your password to confirm.",
@@ -265,7 +265,7 @@ export const en = {
     mailbox: {
       title: "Connect your mailbox",
       titleMore: "Your mailbox is connected",
-      description: "Even mailen works with the Outlook or Gmail address you already have. You can add more mailboxes later.",
+      description: "Even works with the Outlook or Gmail address you already have. You can add more mailboxes later.",
       outlook: "Connect Outlook",
       gmail: "Connect Gmail",
       gmailInvite: "Gmail is invite-only for now.",
@@ -305,9 +305,9 @@ export const en = {
     done: {
       title: "You're all set",
       syncing: "Your mail is being fetched now. A big mailbox can take a few minutes.",
-      noMailbox: "You can connect a mailbox any time in Even mailen.",
-      trial: "Try Even mailen free for 14 days. You decide afterwards whether to continue.",
-      inviteOnly: "Even mailen is invite-only for now: ask for access in the app. Even doen and Even noteren are ready for you.",
+      noMailbox: "Connect a mailbox whenever you like, under Mail in Even.",
+      trial: "Try Even Pro free for 14 days, with everything for your mail. You decide afterwards whether to continue.",
+      inviteOnly: "Mail in Even is invite-only for now: ask for access under Mail. Tasks and notes are ready for you already.",
       tipMove: "Next and previous conversation",
       tipArchive: "Archive",
       tipSnooze: "Snooze",

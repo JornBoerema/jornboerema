@@ -30,7 +30,7 @@ export const nl: typeof en = {
   },
   account: {
     title: "Je Even-account",
-    description: "Naam, e-mailadres, wachtwoord en ingelogde apparaten, voor alle Even-apps.",
+    description: "Naam, e-mailadres, wachtwoord en ingelogde apparaten.",
     manage: "Account beheren",
     signOut: "Uitloggen",
     signOutDescription: "Uit deze app op dit apparaat.",

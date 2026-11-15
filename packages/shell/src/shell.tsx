@@ -68,7 +68,7 @@ const APP_KEY = "even.desktop.app"
 const TEXTS = {
   en: {
     title: "Settings",
-    description: "Settings for every Even app.",
+    description: "All your settings in one place.",
     search: "Search",
     noResults: "No settings found.",
     close: "Close",
@@ -77,7 +77,7 @@ const TEXTS = {
   },
   nl: {
     title: "Instellingen",
-    description: "Instellingen van alle Even-apps.",
+    description: "Al je instellingen op één plek.",
     search: "Zoeken",
     noResults: "Geen instellingen gevonden.",
     close: "Sluiten",

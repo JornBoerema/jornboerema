@@ -13,7 +13,7 @@ export const nl: typeof en = {
   },
   layout: {
     homeLabel: "Even-account",
-    tagline: "Eén account voor alle Even-apps.",
+    tagline: "Mail, taken en notities op één plek.",
   },
   auth: {
     pageTitles: {
@@ -28,8 +28,8 @@ export const nl: typeof en = {
       action: "Inloggen",
     },
     register: {
-      title: "Eén account, alle apps",
-      description: "Maak een account voor Even doen, Even mailen, Even noteren en de Even-desktopapp.",
+      title: "Maak je Even-account",
+      description: "Mail, taken en notities op één plek. In je browser en als app op je computer.",
       action: "Account maken",
     },
     legal: { before: "Met een account ga je akkoord met de", terms: "voorwaarden", and: "en de", privacy: "privacyverklaring" },
@@ -131,7 +131,7 @@ export const nl: typeof en = {
   account: {
     pageTitle: "Je account",
     title: "Je account",
-    description: "Eén account voor Even doen, Even mailen, Even noteren en de Even-desktopapp.",
+    description: "Je account voor Even, in de browser en in de desktop-app.",
     profile: "Profiel",
     profileHelp: "Zo zien anderen je, bijvoorbeeld in gedeelde lijsten.",
     name: "Naam",
@@ -215,13 +215,13 @@ export const nl: typeof en = {
     plan: "Abonnement",
     planName: "Even Pro",
     planFree: "Geen abonnement",
-    planNone: "Voor Even mailen heb je een abonnement nodig. De andere Even-apps zijn gratis.",
+    planNone: "Voor mail heb je Even Pro nodig. Taken en notities zijn gratis.",
     planTrial: (date) => `Gratis proefperiode tot ${date}. Daarna begint je abonnement.`,
     planRenews: (date) => `Wordt verlengd op ${date}.`,
     planEnds: (date) => `Opgezegd. Je houdt toegang tot ${date}.`,
     planPastDue: "De laatste betaling is mislukt. Werk je betaalmethode bij om toegang te houden.",
     planManage: "Abonnement beheren",
-    planStart: "Even mailen openen",
+    planStart: "Mail openen",
     sessions: "Apparaten",
     sessionsHelp: "Waar je nu bent ingelogd.",
     thisDevice: "Dit apparaat",
@@ -238,7 +238,7 @@ export const nl: typeof en = {
     dangerZone: "Gevarenzone",
     deleteAccount: "Account verwijderen",
     deleteHelp:
-      "Verwijdert je account in alle Even-apps: je lijsten en de organisaties waarvan jij eigenaar bent, je gekoppelde mailboxen en alles wat daarvoor bewaard wordt. Je mail zelf blijft bij Gmail of Outlook.",
+      "Verwijdert je Even-account: je lijsten en de organisaties waarvan jij eigenaar bent, je gekoppelde mailboxen en alles wat daarvoor bewaard wordt. Je mail zelf blijft bij Gmail of Outlook.",
     deleteTitle: "Je account definitief verwijderen?",
     deleteDescription:
       "Organisaties waarvan jij eigenaar bent verdwijnen met al hun lijsten, ook voor de andere leden. Je mailboxen worden ontkoppeld. Vul je wachtwoord in om te bevestigen.",
@@ -267,7 +267,7 @@ export const nl: typeof en = {
     mailbox: {
       title: "Koppel je mailbox",
       titleMore: "Je mailbox is gekoppeld",
-      description: "Even mailen werkt met het Outlook- of Gmail-adres dat je al hebt. Meer mailboxen kun je later toevoegen.",
+      description: "Even werkt met het Outlook- of Gmail-adres dat je al hebt. Meer mailboxen kun je later toevoegen.",
       outlook: "Outlook koppelen",
       gmail: "Gmail koppelen",
       gmailInvite: "Gmail is voorlopig op uitnodiging.",
@@ -307,9 +307,9 @@ export const nl: typeof en = {
     done: {
       title: "Je bent er klaar voor",
       syncing: "Je mail wordt nu opgehaald. Bij een grote mailbox kan dat een paar minuten duren.",
-      noMailbox: "Een mailbox koppel je wanneer je wilt in Even mailen.",
-      trial: "Probeer Even mailen 14 dagen gratis. Daarna kies je zelf of je doorgaat.",
-      inviteOnly: "Even mailen is voorlopig op uitnodiging: vraag in de app toegang aan. Even doen en Even noteren staan voor je klaar.",
+      noMailbox: "Een mailbox koppel je wanneer je wilt, bij Mail in Even.",
+      trial: "Probeer Even Pro 14 dagen gratis, met alles voor je mail. Daarna kies je zelf of je doorgaat.",
+      inviteOnly: "Mail in Even is voorlopig op uitnodiging: vraag bij Mail toegang aan. Taken en notities staan al voor je klaar.",
       tipMove: "Volgend en vorig gesprek",
       tipArchive: "Archiveren",
       tipSnooze: "Snoozen",
