@@ -115,9 +115,7 @@ export function EvenShell({
     setSettingsOpen(open)
   }
 
-  // The browser keeps ⌘1 and Ctrl+1 for its tabs, so on the web the apps are under Alt.
-  const shortcut = (index: number) =>
-    web ? (isMac ? `⌥${index + 1}` : `Alt+${index + 1}`) : isMac ? `⌘${index + 1}` : `Ctrl+${index + 1}`
+  const shortcut = (index: number) => (isMac ? `⌘${index + 1}` : `Ctrl+${index + 1}`)
   const apps: (SwitchableApp & { id: AppId })[] = APP_LIST.map((app, index) => ({ ...app, shortcut: shortcut(index) }))
 
   const select = (app: string) => {
@@ -134,10 +132,11 @@ export function EvenShell({
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.repeat || event.shiftKey) return
-      const held = web
-        ? event.altKey && !event.metaKey && !event.ctrlKey
-        : (event.metaKey || event.ctrlKey) && !event.altKey
-      if (!held) return
+      // ⌘1 and Ctrl+1 everywhere. A browser may keep those for its own tabs, so on the web
+      // Alt+1 does the same.
+      const command = (event.metaKey || event.ctrlKey) && !event.altKey
+      const alt = web && event.altKey && !event.metaKey && !event.ctrlKey
+      if (!command && !alt) return
       // With Alt held the key itself is a symbol; the code still names the digit.
       const app = APP_LIST[Number(event.code.replace("Digit", "")) - 1]
       if (!app) return
