@@ -296,6 +296,9 @@ function createAuth() {
         "/sign-in/email": { window: 60, max: 5 },
         "/sign-up/email": { window: 60, max: 3 },
         "/sign-in/social": { window: 60, max: 10 },
+        // Only says which buttons to show. Without this it falls under Better Auth's
+        // default for /sign-in* (3 per 10 s) and the buttons vanish after a few reloads.
+        "/sign-in/providers": { window: 60, max: 60 },
         "/request-password-reset": { window: 60, max: 3 },
         "/change-email": { window: 60, max: 3 },
         "/delete-user": { window: 60, max: 5 },

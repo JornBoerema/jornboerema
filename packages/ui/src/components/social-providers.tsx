@@ -34,16 +34,36 @@ export function ProviderLogo({ provider }: { provider: SocialProvider }) {
   );
 }
 
-/** Which provider buttons to show: the ones the API has keys for. */
+const PROVIDERS_KEY = "even.sign-in-providers";
+
+function rememberedProviders(): SocialProvider[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(PROVIDERS_KEY) ?? "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Which provider buttons to show: the ones the API has keys for. The last answer
+ * is remembered, so the buttons are there at once and stay when a request fails.
+ */
 export function useSocialProviders(client: EvenAuthClient, enabled: boolean) {
-  const [providers, setProviders] = useState<SocialProvider[]>([]);
+  const [providers, setProviders] = useState<SocialProvider[]>(rememberedProviders);
   useEffect(() => {
     if (!enabled) return;
     let current = true;
     client
       .$fetch<{ providers: SocialProvider[] }>("/sign-in/providers", { method: "GET" })
       .then(({ data }) => {
-        if (current && data) setProviders(data.providers);
+        if (!current || !data) return;
+        setProviders(data.providers);
+        try {
+          localStorage.setItem(PROVIDERS_KEY, JSON.stringify(data.providers));
+        } catch {
+          // Not kept; asked again next time.
+        }
       })
       .catch(() => {});
     return () => {
