@@ -861,9 +861,42 @@ function LoadMore({
   )
 }
 
+/** A new mailbox while its first mail comes in: what is happening, and the rows to come. */
+function FirstSync({ fetched }: { fetched: number | null }) {
+  const { t, locale } = useI18n()
+  return (
+    <div role="status" className="flex flex-col">
+      <div className="flex flex-col gap-1.5 px-4 pt-4 pb-2">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <Spinner />
+          {t.inbox.firstSyncTitle}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {fetched ? t.inbox.fetched(fetched.toLocaleString(locale)) : t.inbox.firstSyncBody}
+        </p>
+      </div>
+      <div className="opacity-60">
+        <ListSkeleton />
+      </div>
+    </div>
+  )
+}
+
+/** Above the newest mail while the older mail is still coming in. */
+function Backfilling({ fetched }: { fetched: number }) {
+  const { t, locale } = useI18n()
+  return (
+    <p role="status" className="mx-4 mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+      <Spinner className="size-3" />
+      {t.inbox.backfilling(fetched.toLocaleString(locale))}
+    </p>
+  )
+}
+
 export function InboxPage({
   navigation,
   syncStatus,
+  syncFetched,
   loadingAccounts,
   open,
   onOpen,
@@ -881,6 +914,8 @@ export function InboxPage({
 }: {
   navigation: MailNavigation
   syncStatus: SyncStatus
+  /** Messages fetched so far in a sync of more than one round, or null. */
+  syncFetched: number | null
   loadingAccounts: boolean
   open: MailThreadView | null
   onOpen: (thread: MailThreadView | null) => void
@@ -1541,12 +1576,13 @@ export function InboxPage({
                     (folder ? (
                       <ListEmpty icon={FOLDER_ICONS[folder]} title={strings.folders.empty} />
                     ) : syncStatus === "syncing" ? (
-                      <p className="p-4 text-sm text-muted-foreground">{t.firstSync}</p>
+                      <FirstSync fetched={syncFetched} />
                     ) : (
                       <ListEmpty icon={InboxIcon} title={t.emptyTitle}>
                         {t.empty}
                       </ListEmpty>
                     ))}
+                  {!folder && rows.length > 0 && syncFetched !== null && <Backfilling fetched={syncFetched} />}
                   <ThreadList
                     rows={rows}
                     scroller={scroller}

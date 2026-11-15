@@ -12,8 +12,11 @@ import { isNews, pushEnabled, pushNewMail } from "./push-server"
 
 /** How far back mail is kept: a year, for every synced folder. */
 const WINDOW_MS = 365 * 24 * 60 * 60 * 1000
-/** Stops starting new pages in time to answer within the 30s function limit. */
-const BUDGET_MS = 20 * 1000
+/**
+ * Stops starting new pages after this. Well within the 30s function limit, and
+ * short enough that a first sync shows its mail in steps instead of all at the end.
+ */
+const BUDGET_MS = 8 * 1000
 /** Outlives a function killed at its limit, so a crash cannot block sync for long. */
 const LOCK_MS = 45 * 1000
 
@@ -98,6 +101,8 @@ export async function syncAccount(userId: string, id: string): Promise<MailSyncR
       let cursor = account.syncCursor
       let since = account.syncSince ?? windowStart()
       let changed = 0
+      // A mailbox just connected: answer after the first page, so its newest mail shows at once.
+      const fresh = !cursor
       const deadline = Date.now() + BUDGET_MS
 
       while (Date.now() < deadline) {
@@ -115,6 +120,7 @@ export async function syncAccount(userId: string, id: string): Promise<MailSyncR
         changed += await applyPage(account, page, since)
         cursor = page.cursor
         if (page.done) return { done: true, busy: false, rateLimited: false, changed }
+        if (fresh && changed > 0) return { done: false, busy: false, rateLimited: false, changed }
       }
       return { done: false, busy: false, rateLimited: false, changed }
     })

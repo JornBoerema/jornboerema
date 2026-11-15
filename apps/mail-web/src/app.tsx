@@ -48,7 +48,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
   const sidebar = useCollapsibleSidebar()
   const accounts = useAccounts()
   const list = accounts.data?.accounts ?? []
-  const syncStatus = useMailSync(accounts.data?.accounts)
+  const { status: syncStatus, fetched: syncFetched } = useMailSync(accounts.data?.accounts)
   usePreferencesSync()
   useMailRealtime(user.id)
   const [filter, setFilter] = useState("")
@@ -291,6 +291,7 @@ function MailApp({ user }: { user: { id: string; name: string; email: string } }
         <InboxPage
           navigation={navigation}
           syncStatus={syncStatus}
+          syncFetched={syncFetched}
           loadingAccounts={accounts.isPending}
           open={open}
           onOpen={setOpen}

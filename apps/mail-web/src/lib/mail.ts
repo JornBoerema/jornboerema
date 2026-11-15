@@ -248,6 +248,9 @@ export function useMailRealtime(userId: string) {
 export function useMailSync(accounts: MailAccountView[] | undefined) {
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<SyncStatus>("idle")
+  // Messages fetched in a sync that takes more than one round (a new mailbox, a long
+  // time away); null while there is no such sync, so a routine round shows nothing.
+  const [fetched, setFetched] = useState<number | null>(null)
   const key = useMemo(
     () =>
       (accounts ?? [])
@@ -270,6 +273,8 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
     async function syncOne(id: string) {
       while (!stopped) {
         const result = await api<MailSyncResult>(`/api/mail/accounts/${id}/sync`, { method: "POST" })
+        if (!result.done && !result.busy) setFetched((count) => (count ?? 0) + result.changed)
+        else if (result.changed > 0) setFetched((count) => (count === null ? null : count + result.changed))
         if (result.changed > 0) void queryClient.invalidateQueries({ queryKey: UNREAD_KEY })
         if (result.changed > 0 && queryClient.isMutating({ mutationKey: ACTION_KEY }) === 0)
           void queryClient.invalidateQueries({ queryKey: MESSAGES_KEY })
@@ -284,6 +289,7 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
       setStatus("syncing")
       const results = await Promise.allSettled(ids.map(syncOne))
       running = false
+      setFetched(null)
       if (stopped) return
       const failures = results.flatMap((result) => (result.status === "rejected" ? [result.reason] : []))
       if (failures.some((error) => error instanceof ApiError && error.status === 409))
@@ -307,7 +313,7 @@ export function useMailSync(accounts: MailAccountView[] | undefined) {
     }
   }, [key, queryClient])
 
-  return status
+  return { status, fetched }
 }
 
 export type UnreadSummary = { count: number; latest: MailThreadView[] }
