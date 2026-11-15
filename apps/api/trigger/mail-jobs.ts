@@ -13,7 +13,7 @@ export const mailJob = task({
   id: "mail-job",
   retry: { maxAttempts: 6, factor: 3, minTimeoutInMs: 5_000, maxTimeoutInMs: 10 * 60_000, randomize: true },
   run: async (job: MailJob) => {
-    const apiUrl = process.env.EVEN_API_URL ?? process.env.EVIDO_API_URL
+    const apiUrl = process.env.EVEN_API_URL
     const secret = process.env.MAIL_JOBS_SECRET
     if (!apiUrl || !secret) throw new Error("Configure EVEN_API_URL and MAIL_JOBS_SECRET")
     const response = await fetch(`${apiUrl.replace(/\/$/, "")}/api/mail/jobs/run`, {
