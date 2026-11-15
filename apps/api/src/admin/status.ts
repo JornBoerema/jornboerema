@@ -84,6 +84,7 @@ export class GithubError extends Error {
 const PROJECTS = [
   { project: "@even/app-web", vercel: "even-app", name: "app.jornboerema.nl", kind: "web" },
   { project: "@even/home", vercel: "jornboerema", name: "jornboerema.nl", kind: "web" },
+  { project: "@even/status", vercel: "even-status", name: "status.jornboerema.nl", kind: "web" },
   { project: "@even/api", vercel: "jornboerema-api", name: "API", kind: "api" },
 ] as const
 

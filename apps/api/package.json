@@ -26,11 +26,13 @@
     "@trigger.dev/sdk": "4.8.4",
     "@vercel/functions": "^3.10.4",
     "hono": "^4.13.14",
+    "pg": "^8.23.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@trigger.dev/build": "4.8.4",
     "@types/node": "^24",
+    "@types/pg": "^8.23.1",
     "trigger.dev": "4.8.4",
     "tsup": "^8.5.0",
     "tsx": "^4.20.6",

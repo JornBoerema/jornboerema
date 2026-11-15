@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Werkt Even? De actuele status van de website, de web-app en de API, en storingen van de afgelopen 90 dagen." />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#17140f" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="preload" href="/src/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>Even status</title>
+  </head>
+  <body>
+    <header class="cover">
+      <a class="brand" href="https://jornboerema.nl">Even</a>
+      <span class="brand-sub">status</span>
+    </header>
+    <main class="sheet">
+      <section class="banner" id="banner" data-state="loading" aria-live="polite">
+        <h1 id="headline">Even kijken…</h1>
+        <p id="checked" class="checked"></p>
+      </section>
+
+      <section aria-labelledby="systems-title">
+        <div class="section-head">
+          <h2 id="systems-title">Onderdelen</h2>
+          <span class="legend"><i class="bar" data-level="good"></i>alles goed <i class="bar" data-level="some"></i>even weg <i class="bar" data-level="bad"></i>storing</span>
+        </div>
+        <ul class="monitors" id="monitors"></ul>
+      </section>
+
+      <section aria-labelledby="incidents-title">
+        <h2 id="incidents-title">Storingen</h2>
+        <ul class="incidents" id="incidents"></ul>
+      </section>
+    </main>
+    <footer class="foot">
+      Elke minuut gecontroleerd, van buiten Vercel. <a href="https://jornboerema.nl">jornboerema.nl</a>
+    </footer>
+    <div class="tip" id="tip" role="tooltip" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

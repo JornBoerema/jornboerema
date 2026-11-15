@@ -1,0 +1,345 @@
+/* status.jornboerema.nl, in the Even website's ring-binder look: a black cover,
+   white paper, flat coloured sheets. Colours and type as in apps/home/DESIGN.md. */
+
+@font-face {
+  font-family: "Archivo";
+  src: url("./fonts/archivo-latin-wdth-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --orange: #f07a2b;
+  --orange-deep: #b84f0c;
+  --ink: #17140f;
+  --paper: #fffdf8;
+  --yellow: #f6c62e;
+  --green: #17794f;
+  --soft: color-mix(in srgb, var(--ink) 68%, var(--paper));
+  --rule: color-mix(in srgb, var(--ink) 14%, var(--paper));
+  --empty: color-mix(in srgb, var(--ink) 9%, var(--paper));
+  --sans: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--yellow);
+}
+
+body {
+  min-height: 100vh;
+  background: var(--ink);
+  color: var(--ink);
+  font: 420 17px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  padding: 0 16px 32px;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.cover {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 0 22px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--paper);
+}
+
+.brand {
+  font-size: 30px;
+  font-weight: 800;
+  font-stretch: 82%;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.brand-sub {
+  font-size: 15px;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--paper) 60%, var(--ink));
+}
+
+.sheet {
+  max-width: 880px;
+  margin: 0 auto;
+  background: var(--paper);
+  border-radius: 10px;
+  padding: clamp(20px, 5vw, 56px);
+  display: grid;
+  gap: 44px;
+}
+
+.banner {
+  --sheet: var(--empty);
+  background: var(--sheet);
+  border-radius: 6px;
+  padding: clamp(22px, 4vw, 36px);
+  transition: background 0.3s;
+}
+.banner[data-state="up"] {
+  --sheet: var(--green);
+  color: var(--paper);
+}
+.banner[data-state="partial"] {
+  --sheet: var(--yellow);
+}
+.banner[data-state="down"],
+.banner[data-state="stale"] {
+  --sheet: var(--orange);
+}
+
+.banner h1 {
+  font-size: clamp(2rem, 5.4vw, 3.4rem);
+  font-weight: 800;
+  font-stretch: 82%;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
+
+.checked {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.82;
+}
+
+h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 20px;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--soft);
+}
+.legend .bar {
+  width: 8px;
+  height: 14px;
+  margin-left: 8px;
+}
+
+.monitors,
+.incidents {
+  list-style: none;
+  margin-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.monitor {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+}
+
+.monitor-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--empty);
+  flex: none;
+}
+.dot[data-up="true"] {
+  background: var(--green);
+}
+.dot[data-up="false"] {
+  background: var(--orange);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--orange) 25%, transparent);
+}
+
+.monitor-state {
+  font-size: 15px;
+  font-weight: 650;
+  text-align: right;
+}
+.monitor-state[data-up="false"] {
+  color: var(--orange-deep);
+}
+
+.monitor-detail {
+  font-size: 14px;
+  color: var(--soft);
+}
+
+.monitor-latency {
+  font-size: 14px;
+  color: var(--soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bars {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(var(--days), 1fr);
+  gap: 2px;
+  height: 34px;
+}
+
+.bar {
+  display: inline-block;
+  border-radius: 2px;
+  background: var(--empty);
+}
+.bar[data-level="good"] {
+  background: var(--green);
+}
+.bar[data-level="some"] {
+  background: var(--yellow);
+}
+.bar[data-level="bad"] {
+  background: var(--orange);
+}
+.bars .bar {
+  cursor: default;
+  transition: transform 0.12s;
+}
+.bars .bar:hover,
+.bars .bar:focus-visible {
+  transform: scaleY(1.12);
+  outline: none;
+}
+
+.range {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--soft);
+}
+.range b {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.incident {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 16px;
+}
+.incident-title {
+  font-weight: 700;
+}
+.incident-when {
+  font-size: 14px;
+  color: var(--soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.incident-cause {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--soft);
+}
+.incident[data-open="true"] .incident-title::after {
+  content: "nu";
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--orange);
+  font-size: 12px;
+  vertical-align: 2px;
+}
+.empty {
+  padding: 16px 0;
+  color: var(--soft);
+}
+
+.foot {
+  max-width: 880px;
+  margin: 18px auto 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--paper) 55%, var(--ink));
+}
+
+.tip {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 7px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+@media (max-width: 560px) {
+  .incident {
+    grid-template-columns: 1fr;
+  }
+  .incident-when {
+    text-align: left;
+  }
+  .monitor-detail {
+    grid-column: 1 / -1;
+  }
+  .monitor-latency {
+    display: none;
+  }
+  /* 90 bars are too thin on a phone: show the last 30 days. */
+  .bars {
+    --days: 30 !important;
+    height: 30px;
+  }
+  .bars .bar:nth-child(-n + 60) {
+    display: none;
+  }
+  .wide {
+    display: none;
+  }
+}
+@media (min-width: 561px) {
+  .narrow {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

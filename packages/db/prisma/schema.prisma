@@ -970,3 +970,34 @@ model PageView {
   @@index([site, createdAt], map: "page_views_site_created_idx")
   @@map("page_views")
 }
+
+/// One uptime check of one monitor, made every minute by the Trigger.dev task
+/// `uptime-check` (apps/api/trigger/uptime.ts). status.jornboerema.nl reads it.
+model UptimeCheck {
+  id        BigInt   @id @default(autoincrement())
+  /// "website", "app" or "api".
+  monitor   String
+  checkedAt DateTime @default(now()) @map("checked_at") @db.Timestamptz(3)
+  ok        Boolean
+  /// The HTTP status, when there was an answer.
+  status    Int?
+  latencyMs Int?     @map("latency_ms")
+  error     String?
+
+  @@index([monitor, checkedAt], map: "uptime_checks_monitor_checked_idx")
+  @@index([checkedAt], map: "uptime_checks_checked_idx")
+  @@map("uptime_checks")
+}
+
+/// A stretch of time a monitor was down. Open while endedAt is null.
+model UptimeIncident {
+  id        String    @id
+  monitor   String
+  startedAt DateTime  @map("started_at") @db.Timestamptz(3)
+  endedAt   DateTime? @map("ended_at") @db.Timestamptz(3)
+  /// What the first failed check saw.
+  cause     String
+
+  @@index([monitor, startedAt], map: "uptime_incidents_monitor_started_idx")
+  @@map("uptime_incidents")
+}

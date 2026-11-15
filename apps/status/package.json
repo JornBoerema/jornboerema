@@ -1,0 +1,23 @@
+{
+  "name": "@even/status",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "status.jornboerema.nl: is Even up? Reads the checks the Trigger.dev task uptime-check writes.",
+  "scripts": {
+    "dev": "vite --port 3009",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "preview": "vite preview --port 3009"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/pg": "^8.23.1",
+    "typescript": "~6.0.2",
+    "vite": "^8"
+  }
+}
