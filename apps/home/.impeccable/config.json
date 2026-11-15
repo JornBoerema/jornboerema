@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-11-14T19:17:33.016Z",
         "reason": "builder: checked in the 390, 1440 and 1920 captures; the inset sits on the section padding and on the children of each ruled row, so no text touches an edge"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "dpa/index.html"
+        ],
+        "createdAt": "2026-11-15T19:14:47.792Z",
+        "reason": "Claude: #fffdf8 is the site's existing paper colour from apps/home/DESIGN.md, shared by privacy/terms; dpa reuses it"
       }
     ]
   }
