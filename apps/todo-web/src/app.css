@@ -390,7 +390,8 @@ a.todo-mail:focus-visible {
    like the inbox; what comes back and goes out beside it; tasks and notes small below.
    No cards: hairlines and space carry the structure, as in the lists. */
 .dashboard-page { height: 100%; }
-.dashboard-content { max-width: 1120px; overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; }
+/* Two classes: the plain .task-content width (800px) must lose, whatever order a build puts the rules in. */
+.task-content.dashboard-content { max-width: 1120px; overflow-y: auto; padding-bottom: 48px; scrollbar-width: none; container-type: inline-size; }
 .dashboard-content::-webkit-scrollbar { display: none; }
 .dash { display: flex; flex-direction: column; gap: 40px; padding-bottom: 24px; }
 .dash-heading h1 { font-size: 28px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; text-wrap: balance; }
@@ -427,7 +428,7 @@ a.todo-mail:focus-visible {
 
 /* The smaller rows: snoozed, scheduled, tasks, notes. */
 .dash-side-list { display: flex; flex-direction: column; margin: 0 -10px; }
-.dash-row-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; padding: 7px 10px; border-radius: var(--radius-md); text-align: left; transition: background-color 120ms ease; }
+.dash-row-body { display: flex; flex-direction: column; gap: 1px; width: 100%; min-width: 0; flex: 1; padding: 7px 10px; border-radius: var(--radius-md); text-align: left; transition: background-color 120ms ease; }
 .dash-row-body:hover { background: var(--muted); }
 .dash-row-when { font-size: 12px; font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
 .dash-row-when.is-failed { color: var(--destructive); }
@@ -440,11 +441,12 @@ a.todo-mail:focus-visible {
 .dash-notice-title { font-size: 15px; font-weight: 600; }
 .dash-notice-body { max-width: 52ch; font-size: 14px; line-height: 1.5; color: var(--muted-foreground); margin-bottom: 8px; }
 
-@media (max-width: 960px) {
+/* By the room the dashboard has, not the window: the rail and the desktop window differ. */
+@container (max-width: 720px) {
   .dash-mail { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .dash-later { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
 }
-@media (max-width: 640px) {
+@container (max-width: 560px) {
   .dash-thread { grid-template-columns: 8px minmax(0, 1fr) auto; row-gap: 2px; }
   .dash-thread-text { grid-column: 2 / -1; }
   .dash-thread-snippet { display: none; }
