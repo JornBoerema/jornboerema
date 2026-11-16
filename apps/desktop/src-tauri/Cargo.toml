@@ -1,6 +1,6 @@
 [package]
 name = "even"
-version = "0.1.31"
+version = "0.1.32"
 description = "Even: Even mailen and Even doen in one desktop app"
 edition = "2021"
 
@@ -17,7 +17,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# devtools: also in release builds, to see what goes wrong on a tester's computer.
+tauri = { version = "2", features = ["devtools"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-notification = "2"

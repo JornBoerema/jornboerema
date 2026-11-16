@@ -40,6 +40,8 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .title("Even")
         .inner_size(size.width, size.height)
         .min_inner_size(window_size::MINIMUM.width, window_size::MINIMUM.height)
+        // Also in release builds (Cargo feature "devtools"): F12 on Windows, ⌥⌘I on a Mac.
+        .devtools(true)
         .on_navigation(move |url| {
             if is_app_url(url) {
                 return true;
