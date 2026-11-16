@@ -239,7 +239,8 @@
   gap: 8px;
   flex: 1;
   min-height: 0;
-  padding: 8px 8px 8px 0;
+  /* 1px on the left: the card's ring is a shadow, .plan-main would clip it. */
+  padding: 8px 8px 8px 1px;
 }
 .plan-body.has-panel {
   grid-template-columns: minmax(0, 1fr) 360px;
