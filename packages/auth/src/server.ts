@@ -108,7 +108,8 @@ export function trustedOrigins() {
     ...(process.env.TRUSTED_ORIGINS ?? "").split(","),
     ...DESKTOP_ORIGINS,
     process.env.APP_WEB_URL ?? "",
-    process.env.SITE_URL ?? "https://jornboerema.nl",
+    // The website answers on www (jornboerema.nl redirects there); trust both.
+    ...(process.env.SITE_URL ?? "https://jornboerema.nl,https://www.jornboerema.nl").split(","),
   ]
     .map(originOf)
     .filter(Boolean)
