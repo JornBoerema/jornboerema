@@ -1,5 +1,5 @@
-import { resolve, sep } from "node:path"
-import type { Plugin, UserConfig } from "vite"
+import { resolve } from "node:path"
+import { normalizePath, type Plugin, type UserConfig } from "vite"
 
 const apps = resolve(import.meta.dirname, "../../apps")
 
@@ -9,13 +9,16 @@ const apps = resolve(import.meta.dirname, "../../apps")
  * that holds the shell (apps/desktop, apps/app-web).
  */
 export function appAlias(host: string): Plugin {
-  const roots = ["mail-web", "todo-web", "notes-web", host].map((app) => resolve(apps, app) + sep)
+  // Vite names files with forward slashes on every system, also on Windows ("C:/…"),
+  // so the roots are written that way too; with "\\" no importer matched there.
+  const roots = ["mail-web", "todo-web", "notes-web", host].map((app) => normalizePath(resolve(apps, app)) + "/")
   return {
     name: "even-app-alias",
     enforce: "pre",
     resolveId(source, importer, options) {
       if (!source.startsWith("@/")) return null
-      const root = roots.find((candidate) => importer?.startsWith(candidate)) ?? roots[roots.length - 1]
+      const from = importer && normalizePath(importer)
+      const root = roots.find((candidate) => from?.startsWith(candidate)) ?? roots[roots.length - 1]
       return this.resolve(resolve(root, "src", source.slice(2)), importer, { ...options, skipSelf: true })
     },
   }
