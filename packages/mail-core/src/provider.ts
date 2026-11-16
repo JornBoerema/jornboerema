@@ -78,14 +78,16 @@ export type WatchInput = {
 
 export interface MailProvider {
   readonly id: MailProviderId
-  authorizationUrl(input: { state: string; codeChallenge: string; redirectUri: string }): string
+  /** `calendar` also asks for the mailbox's calendars, for Even plannen. */
+  authorizationUrl(input: { state: string; codeChallenge: string; redirectUri: string; calendar?: boolean }): string
   /**
    * Where an organization's admin approves the app for everyone in it, when
    * the organization doesn't let people approve apps themselves. Outlook only.
    */
   adminConsentUrl?(input: { redirectUri: string }): string
-  exchangeCode(input: { code: string; codeVerifier: string; redirectUri: string }): Promise<TokenSet>
-  refresh(refreshToken: string): Promise<TokenSet>
+  exchangeCode(input: { code: string; codeVerifier: string; redirectUri: string; calendar?: boolean }): Promise<TokenSet>
+  /** `granted` is the scope the mailbox holds, so a refreshed token keeps all of it. */
+  refresh(refreshToken: string, granted?: string): Promise<TokenSet>
   identity(accessToken: string): Promise<MailIdentity>
   inboxSummary(accessToken: string): Promise<InboxSummary>
   /** One step of the inbox sync. A null cursor starts a full sync from `since`. */

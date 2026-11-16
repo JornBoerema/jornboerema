@@ -3,6 +3,7 @@ import { deleteGmailDraft, getGmailDraft, listGmailDrafts, saveGmailDraft, sendG
 import { readGmailAttachment, readGmailThread } from "./gmail-read"
 import { applyGmailThreadAction, forwardGmail, replyGmail, sendGmail } from "./gmail-send"
 import { GMAIL_API, syncGmailPage } from "./gmail-sync"
+import { GOOGLE_CALENDAR_SCOPES } from "./calendar-types"
 import { getJson, requestTokens, sendJson } from "./http"
 import {
   MissingScopeError,
@@ -25,12 +26,14 @@ export function createGmailProvider({ clientId, clientSecret }: ProviderCredenti
   return {
     id: "gmail",
 
-    authorizationUrl({ state, codeChallenge, redirectUri }) {
+    authorizationUrl({ state, codeChallenge, redirectUri, calendar }) {
       const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
         response_type: "code",
-        scope: SCOPES.join(" "),
+        scope: (calendar ? [...SCOPES, ...GOOGLE_CALENDAR_SCOPES] : SCOPES).join(" "),
+        // The new grant keeps what was granted before (the calendar, once allowed).
+        include_granted_scopes: "true",
         // Offline plus forced consent is the only way to always get a refresh token.
         access_type: "offline",
         prompt: "select_account consent",

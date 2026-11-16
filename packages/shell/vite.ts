@@ -4,14 +4,14 @@ import { normalizePath, type Plugin, type UserConfig } from "vite"
 const apps = resolve(import.meta.dirname, "../../apps")
 
 /**
- * Even mailen, Even doen and Even noteren each import their own files as "@/…". Each such
+ * Even mailen, Even doen, Even noteren and Even plannen each import their own files as "@/…". Each such
  * import resolves inside the app it comes from; anything else belongs to `host`, the app
  * that holds the shell (apps/desktop, apps/app-web).
  */
 export function appAlias(host: string): Plugin {
   // Vite names files with forward slashes on every system, also on Windows ("C:/…"),
   // so the roots are written that way too; with "\\" no importer matched there.
-  const roots = ["mail-web", "todo-web", "notes-web", host].map((app) => normalizePath(resolve(apps, app)) + "/")
+  const roots = ["mail-web", "todo-web", "notes-web", "plan-web", host].map((app) => normalizePath(resolve(apps, app)) + "/")
   return {
     name: "even-app-alias",
     enforce: "pre",

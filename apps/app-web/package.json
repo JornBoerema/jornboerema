@@ -16,6 +16,7 @@
     "@even/i18n": "workspace:*",
     "@even/mail-web": "workspace:*",
     "@even/notes-web": "workspace:*",
+    "@even/plan-web": "workspace:*",
     "@even/shell": "workspace:*",
     "@even/todo-web": "workspace:*",
     "@even/ui": "workspace:*",

@@ -13,6 +13,7 @@ import { mailRoutes } from "./mail/routes"
 import { billingRoutes } from "./billing/routes"
 import { connectionRoutes } from "./connections/routes"
 import { onboardingRoutes } from "./onboarding/routes"
+import { planRoutes } from "./plan/routes"
 import { statsRoutes } from "./stats/routes"
 import { todoRoutes } from "./todo/routes"
 import { ORGANIZATION_HEADER } from "./lib/organization"
@@ -48,6 +49,7 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => getAuth().handler(c.req.raw))
 
 app.get("/api/config", (c) => c.json({ realtime: env.realtimeEnabled }))
 app.route("/api/mail", mailRoutes)
+app.route("/api/plan", planRoutes)
 app.route("/api/billing", billingRoutes)
 app.route("/api/connections", connectionRoutes)
 app.route("/api/access", accessRoutes)

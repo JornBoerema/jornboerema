@@ -17,6 +17,7 @@ import {
   TodoSettingsNav,
 } from "@even/todo-web/embed"
 import { NotesEmbed } from "@even/notes-web/embed"
+import { PlanEmbed } from "@even/plan-web/embed"
 import {
   AppSwitcherProvider,
   type AppRequest,
@@ -34,7 +35,7 @@ import {
 import { cn } from "@even/ui/lib/utils"
 import { AppRail } from "./rail"
 
-export type AppId = "dashboard" | "mail" | "todo" | "notes"
+export type AppId = "dashboard" | "mail" | "todo" | "notes" | "plan"
 
 const isMac = navigator.userAgent.includes("Mac")
 
@@ -47,10 +48,10 @@ const APP_LIST: {
   { id: "mail", name: "Even mailen", icon: Mail01Icon },
   { id: "todo", name: "Even doen", icon: CheckmarkSquare02Icon },
   { id: "notes", name: "Even noteren", icon: Note01Icon },
+  { id: "plan", name: "Even plannen", icon: Calendar03Icon },
 ]
 /** Shown in the rail, greyed out, until they join APP_LIST. */
 const UPCOMING = [
-  { id: "plan", name: "Even plannen", icon: Calendar03Icon },
   { id: "chat", name: "Even chatten", icon: BubbleChatIcon },
 ]
 
@@ -60,6 +61,7 @@ export const APP_PATHS: Record<AppId, string> = {
   mail: "/mail",
   todo: "/todo",
   notes: "/notes",
+  plan: "/plan",
 }
 
 const APP_KEY = "even.desktop.app"
@@ -270,6 +272,13 @@ export function EvenShell({
                   <div className="desktop-pane" hidden={active !== "notes"}>
                     <Activity mode={running("notes") ? "visible" : "hidden"}>
                       <NotesEmbed />
+                    </Activity>
+                  </div>
+                )}
+                {opened.includes("plan") && (
+                  <div className="desktop-pane" hidden={active !== "plan"}>
+                    <Activity mode={running("plan") ? "visible" : "hidden"}>
+                      <PlanEmbed />
                     </Activity>
                   </div>
                 )}

@@ -380,7 +380,8 @@ mailRoutes.get("/callback/:provider", async (c) => {
   // An admin coming back from approving the app for their organization.
   if (provider === "outlook" && (c.req.query("admin_consent") || state === "admin"))
     return adminConsentPage(c, /^true$/i.test(c.req.query("admin_consent") ?? "") && !c.req.query("error"))
-  const back = state && (await connectReturn(state)) === "welcome" ? `${env.appWebUrl}/welcome` : env.mailWebUrl
+  const returnTo = state ? await connectReturn(state) : null
+  const back = returnTo ? `${env.appWebUrl}/${returnTo}` : env.mailWebUrl
   const fail = (code: ConnectErrorCode) => c.redirect(`${back}/?error=${code}`)
   if (c.req.query("error"))
     return fail(

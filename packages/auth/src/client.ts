@@ -41,8 +41,8 @@ export function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-/** The apps in the Even web app, each under its own path: app.jornboerema.nl/mail, /todo, /notes. */
-export type WebApp = "todo" | "mail" | "notes"
+/** The apps in the Even web app, each under its own path: app.jornboerema.nl/mail, /todo, /notes, /plan. */
+export type WebApp = "todo" | "mail" | "notes" | "plan"
 
 /** Where the Even web app runs while developing (apps/app-web). */
 const LOCAL_WEB_ORIGIN = "http://localhost:3007"

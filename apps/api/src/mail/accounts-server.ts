@@ -114,8 +114,13 @@ export async function connectedUsers(accountId: string) {
   return rows.map((row) => row.userId)
 }
 
-/** Where a connect flow may send the browser back to, besides the mail app. */
-export type ConnectReturn = "welcome"
+/**
+ * Where a connect flow may send the browser back to, besides the mail app.
+ * "plan" is Even plannen, which also asks for the mailbox's calendars.
+ */
+export type ConnectReturn = "welcome" | "plan"
+
+const isConnectReturn = (value: unknown): value is ConnectReturn => value === "welcome" || value === "plan"
 
 /** Starts a connect flow and returns the provider URL to send the browser to. */
 export async function startConnect(viewer: MailViewer, providerId: MailProviderId, returnTo?: ConnectReturn) {
@@ -140,13 +145,14 @@ export async function startConnect(viewer: MailViewer, providerId: MailProviderI
     state,
     codeChallenge,
     redirectUri: redirectUri(providerId),
+    calendar: returnTo === "plan",
   })
 }
 
 /** Where the browser goes back to for a connect flow under way; read before it is finished. */
 export async function connectReturn(state: string): Promise<ConnectReturn | null> {
   const pending = await getDb().mailOauthState.findUnique({ where: { id: hashState(state) }, select: { returnTo: true } })
-  return pending?.returnTo === "welcome" ? "welcome" : null
+  return isConnectReturn(pending?.returnTo) ? pending.returnTo : null
 }
 
 /** The link an organization's admin opens to approve Even mailen for everyone in it. */
@@ -182,6 +188,7 @@ export async function finishConnect(
     code,
     codeVerifier: openToken(pending.codeVerifier, key, stateContext(userId, providerId)),
     redirectUri: redirectUri(providerId),
+    calendar: pending.returnTo === "plan",
   })
   const identity = await provider.identity(tokens.accessToken)
   const organizationId = pending.organizationId ?? (await personalOrganization())
@@ -252,7 +259,10 @@ async function validAccessToken(account: MailAccount, provider: MailProvider, ke
   let pending = refreshing.get(account.id)
   if (!pending) {
     pending = (async () => {
-      const tokens = await provider.refresh(openToken(account.refreshToken, key, tokenContext(account, "refresh")))
+      const tokens = await provider.refresh(
+        openToken(account.refreshToken, key, tokenContext(account, "refresh")),
+        account.scope
+      )
       return { accessToken: tokens.accessToken, stored: await storeRefreshed(account, tokens, key) }
     })().finally(() => refreshing.delete(account.id))
     refreshing.set(account.id, pending)

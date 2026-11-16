@@ -19,6 +19,7 @@
       "@even/mail-web/embed": ["./src/embeds/mail.d.ts"],
       "@even/todo-web/embed": ["./src/embeds/todo.d.ts"],
       "@even/notes-web/embed": ["./src/embeds/notes.d.ts"],
+      "@even/plan-web/embed": ["./src/embeds/plan.d.ts"],
       "@even/ui/*": ["../ui/src/*"]
     }
   },

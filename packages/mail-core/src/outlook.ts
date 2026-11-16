@@ -4,6 +4,7 @@ import { getJson, requestTokens, sendJson } from "./http"
 import { readOutlookAttachment, readOutlookThread } from "./outlook-read"
 import { emptyOutlookTrash, applyOutlookThreadAction, forwardOutlook, replyOutlook, sendOutlook } from "./outlook-send"
 import { GRAPH_BASE, syncOutlookPage } from "./outlook-sync"
+import { hasCalendarScope, OUTLOOK_CALENDAR_SCOPE } from "./calendar-types"
 import { ProviderError, type MailProvider, type ProviderCredentials } from "./provider"
 
 /** Graph allows just under 7 days for mail; a day's slack survives a missed renewal. */
@@ -19,17 +20,19 @@ export function createOutlookProvider({
   clientSecret,
 }: ProviderCredentials): MailProvider {
   const scope = SCOPES.join(" ")
+  // Asked for only from Even plannen: an organization that approved mail alone keeps connecting mail.
+  const withCalendar = (calendar: boolean | undefined) => (calendar ? `${scope} ${OUTLOOK_CALENDAR_SCOPE}` : scope)
 
   return {
     id: "outlook",
 
-    authorizationUrl({ state, codeChallenge, redirectUri }) {
+    authorizationUrl({ state, codeChallenge, redirectUri, calendar }) {
       const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
         response_type: "code",
         response_mode: "query",
-        scope,
+        scope: withCalendar(calendar),
         // Without this a signed-in browser silently reuses the same account.
         prompt: "select_account",
         state,
@@ -44,30 +47,33 @@ export function createOutlookProvider({
         client_id: clientId,
         redirect_uri: redirectUri,
         // Exactly what a mailbox asks for, so one approval covers every colleague.
-        scope: SCOPES.filter((name) => name.includes(".")).map((name) => `https://graph.microsoft.com/${name}`).join(" "),
+        scope: [...SCOPES, OUTLOOK_CALENDAR_SCOPE]
+          .filter((name) => name.includes("."))
+          .map((name) => `https://graph.microsoft.com/${name}`)
+          .join(" "),
         state: "admin",
       })
       return `https://login.microsoftonline.com/organizations/v2.0/adminconsent?${params}`
     },
 
-    exchangeCode({ code, codeVerifier, redirectUri }) {
+    exchangeCode({ code, codeVerifier, redirectUri, calendar }) {
       return requestTokens(`${OAUTH_BASE}/token`, {
         grant_type: "authorization_code",
         client_id: clientId,
         client_secret: clientSecret,
-        scope,
+        scope: withCalendar(calendar),
         code,
         code_verifier: codeVerifier,
         redirect_uri: redirectUri,
       })
     },
 
-    refresh(refreshToken) {
+    refresh(refreshToken, granted) {
       return requestTokens(`${OAUTH_BASE}/token`, {
         grant_type: "refresh_token",
         client_id: clientId,
         client_secret: clientSecret,
-        scope,
+        scope: withCalendar(hasCalendarScope("outlook", granted ?? "")),
         refresh_token: refreshToken,
       })
     },

@@ -21,6 +21,7 @@
       "@even/mail-web/embed": ["../../packages/shell/src/embeds/mail.d.ts"],
       "@even/todo-web/embed": ["../../packages/shell/src/embeds/todo.d.ts"],
       "@even/notes-web/embed": ["../../packages/shell/src/embeds/notes.d.ts"],
+      "@even/plan-web/embed": ["../../packages/shell/src/embeds/plan.d.ts"],
       "@even/shell/*": ["../../packages/shell/src/*"],
       "@even/ui/*": ["../../packages/ui/src/*"]
     }
