@@ -131,7 +131,7 @@ export function EventDetails({
           <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
         </Button>
       </div>
-      <h2 className="plan-detail-title" style={{ ["--event" as string]: color }}>
+      <h2 className="plan-detail-title">
         {event.title || t.shell.noTitle}
       </h2>
       <Row icon={Clock01Icon}>

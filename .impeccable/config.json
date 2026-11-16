@@ -32,6 +32,15 @@
         ],
         "createdAt": "2026-11-13T14:22:50.825Z",
         "reason": "agent triage: blockquote quote bars, copied 1:1 from .note-prose and .mail-editor in the web apps' CSS; not card accents"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/plan-web/src/plan.css"
+        ],
+        "createdAt": "2026-11-16T18:23:44.985Z",
+        "reason": "Claude triage: calendar event blocks and chips carry their calendar's colour as a left stripe, the standard way calendars (Google Calendar, Outlook) tell calendars apart; the decorative title bar was removed instead"
       }
     ]
   }

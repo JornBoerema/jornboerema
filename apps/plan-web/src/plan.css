@@ -647,23 +647,11 @@
   color: var(--muted-foreground);
 }
 .plan-detail-title {
-  position: relative;
-  padding-left: 14px;
   font-size: 20px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.3px;
   overflow-wrap: anywhere;
-}
-.plan-detail-title::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 4px;
-  border-radius: 2px;
-  background: var(--event);
 }
 .plan-detail-row {
   display: flex;
