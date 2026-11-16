@@ -702,7 +702,21 @@
   font-weight: 550;
   color: var(--muted-foreground);
 }
+/* Title and its buttons on one line, the buttons level with the first line of the title. */
+.plan-detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 6px;
+}
+.plan-detail-head .plan-panel-actions {
+  flex-shrink: 0;
+  margin-top: -2px;
+}
 .plan-detail-title {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
   font-size: 20px;
   font-weight: 600;
   line-height: 1.3;

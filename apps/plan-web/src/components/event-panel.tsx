@@ -112,28 +112,28 @@ export function EventDetails({
 
   return (
     <div className="plan-panel-inner">
-      <div className="plan-panel-actions">
-        {event.canEdit && (
-          <Button variant="ghost" size="icon-sm" aria-label={t.event.edit} title={t.event.edit} onClick={onEdit}>
-            <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} aria-hidden="true" />
+      <div className="plan-detail-head">
+        <h2 className="plan-detail-title">{event.title || t.shell.noTitle}</h2>
+        <div className="plan-panel-actions">
+          {event.canEdit && (
+            <Button variant="ghost" size="icon-sm" aria-label={t.event.edit} title={t.event.edit} onClick={onEdit}>
+              <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} aria-hidden="true" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={event.isOrganizer ? t.event.delete : t.event.remove}
+            title={event.isOrganizer ? t.event.delete : t.event.remove}
+            onClick={() => setDeleting(true)}
+          >
+            <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} aria-hidden="true" />
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={event.isOrganizer ? t.event.delete : t.event.remove}
-          title={event.isOrganizer ? t.event.delete : t.event.remove}
-          onClick={() => setDeleting(true)}
-        >
-          <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} aria-hidden="true" />
-        </Button>
-        <Button variant="ghost" size="icon-sm" aria-label={t.event.close} title={t.event.close} onClick={onClose}>
-          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
-        </Button>
+          <Button variant="ghost" size="icon-sm" aria-label={t.event.close} title={t.event.close} onClick={onClose}>
+            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden="true" />
+          </Button>
+        </div>
       </div>
-      <h2 className="plan-detail-title">
-        {event.title || t.shell.noTitle}
-      </h2>
       <Row icon={Clock01Icon}>
         <p>{when(event)}</p>
         {event.recurring && (
