@@ -307,11 +307,13 @@ function Rail({
 }) {
   // The dashboard has no settings of its own: the window opens at the account.
   const settings = useDesktopSettings(active === "dashboard" ? "mail" : active)
-  // The apps open the settings with ⌘, themselves; on the dashboard the shell does.
+  // ⌘, opens Even's settings, not the browser's. Mail has its own ⌘,; for the
+  // other apps and the dashboard the shell catches it.
   useEffect(() => {
-    if (active !== "dashboard") return
+    if (active === "mail") return
     const keydown = (event: KeyboardEvent) => {
       if (event.key !== "," || !(event.metaKey || event.ctrlKey)) return
+      if (event.altKey || event.shiftKey || event.repeat) return
       event.preventDefault()
       settings?.open()
     }
