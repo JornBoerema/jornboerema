@@ -10,6 +10,7 @@ import { Spinner } from "@even/ui/components/spinner"
 import { useAppSwitcher } from "@even/ui/components/app-switcher"
 import { cn } from "@even/ui/lib/utils"
 import { EventDetails, EventForm, movedInput, type PanelState } from "@/components/event-panel"
+import { EventPopover } from "@/components/event-popover"
 import { MonthGrid } from "@/components/month-grid"
 import { PlanSidebar } from "@/components/sidebar"
 import { TimeGrid } from "@/components/time-grid"
@@ -26,7 +27,7 @@ import {
   useEvents,
   useShownCalendars,
 } from "@/lib/calendar"
-import { addDays, addMinutes, startOfDay, stepView, viewDays, type ViewKind } from "@/lib/dates"
+import { addDays, addMinutes, dayKey, startOfDay, stepView, viewDays, type ViewKind } from "@/lib/dates"
 
 const VIEW_KEY = "even.plan.view"
 
@@ -158,6 +159,14 @@ function PlanApp() {
     return [...events, ...(invitationsQuery.data?.events ?? [])].find((event) => eventKey(event) === key) ?? panel.event
   }, [panel, events, invitationsQuery.data])
   const selectedKey = shownEvent ? eventKey(shownEvent) : null
+  // What the card stands beside: the event, or the time a new one is planned for.
+  const anchor = !panel
+    ? null
+    : panel.mode === "create"
+      ? panel.allDay || kind === "month"
+        ? `[data-day="${dayKey(panel.start)}"]`
+        : ".plan-draft"
+      : `[data-event-key="${CSS.escape(selectedKey ?? eventKey(panel.event))}"]`
 
   const openDay = useCallback(
     (day: Date) => {
@@ -233,8 +242,19 @@ function PlanApp() {
         selectedKey={selectedKey}
       />
       <main className="plan-main">
-        <div className={cn("plan-body", panel && "has-panel")}>
-          <section className="floating-panel plan-view-area">
+        <div className="plan-body">
+          <section
+            className="floating-panel plan-view-area"
+            onPointerDownCapture={(event) => {
+              // With an event's card open, a click on the empty calendar closes it
+              // rather than starting a new event at once.
+              if (panel?.mode !== "view" || !(event.target instanceof Element)) return
+              if (event.target.closest("[data-event-key], button, a")) return
+              if (!event.target.closest(".plan-columns, .plan-month-body, .plan-allday")) return
+              event.stopPropagation()
+              setPanel(null)
+            }}
+          >
             <header className="plan-toolbar">
               <div className="plan-heading">
                 <h1 className="plan-title">{title}</h1>
@@ -308,11 +328,12 @@ function PlanApp() {
                 onCreate={(start, end, allDay) => setPanel({ mode: "create", start, end, allDay })}
                 onReschedule={reschedule}
                 onOpenDay={openDay}
+                draft={panel?.mode === "create" ? panel : null}
               />
             )}
           </section>
           {panel && (
-            <aside className="plan-panel" aria-label={panel.mode === "view" ? shownEvent?.title : t.form.newTitle}>
+            <EventPopover anchor={anchor} label={panel.mode === "view" ? shownEvent?.title : t.form.newTitle}>
               {panel.mode === "view" && shownEvent ? (
                 <EventDetails
                   key={selectedKey}
@@ -334,7 +355,7 @@ function PlanApp() {
                   }
                 />
               ) : null}
-            </aside>
+            </EventPopover>
           )}
         </div>
       </main>

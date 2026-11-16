@@ -3,7 +3,7 @@ import type { CalendarEvent } from "@even/mail-core/calendar-types"
 import { cn } from "@even/ui/lib/utils"
 import { useI18n } from "@/i18n"
 import { eventKey } from "@/lib/calendar"
-import { addDays, addMinutes, eventSpan, minuteOfDay, minutesBetween, onDay, sameDay } from "@/lib/dates"
+import { addDays, addMinutes, dayKey, eventSpan, minuteOfDay, minutesBetween, onDay, sameDay } from "@/lib/dates"
 import { EventChip } from "@/components/event-chip"
 
 const HOUR_PX = 48
@@ -77,6 +77,7 @@ export function TimeGrid({
   onCreate,
   onReschedule,
   onOpenDay,
+  draft = null,
 }: {
   days: Date[]
   events: CalendarEvent[]
@@ -86,6 +87,8 @@ export function TimeGrid({
   onCreate: (start: Date, end: Date, allDay: boolean) => void
   onReschedule: (event: CalendarEvent, start: Date, end: Date) => void
   onOpenDay: (day: Date) => void
+  /** The new event being filled in, drawn so its card has something to stand beside. */
+  draft?: { start: Date; end: Date; allDay: boolean } | null
 }) {
   const { t, locale } = useI18n()
   const scroller = useRef<HTMLDivElement>(null)
@@ -248,6 +251,7 @@ export function TimeGrid({
             <div
               key={day.toISOString()}
               className="plan-allday-cell"
+              data-day={dayKey(day)}
               onDoubleClick={(event) => {
                 if (event.target === event.currentTarget) onCreate(day, addDays(day, 1), true)
               }}
@@ -256,6 +260,7 @@ export function TimeGrid({
                 <button
                   key={eventKey(event)}
                   type="button"
+                  data-event-key={eventKey(event)}
                   className={cn("plan-chip", selectedKey === eventKey(event) && "is-selected", stateClass(event))}
                   style={{ ["--event" as string]: color(event) }}
                   onClick={() => onSelect(event)}
@@ -295,6 +300,7 @@ export function TimeGrid({
                       key={key}
                       role="button"
                       tabIndex={0}
+                      data-event-key={key}
                       className={cn(
                         "plan-event",
                         selectedKey === key && "is-selected",
@@ -335,6 +341,18 @@ export function TimeGrid({
                   )
                 })}
                 {ghost(dayIndex)}
+                {!drag && draft && !draft.allDay && sameDay(draft.start, day) && (
+                  <div
+                    className="plan-ghost plan-draft"
+                    style={{
+                      top: (minuteOfDay(draft.start) / 60) * HOUR_PX,
+                      height: Math.max(
+                        (Math.min(minutesBetween(draft.start, draft.end), 24 * 60 - minuteOfDay(draft.start)) / 60) * HOUR_PX,
+                        12
+                      ),
+                    }}
+                  />
+                )}
                 {sameDay(day, now) && (
                   <div className="plan-now" style={{ top: (minuteOfDay(now) / 60) * HOUR_PX }} aria-hidden="true" />
                 )}

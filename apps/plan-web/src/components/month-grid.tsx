@@ -3,7 +3,7 @@ import type { CalendarEvent } from "@even/mail-core/calendar-types"
 import { cn } from "@even/ui/lib/utils"
 import { useI18n } from "@/i18n"
 import { eventKey } from "@/lib/calendar"
-import { addMinutes, eventSpan, onDay, sameDay } from "@/lib/dates"
+import { addMinutes, dayKey, eventSpan, onDay, sameDay } from "@/lib/dates"
 import { stateClass, useNow } from "@/components/time-grid"
 
 /** Events a day cell lists before "3 more". */
@@ -59,6 +59,7 @@ export function MonthGrid({
           return (
             <div
               key={day.toISOString()}
+              data-day={dayKey(day)}
               className={cn("plan-month-cell", day.getMonth() !== month && "is-outside", sameDay(day, now) && "is-today")}
               onDoubleClick={(event) => {
                 if (event.target === event.currentTarget) onCreate(addMinutes(day, 9 * 60), addMinutes(day, 10 * 60), false)
@@ -75,6 +76,7 @@ export function MonthGrid({
                 <button
                   key={eventKey(event)}
                   type="button"
+                  data-event-key={eventKey(event)}
                   className={cn(
                     "plan-chip",
                     !event.allDay && "is-timed",
