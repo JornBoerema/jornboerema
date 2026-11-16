@@ -58,22 +58,29 @@ function MiniMonth({ date, days, onPick }: { date: Date; days: Date[]; onPick: (
             {weekday.format(day)}
           </span>
         ))}
-        {cells.map((day) => (
-          <button
-            key={day.toISOString()}
-            type="button"
-            className={cn(
-              "plan-mini-day",
-              day.getMonth() !== shown.getMonth() && "is-outside",
-              inView(day) && "is-in-view",
-              sameDay(day, now) && "is-today"
-            )}
-            aria-label={day.toLocaleDateString(locale, { dateStyle: "full" })}
-            onClick={() => onPick(day)}
-          >
-            {day.getDate()}
-          </button>
-        ))}
+        {cells.map((day, index) => {
+          // The days in view as one band: rounded only where it starts and ends.
+          const column = index % 7
+          const shownDay = inView(day)
+          return (
+            <button
+              key={day.toISOString()}
+              type="button"
+              className={cn(
+                "plan-mini-day",
+                day.getMonth() !== shown.getMonth() && "is-outside",
+                shownDay && "is-in-view",
+                shownDay && (column === 0 || !inView(cells[index - 1]!)) && "is-band-start",
+                shownDay && (column === 6 || !cells[index + 1] || !inView(cells[index + 1]!)) && "is-band-end",
+                sameDay(day, now) && "is-today"
+              )}
+              aria-label={day.toLocaleDateString(locale, { dateStyle: "full" })}
+              onClick={() => onPick(day)}
+            >
+              <span>{day.getDate()}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

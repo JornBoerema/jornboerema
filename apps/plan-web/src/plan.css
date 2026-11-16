@@ -54,23 +54,45 @@
   color: var(--muted-foreground);
 }
 .plan-mini-day {
+  display: grid;
+  place-items: center;
   height: 26px;
-  border-radius: 6px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+/* The number carries the hover and today's colour, so it sits on the band. */
+.plan-mini-day > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
   transition: background-color 0.15s;
 }
-.plan-mini-day:hover {
+.plan-mini-day:hover > span {
   background: var(--muted);
 }
 .plan-mini-day.is-outside {
   color: var(--muted-foreground);
+}
+.plan-mini-day.is-outside > span {
   opacity: 0.6;
 }
 .plan-mini-day.is-in-view {
   background: var(--sidebar-accent);
 }
-.plan-mini-day.is-today {
+.plan-mini-day.is-in-view:hover > span {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+.plan-mini-day.is-band-start {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.plan-mini-day.is-band-end {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.plan-mini-day.is-today > span {
   background: var(--primary);
   color: var(--primary-foreground);
   font-weight: 600;
