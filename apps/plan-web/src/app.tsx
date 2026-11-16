@@ -233,46 +233,50 @@ function PlanApp() {
         selectedKey={selectedKey}
       />
       <main className="plan-main">
-        <header className="plan-toolbar">
-          <div className="plan-toolbar-nav">
-            <Button variant="outline" size="sm" aria-keyshortcuts="T" onClick={() => setDate(startOfDay(new Date()))}>
-              {t.shell.today}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t.shell.previous}
-              onClick={() => setDate(stepView(kind, date, -1))}
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} aria-hidden="true" />
-            </Button>
-            <Button variant="ghost" size="icon-sm" aria-label={t.shell.next} onClick={() => setDate(stepView(kind, date, 1))}>
-              <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} aria-hidden="true" />
-            </Button>
-            <h1 className="plan-title">{title}</h1>
-            {kind === "week" && <span className="plan-week">{t.shell.weekNumber(isoWeek(date))}</span>}
-            {eventsQuery.isFetching && <Spinner className="size-3.5 text-muted-foreground" />}
-          </div>
-          <div className="plan-views" role="radiogroup" aria-label={t.shell.views}>
-            {views.map((view) => (
-              <button
-                key={view.kind}
-                type="button"
-                role="radio"
-                aria-checked={kind === view.kind}
-                aria-keyshortcuts={view.key}
-                title={`${view.label} (${view.key})`}
-                className={cn("plan-view", kind === view.kind && "is-active")}
-                onClick={() => setKind(view.kind)}
-              >
-                {view.label}
-              </button>
-            ))}
-          </div>
-        </header>
-        {failed && <p className="plan-notice">{t.shell.someFailed}</p>}
         <div className={cn("plan-body", panel && "has-panel")}>
-          <div className="plan-view-area">
+          <section className="floating-panel plan-view-area">
+            <header className="plan-toolbar">
+              <div className="plan-heading">
+                <h1 className="plan-title">{title}</h1>
+                {kind === "week" && <span className="plan-week">{t.shell.weekNumber(isoWeek(date))}</span>}
+                {eventsQuery.isFetching && <Spinner className="size-3.5 text-muted-foreground" />}
+              </div>
+              <div className="plan-controls">
+                <div className="plan-step">
+                  <Button variant="outline" size="sm" aria-keyshortcuts="T" onClick={() => setDate(startOfDay(new Date()))}>
+                    {t.shell.today}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t.shell.previous}
+                    onClick={() => setDate(stepView(kind, date, -1))}
+                  >
+                    <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} aria-hidden="true" />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" aria-label={t.shell.next} onClick={() => setDate(stepView(kind, date, 1))}>
+                    <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} aria-hidden="true" />
+                  </Button>
+                </div>
+                <div className="plan-views" role="radiogroup" aria-label={t.shell.views}>
+                  {views.map((view) => (
+                    <button
+                      key={view.kind}
+                      type="button"
+                      role="radio"
+                      aria-checked={kind === view.kind}
+                      aria-keyshortcuts={view.key}
+                      title={`${view.label} (${view.key})`}
+                      className={cn("plan-view", kind === view.kind && "is-active")}
+                      onClick={() => setKind(view.kind)}
+                    >
+                      {view.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </header>
+            {failed && <p className="plan-notice">{t.shell.someFailed}</p>}
             {accountsQuery.isPending ? (
               <div className="plan-loading">
                 <Spinner />
@@ -306,7 +310,7 @@ function PlanApp() {
                 onOpenDay={openDay}
               />
             )}
-          </div>
+          </section>
           {panel && (
             <aside className="plan-panel" aria-label={panel.mode === "view" ? shownEvent?.title : t.form.newTitle}>
               {panel.mode === "view" && shownEvent ? (

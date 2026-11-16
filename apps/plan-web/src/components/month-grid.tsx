@@ -59,7 +59,7 @@ export function MonthGrid({
           return (
             <div
               key={day.toISOString()}
-              className={cn("plan-month-cell", day.getMonth() !== month && "is-outside")}
+              className={cn("plan-month-cell", day.getMonth() !== month && "is-outside", sameDay(day, now) && "is-today")}
               onDoubleClick={(event) => {
                 if (event.target === event.currentTarget) onCreate(addMinutes(day, 9 * 60), addMinutes(day, 10 * 60), false)
               }}

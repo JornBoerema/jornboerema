@@ -161,21 +161,36 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 20px 12px 12px;
+  gap: 16px;
+  padding: 18px 14px 16px 24px;
   flex-shrink: 0;
 }
-.plan-toolbar-nav {
+.plan-heading {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
 }
+.plan-heading > [data-slot="spinner"],
+.plan-heading > svg {
+  align-self: center;
+}
+.plan-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.plan-step {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
 .plan-title {
-  margin-left: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.7px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -184,7 +199,6 @@
   text-transform: uppercase;
 }
 .plan-week {
-  margin: 0 6px 0 4px;
   font-size: 13px;
   color: var(--muted-foreground);
   white-space: nowrap;
@@ -208,30 +222,37 @@
   color: var(--foreground);
 }
 .plan-view.is-active {
-  background: var(--background);
+  background: var(--surface, var(--background));
   color: var(--foreground);
   font-weight: 550;
   box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 12%, transparent);
 }
 .plan-notice {
-  margin: 0 20px 8px 12px;
+  margin: -6px 24px 10px;
   font-size: 12px;
   color: var(--muted-foreground);
 }
 .plan-body {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   flex: 1;
   min-height: 0;
+  padding: 8px 8px 8px 0;
 }
 .plan-body.has-panel {
   grid-template-columns: minmax(0, 1fr) 360px;
 }
+/* The calendar sits in the same floating card as the sidebar and mail's reader. */
 .plan-view-area {
+  --surface: var(--sidebar);
+  --line: color-mix(in oklab, var(--border) 65%, transparent);
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 .plan-loading,
 .plan-empty {
@@ -249,12 +270,10 @@
 /* Time grid */
 .plan-grid {
   --gutter: 56px;
-  --line: color-mix(in oklch, var(--border) 70%, transparent);
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  border-top: 1px solid var(--border);
 }
 .plan-gutter {
   width: var(--gutter);
@@ -304,7 +323,7 @@
   color: var(--primary-foreground);
 }
 .plan-allday {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   min-height: 28px;
 }
 .plan-allday.is-empty {
@@ -403,7 +422,7 @@
   padding: 3px 6px;
   border-radius: 6px;
   border-left: 3px solid var(--event);
-  background: color-mix(in oklab, var(--event) 18%, var(--background));
+  background: color-mix(in oklab, var(--event) 18%, var(--surface));
   color: var(--foreground);
   font-size: 12px;
   line-height: 1.3;
@@ -425,7 +444,7 @@
   outline-offset: 1px;
 }
 .plan-event.is-selected {
-  background: color-mix(in oklab, var(--event) 34%, var(--background));
+  background: color-mix(in oklab, var(--event) 34%, var(--surface));
   z-index: 2;
 }
 .plan-event.is-source {
@@ -473,7 +492,7 @@
 /* States shared by grid events and chips. */
 .is-pending.plan-event,
 .is-pending.plan-chip {
-  background: var(--background);
+  background: var(--surface, var(--background));
   border: 1px dashed var(--event);
   border-left: 3px solid var(--event);
 }
@@ -496,7 +515,7 @@
 }
 .is-free.plan-event,
 .is-free.plan-chip {
-  background: color-mix(in oklab, var(--event) 8%, var(--background));
+  background: color-mix(in oklab, var(--event) 8%, var(--surface));
 }
 
 /* Chips: all-day events and the month view. */
@@ -509,14 +528,14 @@
   padding: 0 6px;
   border-radius: 5px;
   border-left: 3px solid var(--event);
-  background: color-mix(in oklab, var(--event) 18%, var(--background));
+  background: color-mix(in oklab, var(--event) 18%, var(--surface));
   font-size: 12px;
   text-align: left;
   transition: background-color 0.15s;
 }
 .plan-chip:hover,
 .plan-chip.is-selected {
-  background: color-mix(in oklab, var(--event) 32%, var(--background));
+  background: color-mix(in oklab, var(--event) 32%, var(--surface));
 }
 .plan-chip.is-timed {
   border-left: 0;
@@ -546,28 +565,27 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  border-top: 1px solid var(--border);
+  padding: 0 12px 12px;
 }
 .plan-month-head {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  padding: 6px 8px 6px 12px;
+  padding: 0 0 8px;
   font-size: 12px;
   color: var(--muted-foreground);
   text-transform: capitalize;
 }
 .plan-month-head > span {
-  padding-left: 6px;
+  padding-left: 10px;
 }
+/* Rows of soft tiles rather than a ruled table, like the todo board's columns. */
 .plan-month-body {
   display: grid;
   flex: 1;
   min-height: 0;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
-  margin: 0 8px 8px 12px;
-  border-top: 1px solid var(--line, var(--border));
-  border-left: 1px solid var(--border);
+  gap: 4px;
 }
 .plan-month-cell {
   display: flex;
@@ -576,15 +594,23 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: 4px;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  padding: 6px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+  transition: background-color 0.15s;
+}
+.dark .plan-month-cell {
+  background: color-mix(in oklab, var(--muted) 40%, transparent);
 }
 .plan-month-cell.is-outside {
-  background: color-mix(in oklch, var(--muted) 45%, transparent);
+  background: transparent;
 }
 .plan-month-cell.is-outside .plan-month-date {
   color: var(--muted-foreground);
+  font-weight: 450;
+}
+.plan-month-cell.is-today {
+  background: color-mix(in oklab, var(--primary) 9%, transparent);
 }
 .plan-month-date {
   align-self: flex-start;
@@ -622,7 +648,6 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  margin: 0 8px 8px 0;
   border-radius: var(--radius-lg);
   box-shadow: 0 0 0 1px var(--sidebar-border), 0 1px 3px color-mix(in oklch, var(--foreground) 10%, transparent);
   background: var(--sidebar);
@@ -803,7 +828,7 @@
   height: 24px;
   padding: 0 4px 0 8px;
   border-radius: 999px;
-  background: var(--background);
+  background: var(--surface, var(--background));
   box-shadow: 0 0 0 1px var(--border);
   font-size: 12px;
 }
@@ -832,9 +857,9 @@
   }
   .plan-body.has-panel .plan-panel {
     position: absolute;
-    top: 56px;
-    right: 0;
-    bottom: 0;
+    top: 72px;
+    right: 16px;
+    bottom: 16px;
     width: min(360px, 100%);
     z-index: 10;
   }
@@ -845,5 +870,11 @@
   }
   .plan-week {
     display: none;
+  }
+}
+/* Without the sidebar the card needs its own left edge. */
+@media (max-width: 1023px) {
+  .plan-body {
+    padding-left: 8px;
   }
 }
