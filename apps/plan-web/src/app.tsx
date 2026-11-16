@@ -25,6 +25,7 @@ import {
   useEventActions,
   useEventColor,
   useEvents,
+  usePlanRefresh,
   useShownCalendars,
 } from "@/lib/calendar"
 import { addDays, addMinutes, dayKey, startOfDay, stepView, viewDays, type ViewKind } from "@/lib/dates"
@@ -119,6 +120,7 @@ function NoCalendars({ allow }: { allow: { provider: "gmail" | "outlook" }[] }) 
 function PlanApp() {
   const { t, locale } = useI18n()
   useConnectResult()
+  usePlanRefresh()
   const [kind, setKindState] = useState<ViewKind>(storedView)
   const [date, setDate] = useState(() => startOfDay(new Date()))
   const [panel, setPanel] = useState<PanelState | null>(null)

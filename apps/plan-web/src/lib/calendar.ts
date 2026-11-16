@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type {
@@ -9,6 +9,8 @@ import type {
   CalendarView,
 } from "@even/mail-core/calendar-types"
 import { MAIL_ACCOUNT_COLORS } from "@even/mail-core/types"
+import { appUrl, isDesktop } from "@even/auth/client"
+import { watchChannel } from "@even/realtime/client"
 import { api, errorText } from "./api"
 import { localTimeZone } from "./dates"
 
@@ -202,8 +204,37 @@ export function useEventActions() {
   return { create, update, remove, respond }
 }
 
+/**
+ * Reads the mailboxes and calendars again when something may have changed elsewhere:
+ * a mailbox connected or allowed in another window (the server pings the user's
+ * channel), or the window coming back to the front (also without realtime).
+ */
+export function usePlanRefresh() {
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    const refresh = () => void queryClient.invalidateQueries({ queryKey: ["plan"] })
+    const stopWatching = watchChannel({
+      fetchSubscription: () => api("/api/mail/realtime"),
+      onChange: refresh,
+    })
+    // Only the list of calendars on focus: events refetch on their own timer.
+    const onFocus = () => void queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY })
+    window.addEventListener("focus", onFocus)
+    return () => {
+      stopWatching()
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [queryClient])
+}
+
 /** Sends the browser to Google or Microsoft to connect a mailbox with its calendars. */
 export async function connectCalendar(provider: "gmail" | "outlook") {
+  // Google and Microsoft send the browser back with a cookie session, which the
+  // desktop app doesn't have: it is allowed on the web, and this window hears of it.
+  if (isDesktop()) {
+    window.open(appUrl("plan", "/"), "_blank")
+    return
+  }
   try {
     const { url } = await api<{ url: string }>(`/api/plan/connect/${provider}`, { method: "POST" })
     window.location.assign(url)

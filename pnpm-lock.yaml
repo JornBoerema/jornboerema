@@ -563,6 +563,9 @@ importers:
       '@even/mail-core':
         specifier: workspace:*
         version: link:../../packages/mail-core
+      '@even/realtime':
+        specifier: workspace:*
+        version: link:../../packages/realtime
       '@even/ui':
         specifier: workspace:*
         version: link:../../packages/ui

@@ -27,7 +27,7 @@ import { languageOf, msg } from "../i18n"
 import { defer } from "../lib/defer"
 import { report } from "../lib/report"
 import { actOnSender, listSenders, senderConversations } from "./senders-server"
-import { mailChannel, realtimeEnabled, sealChannel } from "../lib/realtime"
+import { mailChannel, notifyMailChanged, realtimeEnabled, sealChannel } from "../lib/realtime"
 import { every } from "hono/combine"
 import { canUse, requireAppAccess } from "../lib/access"
 import { activeOrganization } from "../lib/organization"
@@ -400,6 +400,8 @@ mailRoutes.get("/callback/:provider", async (c) => {
     // Its past year is fetched in the background, whether or not the app stays open;
     // a mailbox someone already has here comes with its mail.
     if (!alreadySynced) defer(() => startBackfill(account.id))
+    // Other windows (the desktop app, another tab) show the new mailbox or calendars.
+    defer(() => notifyMailChanged(session.user.id))
     return c.redirect(`${back}/?connected=1`)
   } catch (error) {
     if (error instanceof ConnectExpiredError) return fail("expired")
