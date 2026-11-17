@@ -72,6 +72,7 @@ function toView({ account, ...connection }: MailConnection & { account: MailAcco
     status: account.status,
     color: connection.color,
     signatures: { newId: connection.signatureNewId, replyId: connection.signatureReplyId },
+    notify: connection.notify,
     createdAt: connection.createdAt.toISOString(),
   }
 }
@@ -108,6 +109,16 @@ export async function visibleAccountIds(viewer: MailViewer) {
 export async function connectedUsers(accountId: string) {
   const rows = await getDb().mailConnection.findMany({
     where: { accountId },
+    distinct: ["userId"],
+    select: { userId: true },
+  })
+  return rows.map((row) => row.userId)
+}
+
+/** Who wants a notification for new mail in this mailbox. */
+export async function listeningUsers(accountId: string) {
+  const rows = await getDb().mailConnection.findMany({
+    where: { accountId, notify: true },
     distinct: ["userId"],
     select: { userId: true },
   })
@@ -320,6 +331,7 @@ export type AccountSettings = {
   color?: number
   signatureNewId?: string | null
   signatureReplyId?: string | null
+  notify?: boolean
 }
 
 export async function updateAccountSettings(viewer: MailViewer, id: string, settings: AccountSettings) {
@@ -332,7 +344,11 @@ export async function updateAccountSettings(viewer: MailViewer, id: string, sett
     const owned = await db.mailSignature.count({ where: { userId, id: { in: chosen } } })
     if (owned !== new Set(chosen).size) throw new MailSignatureNotFoundError()
   }
-  await db.mailConnection.updateMany({ where: { accountId: account.id, ...connectionOf(viewer) }, data: settings })
+  const { notify, ...here } = settings
+  if (Object.keys(here).length > 0)
+    await db.mailConnection.updateMany({ where: { accountId: account.id, ...connectionOf(viewer) }, data: here })
+  // A phone rings once per mailbox, whichever organization it shows in, so this holds in all of them.
+  if (notify !== undefined) await db.mailConnection.updateMany({ where: { accountId: account.id, userId }, data: { notify } })
 }
 
 export async function readInboxSummary(viewer: MailViewer, id: string): Promise<InboxSummary> {

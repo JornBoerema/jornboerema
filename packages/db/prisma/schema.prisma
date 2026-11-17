@@ -493,6 +493,8 @@ model MailConnection {
   /// Signature for replies and forwards from this mailbox. Null means none.
   signatureReplyId String?        @map("signature_reply_id")
   signatureReply   MailSignature? @relation("SignatureForReply", fields: [signatureReplyId], references: [id], onDelete: SetNull)
+  /// Whether new mail here rings the user's phones and computers. Kept the same across their organizations.
+  notify           Boolean        @default(true)
   createdAt        DateTime       @default(now()) @map("created_at")
 
   @@unique([accountId, userId, organizationId], map: "mail_connections_account_user_organization_unique")

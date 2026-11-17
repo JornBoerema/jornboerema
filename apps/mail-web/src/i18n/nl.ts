@@ -106,6 +106,9 @@ export const nl: typeof en = {
       blocked: "Meldingen voor Even staan uit. Zet ze aan in de meldingsinstellingen van je systeem.",
     },
     newMail: (count: number) => `${count} nieuwe berichten`,
+    mailboxesTitle: "Per mailbox",
+    mailboxesHelp: "Geldt op al je apparaten, ook in de iPhone-app.",
+    mailboxToggle: (email: string) => `Meldingen voor ${email}`,
   },
   ai: {
     writing: "Schrijven met AI",

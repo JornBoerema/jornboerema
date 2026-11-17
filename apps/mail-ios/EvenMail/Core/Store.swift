@@ -113,6 +113,24 @@ final class MailStore {
         return signatures.first { $0.id == id }
     }
 
+    private struct NotifyChange: Encodable { let notify: Bool }
+
+    /// Turns notifications for one mailbox on or off, on every device of the account.
+    func setNotify(_ account: MailAccount, _ on: Bool) {
+        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+        let before = accounts[index].notify
+        accounts[index].notify = on
+        guard !Demo.enabled else { return }
+        Task {
+            do {
+                try await API.run("/api/mail/accounts/\(account.id)", NotifyChange(notify: on), method: "PATCH")
+            } catch {
+                if let index = accounts.firstIndex(where: { $0.id == account.id }) { accounts[index].notify = before }
+                show(error)
+            }
+        }
+    }
+
     func loadAccounts() async {
         do {
             let answer: Accounts = try await API.get("/api/mail/accounts")

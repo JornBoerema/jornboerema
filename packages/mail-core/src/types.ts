@@ -22,6 +22,8 @@ export type MailAccountView = {
   color: number
   /** Which signatures this mailbox adds. Null means none. */
   signatures: { newId: string | null; replyId: string | null }
+  /** Whether new mail here notifies the user, on the phone and in the app. */
+  notify: boolean
   createdAt: string
 }
 

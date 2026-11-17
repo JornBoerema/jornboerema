@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import type { MailAccountView } from "@even/mail-core/types"
 import { isDesktop } from "@even/auth/client"
 import { AboutSettings, useAboutPage } from "@even/ui/components/desktop-app"
 import {
@@ -32,7 +35,10 @@ import {
 } from "@even/ui/components/settings-dialog"
 import { Switch } from "@even/ui/components/switch"
 import { useTheme, type Theme } from "@even/ui/lib/theme"
+import { AccountDot } from "@/components/account-dot"
 import { useI18n } from "@/i18n"
+import { api, errorText } from "@/lib/api"
+import { ACCOUNTS_KEY, useAccounts } from "@/lib/mail"
 import { notificationsSupported } from "@/lib/notifications"
 import {
   setAlwaysShowImages,
@@ -141,6 +147,53 @@ function NotificationSettings() {
           }}
         />
       </SettingsRow>
+    </SettingsSection>
+  )
+}
+
+/** Which mailboxes notify at all: kept on the account, so the phone listens too. */
+function MailboxNotificationSettings() {
+  const t = useI18n().t.notifications
+  const accounts = useAccounts().data?.accounts ?? []
+  const queryClient = useQueryClient()
+  const change = useMutation({
+    mutationFn: ({ id, notify }: { id: string; notify: boolean }) =>
+      api(`/api/mail/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notify }),
+      }),
+    onMutate: ({ id, notify }) => {
+      queryClient.setQueryData<{ accounts: MailAccountView[] }>(
+        ACCOUNTS_KEY,
+        (data) => data && { accounts: data.accounts.map((item) => (item.id === id ? { ...item, notify } : item)) }
+      )
+    },
+    onError: (error) => toast.error(errorText(error)),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+  })
+  if (accounts.length === 0) return null
+  return (
+    <SettingsSection title={t.mailboxesTitle} description={t.mailboxesHelp}>
+      {accounts.map((account) => (
+        <SettingsRow
+          key={account.id}
+          title={
+            <span className="flex min-w-0 items-center gap-2">
+              <AccountDot color={account.color} />
+              <span className="truncate">{account.email}</span>
+            </span>
+          }
+          htmlFor={`notify-${account.id}`}
+        >
+          <Switch
+            id={`notify-${account.id}`}
+            aria-label={t.mailboxToggle(account.email)}
+            checked={account.notify}
+            onCheckedChange={(notify) => change.mutate({ id: account.id, notify })}
+          />
+        </SettingsRow>
+      ))}
     </SettingsSection>
   )
 }
@@ -313,7 +366,12 @@ export function MailSettings({
       {id === "account" && <AccountSettings user={user} />}
       {id === "mailboxes" && <AccountsPage />}
       {id === "signatures" && <SignatureSettings />}
-      {id === "notifications" && <NotificationSettings />}
+      {id === "notifications" && (
+        <>
+          <NotificationSettings />
+          <MailboxNotificationSettings />
+        </>
+      )}
       {id === "ai" && <AiSettings />}
       {id === "features" && <FeatureSettings />}
       {id === "appearance" && <AppearanceSettings />}

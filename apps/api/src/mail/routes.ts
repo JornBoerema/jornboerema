@@ -179,6 +179,7 @@ const accountBody = z
     color: z.number().int().min(0).lt(MAIL_ACCOUNT_COLORS).optional(),
     signatureNewId: signatureId,
     signatureReplyId: signatureId,
+    notify: z.boolean().optional(),
   })
   .refine((body) => Object.values(body).some((value) => value !== undefined))
 const signatureName = z.string().trim().min(1).max(100)

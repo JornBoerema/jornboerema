@@ -105,6 +105,9 @@ export const en = {
       blocked: "Notifications for Even are off. Turn them on in your system’s notification settings.",
     },
     newMail: (count: number) => `${count} new messages`,
+    mailboxesTitle: "Per mailbox",
+    mailboxesHelp: "Applies on all your devices, the iPhone app included.",
+    mailboxToggle: (email: string) => `Notifications for ${email}`,
   },
   ai: {
     writing: "Write with AI",

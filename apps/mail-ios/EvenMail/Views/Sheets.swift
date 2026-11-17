@@ -148,7 +148,9 @@ struct SettingsView: View {
                         .padding(14)
                     }
 
-                    section(t("Mailboxes", "Mailboxen"), footer: t("Mailboxes are connected and removed on app.jornboerema.nl.", "Mailboxen koppel en verwijder je op app.jornboerema.nl.")) {
+                    section(t("Mailboxes", "Mailboxen"), footer: prefs.notifications
+                        ? t("The switch turns notifications for a mailbox on or off, on all your devices. Mailboxes are connected and removed on app.jornboerema.nl.", "Met de schakelaar zet je meldingen per mailbox aan of uit, op al je apparaten. Mailboxen koppel en verwijder je op app.jornboerema.nl.")
+                        : t("Mailboxes are connected and removed on app.jornboerema.nl.", "Mailboxen koppel en verwijder je op app.jornboerema.nl.")) {
                         if store.accounts.isEmpty {
                             Text(t("No mailboxes yet", "Nog geen mailboxen"))
                                 .font(.inter(15, relativeTo: .subheadline))
@@ -166,6 +168,14 @@ struct SettingsView: View {
                                         .foregroundStyle(account.isActive ? Theme.mutedForeground : Theme.destructive)
                                 }
                                 Spacer(minLength: 0)
+                                if prefs.notifications {
+                                    Toggle(isOn: Binding(get: { account.notify ?? true }, set: { store.setNotify(account, $0) })) {
+                                        Icon("notification-03", size: 18).foregroundStyle(Theme.mutedForeground)
+                                    }
+                                    .accessibilityLabel(t("Notifications for \(account.email)", "Meldingen voor \(account.email)"))
+                                    .fixedSize()
+                                    .tint(Theme.primary)
+                                }
                             }
                             .padding(14)
                         }

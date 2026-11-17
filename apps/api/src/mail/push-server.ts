@@ -23,6 +23,7 @@ const FRESH_MS = 15 * 60 * 1000
 /** Apple accepts a provider token for an hour; a new one is made well before. */
 const TOKEN_MS = 45 * 60 * 1000
 const SEND_TIMEOUT_MS = 8000
+const MAIL_STACK = "mail"
 
 function config() {
   const key = process.env.APNS_KEY?.replace(/\\n/g, "\n").trim()
@@ -53,8 +54,6 @@ export type PushMessage = {
   /** A second line in bold, as mail apps show the subject. */
   subtitle?: string
   body: string
-  /** Notifications of one mailbox stack together on the lock screen. */
-  group: string
   /** The conversation to open when tapped; absent for a summary. */
   thread?: string
 }
@@ -119,7 +118,8 @@ async function sendAll(environment: PushEnvironment, tokens: string[], messages:
               aps: {
                 alert: { title: message.title, ...(message.subtitle && { subtitle: message.subtitle }), body: message.body },
                 sound: "default",
-                "thread-id": message.group,
+                // One stack on the lock screen for all new mail, whichever mailbox it came to.
+                "thread-id": MAIL_STACK,
               },
               ...(message.thread && { thread: message.thread }),
             })
@@ -185,7 +185,6 @@ export function newMailMessages(mail: NewMail[], language: string): PushMessage[
       {
         title: t.newMail(newest.length),
         body: names.slice(0, 3).join(", ") + (names.length > 3 ? "…" : ""),
-        group: newest[0]!.accountId,
       },
     ]
   }
@@ -194,7 +193,6 @@ export function newMailMessages(mail: NewMail[], language: string): PushMessage[
     title: sender(item),
     ...(item.snippet ? { subtitle: (item.subject || t.noSubject).slice(0, 200) } : {}),
     body: (item.snippet || item.subject || t.noSubject).slice(0, 400),
-    group: item.accountId,
     thread: item.id,
   }))
 }

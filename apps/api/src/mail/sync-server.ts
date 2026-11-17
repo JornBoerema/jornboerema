@@ -8,7 +8,7 @@ import {
   type SyncPage,
 } from "@even/mail-core/provider"
 import type { MailSyncResult } from "@even/mail-core/types"
-import { connectedUsers, ownedAccount, withAccessToken, type MailViewer } from "./accounts-server"
+import { listeningUsers, ownedAccount, withAccessToken, type MailViewer } from "./accounts-server"
 import { isNews, pushEnabled, pushNewMail } from "./push-server"
 import type { mailBackfill } from "../../trigger/mail-backfill"
 
@@ -61,9 +61,9 @@ async function applyPage(account: MailAccount, page: SyncPage, since: Date) {
   ])
   const seen = new Set(known.map((row) => row.id))
   const news = candidates.filter((row) => !seen.has(row.id))
-  // Everyone who has this mailbox hears of it, in whichever organization they keep it.
+  // Everyone who has this mailbox hears of it, in whichever organization they keep it, unless they turned it off.
   if (news.length > 0)
-    for (const userId of await connectedUsers(account.id))
+    for (const userId of await listeningUsers(account.id))
       await pushNewMail(userId, news).catch((error) =>
         console.error("Push for new mail failed", error instanceof Error ? error.message : "unknown")
       )

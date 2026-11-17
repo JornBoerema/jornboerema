@@ -1,6 +1,7 @@
 import { useAppSwitcher } from "@even/ui/components/app-switcher"
 import { useEffect, useRef } from "react"
 import type { MailThreadView } from "@even/mail-core/types"
+import { useAccounts } from "@/lib/mail"
 import { useNotifyNewMail } from "@/lib/preferences"
 
 /** More new mail than this at once is one summary notification instead. */
@@ -21,6 +22,7 @@ export function useNewMailNotifications(
   { always = false }: { always?: boolean } = {}
 ) {
   const enabled = useNotifyNewMail()
+  const accounts = useAccounts().data?.accounts
   const known = useRef<Set<string> | null>(null)
   const open = useRef(onOpen)
   open.current = onOpen
@@ -32,7 +34,9 @@ export function useNewMailNotifications(
       return
     }
     const seen = known.current
-    const fresh = latest.filter((thread) => !seen.has(thread.id))
+    // Mailboxes turned off in the settings don't ring.
+    const muted = new Set((accounts ?? []).filter((account) => !account.notify).map((account) => account.id))
+    const fresh = latest.filter((thread) => !seen.has(thread.id) && !muted.has(thread.accountId))
     for (const thread of latest) seen.add(thread.id)
     const watching = !always && document.visibilityState === "visible" && document.hasFocus()
     if (!enabled || watching || fresh.length === 0 || !notificationsSupported()) return
@@ -55,7 +59,7 @@ export function useNewMailNotifications(
     else
       for (const thread of fresh)
         show(thread.fromName ?? thread.fromEmail ?? texts.unknownSender, thread.subject || texts.noSubject, thread)
-  }, [latest, enabled, texts, always])
+  }, [latest, enabled, texts, always, accounts])
 }
 
 /** The unread count in the tab, like "(3) Even mailen". */

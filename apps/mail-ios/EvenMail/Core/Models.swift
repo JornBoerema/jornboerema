@@ -10,6 +10,8 @@ struct MailAccount: Codable, Identifiable, Hashable {
     let status: String
     let color: Int
     var signatures: SignatureChoice?
+    /// Whether new mail here notifies; absent from an older API, where every mailbox did.
+    var notify: Bool?
 
     struct SignatureChoice: Codable, Hashable {
         let newId: String?
